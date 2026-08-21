@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   colors,
   screenPadding,
+  screenTopGap,
   spacing,
   tabBarClearance,
 } from '@/constants/theme';
@@ -46,7 +47,7 @@ export function Screen({
     <View
       style={[
         styles.flex,
-        { backgroundColor: TONES[tone], paddingTop: insets.top },
+        { backgroundColor: TONES[tone], paddingTop: insets.top + screenTopGap },
         padded && styles.padded,
         style,
       ]}
@@ -83,7 +84,7 @@ export function ScreenScroll({
       {...rest}
       style={[styles.flex, { backgroundColor: TONES[tone] }, style]}
       contentContainerStyle={[
-        { paddingTop: insets.top },
+        { paddingTop: insets.top + screenTopGap },
         padded && styles.padded,
         {
           paddingBottom:

@@ -160,6 +160,9 @@ export const spacing = {
 /** Standard horizontal page gutter. */
 export const screenPadding = 20;
 
+/** Breathing room between the status bar and the first thing on a screen. */
+export const screenTopGap = 20;
+
 export const radii = {
   sm: 10,
   md: 16,
@@ -305,6 +308,7 @@ export const theme = {
   type,
   spacing,
   screenPadding,
+  screenTopGap,
   radii,
   shadows,
   glass,
