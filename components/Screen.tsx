@@ -17,8 +17,8 @@ import {
 
 interface CommonProps {
   children: React.ReactNode;
-  /** Onboarding sits on near-white; the tab app sits on the warm off-white. */
-  tone?: 'app' | 'onboarding' | 'alt';
+  /** The tab app sits on the warm off-white; `plain` is near-white. */
+  tone?: 'app' | 'plain' | 'alt';
   /** Adds the horizontal page gutter. Off for edge-to-edge photo layouts. */
   padded?: boolean;
   /** Reserves room for the floating tab bar. */
@@ -28,7 +28,7 @@ interface CommonProps {
 
 const TONES = {
   app: colors.background,
-  onboarding: colors.backgroundOnboarding,
+  plain: colors.backgroundPlain,
   alt: colors.backgroundAlt,
 } as const;
 

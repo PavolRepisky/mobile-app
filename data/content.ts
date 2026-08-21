@@ -1,47 +1,6 @@
 import type { Review } from '@/components/ReviewCard';
 
 // ---------------------------------------------------------------------------
-// Onboarding question copy
-// ---------------------------------------------------------------------------
-
-export const REFERRAL_SOURCES = [
-  'TikTok',
-  'Pinterest',
-  'Content Creator',
-  'Instagram',
-  'Friend',
-  'Family',
-  'Other',
-] as const;
-
-export const MOTIVATIONS = [
-  { key: 'best-self', label: 'Become\nmy best self', seed: 'mot-a' },
-  { key: 'reset', label: 'Reset\nmy life', seed: 'mot-b' },
-  { key: 'confident', label: 'Feel confident', seed: 'mot-c' },
-  { key: 'discipline', label: 'Build\ndiscipline', seed: 'mot-d' },
-] as const;
-
-export const IDEAL_DAYS = [
-  { key: 'early', label: 'Early mornings,\nstructured', aura: 'auraSunrise' },
-  { key: 'flexible', label: 'Flexible,\nbut consistent', aura: 'auraDusk' },
-  { key: 'balanced', label: 'Balanced\nwork hard, rest too', aura: 'auraEmber' },
-  { key: 'gentle', label: 'Gentle reset,\nstart fresh', aura: 'auraMint' },
-] as const;
-
-export const BIGGEST_CHALLENGES = [
-  { key: 'workouts', label: 'Staying\nconsistent\nwith workouts', seed: 'chal-a' },
-  { key: 'eating', label: 'Eating better,\nless junk', seed: 'chal-b' },
-  { key: 'sleep', label: 'Sleep &\nenergy levels', seed: 'chal-c' },
-  { key: 'focus', label: 'Mental clarity\n& focus', seed: 'chal-d' },
-] as const;
-
-export const PAYWALL_BENEFITS = [
-  'Join the community',
-  'Stay accountable with real people',
-  'Build habits that actually stick',
-] as const;
-
-// ---------------------------------------------------------------------------
 // Reviews shown under every challenge detail
 // ---------------------------------------------------------------------------
 

@@ -29,7 +29,7 @@ export default function RecipeDetailScreen() {
     // Absolute overlays need a positioned parent, otherwise their offsets
     // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
-      <ScreenScroll padded={false} bottomExtra={spacing['4xl']} tone="onboarding">
+      <ScreenScroll padded={false} bottomExtra={spacing['4xl']} tone="plain">
         <Image
           source={recipe.image}
           contentFit="cover"

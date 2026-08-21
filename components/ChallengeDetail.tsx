@@ -25,8 +25,7 @@ export interface ChallengeDetailProps {
  * The body of a challenge screen: photo strip, the "Create Daily Task+" well,
  * the reorderable sticky-note task list, then the review wall.
  *
- * Tapping a task's pencil raises an inline sheet with the label in a field —
- * the state shown in onboarding screen 13.
+ * Tapping a task's pencil raises an inline sheet with the label in a field.
  */
 export function ChallengeDetail({
   challenge,

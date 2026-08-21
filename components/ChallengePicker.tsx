@@ -18,8 +18,8 @@ export interface ChallengePickerProps {
 
 /**
  * "Select your challenge" — the Most Popular list, plus a Custom tab holding a
- * single build-your-own entry. Reached from onboarding and from the pencil
- * menu on the To-do home, so it lives here rather than in a route file.
+ * single build-your-own entry. Reached from the pencil menu on the To-do
+ * home, so it lives here rather than in a route file.
  */
 export function ChallengePicker({
   onSelect,

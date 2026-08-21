@@ -23,7 +23,7 @@ screenshots rather than estimated:
 | Token | Value | Where it came from |
 |---|---|---|
 | `background` | `#F8F5F0` | the warm off-white behind the logged-in app |
-| `backgroundOnboarding` | `#FDFDFD` | onboarding sits on near-white — a deliberate split |
+| `backgroundPlain` | `#FDFDFD` | near-white, a deliberate split from the app shell |
 | `surface` | `#FFFFFF` | cards, tab bar, circular buttons |
 | `ink` | `#141414` | text and the solid pill buttons |
 | `divider` | `#E9E8E2` | hairlines, and the pill behind the active tab |
@@ -80,14 +80,13 @@ headlines use them together.
 
 ```
 app/                     routes (Expo Router)
-  (onboarding)/          the 21-step onboarding run
   (tabs)/                Recipes · Friends · To do · Profile
   account/ challenge/ feed/ friend/ post/ recipe/   pushed + modal routes
 components/              shared UI
 constants/theme.ts       design tokens
 data/                    mock challenges, recipes, friends, feed content
 hooks/useAppState.tsx    all app state, in memory
-lib/                     date/word formatting, onboarding step order
+lib/                     date/word formatting
 ```
 
 The tab bar is a floating pill drawn over the content, built on the headless
@@ -118,7 +117,5 @@ These are deliberate stopping points, not bugs:
   placeholder rather than opening the camera.
 - **Save sticker** and **Send invites** are no-ops; no share sheet or file
   writing is wired up.
-- **The paywall** is presentational; there is no IAP integration. Its CTA just
-  finishes onboarding.
 - A few secondary rows are inert: the profile's "Her 75 support" and
   "We're hiring" cards, and Settings → Duration / Privacy Policy / Terms.

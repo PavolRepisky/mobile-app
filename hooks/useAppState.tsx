@@ -33,15 +33,6 @@ export interface TaskProgress {
 /** dayNumber -> taskId -> progress */
 export type Progress = Record<number, Record<string, TaskProgress>>;
 
-export interface OnboardingAnswers {
-  name: string;
-  source: string | null;
-  motivation: string | null;
-  idealDay: string | null;
-  biggestChallenge: string | null;
-  likesApp: boolean | null;
-}
-
 export interface Profile {
   name: string;
   handle: string;
@@ -50,9 +41,7 @@ export interface Profile {
 }
 
 interface AppState {
-  onboarded: boolean;
   profile: Profile;
-  answers: OnboardingAnswers;
 
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
@@ -74,10 +63,6 @@ interface AppActions {
   setName: (name: string) => void;
   setBio: (bio: string | null) => void;
   setAvatarSeed: (seed: string | null) => void;
-  answer: <K extends keyof OnboardingAnswers>(
-    key: K,
-    value: OnboardingAnswers[K],
-  ) => void;
 
   selectChallenge: (id: string) => void;
   setTasks: (tasks: ChallengeTask[]) => void;
@@ -94,7 +79,6 @@ interface AppActions {
   attachPhoto: (taskId: string, day?: number) => void;
 
   toggleSavedRecipe: (id: string) => void;
-  completeOnboarding: () => void;
   resetAll: () => void;
 }
 
@@ -158,22 +142,11 @@ function makeInviteCode(): string {
 // ---------------------------------------------------------------------------
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [onboarded, setOnboarded] = useState(false);
-
   const [profile, setProfile] = useState<Profile>({
     name: 'Julia',
     handle: '@julia_575',
     bio: null,
     avatarSeed: null,
-  });
-
-  const [answers, setAnswers] = useState<OnboardingAnswers>({
-    name: '',
-    source: null,
-    motivation: null,
-    idealDay: null,
-    biggestChallenge: null,
-    likesApp: null,
   });
 
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
@@ -221,23 +194,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setAvatarSeed = useCallback((avatarSeed: string | null) => {
     setProfile((p) => ({ ...p, avatarSeed }));
   }, []);
-
-  const answer = useCallback(
-    <K extends keyof OnboardingAnswers>(
-      key: K,
-      value: OnboardingAnswers[K],
-    ) => {
-      setAnswers((a) => ({ ...a, [key]: value }));
-      if (key === 'name' && typeof value === 'string' && value.trim()) {
-        setProfile((p) => ({
-          ...p,
-          name: value.trim(),
-          handle: `@${value.trim().toLowerCase().replace(/\s+/g, '_')}_575`,
-        }));
-      }
-    },
-    [],
-  );
 
   const selectChallenge = useCallback((id: string) => {
     const next = id === CUSTOM_CHALLENGE.id ? CUSTOM_CHALLENGE : challengeById(id);
@@ -336,12 +292,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const completeOnboarding = useCallback(() => {
-    setOnboarded(true);
-  }, []);
-
   const resetAll = useCallback(() => {
-    setOnboarded(false);
     setChallenge(SEED_CHALLENGE);
     setTasksState([...SEED_CHALLENGE.tasks]);
     setStartDateState(addDays(startOfToday(), -(SEED_DAY - 1)));
@@ -357,9 +308,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppContextValue>(
     () => ({
-      onboarded,
       profile,
-      answers,
       challenge,
       tasks,
       startDate,
@@ -374,7 +323,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setName,
       setBio,
       setAvatarSeed,
-      answer,
       selectChallenge,
       setTasks,
       updateTaskLabel,
@@ -387,15 +335,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleTask,
       attachPhoto,
       toggleSavedRecipe,
-      completeOnboarding,
       resetAll,
     }),
     [
-      onboarded, profile, answers, challenge, tasks, startDate, totalDays,
+      profile, challenge, tasks, startDate, totalDays,
       paused, progress, savedRecipeIds, inviteCode, currentDay, endDate,
-      setName, setBio, setAvatarSeed, answer, selectChallenge, setTasks,
+      setName, setBio, setAvatarSeed, selectChallenge, setTasks,
       updateTaskLabel, addTask, reorderTask, setStartDate, restartChallenge,
-      toggleTask, attachPhoto, toggleSavedRecipe, completeOnboarding, resetAll,
+      toggleTask, attachPhoto, toggleSavedRecipe, resetAll,
     ],
   );
 

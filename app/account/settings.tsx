@@ -79,10 +79,7 @@ export default function SettingsScreen() {
             label="Log out"
             destructive
             icon="log-out-outline"
-            onPress={() => {
-              resetAll();
-              router.replace('/(onboarding)/welcome');
-            }}
+            onPress={resetAll}
             last
           />
         </Group>

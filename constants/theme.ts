@@ -14,8 +14,8 @@
 export const colors = {
   /** Warm off-white behind the logged-in app (home, friends, profile, settings). */
   background: '#F8F5F0',
-  /** Onboarding sits on near-pure white — a deliberate split from the app shell. */
-  backgroundOnboarding: '#FDFDFD',
+  /** Near-pure white — a deliberate split from the warm app shell. */
+  backgroundPlain: '#FDFDFD',
   /** Slightly cooler off-white used by the settings stack. */
   backgroundAlt: '#F8F6F5',
 
@@ -78,39 +78,6 @@ export const stickyPalette = [
 export const gradients = {
   storyRing: ['#F58529', '#DD2A7B', '#8134AF'],
 } as const;
-
-/**
- * The "aura" tiles on the onboarding ideal-day question are radial orbs, so
- * they are described as centre-out stops rather than a colour list. `sunrise`
- * is a ring: it brightens, darkens to red, then fades back to cream.
- */
-export const auras = {
-  auraSunrise: [
-    { offset: 0, color: '#FBD98F' },
-    { offset: 0.28, color: '#F4A03A' },
-    { offset: 0.5, color: '#E8452B' },
-    { offset: 0.72, color: '#F6BE72' },
-    { offset: 1, color: '#FBE3B0' },
-  ],
-  auraDusk: [
-    { offset: 0, color: '#F2F0C8' },
-    { offset: 0.3, color: '#BFE3EE' },
-    { offset: 0.62, color: '#8FA8D2' },
-    { offset: 1, color: '#6E7FB8' },
-  ],
-  auraEmber: [
-    { offset: 0, color: '#FBB040' },
-    { offset: 0.45, color: '#F58A1F' },
-    { offset: 1, color: '#E85410' },
-  ],
-  auraMint: [
-    { offset: 0, color: '#12A82B' },
-    { offset: 0.4, color: '#5FD16A' },
-    { offset: 1, color: '#C8F2C4' },
-  ],
-} as const;
-
-export type AuraKey = keyof typeof auras;
 
 // ---------------------------------------------------------------------------
 // Typography
