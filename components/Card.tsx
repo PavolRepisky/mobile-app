@@ -20,7 +20,14 @@ export interface CardProps extends ViewProps {
   muted?: boolean;
 }
 
-/** White surface, 26px radius, very soft shadow. The app's workhorse container. */
+/**
+ * White surface, rounded, very soft shadow. The app's workhorse container.
+ *
+ * The fill and the shadow sit on the outer view while the clip sits on the
+ * inner one: on iOS a view cannot both clip its children and cast a shadow —
+ * `overflow: 'hidden'` takes the shadow with it — so a card that did both drew
+ * no shadow at all.
+ */
 export function Card({
   padded = true,
   onPress,
@@ -30,30 +37,27 @@ export function Card({
   children,
   ...rest
 }: CardProps) {
-  const content = [
-    styles.card,
-    muted && styles.muted,
-    !flat && shadows.card,
-    padded && styles.padded,
-    style,
-  ];
+  const host = [styles.card, muted && styles.muted, !flat && shadows.card, style];
+  const inner = (
+    <View style={[styles.clip, padded && styles.padded]}>{children}</View>
+  );
 
   if (onPress) {
     return (
       <Pressable
         accessibilityRole="button"
         onPress={onPress}
-        style={({ pressed }) => [...content, pressed && styles.pressed]}
+        style={({ pressed }) => [...host, pressed && styles.pressed]}
         {...rest}
       >
-        {children}
+        {inner}
       </Pressable>
     );
   }
 
   return (
-    <View style={content} {...rest}>
-      {children}
+    <View style={host} {...rest}>
+      {inner}
     </View>
   );
 }
@@ -61,6 +65,9 @@ export function Card({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
+    borderRadius: radii.card,
+  },
+  clip: {
     borderRadius: radii.card,
     overflow: 'hidden',
   },

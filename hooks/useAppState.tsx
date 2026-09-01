@@ -11,10 +11,14 @@ import {
   CHALLENGES,
   CUSTOM_CHALLENGE,
   challengeById,
+  nextTint,
+  tinted,
   type Challenge,
   type ChallengeTask,
 } from '@/data/challenges';
+import { FEED_POSTS, WALL_COLLECTIONS, WALL_SECTIONS } from '@/data/content';
 import { addDays, timeStamp } from '@/lib/format';
+import type { ImageSourcePropType } from 'react-native';
 
 /**
  * All app state lives here, in memory. There is no backend — the provider is
@@ -28,7 +32,15 @@ export interface TaskProgress {
   time?: string;
   /** Seed for the proof photo, or null if none was attached. */
   photoSeed?: string | null;
+  /**
+   * A real photo the user took or picked. Bundled collection photos come
+   * through as a `require`d module rather than a path, so this holds either.
+   */
+  photo?: TaskPhoto | null;
 }
+
+/** A camera / library shot by URI, or one of the bundled collection photos. */
+export type TaskPhoto = ImageSourcePropType;
 
 /** dayNumber -> taskId -> progress */
 export type Progress = Record<number, Record<string, TaskProgress>>;
@@ -38,10 +50,39 @@ export interface Profile {
   handle: string;
   bio: string | null;
   avatarSeed: string | null;
+  /** A photo taken or picked for the profile circle. Wins over the seed. */
+  avatar: TaskPhoto | null;
+}
+
+/** One thing pinned to a wall collection from the phone's photo library. */
+export interface WallPin {
+  id: string;
+  title: string;
+  photo: TaskPhoto;
+  /** The note written under the title on the pin's own screen. */
+  note?: string;
+  link?: string;
+}
+
+/** A collection on your own wall: a name you can rename, and what is on it. */
+export interface WallBoard {
+  id: string;
+  title: string;
+  pins: WallPin[];
 }
 
 interface AppState {
   profile: Profile;
+
+  /** Your own wall, in the order the collections are shown. */
+  wall: WallBoard[];
+  /**
+   * The photo chosen for a pin that is still being written, held here rather
+   * than passed through route params: a picked photo is an image source, which
+   * is a bundled module as often as it is a URI, and neither survives being
+   * turned into a string and back.
+   */
+  pinDraft: { boardId: string; photo: TaskPhoto } | null;
 
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
@@ -52,6 +93,8 @@ interface AppState {
 
   progress: Progress;
   savedRecipeIds: string[];
+  /** The emoji left on a feed post, by post id. */
+  postReactions: Record<string, string>;
   inviteCode: string;
 
   /** 1-indexed, clamped to the challenge length. */
@@ -63,11 +106,13 @@ interface AppActions {
   setName: (name: string) => void;
   setBio: (bio: string | null) => void;
   setAvatarSeed: (seed: string | null) => void;
+  setAvatarPhoto: (photo: TaskPhoto | null) => void;
 
   selectChallenge: (id: string) => void;
   setTasks: (tasks: ChallengeTask[]) => void;
   updateTaskLabel: (taskId: string, label: string) => void;
   addTask: () => void;
+  deleteTask: (taskId: string) => void;
   reorderTask: (from: number, to: number) => void;
 
   setStartDate: (date: Date) => void;
@@ -76,9 +121,24 @@ interface AppActions {
   restartChallenge: () => void;
 
   toggleTask: (taskId: string, day?: number) => void;
-  attachPhoto: (taskId: string, day?: number) => void;
+  setTaskPhoto: (taskId: string, photo: TaskPhoto | null, day?: number) => void;
+
+  renameWallBoard: (boardId: string, title: string) => void;
+  /** Opens a pin for `boardId` on the picked photo, for the Create Pin screen. */
+  startPinDraft: (boardId: string, photo: TaskPhoto) => void;
+  setPinDraftPhoto: (photo: TaskPhoto) => void;
+  clearPinDraft: () => void;
+  /** Commits the draft to its board. Nothing to commit is a no-op. */
+  addWallPin: (pin: { title: string; note?: string; link?: string }) => void;
+  /** Rewrites a pin already on the wall, found by id across every board. */
+  updateWallPin: (
+    pinId: string,
+    patch: { title: string; note?: string; link?: string; photo?: TaskPhoto },
+  ) => void;
 
   toggleSavedRecipe: (id: string) => void;
+  /** Tapping the emoji already on a post takes it back off. */
+  reactToPost: (postId: string, emoji: string) => void;
   resetAll: () => void;
 }
 
@@ -91,7 +151,88 @@ const AppContext = createContext<AppContextValue | null>(null);
 // ---------------------------------------------------------------------------
 
 const SEED_DAY = 5;
+
+/**
+ * Pin ids only have to be unique within a session; there is no backend. They
+ * carry no board name: a board is identified by its title, titles have spaces
+ * in them, and the id travels as a URL segment when a pin is opened.
+ */
+let pinSeq = 0;
+
+/**
+ * The wall opens with four of its eight collections already filled, from the
+ * photographed sets that ship with the app — an empty wall gives no idea what
+ * one is for. A collection is matched to its set by title, so the four with
+ * nothing behind them (Wishlist, Supplements, Podcasts, Playlists) start bare
+ * and are the ones to fill by hand.
+ *
+ * Ids are prefixed rather than reused: the same photographed items stand on
+ * friends' walls under their own ids, and a pin sharing one would put a pencil
+ * on somebody else's page.
+ */
+const seedWall = (): WallBoard[] =>
+  WALL_SECTIONS.map((title) => ({
+    id: title,
+    title,
+    pins:
+      WALL_COLLECTIONS.find((set) => set.title === title)?.items.flatMap(
+        (item) =>
+          item.photo
+            ? [
+                {
+                  id: `pin-seed-${item.id}`,
+                  title: item.title,
+                  photo: item.photo,
+                  // Written as one field on the pin screen, so the lines the
+                  // set carries are joined back into the breaks you would
+                  // have typed.
+                  note: item.note?.join('\n'),
+                },
+              ]
+            : [],
+      ) ?? [],
+  }));
 const SEED_CHALLENGE = CHALLENGES[0];
+
+/**
+ * Real shots standing in for the proof photos on the current day, keyed by
+ * task id. Everything before day 5 keeps the drawn placeholders — these are
+ * the two the home screen actually shows.
+ */
+const SEED_PHOTOS: Readonly<Record<string, TaskPhoto>> = {
+  h1: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
+  h2: require('../assets/tasks/timed-water-bottle-walk.jpg'),
+};
+
+/**
+ * The history behind today, day -> task id -> shot. Photos already bundled for
+ * the wall, the feed and the challenge tiles are reused here rather than
+ * shipping a second copy of the same kind of picture: what each one shows
+ * matches the task it is filed under, which is what the drawn stand-ins could
+ * never do. Days list three of the five tasks, the way a real week looks.
+ */
+const SEED_DAY_PHOTOS: Readonly<Record<number, Readonly<Record<string, TaskPhoto>>>> = {
+  1: {
+    h1: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg'),
+    h3: require('../assets/challenges/soft/sunset-walk.jpg'),
+    h4: require('../assets/wall/workouts/home-mat-core.jpg'),
+  },
+  2: {
+    h1: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
+    h4: require('../assets/wall/workouts/gym-plank.jpg'),
+    h5: require('../assets/challenges/medium/book-in-bed.jpg'),
+  },
+  3: {
+    h1: require('../assets/wall/eat/salmon-rice-asparagus.jpg'),
+    h2: require('../assets/challenges/medium/infused-water.jpg'),
+    h3: require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
+  },
+  4: {
+    h1: require('../assets/wall/eat/berry-watermelon-plate.jpg'),
+    h4: require('../assets/challenges/medium/outdoor-run.jpg'),
+    h5: require('../assets/feed/posts/park-bench-reading.jpg'),
+  },
+};
 
 function startOfToday(): Date {
   const now = new Date();
@@ -108,11 +249,16 @@ function seedProgress(tasks: readonly ChallengeTask[]): Progress {
 
   for (let day = 1; day < SEED_DAY; day += 1) {
     progress[day] = {};
+    const shots = SEED_DAY_PHOTOS[day];
     tasks.forEach((t, i) => {
+      // The bundled shots are keyed to this challenge's tasks; a challenge
+      // with ids of its own falls back to the drawn stand-ins.
+      const photo = shots?.[t.id] ?? null;
       progress[day][t.id] = {
         done: true,
         time: `${7 + i}:${(12 + i * 7) % 60}`.padEnd(5, '0') + 'am',
-        photoSeed: i < 3 ? `day${day}-${t.id}` : null,
+        photo,
+        photoSeed: !shots && i < 3 ? `day${day}-${t.id}` : null,
       };
     });
   }
@@ -120,10 +266,15 @@ function seedProgress(tasks: readonly ChallengeTask[]): Progress {
   // Today: first two ticked, the rest still open — matches the home screenshot.
   progress[SEED_DAY] = {};
   tasks.forEach((t, i) => {
+    // A bundled shot wins over the drawn stand-in, the same way a photo the
+    // user picks does: the seed is what fills the slot until there is a real
+    // picture for it.
+    const photo = SEED_PHOTOS[t.id] ?? null;
     progress[SEED_DAY][t.id] = {
       done: i < 2,
       time: i < 2 ? '7:19am' : undefined,
-      photoSeed: i < 2 ? `day${SEED_DAY}-${t.id}` : null,
+      photo,
+      photoSeed: !photo && i < 2 ? `day${SEED_DAY}-${t.id}` : null,
     };
   });
 
@@ -147,17 +298,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     handle: '@julia_575',
     bio: null,
     avatarSeed: null,
+    avatar: null,
   });
 
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
-  const [tasks, setTasksState] = useState<ChallengeTask[]>([
-    ...SEED_CHALLENGE.tasks,
-  ]);
+  const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
+    tinted(SEED_CHALLENGE.tasks),
+  );
   const [startDate, setStartDateState] = useState<Date>(
     addDays(startOfToday(), -(SEED_DAY - 1)),
   );
   const [totalDays, setTotalDays] = useState(SEED_CHALLENGE.defaultDays);
   const [paused, setPaused] = useState(false);
+  // Every collection the wall offers starts named but empty; the reference
+  // wall is a set of headings waiting to be filled, not a seeded gallery.
+  const [wall, setWall] = useState<WallBoard[]>(seedWall);
+  const [pinDraft, setPinDraft] = useState<
+    { boardId: string; photo: TaskPhoto } | null
+  >(null);
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
   );
@@ -165,6 +323,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     'avo-toast',
     'salmon-tartine',
   ]);
+  // Seeded from the posts that ship already reacted to, so those stay as they
+  // are until someone taps the emoji back off.
+  const [postReactions, setPostReactions] = useState<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        FEED_POSTS.filter((p) => p.reaction).map((p) => [p.id, p.reaction!]),
+      ),
+  );
   const [inviteCode] = useState(makeInviteCode);
 
   // -- derived ---------------------------------------------------------------
@@ -195,10 +361,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProfile((p) => ({ ...p, avatarSeed }));
   }, []);
 
+  const setAvatarPhoto = useCallback((avatar: TaskPhoto | null) => {
+    setProfile((p) => ({ ...p, avatar }));
+  }, []);
+
   const selectChallenge = useCallback((id: string) => {
     const next = id === CUSTOM_CHALLENGE.id ? CUSTOM_CHALLENGE : challengeById(id);
     setChallenge(next);
-    setTasksState([...next.tasks]);
+    setTasksState(tinted(next.tasks));
     setTotalDays(next.defaultDays);
     setProgress({});
   }, []);
@@ -216,8 +386,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addTask = useCallback(() => {
     setTasksState((list) => [
       ...list,
-      { id: `t${Date.now()}`, label: `Task ${list.length + 1}` },
+      {
+        id: `t${Date.now()}`,
+        label: `Task ${list.length + 1}`,
+        tint: nextTint(list),
+      },
     ]);
+  }, []);
+
+  const deleteTask = useCallback((taskId: string) => {
+    setTasksState((list) => list.filter((t) => t.id !== taskId));
+    // Its ticks and proof photos go with it. Left behind they would be picked
+    // up by whatever task is added next under a recycled key, and would go on
+    // counting towards days that no longer have that task in them.
+    setProgress((days) =>
+      Object.fromEntries(
+        Object.entries(days).map(([day, rows]) => {
+          const { [taskId]: _gone, ...rest } = rows;
+          return [Number(day), rest];
+        }),
+      ),
+    );
   }, []);
 
   const reorderTask = useCallback((from: number, to: number) => {
@@ -251,6 +440,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           [target]: {
             ...dayMap,
             [taskId]: {
+              // Spread first: a proof photo belongs to the task, not to the
+              // tick, so ticking one off — or back on — has to leave the shot
+              // and its stand-in exactly where they were.
+              ...existing,
               done: nextDone,
               time: nextDone ? timeStamp(new Date()) : undefined,
               photoSeed: existing?.photoSeed ?? null,
@@ -262,9 +455,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay],
   );
 
-  /** Stands in for the camera: attaches (or clears) a placeholder photo. */
-  const attachPhoto = useCallback(
-    (taskId: string, day?: number) => {
+  /** Attaches the photo just taken or picked, or clears the slot with null. */
+  const setTaskPhoto = useCallback(
+    (taskId: string, photo: TaskPhoto | null, day?: number) => {
       const target = day ?? currentDay;
       setProgress((prev) => {
         const dayMap = prev[target] ?? {};
@@ -275,9 +468,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...dayMap,
             [taskId]: {
               ...existing,
-              photoSeed: existing.photoSeed
-                ? null
-                : `day${target}-${taskId}-${Date.now() % 97}`,
+              photo,
+              // A real photo replaces the seeded stand-in rather than sitting
+              // behind it, so clearing one leaves an empty slot.
+              photoSeed: null,
             },
           },
         };
@@ -286,15 +480,87 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay],
   );
 
+  const renameWallBoard = useCallback((boardId: string, title: string) => {
+    setWall((prev) =>
+      prev.map((board) =>
+        board.id === boardId ? { ...board, title } : board,
+      ),
+    );
+  }, []);
+
+  const startPinDraft = useCallback((boardId: string, photo: TaskPhoto) => {
+    setPinDraft({ boardId, photo });
+  }, []);
+
+  const setPinDraftPhoto = useCallback((photo: TaskPhoto) => {
+    setPinDraft((prev) => (prev ? { ...prev, photo } : prev));
+  }, []);
+
+  const clearPinDraft = useCallback(() => setPinDraft(null), []);
+
+  const addWallPin = useCallback(
+    (pin: { title: string; note?: string; link?: string }) => {
+      setPinDraft((draft) => {
+        if (!draft) return null;
+        const entry: WallPin = {
+          id: `pin-${pinSeq++}`,
+          title: pin.title,
+          photo: draft.photo,
+          note: pin.note,
+          link: pin.link,
+        };
+        setWall((prev) =>
+          prev.map((board) =>
+            board.id === draft.boardId
+              ? { ...board, pins: [...board.pins, entry] }
+              : board,
+          ),
+        );
+        return null;
+      });
+    },
+    [],
+  );
+
+  const updateWallPin = useCallback(
+    (
+      pinId: string,
+      patch: { title: string; note?: string; link?: string; photo?: TaskPhoto },
+    ) => {
+      setWall((prev) =>
+        prev.map((board) => {
+          if (!board.pins.some((pin) => pin.id === pinId)) return board;
+          return {
+            ...board,
+            pins: board.pins.map((pin) =>
+              pin.id === pinId ? { ...pin, ...patch } : pin,
+            ),
+          };
+        }),
+      );
+    },
+    [],
+  );
+
   const toggleSavedRecipe = useCallback((id: string) => {
     setSavedRecipeIds((list) =>
       list.includes(id) ? list.filter((r) => r !== id) : [...list, id],
     );
   }, []);
 
+  const reactToPost = useCallback((postId: string, emoji: string) => {
+    setPostReactions((map) => {
+      if (map[postId] === emoji) {
+        const { [postId]: _removed, ...rest } = map;
+        return rest;
+      }
+      return { ...map, [postId]: emoji };
+    });
+  }, []);
+
   const resetAll = useCallback(() => {
     setChallenge(SEED_CHALLENGE);
-    setTasksState([...SEED_CHALLENGE.tasks]);
+    setTasksState(tinted(SEED_CHALLENGE.tasks));
     setStartDateState(addDays(startOfToday(), -(SEED_DAY - 1)));
     setTotalDays(SEED_CHALLENGE.defaultDays);
     setProgress(seedProgress(SEED_CHALLENGE.tasks));
@@ -303,7 +569,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       handle: '@julia_575',
       bio: null,
       avatarSeed: null,
+      avatar: null,
     });
+    setWall(seedWall());
+    setPinDraft(null);
   }, []);
 
   const value = useMemo<AppContextValue>(
@@ -316,33 +585,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
       paused,
       progress,
       savedRecipeIds,
+      postReactions,
       inviteCode,
       currentDay,
       endDate,
+      wall,
+      pinDraft,
 
       setName,
       setBio,
       setAvatarSeed,
+      setAvatarPhoto,
       selectChallenge,
       setTasks,
       updateTaskLabel,
       addTask,
+      deleteTask,
       reorderTask,
       setStartDate,
       setTotalDays,
       setPaused,
       restartChallenge,
       toggleTask,
-      attachPhoto,
+      setTaskPhoto,
+      renameWallBoard,
+      startPinDraft,
+      setPinDraftPhoto,
+      clearPinDraft,
+      addWallPin,
+      updateWallPin,
       toggleSavedRecipe,
+      reactToPost,
       resetAll,
     }),
     [
       profile, challenge, tasks, startDate, totalDays,
-      paused, progress, savedRecipeIds, inviteCode, currentDay, endDate,
-      setName, setBio, setAvatarSeed, selectChallenge, setTasks,
-      updateTaskLabel, addTask, reorderTask, setStartDate, restartChallenge,
-      toggleTask, attachPhoto, toggleSavedRecipe, resetAll,
+      paused, progress, savedRecipeIds, postReactions, inviteCode,
+      currentDay, endDate, wall, pinDraft,
+      setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, setTasks,
+      updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
+      toggleTask, setTaskPhoto, toggleSavedRecipe, reactToPost, resetAll,
+      renameWallBoard, startPinDraft, setPinDraftPhoto, clearPinDraft,
+      addWallPin, updateWallPin,
     ],
   );
 

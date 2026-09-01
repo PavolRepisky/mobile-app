@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconButton } from '@/components/IconButton';
 import { ScreenScroll } from '@/components/Screen';
@@ -9,7 +10,7 @@ import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { StickerCard } from '@/components/StickerCard';
 import { StickyNote } from '@/components/StickyNote';
 import { Text } from '@/components/Text';
-import { screenPadding, spacing } from '@/constants/theme';
+import { screenPadding, screenTopGap, spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 import { shortDate } from '@/lib/format';
 
@@ -17,6 +18,13 @@ type Tab = 'sticker' | 'postit';
 
 /** Seven notes per row, as in the reference grid. */
 const PER_ROW = 7;
+
+/**
+ * Sticker cards are pinned up rather than laid out: each one takes a small
+ * fixed tilt off the day number, so the column reads as a stack of prints the
+ * way the task photos on the To-do page do.
+ */
+const TILTS = [-1.6, 1.2, -0.9, 1.8, -1.3];
 
 /**
  * Scatters the four pastels across the wall. A plain `day % 4` would line the
@@ -33,6 +41,7 @@ function noteColor(day: number): number {
  */
 export default function StickerScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { challenge, tasks, startDate, endDate, totalDays, currentDay, progress } =
     useApp();
   const [tab, setTab] = useState<Tab>('sticker');
@@ -74,23 +83,24 @@ export default function StickerScreen() {
                     tasks={done.map((t) => t.label)}
                     mode="checked"
                     challengeName={challenge.stamp}
+                    tilt={TILTS[day % TILTS.length]}
                   />
 
-                  {day === currentDay ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => {}}
-                      style={({ pressed }) => [
-                        styles.save,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Ionicons name="download-outline" size={22} />
-                      <Text variant="sectionTitle" style={styles.saveLabel}>
-                        Save sticker
-                      </Text>
-                    </Pressable>
-                  ) : null}
+                  {/* Every day is shareable, not just today's. */}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Save the day ${day} sticker`}
+                    onPress={() => {}}
+                    style={({ pressed }) => [
+                      styles.save,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Ionicons name="download-outline" size={20} />
+                    <Text variant="button" style={styles.saveLabel}>
+                      Save sticker
+                    </Text>
+                  </Pressable>
                 </View>
               );
             })}
@@ -120,7 +130,13 @@ export default function StickerScreen() {
         name="close"
         onPress={() => router.back()}
         accessibilityLabel="Close"
-        style={styles.close}
+        // Full screen, so the button has the status bar to clear. It floats
+        // over the scroll view rather than sitting in it, so it repeats the
+        // screen's own top padding and then centres itself on the tab row.
+        style={[
+          styles.close,
+          { top: Math.max(insets.top + screenTopGap, screenTopGap) + 2 },
+        ]}
       />
     </View>
   );
@@ -137,7 +153,6 @@ const styles = StyleSheet.create({
   },
   close: {
     position: 'absolute',
-    top: 52,
     right: screenPadding,
   },
   stickers: {
@@ -146,13 +161,15 @@ const styles = StyleSheet.create({
   },
   stickerBlock: {
     alignSelf: 'stretch',
-    paddingHorizontal: spacing['2xl'],
+    // A shallow gutter of its own on top of the page padding: the card reads
+    // as pinned to the page rather than butting up against its edges.
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
   },
   save: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
   },
   saveLabel: {
     marginLeft: spacing.sm,

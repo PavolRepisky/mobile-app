@@ -1,10 +1,16 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors, spacing } from '@/constants/theme';
 import { Headline } from './Headline';
 import { IconButton } from './IconButton';
-import { Text } from './Text';
+import { Text, type TextProps } from './Text';
 
 export interface ScreenHeaderProps {
   /** Playfair title with optional `*accent*` markers. */
@@ -13,6 +19,12 @@ export interface ScreenHeaderProps {
   subtitle?: string;
   /** Small caps Inter title instead of Playfair — used by Settings / Bio. */
   plainTitle?: string;
+  /** Type scale for `plainTitle`, for screens that want a quieter title. */
+  plainTitleVariant?: TextProps['variant'];
+  /** Size overrides on top of `plainTitleVariant`. */
+  plainTitleStyle?: StyleProp<TextStyle>;
+  /** Type scale for `subtitle`, for screens that want it to carry the weight. */
+  subtitleVariant?: TextProps['variant'];
   onBack?: () => void;
   /** Circle X on the right instead of a back chevron on the left. */
   onClose?: () => void;
@@ -30,6 +42,9 @@ export function ScreenHeader({
   title,
   subtitle,
   plainTitle,
+  plainTitleVariant = 'sectionTitle',
+  plainTitleStyle,
+  subtitleVariant = 'body',
   onBack,
   onClose,
   showBack = true,
@@ -43,13 +58,18 @@ export function ScreenHeader({
     <View style={[styles.wrap, style]}>
       <View style={styles.titleBlock}>
         {plainTitle ? (
-          <Text variant="sectionTitle" center>
+          <Text variant={plainTitleVariant} center style={plainTitleStyle}>
             {plainTitle}
           </Text>
         ) : null}
         {title ? <Headline size="title">{title}</Headline> : null}
         {subtitle ? (
-          <Text variant="body" color={colors.inkMuted} center style={styles.sub}>
+          <Text
+            variant={subtitleVariant}
+            color={colors.inkMuted}
+            center
+            style={styles.sub}
+          >
             {subtitle}
           </Text>
         ) : null}

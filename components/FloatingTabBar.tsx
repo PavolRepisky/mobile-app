@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadows, spacing, tabBar, type } from '@/constants/theme';
+import { colors, radii, shadows, tabBar, tabBarBottom, type } from '@/constants/theme';
+import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
 export type TabIcon = 'recipes' | 'friends' | 'todo' | 'profile';
@@ -82,8 +83,9 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
 );
 
 /**
- * The white pill that floats above the content near the bottom edge. Content
- * scrolls beneath it, so it is translucent rather than opaque.
+ * The pill that floats above the content near the bottom edge. Content scrolls
+ * beneath it, so it is the liquid-glass lens rather than a tinted fill — the
+ * page melts through it as it passes.
  */
 export const FloatingTabBar = forwardRef<RNView, { children?: React.ReactNode }>(
   function FloatingTabBar({ children }, ref) {
@@ -92,12 +94,13 @@ export const FloatingTabBar = forwardRef<RNView, { children?: React.ReactNode }>
     return (
       <View
         ref={ref}
-        style={[
-          styles.bar,
-          { bottom: Math.max(insets.bottom, spacing.md) + tabBar.bottomOffset },
-        ]}
+        style={[styles.bar, { bottom: tabBarBottom(insets.bottom) }]}
       >
-        {children}
+        {/* The lens takes its height from the row inside it, so the bar's own
+            height lives on that row rather than on the surface. */}
+        <GlassSurface radius={radii.pill} shadow={false} style={styles.lens}>
+          <View style={styles.row}>{children}</View>
+        </GlassSurface>
       </View>
     );
   },
@@ -108,13 +111,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: tabBar.horizontalInset,
     right: tabBar.horizontalInset,
-    height: tabBar.height,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(253,252,249,0.92)',
+    ...shadows.floating,
+  },
+  lens: {
+    borderRadius: radii.pill,
+  },
+  row: {
+    height: tabBar.height,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 6,
-    ...shadows.floating,
   },
   tab: {
     flex: 1,

@@ -18,19 +18,38 @@ import {
 
 interface CommonProps {
   children: React.ReactNode;
-  /** The tab app sits on the warm off-white; `plain` is near-white. */
-  tone?: 'app' | 'plain' | 'alt';
+  /**
+   * The tab app sits on the warm off-white; `plain` is white, `warm` a touch
+   * warmer than the shell.
+   */
+  tone?: 'app' | 'plain' | 'alt' | 'warm';
   /** Adds the horizontal page gutter. Off for edge-to-edge photo layouts. */
   padded?: boolean;
   /** Reserves room for the floating tab bar. */
   tabBar?: boolean;
+  /**
+   * Gap between the status bar and the first thing on the screen. Screens
+   * opening on a headline take the default; ones opening on a control row —
+   * the recipe tabs — sit closer, since the row reads as the header itself.
+   */
+  topGap?: number;
   style?: StyleProp<ViewStyle>;
 }
+
+/**
+ * The gap sits on top of the safe-area inset, but the total never falls below
+ * the standard one: where there is no inset to clear — web, and the browser
+ * preview the layouts are checked in — the content would otherwise start hard
+ * against the top edge.
+ */
+const topPadding = (insetTop: number, gap: number) =>
+  Math.max(insetTop + gap, screenTopGap);
 
 const TONES = {
   app: colors.background,
   plain: colors.backgroundPlain,
   alt: colors.backgroundAlt,
+  warm: colors.backgroundWarm,
 } as const;
 
 /** Static full-height screen. */
@@ -39,6 +58,7 @@ export function Screen({
   tone = 'app',
   padded = true,
   tabBar,
+  topGap = screenTopGap,
   style,
 }: CommonProps) {
   const insets = useSafeAreaInsets();
@@ -47,7 +67,10 @@ export function Screen({
     <View
       style={[
         styles.flex,
-        { backgroundColor: TONES[tone], paddingTop: insets.top + screenTopGap },
+        {
+          backgroundColor: TONES[tone],
+          paddingTop: topPadding(insets.top, topGap),
+        },
         padded && styles.padded,
         style,
       ]}
@@ -71,9 +94,16 @@ export function ScreenScroll({
   tone = 'app',
   padded = true,
   tabBar,
+  topGap = screenTopGap,
   style,
   bottomExtra = 0,
   contentContainerStyle,
+  // React Native's default here is `never`, which puts a *capture* responder
+  // on the scroller: while a keyboard is up it eats the first tap anywhere
+  // below it and only dismisses the keys. A Modal is a React child of the
+  // screen that opened it, so that swallowed everything inside a sheet too —
+  // its backdrop and its buttons both needed tapping twice.
+  keyboardShouldPersistTaps = 'handled',
   ...rest
 }: ScreenScrollProps) {
   const insets = useSafeAreaInsets();
@@ -81,10 +111,11 @@ export function ScreenScroll({
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       {...rest}
       style={[styles.flex, { backgroundColor: TONES[tone] }, style]}
       contentContainerStyle={[
-        { paddingTop: insets.top + screenTopGap },
+        { paddingTop: topPadding(insets.top, topGap) },
         padded && styles.padded,
         {
           paddingBottom:

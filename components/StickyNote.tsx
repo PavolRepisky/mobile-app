@@ -68,7 +68,14 @@ export function StickyNote({
         style={[
           styles.numeral,
           {
-            fontSize: size * 0.46,
+            fontSize: size * 0.56,
+            // Caveat's numerals overshoot their em box in both directions:
+            // the line box has to be tall enough to hold the ascenders, and
+            // the text box wider than the note so the flick off the tail of a
+            // "5" or "2" is not sliced off at the right edge. The box is
+            // centred, so the extra width costs nothing visually.
+            lineHeight: size * 0.74,
+            width: size * 1.5,
             color: muted ? colors.field : colors.stickyInk,
           },
         ]}
@@ -101,8 +108,10 @@ const styles = StyleSheet.create({
   },
   numeral: {
     fontFamily: fonts.hand,
+    textAlign: 'center',
+    includeFontPadding: false,
     // Caveat sits high in its em box; nudge it back onto the optical centre.
-    marginTop: 2,
+    marginTop: 1,
   },
   pressed: {
     opacity: 0.8,

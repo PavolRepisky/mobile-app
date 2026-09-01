@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
+import { ChallengeLengthSheet } from '@/components/ChallengeLengthSheet';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, radii, spacing } from '@/constants/theme';
+import { colors, fonts, radii, spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 
 export default function SettingsScreen() {
@@ -22,7 +23,13 @@ export default function SettingsScreen() {
   } = useApp();
 
   const [nameOpen, setNameOpen] = useState(false);
+  const [lengthOpen, setLengthOpen] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
+  // Both account rows are one tap from wiping everything, so each one asks
+  // first. Separate flags rather than one union: the dialog fades out, and a
+  // shared value would swap the copy mid-animation.
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -49,7 +56,11 @@ export default function SettingsScreen() {
         </Group>
 
         <Group title="Challenge">
-          <Row label="Duration" value={`${totalDays} days`} onPress={() => {}} />
+          <Row
+            label="Duration"
+            value={`${totalDays} days`}
+            onPress={() => setLengthOpen(true)}
+          />
           <View style={styles.row}>
             <Text variant="cardTitle" style={styles.rowLabel}>
               Pause challenge
@@ -73,17 +84,22 @@ export default function SettingsScreen() {
             label="Delete account"
             destructive
             icon="trash-outline"
-            onPress={resetAll}
+            onPress={() => setDeleteOpen(true)}
           />
           <Row
             label="Log out"
             destructive
             icon="log-out-outline"
-            onPress={resetAll}
+            onPress={() => setLogoutOpen(true)}
             last
           />
         </Group>
       </ScreenScroll>
+
+      <ChallengeLengthSheet
+        visible={lengthOpen}
+        onDismiss={() => setLengthOpen(false)}
+      />
 
       <AlertDialog
         visible={nameOpen}
@@ -102,6 +118,42 @@ export default function SettingsScreen() {
             onPress: () => {
               if (draftName.trim()) setName(draftName.trim());
               setNameOpen(false);
+            },
+          },
+        ]}
+      />
+
+      <AlertDialog
+        visible={deleteOpen}
+        title="Delete Account"
+        message="Are you sure you want to delete your account? This action is irreversible."
+        onDismiss={() => setDeleteOpen(false)}
+        actions={[
+          { label: 'Cancel', onPress: () => setDeleteOpen(false) },
+          {
+            label: 'Delete',
+            destructive: true,
+            onPress: () => {
+              setDeleteOpen(false);
+              resetAll();
+            },
+          },
+        ]}
+      />
+
+      <AlertDialog
+        visible={logoutOpen}
+        title="Log out"
+        message="Are you sure you want to log out?"
+        onDismiss={() => setLogoutOpen(false)}
+        actions={[
+          { label: 'Cancel', onPress: () => setLogoutOpen(false) },
+          {
+            label: 'Log out',
+            destructive: true,
+            onPress: () => {
+              setLogoutOpen(false);
+              resetAll();
             },
           },
         ]}
@@ -161,7 +213,7 @@ function Row({
       </Text>
 
       {value ? (
-        <Text variant="body" color={colors.inkMuted} style={styles.rowValue}>
+        <Text variant="bodySemi" color={colors.inkMuted} style={styles.rowValue}>
           {value}
         </Text>
       ) : null}
@@ -183,6 +235,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing['2xl'],
   },
   groupTitle: {
+    // The group headings carry the structure of the screen, so they run in the
+    // heavy cut rather than the label default.
+    fontFamily: fonts.bodyBold,
     marginBottom: spacing.sm,
     marginLeft: spacing.xs,
   },

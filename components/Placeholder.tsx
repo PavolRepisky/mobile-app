@@ -85,7 +85,12 @@ export function AvatarPlaceholder({
   );
 }
 
-/** Head-and-shoulders grey silhouette on a light grey disc. */
+/**
+ * Head-and-shoulders grey silhouette on a light grey disc, the way iOS draws
+ * its default profile mark: the shoulders run past the bottom of the disc and
+ * are cut by its curve, so the shape blends into the circle instead of ending
+ * on a hard edge floating inside it.
+ */
 export function AvatarSilhouette({
   size,
   style,
@@ -113,7 +118,10 @@ export function AvatarSilhouette({
       <View
         style={{
           width: size * 0.58,
-          height: size * 0.34,
+          // Tall enough to reach the bottom of the disc (head inset 0.14 +
+          // head 0.3 + gap 0.06 leaves 0.5) with a little to spare, so the
+          // circle does the trimming.
+          height: size * 0.54,
           borderTopLeftRadius: size * 0.29,
           borderTopRightRadius: size * 0.29,
           backgroundColor: '#B9B9B9',

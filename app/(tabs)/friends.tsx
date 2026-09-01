@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BigSegmentHeader } from '@/components/BigSegmentHeader';
 import { FriendCard } from '@/components/FriendCard';
@@ -9,7 +10,7 @@ import { IconButton } from '@/components/IconButton';
 import { PhotoStrip } from '@/components/PhotoStrip';
 import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, spacing, tabBarClearance } from '@/constants/theme';
+import { colors, fonts, spacing, tabBarTop } from '@/constants/theme';
 import { DISCOVER, FRIENDS } from '@/data/content';
 
 type Side = 'discover' | 'friends';
@@ -20,6 +21,7 @@ type Side = 'discover' | 'friends';
  */
 export default function FriendsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [side, setSide] = useState<Side>('friends');
 
   return (
@@ -32,9 +34,15 @@ export default function FriendsScreen() {
             {
               key: 'discover',
               label: 'Discover',
-              seeds: ['disc-1', 'disc-2', 'disc-3'],
+              // A photo from three of the challenges below, as the cluster
+              // stands for Discover as a whole rather than any one feed.
+              avatars: DISCOVER.slice(0, 3).map((section) => section.photos[0]),
             },
-            { key: 'friends', label: 'Friends', seeds: ['friend-lily'] },
+            {
+              key: 'friends',
+              label: 'Friends',
+              avatars: FRIENDS.map((friend) => friend.avatar),
+            },
           ]}
           value={side}
           onChange={setSide}
@@ -55,18 +63,30 @@ export default function FriendsScreen() {
                   {section.title}
                 </Text>
 
-                <PhotoStrip seeds={section.seeds} height={190} />
+                <PhotoStrip photos={section.photos} height={167} style={styles.strip} />
 
                 <View style={styles.meta}>
-                  <Ionicons name="chatbubble" size={16} color={colors.ink} />
-                  <Text variant="bodyStrong" style={styles.metaLabel}>
+                  <Ionicons name="chatbubble" size={18} color={colors.ink} />
+                  <Text variant="bodyBold" style={styles.metaLabel}>
                     {section.meta}
                   </Text>
                   {section.metaTime ? (
-                    <Text variant="body" color={colors.inkMuted}>
-                      {' · '}
-                      {section.metaTime}
-                    </Text>
+                    <>
+                      <Text
+                        variant="bodyBold"
+                        color={colors.inkGhost}
+                        style={styles.metaDot}
+                      >
+                        ·
+                      </Text>
+                      <Text
+                        variant="label"
+                        color={colors.inkGhost}
+                        style={styles.metaTime}
+                      >
+                        {section.metaTime}
+                      </Text>
+                    </>
                   ) : null}
                 </View>
               </Pressable>
@@ -93,7 +113,7 @@ export default function FriendsScreen() {
           iconSize={30}
           onPress={() => router.push('/invite')}
           accessibilityLabel="Invite a friend"
-          style={styles.fab}
+          style={[styles.fab, { bottom: tabBarTop(insets.bottom) + spacing.lg }]}
         />
       ) : null}
     </View>
@@ -115,23 +135,41 @@ const styles = StyleSheet.create({
     marginHorizontal: -spacing.xl,
     paddingHorizontal: spacing.xl,
   },
+  // Quicksand tops out at Bold, so the extra weight the reference has comes
+  // from setting it a touch larger and tighter rather than from a heavier cut.
   sectionTitle: {
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -1.1,
     marginBottom: spacing.sm,
+  },
+  // The strip runs wider than the text on either side, as in the reference.
+  strip: {
+    marginHorizontal: -spacing.sm,
   },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.md,
+    marginTop: spacing.xs,
   },
   metaLabel: {
     marginLeft: spacing.sm,
   },
+  // The separator carries its own air; a typed space is too tight for it.
+  metaDot: {
+    marginHorizontal: spacing.sm,
+  },
+  // Same weight as the name it trails, a size down.
+  metaTime: {
+    fontFamily: fonts.bodyBold,
+  },
   friendCard: {
     marginBottom: 0,
   },
+  // `bottom` is set at render: it tracks the tab bar, which rides the
+  // home-indicator inset.
   fab: {
     position: 'absolute',
     right: spacing.xl,
-    bottom: tabBarClearance + spacing.xl,
   },
 });

@@ -36,7 +36,21 @@
       "expo-router",
       "expo-font",
       "expo-splash-screen",
-      "expo-image"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Her 75 uses the camera so you can photograph today's tasks as you finish them.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Her 75 shows your photo library so you can pick a photo for today's tasks.",
+          "savePhotosPermission": "Her 75 saves the photos you take for your tasks back to your library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

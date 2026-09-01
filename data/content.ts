@@ -1,3 +1,7 @@
+import type { ImageSourcePropType } from 'react-native';
+
+import type { AvatarSource } from '@/components/Avatar';
+import type { PhotoSource } from '@/components/PhotoStrip';
 import type { Review } from '@/components/ReviewCard';
 
 // ---------------------------------------------------------------------------
@@ -44,7 +48,8 @@ export const REVIEWS: readonly Review[] = [
 export interface Friend {
   id: string;
   name: string;
-  avatarSeed: string;
+  /** Bundled profile photo, or a seed for the drawn stand-in. */
+  avatar: AvatarSource;
   day: number;
   bio: string | null;
   tasks: readonly { label: string; done: boolean; time?: string }[];
@@ -54,7 +59,7 @@ export const FRIENDS: readonly Friend[] = [
   {
     id: 'lily',
     name: 'Lily',
-    avatarSeed: 'friend-lily',
+    avatar: require('../assets/friends/lily.jpg'),
     day: 3,
     bio: null,
     tasks: [
@@ -64,38 +69,76 @@ export const FRIENDS: readonly Friend[] = [
       { label: 'Read 10 pages of a non-fiction book', done: false },
     ],
   },
+];
+
+/** The checklist everyone in a challenge is working through. */
+const CHALLENGE_TASKS = FRIENDS[0].tasks.map((task) => task.label);
+
+/** Builds a person's day from which of the four tasks they have ticked off. */
+const tasksDone = (times: readonly (string | null)[]) =>
+  CHALLENGE_TASKS.map((label, i) => ({
+    label,
+    done: !!times[i],
+    ...(times[i] ? { time: times[i]! } : null),
+  }));
+
+/**
+ * The people posting in the challenge feeds. Same shape as a friend — tapping
+ * an avatar in a feed opens the profile screen the Friends tab opens — but
+ * kept apart from FRIENDS, since posting in a challenge you are both in does
+ * not make someone your friend.
+ */
+export const FEED_AUTHORS: readonly Friend[] = [
   {
-    id: 'maddy',
-    name: 'Maddy',
-    avatarSeed: 'friend-maddy',
+    id: 'mia',
+    name: 'Mia',
+    avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
     day: 12,
-    bio: 'slow mornings, long walks',
-    tasks: [
-      { label: 'Walk 10,000 steps', done: true, time: '8:02 AM' },
-      { label: 'Read 10 pages', done: false },
-      { label: 'Workout', done: false },
-      { label: 'Follow a strict diet', done: false },
-    ],
+    bio: 'purple lights and 5am alarms',
+    tasks: tasksDone(['7:10 AM', '11:02 AM', '6:40 PM', null]),
   },
   {
-    id: 'anna',
-    name: 'Anna',
-    avatarSeed: 'friend-anna',
+    id: 'sofia',
+    name: 'Sofia',
+    avatar: require('../assets/feed/author-hair-flip.jpg'),
+    day: 28,
+    bio: 'day 28 and finally sleeping properly',
+    tasks: tasksDone(['9:15 AM', '1:20 PM', null, '10:05 PM']),
+  },
+  {
+    id: 'elena',
+    name: 'Elena',
+    avatar: require('../assets/feed/author-car-night.jpg'),
+    day: 41,
+    bio: 'late drives, early gym',
+    tasks: tasksDone(['6:02 AM', '8:45 AM', '7:30 PM', '9:50 PM']),
+  },
+  {
+    id: 'nora',
+    name: 'Nora',
+    avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
     day: 7,
-    bio: 'here for the accountability',
-    tasks: [
-      { label: 'Walk 10,000 steps', done: false },
-      { label: 'Read 10 pages', done: false },
-      { label: 'Workout', done: true, time: '6:45 AM' },
-      { label: 'Follow a strict diet', done: false },
-    ],
+    bio: 'same hoodie in every photo, sorry',
+    tasks: tasksDone([null, '3:12 PM', null, null]),
+  },
+  {
+    id: 'camila',
+    name: 'Camila',
+    avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
+    day: 55,
+    bio: 'started for the glow, stayed for the walks',
+    tasks: tasksDone(['8:30 AM', '12:00 PM', '5:15 PM', null]),
   },
 ];
+
+/** Everyone the profile screen can open, whether or not they are a friend. */
+export const PEOPLE: readonly Friend[] = [...FRIENDS, ...FEED_AUTHORS];
 
 export interface DiscoverSection {
   id: string;
   title: string;
-  seeds: readonly string[];
+  /** The four tiles standing for the challenge wherever it appears. */
+  photos: readonly PhotoSource[];
   meta: string;
   metaTime?: string;
   members: number;
@@ -105,14 +148,24 @@ export const DISCOVER: readonly DiscoverSection[] = [
   {
     id: 'her75',
     title: 'Her 75 Challenge',
-    seeds: ['her75-a', 'her75-b', 'her75-c', 'her75-d'],
+    photos: [
+      require('../assets/challenges/her75/gym-floor-selfie.jpg'),
+      require('../assets/challenges/her75/grocery-cart.jpg'),
+      require('../assets/challenges/her75/terrace-treadmill.jpg'),
+      require('../assets/challenges/her75/sunset-table.jpg'),
+    ],
     meta: '8 new posts',
     members: 226754,
   },
   {
     id: 'hard',
     title: '75 Day Hard',
-    seeds: ['hard-a', 'hard-b', 'hard-c', 'hard-d'],
+    photos: [
+      require('../assets/challenges/hard/mirror-selfie.jpg'),
+      require('../assets/challenges/hard/dumbbells-overhead.jpg'),
+      require('../assets/challenges/hard/grocery-basket.jpg'),
+      require('../assets/challenges/hard/study-desk.jpg'),
+    ],
     meta: 'Sarah posted',
     metaTime: '23h ago',
     members: 118402,
@@ -120,34 +173,124 @@ export const DISCOVER: readonly DiscoverSection[] = [
   {
     id: 'medium',
     title: '75 Medium',
-    seeds: ['med-a', 'med-b', 'med-c', 'med-d'],
+    photos: [
+      require('../assets/challenges/medium/outdoor-run.jpg'),
+      require('../assets/challenges/medium/infused-water.jpg'),
+      require('../assets/challenges/medium/guasha-ice-bowl.jpg'),
+      require('../assets/challenges/medium/book-in-bed.jpg'),
+    ],
     meta: '3 new posts',
     members: 64810,
   },
   {
     id: 'soft',
     title: '75 Soft',
-    seeds: ['soft-a', 'soft-b', 'soft-c', 'soft-d'],
+    photos: [
+      require('../assets/challenges/soft/early-alarm.jpg'),
+      require('../assets/challenges/soft/sunset-walk.jpg'),
+      require('../assets/challenges/soft/poolside-stretch.jpg'),
+      require('../assets/challenges/soft/evening-reading.jpg'),
+    ],
     meta: '12 new posts',
     members: 91233,
   },
 ];
 
+/**
+ * The four bundled tiles standing for a challenge, by id — the very ones
+ * Discover shows, so a challenge looks the same wherever it turns up. A
+ * challenge with no feed of its own (the custom one) has no photos here, and
+ * the caller keeps its drawn stand-ins.
+ */
+export function challengePhotos(id: string): readonly PhotoSource[] | undefined {
+  return DISCOVER.find((section) => section.id === id)?.photos;
+}
+
+/**
+ * The custom challenge has no photographs of its own — it is whatever you make
+ * it — so its strip takes the opening shot from each of the four that do. Four
+ * sets, four tiles, and the row reads as every challenge at once.
+ */
+export const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.map(
+  (section) => section.photos[0],
+);
+
+/**
+ * The four tiles that stand for a challenge anywhere it is shown — the picker,
+ * and its own screen once it has been chosen. Anything without a set of its
+ * own falls back to the custom row, which is every challenge at once.
+ */
+export function challengeStrip(id: string): readonly PhotoSource[] {
+  return challengePhotos(id) ?? CUSTOM_PHOTOS;
+}
+
 export interface FeedPost {
   id: string;
-  authorSeed: string;
-  photoSeed: string;
+  /** Who posted it — an id into PEOPLE, so the tile can open their profile. */
+  authorId: string;
+  /** What they posted. */
+  photo: ImageSourcePropType;
   views: number;
   time: string;
   reaction?: string;
 }
 
+/**
+ * The day's posts. Every challenge feed shows the same ones — the challenge
+ * a feed belongs to only sets its header, not who posted in it.
+ */
 export const FEED_POSTS: readonly FeedPost[] = [
-  { id: 'p1', authorSeed: 'author-1', photoSeed: 'post-1', views: 8, time: '6:53 AM' },
-  { id: 'p2', authorSeed: 'author-1', photoSeed: 'post-2', views: 10, time: '6:54 AM' },
-  { id: 'p3', authorSeed: 'author-1', photoSeed: 'post-3', views: 10, time: '6:55 AM', reaction: '🔥' },
-  { id: 'p4', authorSeed: 'author-2', photoSeed: 'post-4', views: 3, time: '2:06 PM' },
-  { id: 'p5', authorSeed: 'author-3', photoSeed: 'post-5', views: 21, time: '4:18 PM' },
+  {
+    id: 'p1',
+    authorId: 'mia',
+    photo: require('../assets/feed/posts/mountain-hike.jpg'),
+    views: 8,
+    time: '6:53 AM',
+  },
+  {
+    id: 'p2',
+    authorId: 'sofia',
+    photo: require('../assets/feed/posts/post-workout-smoothie.jpg'),
+    views: 10,
+    time: '6:54 AM',
+  },
+  {
+    id: 'p3',
+    authorId: 'elena',
+    photo: require('../assets/feed/posts/orange-chicken-fried-rice.jpg'),
+    views: 10,
+    time: '6:55 AM',
+    reaction: '🔥',
+  },
+  {
+    id: 'p4',
+    authorId: 'nora',
+    photo: require('../assets/feed/posts/canal-dog-walk.jpg'),
+    views: 3,
+    time: '2:06 PM',
+  },
+  {
+    id: 'p5',
+    authorId: 'camila',
+    photo: require('../assets/feed/posts/park-bench-reading.jpg'),
+    views: 21,
+    time: '4:18 PM',
+  },
+  {
+    id: 'p6',
+    authorId: 'mia',
+    photo: require('../assets/feed/posts/studying-in-bed.jpg'),
+    views: 14,
+    time: '8:41 PM',
+    reaction: '❤️',
+  },
+  {
+    id: 'p7',
+    authorId: 'sofia',
+    photo: require('../assets/feed/posts/golden-retriever-garden.jpg'),
+    views: 32,
+    time: '9:12 PM',
+  },
 ];
 
 export const REACTIONS = ['❤️', '🔥', '👏', '😍', '😂'] as const;
@@ -166,3 +309,174 @@ export const WALL_SECTIONS = [
   'My Podcasts',
   'My Playlists',
 ] as const;
+
+/**
+ * One thing pinned to a wall collection. Photos are bundled with the app;
+ * collections whose photos have not been shot yet fall back to the drawn
+ * stand-in through `seed`.
+ */
+export interface WallItem {
+  id: string;
+  /** Headline on the item's own screen, and the tile's accessibility label. */
+  title: string;
+  /** Bundled photo. Omitted until there is one, and `seed` stands in. */
+  photo?: ImageSourcePropType;
+  /** Stand-in seed, used whenever there is no photo. */
+  seed?: string;
+  /** The lines under the title: a caption, ingredients, a routine. */
+  note?: readonly string[];
+}
+
+export interface WallCollection {
+  id: string;
+  title: string;
+  items: readonly WallItem[];
+}
+
+/**
+ * A friend's wall. Only the collections they have actually filled are listed,
+ * so an empty section never reaches the screen — which is why there is no
+ * "My Wishlist" here even though the wall offers one.
+ */
+export const WALL_COLLECTIONS: readonly WallCollection[] = [
+  {
+    id: 'eat',
+    title: 'My What I Eat in a Day',
+    items: [
+      {
+        id: 'eat-eggs',
+        title: 'Spinach eggs & avo toast',
+        photo: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg'),
+        note: [
+          '3 eggs + a handful of spinach',
+          'Seeded toast, smashed avocado',
+          'Berries and an iced coffee',
+        ],
+      },
+      {
+        id: 'eat-sesame-chicken',
+        title: 'Sesame chicken bowl',
+        photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
+        note: [
+          'Crispy chicken in sticky sesame sauce',
+          'Rice with peas and spring onion',
+          'Cucumber on the side',
+        ],
+      },
+      {
+        id: 'eat-salmon',
+        title: 'Salmon rice bowl',
+        photo: require('../assets/wall/eat/salmon-rice-asparagus.jpg'),
+        note: [
+          'Pan-seared salmon',
+          'Jasmine rice',
+          'Roasted asparagus + half an avocado',
+        ],
+      },
+      {
+        id: 'eat-fruit',
+        title: 'Fruit plate',
+        photo: require('../assets/wall/eat/berry-watermelon-plate.jpg'),
+        note: [
+          'Strawberries, raspberries, blueberries',
+          'Cold watermelon',
+          'My favourite summer breakfast',
+        ],
+      },
+      {
+        id: 'eat-dates',
+        title: 'PB stuffed dates',
+        photo: require('../assets/wall/eat/peanut-butter-dates.jpg'),
+        note: [
+          'Medjool dates',
+          'Peanut butter',
+          'Flaky salt',
+          'The 4pm sweet craving, handled',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'books',
+    title: 'My Books',
+    items: [
+      {
+        id: 'book-normal-people',
+        title: 'Normal People',
+        photo: require('../assets/wall/books/normal-people.jpg'),
+        note: ['Sally Rooney', 'Read it in two nights', 'Still thinking about the ending'],
+      },
+      {
+        id: 'book-mockingbird',
+        title: 'To Kill a Mockingbird',
+        photo: require('../assets/wall/books/to-kill-a-mockingbird.jpg'),
+        note: ['Harper Lee', 'Reread from school', 'Hits completely differently now'],
+      },
+      {
+        id: 'book-1984',
+        title: '1984',
+        photo: require('../assets/wall/books/nineteen-eighty-four.jpg'),
+        note: ['George Orwell', 'My 10 pages a day book', 'Heavy, but I keep going back'],
+      },
+      {
+        id: 'book-alchemist',
+        title: 'The Alchemist',
+        photo: require('../assets/wall/books/the-alchemist.jpg'),
+        note: ['Paulo Coelho', 'Lives in my tote bag', 'The one I lend to everyone'],
+      },
+      {
+        id: 'book-cmbyn',
+        title: 'Call Me By Your Name',
+        photo: require('../assets/wall/books/call-me-by-your-name.jpg'),
+        note: ['André Aciman', 'Summer read', 'Cried on the last page, no regrets'],
+      },
+    ],
+  },
+  {
+    id: 'workouts',
+    title: 'My Workouts',
+    items: [
+      {
+        id: 'workout-plank',
+        title: 'Plank holds',
+        photo: require('../assets/wall/workouts/gym-plank.jpg'),
+        note: ['3 × 60 seconds', 'At the end of every gym session', 'The longest minute of my day'],
+      },
+      {
+        id: 'workout-walk',
+        title: 'Incline walk',
+        photo: require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
+        note: ['12 incline, 5 km/h', '45 minutes', 'Headphones in, podcast on'],
+      },
+      {
+        id: 'workout-core',
+        title: 'Core on the mat',
+        photo: require('../assets/wall/workouts/home-mat-core.jpg'),
+        note: ['20 minutes at home', 'Dead bugs, crunches, leg raises', 'Morning sun, no equipment'],
+      },
+    ],
+  },
+  {
+    id: 'skincare',
+    title: 'My Skincare',
+    items: [
+      {
+        id: 'skin-shelf',
+        title: 'Everything on my shelf',
+        photo: require('../assets/wall/skincare/skincare-shelf.jpg'),
+        note: [
+          'The Ordinary Niacinamide 10%',
+          'CeraVe Moisturising Lotion',
+          'La Roche-Posay Effaclar cleansing gel',
+          'Effaclar Duo+ on the bad days',
+          'Cicaplast Baume B5+ and Vaseline to slug',
+        ],
+      },
+    ],
+  },
+];
+
+/** Every wall item, flattened — how the item screen resolves its `id`. */
+export const WALL_ITEMS: readonly WallItem[] = WALL_COLLECTIONS.flatMap(
+  (collection) => collection.items,
+);

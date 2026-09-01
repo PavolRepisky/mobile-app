@@ -7,7 +7,14 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
+import {
+  colors,
+  displayTracking,
+  fonts,
+  radii,
+  shadows,
+  spacing,
+} from '@/constants/theme';
 import { numberToWord } from '@/lib/format';
 import { DateRange } from './DateRange';
 import { Text } from './Text';
@@ -23,6 +30,8 @@ export interface StickerCardProps {
   /** Bottom-left label, e.g. "75 HARD" or "HER 75 CHALLENGE". */
   challengeName: string;
   width?: number;
+  /** Small seeded rotation, so a column of cards reads as a stack of prints. */
+  tilt?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -39,10 +48,18 @@ export function StickerCard({
   mode = 'numbered',
   challengeName,
   width,
+  tilt = 0,
   style,
 }: StickerCardProps) {
   return (
-    <View style={[styles.card, width ? { width } : null, style]}>
+    <View
+      style={[
+        styles.card,
+        width ? { width } : null,
+        tilt ? { transform: [{ rotate: `${tilt}deg` }] } : null,
+        style,
+      ]}
+    >
       <RNText style={styles.heading}>
         <RNText style={styles.headingItalic}>day </RNText>
         {numberToWord(day)}
@@ -51,6 +68,7 @@ export function StickerCard({
       <DateRange
         from={from}
         to={to}
+        variant="caption"
         color={colors.inkSoft}
         style={styles.range}
       />
@@ -73,10 +91,10 @@ export function StickerCard({
       </View>
 
       <View style={styles.footer}>
-        <Text variant="micro" color={colors.inkSoft}>
+        <Text variant="micro" color={colors.inkSoft} style={styles.footerText}>
           {challengeName.toUpperCase()}
         </Text>
-        <Text variant="micro" color={colors.inkSoft}>
+        <Text variant="micro" color={colors.inkSoft} style={styles.footerText}>
           BY HER 75
         </Text>
       </View>
@@ -89,16 +107,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.card,
     padding: spacing['2xl'],
+    // Without this the card shrinks to fit its own text inside a centring
+    // parent, which leaves the `flex: 1` task labels unbounded — they run
+    // straight over the right edge instead of wrapping. Stretching it also
+    // buys the widest line the page allows.
+    alignSelf: 'stretch',
     ...shadows.card,
   },
   heading: {
-    fontFamily: fonts.displayBlack,
+    // Bold rather than black: at 32px the heavy cut reads as a shout next to
+    // the light date line under it.
+    fontFamily: fonts.displayBold,
     fontSize: 32,
-    lineHeight: 38,
+    lineHeight: 40,
+    letterSpacing: displayTracking,
     color: colors.ink,
   },
   headingItalic: {
-    fontFamily: fonts.displayBlackItalic,
+    fontFamily: fonts.displayBoldItalic,
   },
   range: {
     marginTop: spacing.sm,
@@ -119,6 +145,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayMedium,
     fontSize: 20,
     lineHeight: 24,
+    letterSpacing: displayTracking,
     color: colors.ink,
   },
   itemText: {
@@ -130,8 +157,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.xl,
     paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    // A drawn rule, not a hairline: it closes the card off the way the
+    // reference does.
+    borderTopWidth: 2,
     borderTopColor: colors.dividerStrong,
+  },
+  footerText: {
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.3,
   },
 });
 

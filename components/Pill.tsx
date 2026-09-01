@@ -28,6 +28,11 @@ export interface PillProps {
    * Quicksand has no check-mark glyph.
    */
   icon?: keyof typeof Ionicons.glyphMap;
+  /**
+   * Sets the label in the heaviest cut Quicksand has. For the badges that have
+   * to hold their own over a photograph rather than over the page.
+   */
+  bold?: boolean;
 }
 
 /**
@@ -43,6 +48,7 @@ export function Pill({
   style,
   color,
   icon,
+  bold,
 }: PillProps) {
   const content = (
     <>
@@ -55,7 +61,15 @@ export function Pill({
         />
       ) : null}
       <Text
-        variant={size === 'sm' ? 'label' : size === 'lg' ? 'button' : 'bodyStrong'}
+        variant={
+          bold
+            ? 'bodyBold'
+            : size === 'sm'
+              ? 'label'
+              : size === 'lg'
+                ? 'button'
+                : 'bodyStrong'
+        }
         color={color ?? (tone === 'solid' ? colors.inkInverse : colors.ink)}
       >
         {label}
@@ -95,10 +109,17 @@ export function Pill({
   );
 }
 
+/**
+ * Outer height of each size. Exported because a caller that laps a pill over
+ * something else — the joined badge straddling a photo strip — has to know how
+ * tall it is to work out the overhang.
+ */
+export const pillHeights = { sm: 28, md: 38, lg: 48 } as const;
+
 const SIZES = StyleSheet.create({
-  sm: { paddingHorizontal: spacing.md, height: 28 },
-  md: { paddingHorizontal: spacing.lg, height: 38 },
-  lg: { paddingHorizontal: spacing['2xl'], height: 48 },
+  sm: { paddingHorizontal: spacing.md, height: pillHeights.sm },
+  md: { paddingHorizontal: spacing.lg, height: pillHeights.md },
+  lg: { paddingHorizontal: spacing['2xl'], height: pillHeights.lg },
 });
 
 const TONES = StyleSheet.create({

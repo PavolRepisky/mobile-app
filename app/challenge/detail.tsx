@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,7 +8,7 @@ import { ChallengeDetail } from '@/components/ChallengeDetail';
 import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
 import { ScreenScroll } from '@/components/Screen';
-import { colors, screenPadding, spacing } from '@/constants/theme';
+import { colors, radii, screenPadding, spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 
 /**
@@ -17,11 +18,13 @@ import { useApp } from '@/hooks/useAppState';
 export default function ChallengeDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { challenge, tasks, addTask, updateTaskLabel, reorderTask } = useApp();
+  const { challenge, tasks, addTask, updateTaskLabel, deleteTask, reorderTask } =
+    useApp();
+  const [dragging, setDragging] = useState(false);
 
   return (
     <View style={styles.root}>
-      <ScreenScroll bottomExtra={120}>
+      <ScreenScroll bottomExtra={120} scrollEnabled={!dragging}>
         <View style={styles.header}>
           <Headline size="title">{challenge.name}</Headline>
           <IconButton
@@ -37,7 +40,9 @@ export default function ChallengeDetailScreen() {
           tasks={tasks}
           onAddTask={addTask}
           onRenameTask={updateTaskLabel}
+          onDeleteTask={deleteTask}
           onReorder={reorderTask}
+          onDraggingChange={setDragging}
         />
       </ScreenScroll>
 
@@ -45,6 +50,7 @@ export default function ChallengeDetailScreen() {
         <PrimaryButton
           label="Validate"
           onPress={() => router.dismissTo('/(tabs)/todo')}
+          style={styles.validate}
         />
       </View>
     </View>
@@ -64,6 +70,11 @@ const styles = StyleSheet.create({
   back: {
     position: 'absolute',
     left: 0,
+  },
+  // Squared off against the app's fully-round default, as the reference sets
+  // it — and as the length picker's Continue already is.
+  validate: {
+    borderRadius: radii.md,
   },
   dock: {
     position: 'absolute',

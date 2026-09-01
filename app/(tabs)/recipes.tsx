@@ -1,14 +1,16 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '@/components/BottomSheet';
+import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
 import { MasonryGrid } from '@/components/MasonryGrid';
 import { RecipeCard } from '@/components/RecipeCard';
 import { ScreenScroll } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
-import { spacing, tabBarClearance } from '@/constants/theme';
+import { spacing, tabBarTop } from '@/constants/theme';
 import { RECIPES, RECIPE_CATEGORIES, type Recipe } from '@/data/recipes';
 import { useApp } from '@/hooks/useAppState';
 
@@ -21,6 +23,7 @@ type Filter = 'all' | Recipe['category'];
  */
 export default function RecipesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { savedRecipeIds } = useApp();
 
   const [filter, setFilter] = useState<Filter>('all');
@@ -48,7 +51,9 @@ export default function RecipesScreen() {
     // Explicit flex container so the FAB's absolute offsets resolve against the
     // screen rather than the (much taller) scroll content.
     <View style={styles.root}>
-      <ScreenScroll tabBar>
+      {/* The category row is this screen's header, so it sits nearer the
+          status bar than a headline screen's default gap allows. */}
+      <ScreenScroll tabBar topGap={spacing.sm}>
         <View style={styles.tabsWrap}>
           <SegmentedTabs
             options={[
@@ -63,15 +68,23 @@ export default function RecipesScreen() {
           />
         </View>
 
-        <MasonryGrid
-          items={visible}
-          keyExtractor={(recipe) => recipe.id}
-          weight={(recipe) => (recipe.tall ? 1.35 : 1)}
-          renderItem={(recipe) => (
-            <RecipeCard recipe={recipe} onPress={() => open(recipe)} />
-          )}
-          style={styles.grid}
-        />
+        {visible.length ? (
+          <MasonryGrid
+            items={visible}
+            keyExtractor={(recipe) => recipe.id}
+            weight={(recipe) => (recipe.tall ? 1.35 : 1)}
+            renderItem={(recipe) => (
+              <RecipeCard recipe={recipe} onPress={() => open(recipe)} />
+            )}
+            style={styles.grid}
+          />
+        ) : (
+          <EmptyState
+            icon="restaurant-outline"
+            title="Nothing here yet"
+            hint="No recipes in this category"
+          />
+        )}
       </ScreenScroll>
 
       <IconButton
@@ -80,7 +93,7 @@ export default function RecipesScreen() {
         iconSize={26}
         onPress={() => setSavedOpen(true)}
         accessibilityLabel="Saved recipes"
-        style={styles.fab}
+        style={[styles.fab, { bottom: tabBarTop(insets.bottom) + spacing.lg }]}
       />
 
       <BottomSheet
@@ -96,20 +109,37 @@ export default function RecipesScreen() {
           ]}
           value={savedFilter}
           onChange={(key) => setSavedFilter(key as Filter)}
-          scrollable
           size="lg"
-          align="left"
+          align="justify"
+          dense
+          style={styles.sheetTabs}
         />
 
-        <MasonryGrid
-          items={saved}
-          keyExtractor={(recipe) => recipe.id}
-          weight={(recipe) => (recipe.tall ? 1.35 : 1)}
-          renderItem={(recipe) => (
-            <RecipeCard recipe={recipe} onPress={() => open(recipe)} />
-          )}
-          style={styles.grid}
-        />
+        {saved.length ? (
+          <MasonryGrid
+            items={saved}
+            keyExtractor={(recipe) => recipe.id}
+            weight={(recipe) => (recipe.tall ? 1.35 : 1)}
+            renderItem={(recipe) => (
+              <RecipeCard recipe={recipe} onPress={() => open(recipe)} />
+            )}
+            style={styles.grid}
+          />
+        ) : (
+          <EmptyState
+            icon="bookmark"
+            title={
+              savedRecipeIds.length
+                ? 'Nothing saved here yet'
+                : 'No saved recipes yet'
+            }
+            hint={
+              savedRecipeIds.length
+                ? 'Nothing saved in this category'
+                : 'Tap the bookmark on a recipe to save it'
+            }
+          />
+        )}
       </BottomSheet>
     </View>
   );
@@ -120,17 +150,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabsWrap: {
-    paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
     marginHorizontal: -spacing.xl,
     paddingHorizontal: spacing.xl,
   },
+  sheetTabs: {
+    marginBottom: spacing.md,
+  },
   grid: {
     marginTop: spacing.sm,
   },
+  // `bottom` is set at render: it tracks the tab bar, which rides the
+  // home-indicator inset.
   fab: {
     position: 'absolute',
     right: spacing.xl,
-    bottom: tabBarClearance + spacing.xl,
   },
 });

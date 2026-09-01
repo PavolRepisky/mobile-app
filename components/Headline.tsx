@@ -3,7 +3,7 @@ import { Text as RNText, type StyleProp, type TextStyle } from 'react-native';
 import { colors, fonts, type as typeScale } from '@/constants/theme';
 
 type Size = 'hero' | 'headline' | 'headlineSm' | 'title';
-type Weight = 700 | 900;
+type Weight = 500 | 700 | 900;
 
 /**
  * Almost every headline in the reference sets one or two words apart. Two
@@ -20,6 +20,11 @@ export interface HeadlineProps {
   size?: Size;
   /** Base weight. Accented `**runs**` always step up to 900. */
   weight?: Weight;
+  /**
+   * Weight of the `*italic*` runs. Defaults to the base weight; set it heavier
+   * to let the rest of the line lighten while the accent holds its own.
+   */
+  accentWeight?: Weight;
   color?: string;
   align?: TextStyle['textAlign'];
   style?: StyleProp<TextStyle>;
@@ -32,11 +37,13 @@ export interface HeadlineProps {
 }
 
 const BASE: Record<Weight, string> = {
+  500: fonts.displayMedium,
   700: fonts.displayBold,
   900: fonts.displayBlack,
 };
 
 const ITALIC: Record<Weight, string> = {
+  500: fonts.displayMediumItalic,
   700: fonts.displayBoldItalic,
   900: fonts.displayBlackItalic,
 };
@@ -78,6 +85,7 @@ export function Headline({
   children,
   size = 'headline',
   weight = 900,
+  accentWeight,
   color = colors.ink,
   align = 'center',
   style,
@@ -86,6 +94,7 @@ export function Headline({
 }: HeadlineProps) {
   const scale = typeScale[size];
   const baseWeight: Weight = size === 'title' && weight === 900 ? 700 : weight;
+  const italicWeight = accentWeight ?? baseWeight;
   const runs = tokenize(children, accent === 'bold');
 
   return (
@@ -100,7 +109,7 @@ export function Headline({
       {runs.map((run, i) => {
         if (run.style === 'plain') return run.text;
         const family =
-          run.style === 'italic' ? ITALIC[baseWeight] : fonts.displayBlack;
+          run.style === 'italic' ? ITALIC[italicWeight] : fonts.displayBlack;
         return (
           <RNText key={i} style={{ fontFamily: family }}>
             {run.text}

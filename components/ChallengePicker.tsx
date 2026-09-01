@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { colors, spacing } from '@/constants/theme';
 import { CHALLENGES, CUSTOM_CHALLENGE } from '@/data/challenges';
+import { challengeStrip } from '@/data/content';
 import { joinedLabel } from '@/lib/format';
 import { Headline } from './Headline';
 import { ChallengeRow, PhotoStrip } from './PhotoStrip';
@@ -29,7 +30,7 @@ export function ChallengePicker({
 
   return (
     <View>
-      <Headline size="hero" style={styles.headline}>
+      <Headline size="hero" weight={700} style={styles.headline}>
         {'Select\nyour challenge'}
       </Headline>
 
@@ -49,7 +50,9 @@ export function ChallengePicker({
             <ChallengeRow
               key={challenge.id}
               title={challenge.name}
-              seeds={challenge.photoSeeds}
+              // The photographs Discover shows for the same challenge, so
+              // the two screens are looking at one thing.
+              photos={challengeStrip(challenge.id)}
               joined={joinedLabel(challenge.joined)}
               onPress={() => onSelect(challenge.id)}
               style={styles.row}
@@ -59,7 +62,8 @@ export function ChallengePicker({
       ) : (
         <View style={styles.list}>
           <PhotoStrip
-            seeds={CUSTOM_CHALLENGE.photoSeeds}
+            photos={challengeStrip(CUSTOM_CHALLENGE.id)}
+            height={167}
             onPress={() => onSelect(CUSTOM_CHALLENGE.id)}
           />
           <Text variant="sectionTitle" style={styles.customTitle}>

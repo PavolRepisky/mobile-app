@@ -2,16 +2,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { IconButton } from '@/components/IconButton';
-import { AvatarPlaceholder } from '@/components/Placeholder';
-import { ScreenScroll } from '@/components/Screen';
+import { ProfileLayout, profileAvatarSize } from '@/components/ProfileLayout';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
 import { WallSection } from '@/components/WallSection';
-import { colors, screenPadding, spacing } from '@/constants/theme';
-import { FRIENDS, WALL_SECTIONS } from '@/data/content';
+import { colors, spacing } from '@/constants/theme';
+import { PEOPLE, WALL_COLLECTIONS } from '@/data/content';
 
 type Tab = 'profile' | 'wall';
 
@@ -21,79 +21,85 @@ export default function FriendProfileScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('profile');
 
-  const friend = FRIENDS.find((f) => f.id === String(id)) ?? FRIENDS[0];
+  const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
 
   return (
-    // Absolute overlays need a positioned parent, otherwise their offsets
-    // resolve against the scroll content instead of the screen.
-    <View style={styles.screenRoot}>
-      <ScreenScroll bottomExtra={spacing['4xl']}>
-        <View style={styles.identity}>
-          <AvatarPlaceholder seed={friend.avatarSeed} size={150} />
+    // Near-white, not the warm app shell — the reference splits the two.
+    <ProfileLayout
+      tone="plain"
+      bottomExtra={spacing['4xl']}
+      identity={
+        <>
+          <Avatar source={friend.avatar} size={profileAvatarSize} />
           <Text variant="sectionTitle" style={styles.name}>
             {friend.name}
           </Text>
-          <Text variant="body" color={colors.inkMuted}>
+          <Text variant="bodyBold" color={colors.inkMuted}>
             {friend.bio ?? 'No bio yet'}
           </Text>
-        </View>
-
-        <SegmentedTabs
-          options={[
-            { key: 'profile', label: 'Profile' },
-            { key: 'wall', label: 'My Wall' },
-          ]}
-          value={tab}
-          onChange={setTab}
-          style={styles.tabs}
+        </>
+      }
+      action={
+        <IconButton
+          name="close"
+          onPress={() => router.back()}
+          accessibilityLabel="Close"
         />
-
-        {tab === 'profile' ? (
-          <>
-            <Text variant="sectionTitle" style={styles.heading}>
-              Today&apos;s Tasks
-            </Text>
-
-            <Card padded={false} style={styles.card}>
-              {friend.tasks.map((task, i) => (
-                <TaskRow
-                  key={task.label}
-                  label={task.label}
-                  done={task.done}
-                  time={task.time}
-                  photoSeed={null}
-                  divider={i < friend.tasks.length - 1}
-                />
-              ))}
-            </Card>
-          </>
-        ) : (
-          <View>
-            {WALL_SECTIONS.map((section) => (
-              <WallSection key={section} title={section} seed={`${friend.id}-${section}`} />
-            ))}
-          </View>
-        )}
-      </ScreenScroll>
-
-      <IconButton
-        name="close"
-        onPress={() => router.back()}
-        accessibilityLabel="Close"
-        style={styles.close}
+      }
+    >
+      <SegmentedTabs
+        options={[
+          { key: 'profile', label: 'Profile' },
+          { key: 'wall', label: 'My Wall' },
+        ]}
+        value={tab}
+        onChange={setTab}
+        style={styles.tabs}
       />
-    </View>
+
+      {tab === 'profile' ? (
+        <>
+          <Text
+            variant="sectionTitle"
+            color={colors.inkSlate}
+            style={styles.heading}
+          >
+            Today&apos;s Tasks
+          </Text>
+
+          <Card padded={false} style={styles.card}>
+            {friend.tasks.map((task, i) => (
+              <TaskRow
+                key={task.label}
+                label={task.label}
+                done={task.done}
+                time={task.time}
+                photoSeed={null}
+                index={i}
+                divider={i < friend.tasks.length - 1}
+              />
+            ))}
+          </Card>
+        </>
+      ) : (
+        <View>
+          {/* Only the collections they have actually filled — an empty
+              section is left off rather than shown with nothing in it. */}
+          {WALL_COLLECTIONS.map((collection) => (
+            <WallSection
+              key={collection.id}
+              title={collection.title}
+              items={collection.items}
+              onPressItem={(item) => router.push(`/wall/${item.id}`)}
+            />
+          ))}
+        </View>
+      )}
+    </ProfileLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screenRoot: {
-    flex: 1,
-  },
-  identity: {
-    alignItems: 'center',
-    marginTop: spacing['5xl'],
-  },
   name: {
     marginTop: spacing.lg,
   },
@@ -103,13 +109,11 @@ const styles = StyleSheet.create({
   },
   heading: {
     marginBottom: spacing.lg,
+    // A step down from the section-title cut, matching the reference.
+    fontSize: 21,
+    lineHeight: 27,
   },
   card: {
     marginHorizontal: -spacing.md,
-  },
-  close: {
-    position: 'absolute',
-    top: 56,
-    right: screenPadding,
   },
 });

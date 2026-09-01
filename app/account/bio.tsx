@@ -10,14 +10,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { GlassSurface } from '@/components/GlassSurface';
 import { IconButton } from '@/components/IconButton';
 import { Text } from '@/components/Text';
 import {
+  bodyTracking,
   colors,
   fonts,
   radii,
   screenPadding,
-  shadows,
   spacing,
 } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
@@ -57,22 +58,38 @@ export default function BioScreen() {
           onPress={save}
           style={({ pressed }) => [styles.save, pressed && styles.pressed]}
         >
-          <Text variant="button">Save</Text>
+          {/* The same lens the back button wears, so the two corners of the
+              header read as one material. */}
+          <GlassSurface radius={radii.pill}>
+            <View style={styles.saveBody}>
+              <Text variant="button">Save</Text>
+            </View>
+          </GlassSurface>
         </Pressable>
       </View>
 
-      <TextInput
-        value={draft}
-        onChangeText={(next) => setDraft(next.slice(0, MAX))}
-        placeholder="Add a short bio..."
-        placeholderTextColor={colors.inkMuted}
-        multiline
-        autoFocus
-        maxLength={MAX}
-        style={styles.input}
-      />
+      <View>
+        <TextInput
+          value={draft}
+          onChangeText={(next) => setDraft(next.slice(0, MAX))}
+          multiline
+          autoFocus
+          maxLength={MAX}
+          style={styles.input}
+        />
 
-      <Text variant="body" color={colors.inkMuted} style={styles.counter}>
+        {/* Drawn rather than handed to `placeholder`, which has no styling of
+            its own: it would take the input's own size and weight. */}
+        {draft.length === 0 ? (
+          <View pointerEvents="none" style={styles.placeholder}>
+            <Text color={colors.inkMuted} style={styles.placeholderText}>
+              Add a short bio...
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      <Text variant="label" color={colors.inkMuted} style={styles.counter}>
         {draft.length}/{MAX}
       </Text>
     </KeyboardAvoidingView>
@@ -97,13 +114,12 @@ const styles = StyleSheet.create({
   save: {
     position: 'absolute',
     right: 0,
+  },
+  saveBody: {
     paddingHorizontal: spacing['2xl'],
     height: 52,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.soft,
   },
   input: {
     height: 220,
@@ -113,8 +129,22 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 18,
     lineHeight: 24,
+    letterSpacing: bodyTracking,
     color: colors.ink,
     textAlignVertical: 'top',
+  },
+  // Sits where the input's own first line lands: the same inset as its
+  // padding, on the same line height.
+  placeholder: {
+    position: 'absolute',
+    left: spacing.xl,
+    top: spacing.xl,
+  },
+  placeholderText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 17,
+    lineHeight: 24,
+    letterSpacing: bodyTracking,
   },
   counter: {
     marginTop: spacing.md,

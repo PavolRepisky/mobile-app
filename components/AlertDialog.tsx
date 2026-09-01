@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native';
 
-import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
+import { bodyTracking, colors, fonts, radii, shadows, spacing } from '@/constants/theme';
+import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
 export interface AlertAction {
@@ -23,6 +24,13 @@ export interface AlertDialogProps {
   title: string;
   message?: string;
   onDismiss: () => void;
+  /**
+   * Fired once the dialog has finished animating away, for callers that open
+   * something of their own next: presenting on top of a modal that is still
+   * dismissing loses the new screen on iOS. iOS only, which is also the only
+   * platform that presents anything to lose.
+   */
+  onDismissed?: () => void;
   actions: readonly AlertAction[];
   /** Renders a text field between the message and the actions. */
   input?: {
@@ -34,14 +42,20 @@ export interface AlertDialogProps {
 }
 
 /**
- * The iOS-style centred dialog used by "Restart Challenge" and
- * "Update Username": title, message, optional field, then side-by-side pills.
+ * The iOS-style centred dialog used by "Today's Photo", "Restart Challenge"
+ * and "Update Username": title, message, optional field, then pills. The panel
+ * is the same liquid-glass lens the tab bar is built from, so the screen it
+ * interrupts stays legible, blurred, underneath it.
+ *
+ * Two actions sit side by side; a third will not read as a pair, so past that
+ * the pills stack full-width the way iOS does with its own alerts.
  */
 export function AlertDialog({
   visible,
   title,
   message,
   onDismiss,
+  onDismissed,
   actions,
   input,
 }: AlertDialogProps) {
@@ -51,6 +65,7 @@ export function AlertDialog({
       transparent
       animationType="fade"
       onRequestClose={onDismiss}
+      onDismiss={onDismissed}
       statusBarTranslucent
     >
       <View style={styles.root}>
@@ -64,46 +79,68 @@ export function AlertDialog({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.centre}
         >
-          <View style={styles.dialog}>
-            <Text variant="cardTitle">{title}</Text>
+          {/* The lens clips its children, and on iOS a view cannot both clip
+              and cast a shadow, so the drop lives out here. */}
+          <View style={[styles.panel, shadows.floating]}>
+            <GlassSurface radius={radii.xl} shadow={false}>
+              <View style={styles.dialog}>
+                <Text variant="cardTitle" style={styles.title}>
+                  {title}
+                </Text>
 
-            {message ? (
-              <Text variant="body" color={colors.inkSoft} style={styles.message}>
-                {message}
-              </Text>
-            ) : null}
+                {message ? (
+                  <Text
+                    variant="body"
+                    color={colors.inkSoft}
+                    style={styles.message}
+                  >
+                    {message}
+                  </Text>
+                ) : null}
 
-            {input ? (
-              <TextInput
-                value={input.value}
-                onChangeText={input.onChangeText}
-                placeholder={input.placeholder}
-                placeholderTextColor={colors.inkMuted}
-                autoFocus={input.autoFocus}
-                style={styles.input}
-              />
-            ) : null}
+                {input ? (
+                  <TextInput
+                    value={input.value}
+                    onChangeText={input.onChangeText}
+                    placeholder={input.placeholder}
+                    placeholderTextColor={colors.inkMuted}
+                    autoFocus={input.autoFocus}
+                    style={styles.input}
+                  />
+                ) : null}
 
-            <View style={styles.actions}>
-              {actions.map((action) => (
-                <Pressable
-                  key={action.label}
-                  accessibilityRole="button"
-                  onPress={action.onPress}
-                  style={({ pressed }) => [
-                    styles.action,
-                    pressed && styles.pressed,
+                <View
+                  style={[
+                    styles.actions,
+                    actions.length > 2 && styles.actionsStacked,
                   ]}
                 >
-                  <Text
-                    variant="button"
-                    color={action.destructive ? colors.destructive : colors.ink}
-                  >
-                    {action.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                  {actions.map((action) => (
+                    <Pressable
+                      key={action.label}
+                      accessibilityRole="button"
+                      onPress={action.onPress}
+                      style={({ pressed }) => [
+                        styles.action,
+                        actions.length > 2
+                          ? styles.actionStacked
+                          : styles.actionRow,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text
+                        variant="button"
+                        color={
+                          action.destructive ? colors.destructive : colors.ink
+                        }
+                      >
+                        {action.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </GlassSurface>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -121,11 +158,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing['2xl'],
   },
-  dialog: {
-    backgroundColor: '#F4F2EF',
+  panel: {
     borderRadius: radii.xl,
+    // Left unfilled: a background here would sit behind the lens, and the
+    // blur would sample it instead of the screen the dialog is covering.
+  },
+  dialog: {
     padding: spacing['2xl'],
-    ...shadows.floating,
+  },
+  /**
+   * A step past the card titles this variant is otherwise used for: the alert
+   * has nothing else on it to carry the weight, so the heading has to.
+   */
+  title: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 19,
+    lineHeight: 25,
   },
   message: {
     marginTop: spacing.sm,
@@ -134,10 +182,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     height: 52,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: colors.frostField,
     paddingHorizontal: spacing.xl,
     fontFamily: fonts.body,
     fontSize: 16,
+    letterSpacing: bodyTracking,
     color: colors.ink,
   },
   actions: {
@@ -145,13 +194,30 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.xl,
   },
+  actionsStacked: {
+    flexDirection: 'column',
+  },
   action: {
-    flex: 1,
     height: 52,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(0,0,0,0.06)',
+    // Reads as a frosted pill on the glass rather than a grey chip on a card,
+    // which is what the same wash does on the tab bar's active tab.
+    backgroundColor: colors.frostAction,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** Side by side: the pair splits the dialog's width between them. */
+  actionRow: {
+    flex: 1,
+  },
+  /**
+   * Stacked, the main axis is the one the row was splitting — and `flex: 1`
+   * there resolves the basis to zero inside a dialog that sizes to its own
+   * content, so the pills measure to nothing and the alert renders as a title
+   * over empty space. Full width comes from stretching instead.
+   */
+  actionStacked: {
+    alignSelf: 'stretch',
   },
   pressed: {
     opacity: 0.75,

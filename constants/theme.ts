@@ -14,10 +14,16 @@
 export const colors = {
   /** Warm off-white behind the logged-in app (home, friends, profile, settings). */
   background: '#F8F5F0',
-  /** Near-pure white — a deliberate split from the warm app shell. */
-  backgroundPlain: '#FDFDFD',
+  /** Pure white — a deliberate split from the warm app shell. Own profile,
+   * a friend's profile, a recipe and a wall day all sit on it. */
+  backgroundPlain: '#FFFFFF',
   /** Slightly cooler off-white used by the settings stack. */
   backgroundAlt: '#F8F6F5',
+  /**
+   * The warm pinkish off-white the profile-views screen sits on — a touch
+   * warmer than `background`, sampled off reference/screens/profile/screen5.
+   */
+  backgroundWarm: '#FBF6F3',
 
   /** Cards, the tab bar, circular icon buttons. */
   surface: '#FFFFFF',
@@ -32,6 +38,16 @@ export const colors = {
   inkSoft: '#3A3A3A',
   /** Timestamps, placeholders, inactive tab labels, review bodies. */
   inkMuted: '#9C9C9C',
+  /**
+   * Checklist labels. Sampled off the friends reference, where the task text
+   * is a cool near-black rather than the flat `ink` used for titles.
+   */
+  inkSlate: '#2B3038',
+  /**
+   * The greyed-out half of the Discover/Friends switch — barely there, but a
+   * touch heavier than a hairline. Sampled from the same screen.
+   */
+  inkGhost: '#D7D6D3',
   /** Text on dark fills. */
   inkInverse: '#FFFFFF',
 
@@ -42,8 +58,11 @@ export const colors = {
   /** Slightly stronger separator inside cards. */
   dividerStrong: '#E2E0DA',
 
-  /** Destructive rows and the Restart action. */
-  destructive: '#FB7A8A',
+  /**
+   * Destructive rows and the Restart action. A saturated red rather than the
+   * washed-out pink it started as — it has to read as a warning at a glance.
+   */
+  destructive: '#E63950',
 
   /** Disabled primary button fill / label. */
   disabled: '#EDEBE6',
@@ -61,6 +80,31 @@ export const colors = {
   /** Scrims. */
   scrim: 'rgba(0,0,0,0.45)',
   scrimLight: 'rgba(28,26,24,0.18)',
+
+  /**
+   * Washes that sit *on* glass rather than on a background. They are black at a
+   * few percent rather than a grey fill, so they darken whatever the lens is
+   * sampling instead of covering it — a solid chip here would read as a card on
+   * the dialog rather than a frosted pill in it.
+   */
+  frostField: 'rgba(0,0,0,0.06)',
+  frostAction: 'rgba(0,0,0,0.07)',
+  /** The barely-there dim behind a popover; the lens does the rest. */
+  frostBackdrop: 'rgba(0,0,0,0.04)',
+
+  /**
+   * Full-bleed media surfaces — the story viewer, the camera, the black
+   * transition behind a pushed photo route. Deliberately pure black rather than
+   * the warm shell: the photo has to be the only light on the screen.
+   */
+  mediaBackdrop: '#000000',
+  /** Secondary copy over a photo — white, pulled back so it recedes. */
+  onMediaSoft: 'rgba(255,255,255,0.8)',
+  /** Unfilled half of a progress track over a photo. */
+  onMediaTrack: 'rgba(255,255,255,0.4)',
+  /** Ring around the shutter — white held off full strength so the solid
+   * button inside still reads as the brighter of the two. */
+  onMediaBorder: 'rgba(255,255,255,0.55)',
 } as const;
 
 /** The four pastels, in the rotation order the post-it grid uses. */
@@ -117,27 +161,123 @@ export const fonts = {
 } as const;
 
 /**
+ * Tracking for anything set in Quicksand. The face sets wider than the
+ * reference's rounded cut, so every Quicksand string is pulled a point tighter;
+ * the Playfair headlines keep their own metrics. Components that build their
+ * own Quicksand style — text inputs, the oversized Discover/Friends labels —
+ * pull this rather than repeating the number.
+ */
+export const bodyTracking = -1;
+
+/**
+ * Tracking for the Playfair headlines. A lighter hand than the Quicksand
+ * setting: the display cut is already tightly fitted, so it only wants the
+ * edge taken off.
+ */
+export const displayTracking = -0.5;
+
+/**
  * Type scale. Headline sizes track the reference closely: the big welcome
  * headline is ~44px on a 1170pt-wide render, the standard question headline
  * ~34px, section titles ~26px.
  */
 export const type = {
-  hero: { fontFamily: fonts.displayBlack, fontSize: 44, lineHeight: 48 },
-  headline: { fontFamily: fonts.displayBlack, fontSize: 34, lineHeight: 40 },
-  headlineSm: { fontFamily: fonts.displayBlack, fontSize: 27, lineHeight: 33 },
-  title: { fontFamily: fonts.displayBold, fontSize: 30, lineHeight: 36 },
+  hero: {
+    fontFamily: fonts.displayBlack,
+    fontSize: 44,
+    lineHeight: 48,
+    letterSpacing: displayTracking,
+  },
+  headline: {
+    fontFamily: fonts.displayBlack,
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: displayTracking,
+  },
+  headlineSm: {
+    fontFamily: fonts.displayBlack,
+    fontSize: 27,
+    lineHeight: 33,
+    letterSpacing: displayTracking,
+  },
+  title: {
+    fontFamily: fonts.displayBold,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: displayTracking,
+  },
 
-  sectionTitle: { fontFamily: fonts.bodyBold, fontSize: 23, lineHeight: 28 },
-  cardTitle: { fontFamily: fonts.bodySemi, fontSize: 17, lineHeight: 22 },
-  body: { fontFamily: fonts.body, fontSize: 16, lineHeight: 22 },
-  bodyStrong: { fontFamily: fonts.bodyMedium, fontSize: 16, lineHeight: 22 },
+  sectionTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 23,
+    lineHeight: 28,
+    letterSpacing: bodyTracking,
+  },
+  cardTitle: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  body: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  bodyStrong: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /**
+   * One step under `bodyBold`: copy that wants weight without the shout — the
+   * bullet list on the support card.
+   */
+  bodySemi: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
   /** Daily-task labels, which the reference sets in the heavy cut. */
-  bodyBold: { fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 22 },
-  button: { fontFamily: fonts.bodySemi, fontSize: 17, lineHeight: 22 },
-  label: { fontFamily: fonts.bodyMedium, fontSize: 14, lineHeight: 18 },
-  caption: { fontFamily: fonts.bodyLight, fontSize: 13, lineHeight: 17 },
-  micro: { fontFamily: fonts.bodyMedium, fontSize: 11, lineHeight: 14 },
-  tab: { fontFamily: fonts.bodyMedium, fontSize: 12, lineHeight: 15 },
+  bodyBold: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  button: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  label: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: bodyTracking,
+  },
+  caption: {
+    fontFamily: fonts.bodyLight,
+    fontSize: 13,
+    lineHeight: 17,
+    letterSpacing: bodyTracking,
+  },
+  micro: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: bodyTracking,
+  },
+  tab: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    lineHeight: 15,
+    letterSpacing: bodyTracking,
+  },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -168,8 +308,10 @@ export const radii = {
   md: 16,
   lg: 20,
   /** The signature card radius. */
-  card: 26,
+  card: 32,
   xl: 32,
+  /** The friend card's corner. */
+  '2xl': 44,
   /** Anything fully rounded: buttons, chips, the tab bar. */
   pill: 999,
 } as const;
@@ -187,6 +329,22 @@ export const tabBar = {
 export const tabBarClearance =
   tabBar.height + tabBar.bottomOffset + spacing.lg;
 
+/**
+ * Distance from the bottom of the screen to the bottom edge of the floating tab
+ * bar. The pill floats *over* the home-indicator area rather than above it —
+ * clearing the whole inset lifted it well off the bottom edge — while a phone
+ * with no indicator keeps the plain offset.
+ */
+export const tabBarBottom = (insetBottom: number) =>
+  Math.max(insetBottom - spacing.xl, spacing.md) + tabBar.bottomOffset;
+
+/**
+ * Distance from the bottom of the screen to the *top* edge of the bar, for
+ * anything that has to sit clear of it (the saved-recipes button).
+ */
+export const tabBarTop = (insetBottom: number) =>
+  tabBarBottom(insetBottom) + tabBar.height;
+
 // ---------------------------------------------------------------------------
 // Elevation
 // ---------------------------------------------------------------------------
@@ -196,26 +354,41 @@ export const tabBarClearance =
  * small offset. Anything punchier reads wrong against the warm background.
  */
 export const shadows = {
+  /**
+   * Close in and all but centred, so it shows on every edge instead of
+   * pooling under one. Kept faint on purpose: the cards sit on a near-white
+   * page, and anything heavier reads as a drawn outline rather than depth.
+   */
   card: {
-    shadowColor: '#8C8073',
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  /** The same cast, a step down: icon buttons, floating pills, photo tiles. */
+  soft: {
+    shadowColor: '#000000',
     shadowOpacity: 0.1,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  soft: {
-    shadowColor: '#8C8073',
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
   floating: {
-    shadowColor: '#6F6558',
+    shadowColor: '#000000',
     shadowOpacity: 0.14,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
+  },
+  /** A step past `floating`, for the few surfaces that sit on top of a screen
+   * rather than in it: the tilted friend card, the invite panel. */
+  lifted: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
   },
   /**
    * Liquid glass sits *on* the photo rather than on the warm background, so it
@@ -229,6 +402,18 @@ export const shadows = {
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
   },
+  /**
+   * The heaviest in the set, for the two badges crowning the challenge feed.
+   * They sit on the bare page rather than over a photo, so the shadow is what
+   * lifts them off it — hence more of it than anything else needs.
+   */
+  deep: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.3,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 16,
+  },
   /** Sticky notes cast a tighter, more directional shadow. */
   sticky: {
     shadowColor: '#000000',
@@ -236,6 +421,20 @@ export const shadows = {
     shadowRadius: 6,
     shadowOffset: { width: 2, height: 4 },
     elevation: 4,
+  },
+  /**
+   * A dropped cast rather than a centred one: the same soft, neutral blur as
+   * `card`, weighted downward so the thing casting it reads as lifted off the
+   * page. The avatar, the "Day N" badge, the task photos and the wall tiles
+   * use it. Measured off the reference, where those photos carry about 7% at
+   * their sides and half again as much underneath.
+   */
+  hard: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
   },
 } as const;
 
@@ -306,6 +505,8 @@ export const theme = {
   stickyPalette,
   fonts,
   type,
+  bodyTracking,
+  displayTracking,
   spacing,
   screenPadding,
   screenTopGap,
@@ -314,6 +515,8 @@ export const theme = {
   glass,
   tabBar,
   tabBarClearance,
+  tabBarBottom,
+  tabBarTop,
 } as const;
 
 export default theme;

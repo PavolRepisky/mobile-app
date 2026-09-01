@@ -43,3 +43,6 @@ yarn-error.*
 # expo export output
 .expo-export/
 .expo-export-ios/
+
+# Claude Code local state (includes live git worktrees)
+.claude/

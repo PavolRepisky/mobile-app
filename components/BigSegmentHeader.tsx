@@ -7,14 +7,14 @@ import {
 } from 'react-native';
 
 import { colors, fonts, spacing } from '@/constants/theme';
-import { AvatarPlaceholder } from './Placeholder';
+import { Avatar, type AvatarSource } from './Avatar';
 import { Text } from './Text';
 
 export interface BigSegmentOption<T extends string> {
   key: T;
   label: string;
-  /** Avatar cluster above the label. One seed renders a single circle. */
-  seeds: readonly string[];
+  /** Avatar cluster above the label. One source renders a single circle. */
+  avatars: readonly AvatarSource[];
 }
 
 export interface BigSegmentHeaderProps<T extends string> {
@@ -48,15 +48,14 @@ export function BigSegmentHeader<T extends string>({
             style={styles.item}
           >
             <View style={styles.cluster}>
-              {option.seeds.map((seed, i) => (
-                <AvatarPlaceholder
-                  key={seed}
-                  seed={seed}
+              {option.avatars.map((avatar, i) => (
+                <Avatar
+                  key={i}
+                  source={avatar}
                   size={34}
-                  style={[
-                    i > 0 && styles.clusterOverlap,
-                    !active && styles.faded,
-                  ]}
+                  // The cluster keeps its full opacity on the inactive side:
+                  // fading it lets each circle show through the one it laps.
+                  style={i > 0 && styles.clusterOverlap}
                 />
               ))}
             </View>
@@ -64,7 +63,7 @@ export function BigSegmentHeader<T extends string>({
             <Text
               style={[
                 styles.label,
-                { color: active ? colors.ink : colors.divider },
+                { color: active ? colors.ink : colors.inkGhost },
               ]}
             >
               {option.label}
@@ -92,13 +91,16 @@ const styles = StyleSheet.create({
   clusterOverlap: {
     marginLeft: -18,
   },
-  faded: {
-    opacity: 0.45,
-  },
   label: {
     fontFamily: fonts.bodyBold,
     fontSize: 30,
     lineHeight: 36,
+    // Tighter than the standard Quicksand tracking: at this size the default
+    // fit opens the word up more than the reference does. The gutter is what
+    // the tightening costs: negative tracking pulls the measured width in past
+    // the last glyph, which clips it.
+    letterSpacing: -1.9,
+    paddingHorizontal: spacing.xs,
   },
 });
 

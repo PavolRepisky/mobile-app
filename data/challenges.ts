@@ -1,6 +1,12 @@
 export interface ChallengeTask {
   id: string;
   label: string;
+  /**
+   * Slot in the sticky-note palette. Carried on the task rather than read off
+   * its position, so dragging a task up the list takes its colour with it:
+   * only the numeral, which is the position, changes. Assigned by `tinted`.
+   */
+  tint?: number;
 }
 
 export interface Challenge {
@@ -87,6 +93,21 @@ export const CUSTOM_CHALLENGE: Challenge = {
   defaultDays: 75,
   tasks: [task('c1', 'Task 1')],
 };
+
+/**
+ * Hands every task a palette slot, in list order, leaving any it already has
+ * alone. Run once when a challenge's tasks become the live list, so the
+ * colours start as the rotation the design wants and then stay put.
+ */
+export function tinted(tasks: readonly ChallengeTask[]): ChallengeTask[] {
+  return tasks.map((t, i) => ({ ...t, tint: t.tint ?? i }));
+}
+
+/** The slot for a task appended to `list`: the next one along, never a repeat
+ * of the one directly above it. */
+export function nextTint(list: readonly ChallengeTask[]): number {
+  return list.reduce((max, t) => Math.max(max, t.tint ?? -1), -1) + 1;
+}
 
 export function challengeById(id: string): Challenge {
   return (

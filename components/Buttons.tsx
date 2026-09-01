@@ -5,6 +5,7 @@ import {
   StyleSheet,
   View,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 
@@ -18,7 +19,11 @@ interface BaseProps {
   loading?: boolean;
   /** Ionicon rendered to the left of the label — e.g. the share glyph on "Send invites". */
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Glyph size, when the label is set larger than the standard button cut. */
+  iconSize?: number;
   style?: StyleProp<ViewStyle>;
+  /** Overrides on the label — a bigger cut for the one-off invite action. */
+  labelStyle?: StyleProp<TextStyle>;
   /** Full-width is the default; pass false for the side-by-side pairs. */
   fullWidth?: boolean;
 }
@@ -30,7 +35,9 @@ export function PrimaryButton({
   disabled,
   loading,
   icon,
+  iconSize = 19,
   style,
+  labelStyle,
   fullWidth = true,
 }: BaseProps) {
   const inactive = disabled || loading;
@@ -56,7 +63,7 @@ export function PrimaryButton({
           {icon ? (
             <Ionicons
               name={icon}
-              size={19}
+              size={iconSize}
               color={inactive ? colors.disabledInk : colors.inkInverse}
               style={styles.icon}
             />
@@ -64,6 +71,7 @@ export function PrimaryButton({
           <Text
             variant="button"
             color={inactive ? colors.disabledInk : colors.inkInverse}
+            style={labelStyle}
           >
             {label}
           </Text>

@@ -24,22 +24,31 @@ export function RecipeCard({ recipe, onPress, style }: RecipeCardProps) {
       onPress={onPress}
       style={({ pressed }) => [styles.wrap, pressed && styles.pressed, style]}
     >
-      <View style={[styles.image, { aspectRatio: recipe.tall ? 0.72 : 0.92 }]}>
-        <Image
-          source={recipe.image}
-          contentFit="cover"
-          transition={200}
-          style={StyleSheet.absoluteFill}
-        />
-        <Pill
-          label={`${recipe.minutes} min`}
-          tone="glass"
-          size="sm"
-          style={styles.timePill}
-        />
+      {/* The tile clips its photo, so on iOS it cannot cast as well — the
+          shadow lives on this host instead. */}
+      <View
+        style={[
+          styles.tile,
+          { aspectRatio: recipe.tall ? 0.72 : 0.92 },
+        ]}
+      >
+        <View style={styles.image}>
+          <Image
+            source={recipe.image}
+            contentFit="cover"
+            transition={200}
+            style={StyleSheet.absoluteFill}
+          />
+          <Pill
+            label={`${recipe.minutes} min`}
+            tone="glass"
+            size="sm"
+            style={styles.timePill}
+          />
+        </View>
       </View>
 
-      <Text variant="bodyStrong" style={styles.name}>
+      <Text variant="button" style={styles.name}>
         {recipe.name}
       </Text>
     </Pressable>
@@ -50,13 +59,17 @@ const styles = StyleSheet.create({
   wrap: {
     marginBottom: spacing.xl,
   },
-  image: {
+  tile: {
     width: '100%',
+    borderRadius: radii.lg,
+    backgroundColor: colors.divider,
+    ...shadows.soft,
+  },
+  image: {
+    flex: 1,
     justifyContent: 'flex-end',
     borderRadius: radii.lg,
     overflow: 'hidden',
-    backgroundColor: colors.divider,
-    ...shadows.soft,
   },
   timePill: {
     margin: spacing.md,
