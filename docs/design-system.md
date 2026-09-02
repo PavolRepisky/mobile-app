@@ -210,7 +210,12 @@ and left at its own height that print reads as a page that ran out rather than
 one that was laid out. The day's proof
 photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
 are all derived from the cell key, so an arrangement is stable for the life of
-a task. `layout="grid"` is the plain alternative — equal tiles, no tilt, task
+a task. In the scatter each photograph is laid on a white paper mat that takes
+its border out of the print rather than adding to it — the mat carries the tilt
+and the shadow, and the paper edge, not the shadow, is what makes the thing
+read as lying on the page instead of cut into it. The block insets itself by
+the widest nudge so a thrown print never loses that border to a clipping
+parent. `layout="grid"` is the plain alternative — equal tiles, no tilt, task
 order — and `layout="dice"` lays five out the way the five is pipped on a die:
 four square tiles with the fifth over the middle on a white mat (any other
 number falls back to the grid). Both draw no done ticks and no dashed "add"

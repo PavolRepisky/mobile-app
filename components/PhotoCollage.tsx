@@ -70,6 +70,14 @@ const LAP = 7;
 const NUDGES = [-5, 4, -3, 6, 2, -6];
 
 /**
+ * The furthest a nudge can throw a print. The block insets itself by this much
+ * so a nudged print stays inside its own bounds: the day card clips to its
+ * rounded corner, and a print thrown past the edge lost the paper border down
+ * one side — the very thing that makes it read as a print.
+ */
+const NUDGE_MAX = Math.max(...NUDGES.map(Math.abs));
+
+/**
  * Tile height in the grid. One height for every print — the whole point of the
  * grid is that nothing about a photo's place says anything about the photo.
  */
@@ -84,6 +92,15 @@ const DICE_CENTRE = 0.66;
 
 /** White margin around the centre print, so it reads as laid on top. */
 const MAT = 4;
+
+/**
+ * The white border every print in the scatter carries. It is the whole
+ * difference between a rounded tile and a photograph: a print has a paper edge,
+ * and it is the edge — not the shadow — that says the thing is lying on the
+ * page rather than cut into it. Held off the photo's own corner too, so the
+ * picture inside stays nearly square while the paper around it is rounded.
+ */
+const PRINT_MAT = 5;
 
 /** Stable per key, so the arrangement survives a re-render. */
 function hash(key: string): number {
@@ -100,7 +117,10 @@ function hash(key: string): number {
  * same angle often enough to look like they had simply been set straight.
  */
 function tiltFor(key: string, index: number): number {
-  const magnitude = 0.6 + (hash(key) % 5) * 0.32;
+  // Opened up once the prints gained their paper borders: a straight white
+  // edge shows the angle in a way a photograph bleeding to its own corner
+  // never did, so what used to read as a rendering slip now reads as a hand.
+  const magnitude = 0.9 + (hash(key) % 5) * 0.45;
   return index % 2 === 0 ? magnitude : -magnitude;
 }
 
@@ -191,6 +211,7 @@ function Print({
   invite = true,
   shadow = 'hard',
   emptyTone,
+  mat,
 }: {
   cell: CollageCell;
   height: number;
@@ -207,11 +228,22 @@ function Print({
    * is simply a gap in it.
    */
   invite?: boolean;
+  /**
+   * Lay the print on a paper mat. Only in the scatter, and only where there is
+   * a photograph: a white card with a shadow around an empty grey slot is the
+   * loudest thing on a block that should be quiet until it is shot.
+   */
+  mat?: boolean;
 }) {
-  return (
+  const filled = !!(cell.photo || cell.seed);
+
+  const slot = (
     <PhotoSlot
       width="100%"
-      height={height}
+      // The mat takes its border out of the print rather than adding to it, so
+      // a matted print measures exactly what the dealing said it would and the
+      // card's scale arithmetic still lands.
+      height={mat && filled ? height - PRINT_MAT * 2 : height}
       photo={cell.photo}
       seed={cell.seed}
       done={tick && cell.done}
@@ -221,13 +253,27 @@ function Print({
       emptyOutline={invite}
       emptyIcon={invite ? 'camera' : 'none'}
       emptyTone={emptyTone}
-      tilt={tilt}
-      // The same tight, offset drop the task photos carry: prints laid on the
-      // page rather than tiles set into it.
-      shadow={shadow}
+      // On a matted print the paper carries both, or the photo would tilt
+      // inside a straight border and cast a second shadow onto its own mat.
+      tilt={mat && filled ? undefined : tilt}
+      radius={mat && filled ? radii.sm : undefined}
+      shadow={mat && filled ? false : shadow}
       onPress={cell.onPress}
       accessibilityLabel={cell.label}
     />
+  );
+
+  if (!mat || !filled) return slot;
+
+  return (
+    <View
+      style={[
+        styles.print,
+        tilt ? { transform: [{ rotate: `${tilt}deg` }] } : null,
+      ]}
+    >
+      {slot}
+    </View>
   );
 }
 
@@ -381,7 +427,13 @@ export function PhotoCollage({
   const { buckets, lap } = deal(cells, columnCount, scale);
 
   return (
-    <View style={[styles.row, style]}>
+    <View
+      style={[
+        styles.row,
+        { paddingHorizontal: Math.round(NUDGE_MAX * scale) },
+        style,
+      ]}
+    >
       {buckets.map((bucket, c) => (
         <View
           key={c}
@@ -402,7 +454,12 @@ export function PhotoCollage({
                 { zIndex: bucket.length - i },
               ]}
             >
-              <Print cell={cell} height={height} tilt={tiltFor(cell.key, index)} />
+              <Print
+                cell={cell}
+                height={height}
+                tilt={tiltFor(cell.key, index)}
+                mat
+              />
             </View>
           ))}
         </View>
@@ -441,6 +498,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  print: {
+    padding: PRINT_MAT,
+    // The paper's own corner, a shade rounder than the picture inside it.
+    borderRadius: radii.sm + PRINT_MAT,
+    backgroundColor: colors.surface,
+    ...shadows.hard,
   },
   mat: {
     padding: MAT,

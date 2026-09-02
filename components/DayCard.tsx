@@ -58,6 +58,9 @@ const RULE = 2;
  */
 const MAX_SCALE = 1.8;
 
+/** The hairline that keeps the card's shape on a ground as light as it is. */
+const EDGE = 1;
+
 /** The card's own margin. Named because the prints measure back through it. */
 const PAD = spacing['2xl'];
 
@@ -114,8 +117,11 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
             exactly this reason. `*day*` takes the italic of that same bold. */}
         <Headline size="title">{`*day* ${numberToWord(day)}`}</Headline>
 
-        <Text variant="caption" color={colors.inkMuted} center style={styles.date}>
-          {longDate(date)}
+        {/* Set in the footer's cut rather than as plain copy, so the card
+            opens and closes on the same pressed-in capitals and the heading
+            sits between them rather than on top of a caption. */}
+        <Text variant="stamp" color={colors.inkMuted} center style={styles.date}>
+          {longDate(date).toUpperCase()}
         </Text>
       </View>
 
@@ -163,12 +169,17 @@ const styles = StyleSheet.create({
     // a template.
     backgroundColor: colors.background,
     borderRadius: radii.card,
+    // The card is posted onto grounds we do not choose. On the ink Story
+    // backdrop the warm page carries itself; dropped on somebody's white feed
+    // it would bleed out at the edges without this.
+    borderWidth: EDGE,
+    borderColor: colors.dividerStrong,
     padding: PAD,
     justifyContent: 'space-between',
     overflow: 'hidden',
   },
   date: {
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   prints: {
     flex: 1,
