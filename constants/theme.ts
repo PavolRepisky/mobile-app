@@ -288,40 +288,6 @@ export const type = {
     lineHeight: 15,
     letterSpacing: bodyTracking,
   },
-
-  /**
-   * Caveat set as a line of writing rather than a numeral on a note — the day
-   * counted across the middle of the To-do home's photo block. The only place
-   * the hand escapes the sticky notes.
-   *
-   * Big on purpose: it is written *over* the photographs rather than beside
-   * them, and at a caption's size that reads as something spilled onto the
-   * page instead of something put there. Caveat's semibold is the heaviest cut
-   * the app carries, so the weight has to come out of the size.
-   *
-   * No tracking: the two ramps above exist to pull machine-set faces tighter,
-   * and a joined hand is already spaced the way it is drawn. The line box runs
-   * well past the size because Caveat overshoots its em box in both directions
-   * — the same allowance `StickyNote` makes for its numerals.
-   */
-  script: {
-    fontFamily: fonts.hand,
-    fontSize: 60,
-    lineHeight: 78,
-    letterSpacing: 0,
-  },
-
-  /**
-   * The same hand at annotation size: the time written on a print in the day's
-   * dump, the way a photo page carries a word or two under each picture. Same
-   * allowance for Caveat's overshoot as `script`, and the same no-tracking.
-   */
-  scriptSm: {
-    fontFamily: fonts.hand,
-    fontSize: 18,
-    lineHeight: 23,
-    letterSpacing: 0,
-  },
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,6 @@ import {
 
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { PhotoSlot } from './PhotoSlot';
-import { Text } from './Text';
 
 /** One print in the collage — a task's proof photo, or the gap where it goes. */
 export interface CollageCell {
@@ -23,12 +22,6 @@ export interface CollageCell {
    * without this a screen reader gets five identical "Add photo" tiles.
    */
   label?: string;
-  /**
-   * A word or two written on the print itself in the dump — the time a task
-   * was photographed. Kept short by the caller: there is one line of it across
-   * the foot of a picture, and the list below carries the full label.
-   */
-  caption?: string;
   onPress?: () => void;
 }
 
@@ -42,13 +35,8 @@ export interface PhotoCollageProps {
    * five-task arrangement: four square tiles with the fifth laid over the
    * middle, the way the five is pipped on a die. A day that is not five tasks
    * long has no such arrangement, so it falls back to the plain grid.
-   *
-   * `'dump'` is the collage's scatter turned all the way up: every picture in
-   * a white print border, tilted harder, overlapping its neighbours, with the
-   * time written across its foot. A page of photographs thrown down rather
-   * than a set of tiles.
    */
-  layout?: 'collage' | 'grid' | 'dice' | 'dump';
+  layout?: 'collage' | 'grid' | 'dice';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -88,25 +76,6 @@ const DICE_CENTRE = 0.58;
 
 /** White margin around the centre print, so it reads as laid on top. */
 const MAT = 4;
-
-/**
- * The white border a print carries in the dump, deeper at the foot the way a
- * developed photograph is: that band is what makes a picture read as a thing
- * that was printed rather than a thumbnail that was cropped.
- */
-const PRINT_MAT = 6;
-const PRINT_MAT_FOOT = 15;
-
-/**
- * How much harder the dump tilts, laps and nudges than the collage. The
- * collage's settings are deliberately almost imperceptible — a degree or so,
- * so the block reads as very slightly hand-laid. A dump is the opposite claim:
- * prints dropped on a page, and at a degree apiece that just looks like the
- * grid failed to line up.
- */
-const DUMP_TILT = 2.8;
-const DUMP_LAP = 15;
-const DUMP_NUDGES = [-9, 7, -5, 10, 4, -8];
 
 /** Stable per key, so the arrangement survives a re-render. */
 function hash(key: string): number {
@@ -169,65 +138,6 @@ function Print({
       onPress={cell.onPress}
       accessibilityLabel={cell.label}
     />
-  );
-}
-
-/**
- * One picture in the dump: the photograph inside a white print border, with
- * the time written across its foot.
- *
- * The writing goes on the picture rather than on the border below it, which is
- * where a photo page puts it — the printed border carries a lab's serial, the
- * hand goes over the image. White with a dark edge, because it lands on
- * whatever the photograph happens to be.
- */
-function Polaroid({
-  cell,
-  height,
-  tilt,
-}: {
-  cell: CollageCell;
-  height: number;
-  tilt: number;
-}) {
-  const filled = !!(cell.photo || cell.seed);
-
-  return (
-    <View
-      style={[
-        styles.print,
-        shadows.hard,
-        { transform: [{ rotate: `${tilt}deg` }] },
-      ]}
-    >
-      <View>
-        <PhotoSlot
-          width="100%"
-          height={height}
-          photo={cell.photo}
-          seed={cell.seed}
-          radius={radii.sm}
-          // The border is the shadow's shape here: a second one around the
-          // picture inside it would read as a print stuck onto a print.
-          shadow={false}
-          emptyIcon="none"
-          emptyOutline={false}
-          onPress={cell.onPress}
-          accessibilityLabel={cell.label}
-        />
-
-        {filled && cell.caption ? (
-          <Text
-            variant="scriptSm"
-            color={colors.inkInverse}
-            numberOfLines={1}
-            style={styles.printCaption}
-          >
-            {cell.caption}
-          </Text>
-        ) : null}
-      </View>
-    </View>
   );
 }
 
@@ -360,12 +270,6 @@ export function PhotoCollage({
     );
   }
 
-  // The dump is the same dealing as the collage, with every setting that makes
-  // the scatter visible turned up.
-  const dump = layout === 'dump';
-  const lap = dump ? DUMP_LAP : LAP;
-  const nudges = dump ? DUMP_NUDGES : NUDGES;
-
   const buckets: { cell: CollageCell; index: number; height: number }[][] =
     Array.from({ length: columnCount }, () => []);
   const filled = new Array(columnCount).fill(0);
@@ -377,11 +281,11 @@ export function PhotoCollage({
       if (filled[c] < filled[shortest]) shortest = c;
     }
     buckets[shortest].push({ cell, index, height });
-    filled[shortest] += height - lap;
+    filled[shortest] += height - LAP;
   });
 
   return (
-    <View style={[dump ? styles.dumpRow : styles.row, style]}>
+    <View style={[styles.row, style]}>
       {buckets.map((bucket, c) => (
         <View
           key={c}
@@ -395,26 +299,14 @@ export function PhotoCollage({
               style={[
                 // The first print in a column sits on the top line; every one
                 // after it rides up over the one before.
-                i === 0 ? null : { marginTop: -lap },
-                { left: nudges[index % nudges.length] },
+                i === 0 ? null : { marginTop: -LAP },
+                { left: NUDGES[index % NUDGES.length] },
                 // Earlier prints sit on top of later ones, so the tick hanging
                 // off a photo's corner is never buried under the print below.
                 { zIndex: bucket.length - i },
               ]}
             >
-              {dump ? (
-                <Polaroid
-                  cell={cell}
-                  height={height}
-                  tilt={tiltFor(cell.key, index) * DUMP_TILT}
-                />
-              ) : (
-                <Print
-                  cell={cell}
-                  height={height}
-                  tilt={tiltFor(cell.key, index)}
-                />
-              )}
+              <Print cell={cell} height={height} tilt={tiltFor(cell.key, index)} />
             </View>
           ))}
         </View>
@@ -431,35 +323,8 @@ const styles = StyleSheet.create({
     // collage instead of two lists side by side.
     gap: spacing.sm,
   },
-  /**
-   * Tighter still than the collage's row: with the print borders on and the
-   * nudges pushing sideways, the columns have to actually overlap or the
-   * scatter reads as three neat piles standing next to each other.
-   */
-  dumpRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
   column: {
     flex: 1,
-  },
-  print: {
-    backgroundColor: colors.surface,
-    padding: PRINT_MAT,
-    // The foot is the deep one, the way a developed print is.
-    paddingBottom: PRINT_MAT_FOOT,
-    borderRadius: radii.sm,
-  },
-  printCaption: {
-    position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
-    bottom: spacing.xs,
-    // The dark edge that lets white writing hold against whatever the
-    // photograph underneath it happens to be.
-    textShadowColor: colors.ink,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 5,
   },
   gridRow: {
     flexDirection: 'row',

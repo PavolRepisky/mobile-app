@@ -62,10 +62,7 @@ only · `lg` 20 · `md` 16 · `sm` 10.
 **Typeface** — three faces, no exceptions:
 - **Playfair Display** — headlines only (`hero`, `headline`, `headlineSm`, `title`).
 - **Quicksand** — everything functional: body, buttons, labels, tabs, captions.
-- **Caveat** — the hand. Numerals on sticky notes, the day written across the
-  To-do home's photo dump (`type.script`), and the time on each print in it
-  (`type.scriptSm`). Nothing else: every one of them something written by hand
-  on a thing you can hold.
+- **Caveat** — handwritten numerals on sticky notes. Nothing else.
 
 Quicksand runs optically light, so each role is mapped one step up the weight
 ramp; plain copy sits on Medium, not Regular. Don't "correct" this.

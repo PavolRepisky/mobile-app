@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Card } from '@/components/Card';
@@ -12,14 +12,6 @@ import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
 import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
-
-/**
- * Degrees off straight for the writing on the photo block. Barely anything —
- * a hand writing on a page it is already holding does not swing far, and past
- * a couple of degrees it stops reading as handwriting and starts reading as a
- * sticker someone stuck on at an angle.
- */
-const SCRIPT_TILT = -3;
 
 export default function TodoScreen() {
   const router = useRouter();
@@ -101,13 +93,13 @@ export default function TodoScreen() {
             style={({ pressed }) => (pressed ? styles.pressed : undefined)}
           >
             <Text variant="sectionTitle">{`Day ${currentDay}`}</Text>
-            {/* How far into today. Where today stands in the challenge used
-                to be on this line too, and is now written across the photos
-                below — saying it in both places was saying it twice. */}
+            {/* The line the ticks used to carry: where today stands, and
+                where today stands in the challenge. Without it the heading is
+                a bare number and the page opens on nothing but pictures. */}
             <Text variant="label" color={colors.inkMuted}>
               {done === rows.length
-                ? 'All done'
-                : `${done} of ${rows.length} done`}
+                ? `All done · ${totalDays - currentDay} days left`
+                : `${done} of ${rows.length} done · ${totalDays - currentDay} days left`}
             </Text>
           </Pressable>
         }
@@ -125,44 +117,20 @@ export default function TodoScreen() {
             it will fill — so the block is the shape of the whole day and builds
             up through it rather than appearing at the end. The list below
             carries the labels and the times; this carries only the pictures.
-            A photo dump rather than a grid: prints in their white borders,
-            thrown down at angles and overlapping, with the time written on
-            each. The dice arrangement it replaced was five equal squares, and
-            equal squares are a contact sheet however good the photographs. */}
-        <View style={styles.block}>
-          <PhotoCollage
-            layout="dump"
-            // Two rather than the three a five-task day would take: a print in
-            // a dump is something you look at, and a third column shrinks it
-            // to a thumbnail with a white border round it.
-            columns={2}
-            style={styles.collage}
-            cells={rows.map((row) => ({
-              key: row.task.id,
-              label: row.task.label,
-              // The time, not the label: it is written across the foot of the
-              // picture in one line, and the tasks are whole sentences. The
-              // list underneath carries what each one actually was.
-              caption: row.time,
-              photo: row.photo,
-              seed: row.photoSeed,
-              done: row.done,
-              onPress: pressPhoto(row),
-            }))}
-          />
-
-          {/* Written straight across the middle of the block, over the photos
-              rather than beside them. `pointerEvents` off so the tiles
-              underneath keep their taps — the writing is on the photos, not
-              between them and the finger. */}
-          <View pointerEvents="none" style={styles.script}>
-            <Text
-              variant="script"
-              color={colors.inkInverse}
-              style={styles.scriptInk}
-            >{`day ${currentDay} / ${totalDays}`}</Text>
-          </View>
-        </View>
+            Laid out as the five on a die for now: the scattered version was
+            fighting the photos rather than framing them. */}
+        <PhotoCollage
+          layout="dice"
+          style={styles.collage}
+          cells={rows.map((row) => ({
+            key: row.task.id,
+            label: row.task.label,
+            photo: row.photo,
+            seed: row.photoSeed,
+            done: row.done,
+            onPress: pressPhoto(row),
+          }))}
+        />
 
         <Card padded={false} style={styles.list}>
           {rows.map((row, i) => (
@@ -249,31 +217,11 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
-  block: {
+  collage: {
     // Clear of the title above it.
     marginTop: spacing['2xl'],
-  },
-  collage: {
     // The tiles hang off the page's own gutter.
     paddingHorizontal: screenPadding,
-  },
-  script: {
-    // Over the whole block, centred on it: the middle of the four tiles is the
-    // one place a line can run right across the block without any one photo
-    // owning it.
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: `${SCRIPT_TILT}deg` }],
-  },
-  scriptInk: {
-    // White, with the dark edge that lets it hold anywhere it lands: the
-    // middle of the block is a white mat on a day the fifth task is
-    // photographed, a pale gap on a day it is not, and the photograph itself
-    // at the corners. White alone would disappear into the first two.
-    textShadowColor: colors.ink,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 9,
   },
   list: {
     marginTop: spacing['2xl'],
