@@ -175,25 +175,19 @@ home does (tap opens the story, hold goes back to today).
 parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
 `emptyLabel` ·
 `emptyOutline` (the dashed field on its own, defaults to whether there is a
-label) · `emptyTone` `'sunken'|'warm'` (the warm fill is for blocks where an
-empty tile is a gap in a record, not a well to press) · `done` · `tilt` ·
-`shadow` `boolean|'card'|'hard'` · `accessibilityLabel`.
+label) · `done` · `tilt` · `shadow` `boolean|'card'|'hard'` ·
+`accessibilityLabel`.
 **`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `done` · `label` ·
-`onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'|'mosaic'`. The day's proof
+`onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'`. The day's proof
 photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
 are all derived from the cell key, so an arrangement is stable for the life of
 a task. `layout="grid"` is the plain alternative — equal tiles, no tilt, task
-order — and there are two five-task arrangements. `layout="dice"` is four
-square tiles with the fifth laid over the middle on a white mat, the way the
-five is pipped on a die. `layout="mosaic"` — what the To-do home uses — sets
-them as a photo page instead: a tall print with a pair stacked beside it and a
-wide one across the bottom under a small square, nothing square and no row
-lining up with the one above it. Either falls back to the grid on a day that is
-not five tasks long. The grid, dice and mosaic layouts draw no done ticks and no dashed
+order — and `layout="dice"` is the five-task arrangement the To-do home
+currently uses: four square tiles with the fifth laid over the middle on a
+white mat, the way the five is pipped on a die (any other number of tasks falls
+back to the grid). The grid and dice layouts draw no done ticks and no dashed
 "add" tiles: they are a record of the day, and the camera is opened from the
-task rows instead. Grid and mosaic also drop the drop shadow from an empty tile
-and warm its fill (`PhotoSlot`'s `emptyTone`), so early in a day the gaps sit
-back into the page and the photographs are the only thing on it with weight. In the collage, tasks with nothing photographed yet hold
+task rows instead. In the collage, tasks with nothing photographed yet hold
 their place as dashed slots.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.

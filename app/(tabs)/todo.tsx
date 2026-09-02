@@ -117,12 +117,10 @@ export default function TodoScreen() {
             it will fill — so the block is the shape of the whole day and builds
             up through it rather than appearing at the end. The list below
             carries the labels and the times; this carries only the pictures.
-            Set as a photo page rather than a grid: the dice arrangement was
-            five equal squares in a symmetrical block, which is a contact
-            sheet, and the scattered one was fighting the photos rather than
-            framing them. The sizes do the work here and nothing is tilted. */}
+            Laid out as the five on a die for now: the scattered version was
+            fighting the photos rather than framing them. */}
         <PhotoCollage
-          layout="mosaic"
+          layout="dice"
           style={styles.collage}
           cells={rows.map((row) => ({
             key: row.task.id,

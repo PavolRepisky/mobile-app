@@ -53,14 +53,6 @@ export interface PhotoSlotProps {
    */
   emptyOutline?: boolean;
   /**
-   * `'warm'` swaps the empty tile's cool grey for the shell's own warm muted
-   * tone. The grey is right where an empty slot is a thing to press — it reads
-   * as a well waiting to be filled. In the day's block, where the tiles are a
-   * record and most of them are empty early on, that same grey turns the page
-   * cold and pulls the eye onto the gaps rather than the photos.
-   */
-  emptyTone?: 'sunken' | 'warm';
-  /**
    * Marks a filled slot with a tick in the corner. The to-do list has no check
    * circle: a task is done because it was photographed, so the proof carries
    * the status rather than a control sitting next to it.
@@ -100,7 +92,6 @@ export function PhotoSlot({
   emptyIcon = 'camera',
   emptyLabel,
   emptyOutline = !!emptyLabel,
-  emptyTone = 'sunken',
   done,
   tilt,
   shadow = true,
@@ -121,14 +112,7 @@ export function PhotoSlot({
   ) : filled ? (
     <Placeholder seed={seed!} radius={radius} style={box} />
   ) : (
-    <View
-      style={[
-        styles.empty,
-        emptyTone === 'warm' ? styles.emptyWarm : null,
-        box,
-        emptyOutline ? styles.emptyOutlined : null,
-      ]}
-    >
+    <View style={[styles.empty, box, emptyOutline ? styles.emptyOutlined : null]}>
       {emptyIcon === 'none' ? null : (
         <Ionicons
           name={emptyIcon === 'camera' ? 'camera' : 'add'}
@@ -195,10 +179,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  /** The shell's own muted tone, so a gap sits back into the page. */
-  emptyWarm: {
-    backgroundColor: colors.surfaceMuted,
   },
   /**
    * The dash is what separates "nothing here yet" from "nothing goes here":

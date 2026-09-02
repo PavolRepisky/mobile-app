@@ -33,12 +33,10 @@ export interface PhotoCollageProps {
    * `'collage'` is the scattered page of prints. `'grid'` is the same photos
    * laid out plain — equal tiles, straight, in task order. `'dice'` is the
    * five-task arrangement: four square tiles with the fifth laid over the
-   * middle, the way the five is pipped on a die. `'mosaic'` is the other
-   * five-task one: a tall print with a pair stacked beside it and a wide one
-   * under, the way a photo page is set. Both fall back to the plain grid on a
-   * day that is not five tasks long.
+   * middle, the way the five is pipped on a die. A day that is not five tasks
+   * long has no such arrangement, so it falls back to the plain grid.
    */
-  layout?: 'collage' | 'grid' | 'dice' | 'mosaic';
+  layout?: 'collage' | 'grid' | 'dice';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -79,29 +77,6 @@ const DICE_CENTRE = 0.58;
 /** White margin around the centre print, so it reads as laid on top. */
 const MAT = 4;
 
-/**
- * The mosaic is set on a three-column measure: the tall print takes two of
- * them, the pair beside it one, and the bottom row runs the same two widths
- * the other way round. Nothing is square and nothing lines up with the row
- * above it, which is what keeps a block of five photos from reading as a
- * contact sheet.
- */
-const MOSAIC_COLUMNS = 3;
-
-/**
- * Height of the tall print as a share of its own width. A shade past square:
- * far enough to be plainly a portrait, not so far that the pair stacked beside
- * it come out as slots.
- */
-const MOSAIC_HERO = 1.16;
-
-/**
- * Height of the bottom row, again as a share of the tall print's width. Under
- * a square, so the row reads as a footer to the block rather than a second
- * half of it.
- */
-const MOSAIC_FOOT = 0.46;
-
 /** Stable per key, so the arrangement survives a re-render. */
 function hash(key: string): number {
   let h = 0;
@@ -129,13 +104,10 @@ function Print({
   tick = true,
   invite = true,
   shadow = 'hard',
-  emptyTone,
 }: {
   cell: CollageCell;
   height: number;
   tilt?: number;
-  /** Passed through: warm gaps for the blocks that are a record of a day. */
-  emptyTone?: 'sunken' | 'warm';
   /** Off for a tile that is only a gap, so nothing lifts off the page. */
   shadow?: 'hard' | false;
   /** The corner tick on a photographed task. */
@@ -159,7 +131,6 @@ function Print({
       // that failed to load.
       emptyOutline={invite}
       emptyIcon={invite ? 'camera' : 'none'}
-      emptyTone={emptyTone}
       tilt={tilt}
       // The same tight, offset drop the task photos carry: prints laid on the
       // page rather than tiles set into it.
@@ -239,76 +210,6 @@ function DiceGrid({
 }
 
 /**
- * The five of a day set the way a photo page is: one tall print, a pair
- * stacked beside it, and a wide one across the bottom under a small square —
- * the bottom row running the top row's two widths the other way round.
- *
- * Straight, not scattered. The tilts and laps of the collage were competing
- * with the photographs; here it is the sizes that do the work, so the block
- * has a shape of its own and still lets each picture be looked at.
- *
- * Measured rather than proportioned, for the same reason the dice is: the
- * widths come off a three-column measure and only the rendered width knows
- * what a column is.
- */
-function MosaicGrid({
-  cells,
-  style,
-}: {
-  cells: readonly CollageCell[];
-  style?: StyleProp<ViewStyle>;
-}) {
-  const [width, setWidth] = useState(0);
-
-  const gap = spacing.sm;
-  const unit = (width - gap * (MOSAIC_COLUMNS - 1)) / MOSAIC_COLUMNS;
-  const wide = unit * 2 + gap;
-  const heroHeight = Math.round(wide * MOSAIC_HERO);
-  // The pair fills the tall print's height between them, so the two columns
-  // finish on the same line however the ratio above is tuned.
-  const stackHeight = Math.round((heroHeight - gap) / 2);
-  const footHeight = Math.round(wide * MOSAIC_FOOT);
-
-  /**
-   * A gap is a gap: no drop shadow to lift it off the page, and the shell's
-   * own warm tone rather than the cool grey of a slot waiting to be pressed.
-   * Early in a day most of the block is empty, and the photos have to be the
-   * only thing on it with any weight.
-   */
-  const print = (cell: CollageCell, height: number) => (
-    <Print
-      cell={cell}
-      height={height}
-      tick={false}
-      invite={false}
-      shadow={cell.photo || cell.seed ? 'hard' : false}
-      emptyTone="warm"
-    />
-  );
-
-  return (
-    <View style={style} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      {unit > 0 ? (
-        <View>
-          <View style={styles.gridRow}>
-            <View style={{ width: wide }}>{print(cells[0], heroHeight)}</View>
-            <View style={{ width: unit, gap }}>
-              {print(cells[1], stackHeight)}
-              {print(cells[2], stackHeight)}
-            </View>
-          </View>
-
-          <View style={[styles.gridRow, styles.gridGap]}>
-            <View style={{ width: unit }}>{print(cells[3], footHeight)}</View>
-            <View style={{ width: wide }}>{print(cells[4], footHeight)}</View>
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/**
  * The day's proof photos as a page of prints rather than a grid of thumbnails:
  * unequal sizes, each one off straight by a degree or so, lapping over its
  * neighbour. Tasks with nothing photographed yet hold their place as dashed
@@ -333,13 +234,9 @@ export function PhotoCollage({
     return <DiceGrid cells={cells} style={style} />;
   }
 
-  if (layout === 'mosaic' && cells.length === 5) {
-    return <MosaicGrid cells={cells} style={style} />;
-  }
-
   const columnCount = columns ?? (cells.length <= 4 ? 2 : 3);
 
-  if (layout === 'grid' || layout === 'dice' || layout === 'mosaic') {
+  if (layout === 'grid' || layout === 'dice') {
     // Row-major, so the tiles run in the order the tasks are listed below —
     // the collage's shortest-column dealing scrambles that, which a grid
     // regular enough to be read as a table cannot afford.
@@ -359,11 +256,6 @@ export function PhotoCollage({
                   height={GRID_HEIGHT}
                   tick={false}
                   invite={false}
-                  // The mosaic falls back to here on a day that is not five
-                  // tasks long, so the gaps have to sit back into the page the
-                  // same way they do there.
-                  shadow={cell.photo || cell.seed ? 'hard' : false}
-                  emptyTone="warm"
                 />
               </View>
             ))}
