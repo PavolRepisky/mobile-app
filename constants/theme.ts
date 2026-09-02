@@ -80,6 +80,13 @@ export const colors = {
   /** Scrims. */
   scrim: 'rgba(0,0,0,0.45)',
   scrimLight: 'rgba(28,26,24,0.18)',
+  /**
+   * The wash under a numeral or label printed straight onto a photo, where
+   * there is no room for a plate behind it — the calendar's day numbers. Held
+   * to a third so the picture still reads through it, which is as light as it
+   * can go and still carry white text over a sunlit shot.
+   */
+  scrimPhoto: 'rgba(0,0,0,0.34)',
 
   /**
    * Washes that sit *on* glass rather than on a background. They are black at a

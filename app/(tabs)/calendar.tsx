@@ -112,8 +112,12 @@ export default function CalendarScreen() {
             variant="label"
             color={colors.inkMuted}
           />
+          <Text variant="label" color={colors.inkMuted} style={styles.dot}>
+            ·
+          </Text>
+
           <Text variant="label" color={colors.inkMuted}>
-            {`  ·  ${photographed} of ${totalDays} days`}
+            {`${photographed} of ${totalDays} days`}
           </Text>
         </View>
       </View>
@@ -137,7 +141,13 @@ const styles = StyleSheet.create({
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
+    // The challenge name above it is a centred headline, so the line reading
+    // it out has to hang under the middle of it rather than off to one side.
+    justifyContent: 'center',
     marginTop: spacing.xs,
+  },
+  dot: {
+    marginHorizontal: spacing.sm,
   },
   month: {
     marginBottom: spacing['3xl'],

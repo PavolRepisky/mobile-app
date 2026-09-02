@@ -121,13 +121,13 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
   const { photo, seed, inChallenge, today, onPress } = day;
   const hasShot = !!photo || !!seed;
 
-  // Three states, in the order they take precedence: a photographed day is the
-  // photo, a day inside the challenge is ink, and everything else — before the
-  // start, after the end, still to come — is barely there.
+  // The photographs are the page; every bare numeral stays quiet under them.
+  // A day of the challenge with nothing on it still reads as a day you could
+  // have shot, so it holds more weight than a date outside the run entirely.
   const numberColor = hasShot
     ? colors.inkInverse
     : inChallenge
-      ? colors.ink
+      ? colors.inkMuted
       : colors.inkGhost;
 
   const numeral = (
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   scrim: {
     ...absoluteFill,
     borderRadius: radii.sm,
-    backgroundColor: colors.scrimLight,
+    backgroundColor: colors.scrimPhoto,
   },
   plain: {
     flex: 1,
