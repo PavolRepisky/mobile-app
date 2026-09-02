@@ -78,8 +78,12 @@ takes `bottomExtra` and any `ScrollViewProps`. Screens opening on a headline
 take the default `topGap`; ones opening on a control row pass a smaller value
 because the row reads as the header itself.
 
-**`ProfileLayout`** — `identity` and optional `action` nodes above `children`,
-plus `tone` / `padded` / `tabBar` / `bottomExtra`. Exports
+**`ProfileLayout`** — `identity` and optional `action` / `leading` nodes above
+`children`, plus `tone` / `padded` / `tabBar` / `bottomExtra`. `action` floats
+in the top-right corner; `leading` is the page's heading on that same line at
+the left — the To-do home's date — but it sits *in* the scroll and travels with
+it, so the title leaves the screen with the content it names while the button
+stays reachable. Exports
 `profileAvatarSize` (120), `profileActionTop` (56), `profileActionHeight` (52)
 so callers can align against it.
 
@@ -145,20 +149,57 @@ else (`visible` + `onPick`). **`ChallengeLengthSheet`** wraps `RulerSlider`.
 
 ### Content
 
-**`TaskRow`** — `label` · `done` · `time` · `photo`/`photoSeed` · `onToggle` ·
-`onPressPhoto` · `index` · `divider`. **`CheckCircle`** is exported separately
-(default size 46).
+**`TaskRow`** — `label` · `done` · `time` · `onPressPhoto` · `divider`. The row
+is a check circle, a label and a completion stamp; the proof photo is not on it
+— that lives in the day's `PhotoCollage`. **`CheckCircle`** is exported
+separately (default size 36) and takes `emptyIcon`, the glyph shown while the
+circle is still hollow. Pass it only where the circle is pressable: on a
+friend's list a camera would be inviting you to photograph their day.
 
 **`DayRing`** — `day` · `state` `'full'|'partial'|'none'` · `avatar`/`avatarSeed`
 · `size` · `onPress` · `onDoublePressDay` (the way back to today from a
 scrubbed day). `ringInnerSize(size)` gives the inner diameter.
+**`DayPill`** is the "Day N" chip on its own — `day` · `onPress` ·
+`onDoublePress` · `onLongPress`. The lens has to lap over something to refract
+it, so give it a negative margin onto whatever sits behind. `onDoublePress` is
+ignored once `onPress` is set: a tap action and a double tap cannot share a
+pill without holding every tap back to see whether a second one follows, so a
+screen wanting both puts the second on `onLongPress` — which is what the To-do
+home does (tap opens the story, hold goes back to today).
 
 **`StickyNote`** — `value` · `size` · `colorIndex` (into `stickyPalette`) ·
-`muted` · `tilt`. **`StickerCard`** — `day` · `from`/`to` · `tasks` · `mode`
-`'numbered'|'checked'` · `challengeName` · `width` · `tilt`.
+`muted` · `tilt`.
 
-**`PhotoSlot`** — `photo` or `seed` · `width`/`height`/`radius` ·
-`emptyIcon` `'camera'|'add'` · `tilt` · `shadow` `boolean|'card'|'hard'`.
+**`CalendarMonth`** — `month` (any date inside it) · `days`, a map from day of
+the month to `photo`/`seed` · `inChallenge` · `today` · `label` · `onPress`.
+One month as a seven-column grid, Monday first, with the day's cover shot
+printed behind its numeral. Dates outside the challenge are still drawn, in
+`inkGhost`: dropping them would leave a broken grid rather than a challenge
+that happened to start mid-week. Today takes the ink disc a calendar always
+puts on it, or an ink ring when it already has a photo under it.
+
+**`PhotoSlot`** — `photo` or `seed` · `width` (points, or a share of the
+parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
+`emptyLabel` ·
+`emptyOutline` (the dashed field on its own, defaults to whether there is a
+label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
+`shadow` `boolean|'card'|'hard'` · `accessibilityLabel`. `emptyTone="warm"` is
+for blocks where an empty tile is a gap in a record rather than a well to
+press: the shell's muted tone inside a hairline instead of the cool grey.
+**`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `done` · `label` ·
+`onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'`. The day's proof
+photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
+are all derived from the cell key, so an arrangement is stable for the life of
+a task. `layout="grid"` is the plain alternative — equal tiles, no tilt, task
+order — and `layout="dice"` is the five-task arrangement the To-do home
+currently uses: four square tiles with the fifth laid over the middle on a
+white mat, the way the five is pipped on a die (any other number of tasks falls
+back to the grid). The grid and dice layouts draw no done ticks and no dashed
+"add" tiles: they are a record of the day, and the camera is opened from the
+task rows instead. Their empty tiles also drop the drop shadow and take the
+warm tone — a gap has nothing to lift off the page, and early in a day the
+block is mostly gaps. In the collage, tasks with nothing photographed yet hold
+their place as dashed slots.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.
 
@@ -175,8 +216,10 @@ screen can lock its scroll. **`ChallengePicker`** has `popular`/`custom` tabs.
 `AvatarPlaceholder` / `AvatarSilhouette` — deterministic gradient stand-ins
 seeded by a string, and the only place literal hex is allowed.
 
-**`FloatingTabBar`** + `TabBarButton` — icons `'recipes'|'friends'|'todo'|'profile'`,
-a glass lens behind the bar and a light pill behind the active tab.
+**`FloatingTabBar`** + `TabBarButton` — icons
+`'recipes'|'friends'|'todo'|'calendar'|'profile'` (outline until focused), a
+glass lens behind the bar and a light pill behind the active tab. `filled`
+turns a tab into a solid ink disc with no label — the centre tab only.
 
 ---
 

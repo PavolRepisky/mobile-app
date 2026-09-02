@@ -122,6 +122,14 @@ interface AppActions {
 
   toggleTask: (taskId: string, day?: number) => void;
   setTaskPhoto: (taskId: string, photo: TaskPhoto | null, day?: number) => void;
+  /**
+   * A task is only ever ticked off by photographing it, so the shot and the
+   * tick land together rather than through two calls that could be left half
+   * applied. Retaking a photo on an already-done task keeps it done.
+   */
+  completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number) => void;
+  /** The other half of that bargain: the tick goes, and the proof goes with it. */
+  undoTask: (taskId: string, day?: number) => void;
 
   renameWallBoard: (boardId: string, title: string) => void;
   /** Opens a pin for `boardId` on the picked photo, for the Create Pin screen. */
@@ -480,6 +488,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay],
   );
 
+  const completeTaskWithPhoto = useCallback(
+    (taskId: string, photo: TaskPhoto, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        const existing = dayMap[taskId];
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              ...existing,
+              done: true,
+              // Retaking leaves the original stamp alone: the task was done
+              // when it was first photographed, not when it was reshot.
+              time: existing?.done ? existing.time : timeStamp(new Date()),
+              photo,
+              // A real photo replaces the seeded stand-in rather than sitting
+              // behind it.
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
+  const undoTask = useCallback(
+    (taskId: string, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              done: false,
+              time: undefined,
+              photo: null,
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
   const renameWallBoard = useCallback((boardId: string, title: string) => {
     setWall((prev) =>
       prev.map((board) =>
@@ -608,6 +666,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       restartChallenge,
       toggleTask,
       setTaskPhoto,
+      completeTaskWithPhoto,
+      undoTask,
       renameWallBoard,
       startPinDraft,
       setPinDraftPhoto,
@@ -624,7 +684,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentDay, endDate, wall, pinDraft,
       setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
-      toggleTask, setTaskPhoto, toggleSavedRecipe, reactToPost, resetAll,
+      toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
+      toggleSavedRecipe, reactToPost, resetAll,
       renameWallBoard, startPinDraft, setPinDraftPhoto, clearPinDraft,
       addWallPin, updateWallPin,
     ],

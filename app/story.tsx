@@ -59,12 +59,6 @@ export default function StoryScreen() {
     : [{ key: 'empty', photo: null, seed: 'story-empty', time: null }];
   const current = frames[Math.min(index, frames.length - 1)];
 
-  // Measured off the first bar so the fill can slide in on the UI thread from
-  // exactly its own width away. Every bar is a flex:1 sibling of the same row,
-  // so one measurement covers them all, and it re-fires when a photo taken
-  // mid-story adds a bar and narrows the rest.
-  const [barWidth, setBarWidth] = useState(0);
-
   const advance = (delta: number) => {
     const next = index + delta;
     if (next < 0) return;
@@ -115,41 +109,26 @@ export default function StoryScreen() {
       <View style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.bars}>
           {frames.map((frame, i) => (
-            <View
-              key={frame.key}
-              style={styles.bar}
-              onLayout={
-                i === 0
-                  ? (e) => setBarWidth(e.nativeEvent.layout.width)
-                  : undefined
-              }
-            >
-              {barWidth > 0 ? (
+            <View key={frame.key} style={styles.bar}>
+              {/* Only the story actually playing is an animated view. Handing
+                  a bar the shared `fill` and then swapping it for a plain
+                  number leaves the native side still driving that view, so
+                  the `setValue(0)` that starts the next story empties the bar
+                  you just skipped past instead of leaving it full. Different
+                  element types either side of this branch mean React mounts a
+                  fresh view rather than re-using the bound one. */}
+              {i === index ? (
                 <Animated.View
+                  style={[styles.barFill, { transform: [{ scaleX: fill }] }]}
+                />
+              ) : (
+                <View
                   style={[
                     styles.barFill,
-                    { width: barWidth },
-                    {
-                      transform: [
-                        {
-                          // Stories already seen stay full, ones still to come
-                          // sit parked a full width to the left, and the one
-                          // playing slides across as the timer runs.
-                          translateX:
-                            i < index
-                              ? 0
-                              : i > index
-                                ? -barWidth
-                                : fill.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [-barWidth, 0],
-                                  }),
-                        },
-                      ],
-                    },
+                    i < index ? styles.barSeen : styles.barUnseen,
                   ]}
                 />
-              ) : null}
+              )}
             </View>
           ))}
         </View>
@@ -212,17 +191,29 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: radii.pill,
     backgroundColor: colors.onMediaTrack,
-    overflow: 'hidden',
   },
+  /**
+   * Squashed to nothing against its own left edge and grown back out, rather
+   * than slid across under a clipping parent: scaling needs no measurement, so
+   * the fill is there on the first frame instead of waiting on an `onLayout`
+   * that has to land before anything at all is drawn, and the track no longer
+   * needs `overflow: 'hidden'` — which on Android, over a pill radius on a
+   * 3px-tall view, is a reliable way to lose the child entirely. Still a
+   * transform, so it runs on the UI thread and keeps going while the JS thread
+   * is busy decoding the next photo.
+   */
   barFill: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
+    ...absoluteFill,
+    borderRadius: radii.pill,
     backgroundColor: colors.inkInverse,
-    // Slid in from the left under the bar's own clipping rather
-    // than widened, so the animation can run on the UI thread and keeps
-    // running while the JS thread is busy loading the next photo.
+    transformOrigin: 'left',
+  },
+  /** Seen outright, or skipped past part-way: either way the bar reads full. */
+  barSeen: {
+    transform: [{ scaleX: 1 }],
+  },
+  barUnseen: {
+    transform: [{ scaleX: 0 }],
   },
   head: {
     flexDirection: 'row',

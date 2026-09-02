@@ -85,7 +85,8 @@ two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
 **Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
-pill · `StickyNote` · `StickerCard` · `PhotoSlot` · `PhotoStrip` ·
+pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
+`PhotoSlot` · `PhotoCollage` scattered prints · `PhotoStrip` ·
 `WallSection` · `FriendCard` · `RecipeCard` · `ReviewCard` · `ChallengeDetail`
 · `ChallengePicker` · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.

@@ -74,16 +74,6 @@ export default function RootLayout() {
               name="story"
               options={{ animation: 'fade', presentation: 'fullScreenModal' }}
             />
-            {/* The sticker wall is a page of its own, not a card over the
-                to-do list: a sheet would leave the tab showing at the top and
-                cut the grid short. */}
-            <Stack.Screen
-              name="sticker"
-              options={{
-                presentation: 'fullScreenModal',
-                animation: 'slide_from_bottom',
-              }}
-            />
             <Stack.Screen
               name="invite"
               options={{

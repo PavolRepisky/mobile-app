@@ -241,11 +241,21 @@ export const type = {
     lineHeight: 22,
     letterSpacing: bodyTracking,
   },
-  /** Daily-task labels, which the reference sets in the heavy cut. */
   bodyBold: {
     fontFamily: fonts.bodyBold,
     fontSize: 16,
     lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /**
+   * The daily-task label, which the reference sets in the heavy cut. A step
+   * above `bodyBold`: the to-do row lost its check circle, and the label is
+   * now the only thing holding the width beside the photo.
+   */
+  taskLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 18,
+    lineHeight: 24,
     letterSpacing: bodyTracking,
   },
   button: {

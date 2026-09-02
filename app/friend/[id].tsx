@@ -74,8 +74,6 @@ export default function FriendProfileScreen() {
                 label={task.label}
                 done={task.done}
                 time={task.time}
-                photoSeed={null}
-                index={i}
                 divider={i < friend.tasks.length - 1}
               />
             ))}

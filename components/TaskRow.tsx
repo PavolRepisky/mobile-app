@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   View,
-  type ImageSourcePropType,
   type NativeSyntheticEvent,
   type StyleProp,
   type TextLayoutEventData,
@@ -14,18 +13,44 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, spacing } from '@/constants/theme';
-import { PhotoSlot } from './PhotoSlot';
+import { colors, spacing, type } from '@/constants/theme';
 import { Text } from './Text';
+
+/**
+ * The empty circle's outline: its weight, and how far outside the circle it
+ * sits. Dashed at the same weight the collage's empty slots are, because they
+ * are the day's two ways of drawing the same thing — a place waiting to be
+ * filled — and a hollow ring next to a dashed tile reads as two different
+ * states rather than one.
+ *
+ * Laid around the circle rather than bordered onto it. A border is drawn
+ * inside the box, which cuts its own weight out of the shape: the ink that
+ * floods in on a tick then lands a rim smaller than the outline that promised
+ * it, and the dashes read as a groove in the circle instead of a line about
+ * to be filled.
+ */
+const RING = 1.75;
 
 export interface CheckCircleProps {
   checked: boolean;
   size?: number;
   onPress?: () => void;
+  /**
+   * Glyph drawn inside the circle while it is still empty — the camera on the
+   * to-do rows, where pressing the circle is what opens the viewfinder. Left
+   * off wherever the circle is only reporting a state, so a hollow circle
+   * never reads as something to press.
+   */
+  emptyIcon?: keyof typeof Ionicons.glyphMap;
 }
 
-/** Big filled circle with a white tick, or a hollow outline when undone. */
-export function CheckCircle({ checked, size = 46, onPress }: CheckCircleProps) {
+/** Filled circle with a white tick, or a hollow outline when undone. */
+export function CheckCircle({
+  checked,
+  size = 36,
+  onPress,
+  emptyIcon,
+}: CheckCircleProps) {
   // 0 = empty outline, 1 = filled and ticked. Held in a value rather than
   // swapped outright so ticking a task reads as the ink flooding the circle
   // and the check landing on top of it, which is the moment worth animating.
@@ -65,16 +90,34 @@ export function CheckCircle({ checked, size = 46, onPress }: CheckCircleProps) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          borderColor: colors.field,
         },
       ]}
     >
+      {/* Fades out under the ink rather than being covered by it: the ring
+          stands outside the circle, so there is nothing the fill could grow
+          to that would paint over it. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.ring,
+          {
+            borderRadius: size / 2 + RING,
+            borderColor: colors.field,
+            opacity: fill.interpolate({
+              inputRange: [0, 0.5],
+              outputRange: [1, 0],
+              extrapolate: 'clamp',
+            }),
+          },
+        ]}
+      />
+
       <Animated.View
         style={[
           styles.fill,
           {
-            // Sized to the border box, not the content box, so the ink covers
-            // the outline rather than leaving a grey rim around it.
+            // The circle carries no border now, so its box is the shape: the
+            // ink fills it corner to corner with nothing to cover.
             width: size,
             height: size,
             borderRadius: size / 2,
@@ -84,6 +127,25 @@ export function CheckCircle({ checked, size = 46, onPress }: CheckCircleProps) {
           },
         ]}
       />
+      {emptyIcon ? (
+        <Animated.View
+          style={[
+            styles.glyph,
+            {
+              // Gone by the time the ink is half in, so the tick lands on a
+              // clean circle rather than crossing the glyph on its way.
+              opacity: fill.interpolate({
+                inputRange: [0, 0.5],
+                outputRange: [1, 0],
+                extrapolate: 'clamp',
+              }),
+            },
+          ]}
+        >
+          <Ionicons name={emptyIcon} size={size * 0.44} color={colors.inkMuted} />
+        </Animated.View>
+      ) : null}
+
       <Animated.View
         style={{
           opacity: fill.interpolate({
@@ -123,43 +185,32 @@ export interface TaskRowProps {
   done: boolean;
   /** Completion time, e.g. "7:19am". Only shown once done. */
   time?: string | null;
-  /** A photo the user actually took or picked. Wins over `photoSeed`. */
-  photo?: ImageSourcePropType | null;
-  /** Seed for the proof photo; null shows the empty camera tile. */
-  photoSeed?: string | null;
-  onToggle?: () => void;
+  /**
+   * The row's only control. A task is still ticked off by photographing it, so
+   * pressing the circle is what opens the viewfinder — the camera inside it is
+   * the invitation. The proof itself is not on the row any more: it goes into
+   * the day's collage, which is where the pictures are looked at.
+   */
   onPressPhoto?: () => void;
-  /** Position in the card. Only used to alternate which way the photo leans. */
-  index?: number;
   /** Last row in a card omits its divider. */
   divider?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
-/**
- * A degree and a half either side of straight at most — enough that no two
- * photos in a card sit at the same angle, little enough that you read it as
- * hand-placed rather than crooked. Seeded off the label so a row keeps its
- * angle across renders: the scrapbook feel comes from the photos not lining
- * up with each other, not from them shifting about. Zero is deliberately not
- * in the range, so every slot is off straight by something, and consecutive
- * rows always lean opposite ways.
- */
-function tiltFor(label: string, index: number): number {
-  let h = 0;
-  for (let i = 0; i < label.length; i += 1) {
-    h = (h * 31 + label.charCodeAt(i)) | 0;
-  }
-  // Magnitude off the label, direction off the position: seeding the sign as
-  // well left neighbouring rows landing on the same angle often enough to
-  // look like they had simply been set straight.
-  const magnitude = 0.45 + (Math.abs(h) % 5) * 0.28;
-  return index % 2 === 0 ? magnitude : -magnitude;
-}
-
 /** Thickness of the animated strike, and how long it takes to draw. */
 const STRIKE = 1.5;
 const STRIKE_MS = 340;
+
+/**
+ * The completion stamp keeps its line in the flow whether or not a task is
+ * done, so the height it holds open — its line, plus the gap above it — is
+ * what the body has to be offset by to sit the label on the circle's centre.
+ * Positioning the stamp out of flow instead is the obvious-looking fix and is
+ * wrong: a percentage offset resolves against the height the row hands down,
+ * and drops the stamp onto the task below.
+ */
+const STAMP_GAP = 4;
+const STAMP_BLOCK = type.body.lineHeight + STAMP_GAP;
 
 /**
  * Where the rule crosses a line of text: through the middle of the lowercase
@@ -174,20 +225,21 @@ function strikeTop(line: TextLayoutLine): number {
 }
 
 /**
- * Photo slot + label + completion time + check circle. Completed tasks get a
- * strikethrough on the label, which is the app's main "done" signal — drawn
- * as a rule that sweeps across the text rather than a decoration that blinks
- * on, since ticking a task is the one moment this screen is really about.
+ * Check circle + label + completion time. Completed tasks get a strikethrough
+ * on the label as well as the filled circle — drawn as a rule that sweeps
+ * across the text rather than a decoration that blinks on, since ticking a
+ * task is the one moment this screen is really about.
+ *
+ * The proof photo used to sit on the row and carry the whole interaction. It
+ * has moved to the day's collage, which shows the same shots larger and all at
+ * once; what is left here is the state and the one control that changes it, at
+ * a quarter of the height.
  */
 export function TaskRow({
   label,
   done,
   time,
-  photo,
-  photoSeed,
-  onToggle,
   onPressPhoto,
-  index = 0,
   divider = true,
   style,
 }: TaskRowProps) {
@@ -267,20 +319,39 @@ export function TaskRow({
 
   return (
     <View style={[styles.row, divider && styles.divider, style]}>
-      <PhotoSlot
-        photo={photo}
-        seed={photoSeed}
-        tilt={tiltFor(label, index)}
-        shadow="hard"
+      <CheckCircle
+        checked={done}
+        // Only where the circle can actually be pressed. On a friend's list a
+        // camera would be inviting you to photograph their day.
+        emptyIcon={onPressPhoto ? 'camera' : undefined}
         onPress={onPressPhoto}
       />
 
-      <View style={styles.body}>
+      {/* The stamp's line is held open whether or not there is a time in it,
+          which leaves the block half a stamp taller than the label and the
+          label sitting that far above centre. Sitting the body half a stamp
+          low cancels it while the task is open, and riding back to zero as
+          the stamp lands leaves the two of them centred together. */}
+      <Animated.View
+        style={[
+          styles.body,
+          {
+            transform: [
+              {
+                translateY: stamp.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [STAMP_BLOCK / 2, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <View>
           <Text
-            variant="bodyBold"
+            variant="taskLabel"
             onTextLayout={handleTextLayout}
-            style={[styles.label, done && !drawn && styles.struck]}
+            style={done && !drawn ? styles.struck : undefined}
           >
             {label}
           </Text>
@@ -293,7 +364,8 @@ export function TaskRow({
         </View>
 
         {/* Always laid out, even with nothing in it: the stamp appearing must
-            not shunt the label off its line. */}
+            not shunt the label off its line. The body above compensates for
+            the line this holds open. */}
         <Animated.View
           style={[
             styles.time,
@@ -314,9 +386,7 @@ export function TaskRow({
             {lastTime.current ?? ' '}
           </Text>
         </Animated.View>
-      </View>
-
-      <CheckCircle checked={done} onPress={onToggle} />
+      </Animated.View>
     </View>
   );
 }
@@ -325,7 +395,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    // The 118pt print used to set this height; with only the circle left the
+    // row needs padding of its own, or the list closes up into a dense block.
+    paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
   },
   divider: {
@@ -334,18 +406,19 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    marginHorizontal: spacing.md,
+    // Only a leading gap: the label runs to the same inset on the right as the
+    // circle keeps on the left.
+    marginLeft: spacing.md,
   },
-  /** Slightly tighter than default body copy so labels hold two lines. */
-  label: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
+  /*
+   * The label carries no size override: it sits at the scale's own `bodyBold`
+   * and takes the width the photo left behind when it moved to the collage.
+   */
   struck: {
     textDecorationLine: 'line-through',
   },
   time: {
-    marginTop: 4,
+    marginTop: STAMP_GAP,
   },
   rule: {
     position: 'absolute',
@@ -356,12 +429,25 @@ const styles = StyleSheet.create({
   check: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+  },
+  ring: {
+    position: 'absolute',
+    top: -RING,
+    left: -RING,
+    right: -RING,
+    bottom: -RING,
+    borderWidth: RING,
+    borderStyle: 'dashed',
   },
   fill: {
     position: 'absolute',
-    top: -1.5,
-    left: -1.5,
+    top: 0,
+    left: 0,
+  },
+  glyph: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.75,

@@ -1,61 +1,36 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Card } from '@/components/Card';
-import { DayRing, type DayRingState } from '@/components/DayRing';
-import { DayScrubber } from '@/components/DayScrubber';
 import { IconButton } from '@/components/IconButton';
-import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
+import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
-import { ProfileLayout, profileAvatarSize } from '@/components/ProfileLayout';
-import { StickyNote } from '@/components/StickyNote';
+import { ProfileLayout } from '@/components/ProfileLayout';
 import { TaskRow } from '@/components/TaskRow';
-import { spacing } from '@/constants/theme';
+import { Text } from '@/components/Text';
+import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 export default function TodoScreen() {
   const router = useRouter();
-  const {
-    currentDay,
-    totalDays,
-    profile,
-    toggleTask,
-  } = useApp();
+  const { currentDay, totalDays, undoTask } = useApp();
 
-  // The scrubber can park on any day of the challenge; everything above and
-  // below it — the note, the ring, the task list — follows that day, not
-  // today. Days still ahead have no progress recorded, so they read as open.
-  const [selectedDay, setSelectedDay] = useState(currentDay);
-  useEffect(() => {
-    setSelectedDay(currentDay);
-  }, [currentDay]);
-
-  const rows = useDayProgress(selectedDay);
-  const future = selectedDay > currentDay;
-
-  // The ring reads as a story ring: colour once the day is finished outright,
-  // a plain grey band while there is proof on it but tasks still open, and a
-  // lighter grey one on a day with no photos to open.
-  const ringState: DayRingState = rows.length > 0 && rows.every((row) => row.done)
-    ? 'full'
-    : rows.some((row) => row.photo || row.photoSeed)
-      ? 'partial'
-      : 'none';
+  // The page is today and nothing else: with the tick scrubber gone there is
+  // no way to park on another day, so the collage and the list both read off
+  // the current one.
+  const rows = useDayProgress(currentDay);
+  const done = rows.filter((row) => row.done).length;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
-  // The task whose photo slot was tapped: the source dialog is shared, so it
-  // needs to remember what it is picking for.
-  const [photoFor, setPhotoFor] = useState<string | null>(null);
-  /** The task the library sheet is open for, once a source has been chosen. */
-  const [libraryFor, setLibraryFor] = useState<string | null>(null);
+  /** The done task whose photo was tapped, waiting on retake-or-undo. */
+  const [doneFor, setDoneFor] = useState<string | null>(null);
 
   /**
-   * Held until the dialog has actually gone. Both destinations present
-   * something of their own — a pushed page or a second modal — and starting
-   * that while the dialog is still dismissing is what drops it on iOS.
+   * Held until the dialog has actually gone: a retake pushes the camera, and
+   * starting that while the dialog is still dismissing is what drops it on iOS.
    */
   const pending = useRef<(() => void) | null>(null);
   const runPending = () => {
@@ -64,69 +39,97 @@ export default function TodoScreen() {
     next?.();
   };
 
-  const openPicker = (source: 'camera' | 'library') => {
-    const taskId = photoFor;
-    if (!taskId) return;
-    pending.current = () => {
-      if (source === 'library') {
-        setLibraryFor(taskId);
-        return;
-      }
-      router.push({
-        pathname: '/photo/camera',
-        params: { taskId, day: String(selectedDay) },
-      });
-    };
-    setPhotoFor(null);
-    // A Modal reports its dismissal on iOS only; everywhere else there is
-    // nothing to wait for, so it runs on the spot.
-    if (Platform.OS !== 'ios') runPending();
+  /**
+   * The one way a task is ever ticked off. There is no library route and no
+   * source dialog: the proof has to be photographed on the spot, so the photo
+   * slot leads straight to the viewfinder.
+   */
+  const shoot = (taskId: string) => {
+    router.push({
+      pathname: '/photo/camera',
+      params: { taskId, day: String(currentDay) },
+    });
   };
+
+  /**
+   * What pressing a slot does, wherever it is pressed from. An empty one has
+   * a single obvious meaning, so it opens the camera outright; a filled one
+   * could mean either of two things, so it asks which.
+   */
+  const pressSlot = (row: (typeof rows)[number]) => () =>
+    row.done ? setDoneFor(row.task.id) : shoot(row.task.id);
+
+  /**
+   * The grid is the day's record, not a way into the camera: only a photo that
+   * exists answers to a tap, and it asks retake-or-undo the way it always did.
+   * Photographing a task starts from its row below, which is the one place the
+   * viewfinder is ever opened from.
+   */
+  const pressPhoto = (row: (typeof rows)[number]) =>
+    row.done ? () => setDoneFor(row.task.id) : undefined;
 
   return (
     <>
+      {/* No identity: the avatar belongs on the Profile tab, and this screen
+          leads with the day itself. */}
       <ProfileLayout
         tabBar
         padded={false}
-        identity={
-          <DayRing
-            day={selectedDay}
-            state={ringState}
-            size={profileAvatarSize}
-            avatarSeed={profile.avatarSeed}
-            avatar={profile.avatar}
+        // The day is a label, not a Playfair line, so it does not need the
+        // full headline gap under the status bar to breathe.
+        topGap={spacing.sm}
+        leading={
+          // The day is the page's title, and tapping it opens that day's
+          // story — the way tapping the ring used to.
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Day ${currentDay}. Opens this day's story.`}
             onPress={() =>
               router.push({
                 pathname: '/story',
-                params: { day: String(selectedDay) },
+                params: { day: String(currentDay) },
               })
             }
-            onDoublePressDay={() => setSelectedDay(currentDay)}
-          />
+            style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+          >
+            <Text variant="sectionTitle">{`Day ${currentDay}`}</Text>
+            {/* The line the ticks used to carry: where today stands, and
+                where today stands in the challenge. Without it the heading is
+                a bare number and the page opens on nothing but pictures. */}
+            <Text variant="label" color={colors.inkMuted}>
+              {done === rows.length
+                ? `All done · ${totalDays - currentDay} days left`
+                : `${done} of ${rows.length} done · ${totalDays - currentDay} days left`}
+            </Text>
+          </Pressable>
         }
         action={
-          <>
-            <StickyNote
-              value={selectedDay}
-              size={62}
-              colorIndex={0}
-              tilt={-2}
-              onPress={() => router.push('/sticker')}
-            />
-            <IconButton
-              name="pencil"
-              iconSize={21}
-              onPress={() => setMenuOpen(true)}
-              accessibilityLabel="Challenge options"
-            />
-          </>
+          <IconButton
+            name="pencil"
+            iconSize={21}
+            onPress={() => setMenuOpen(true)}
+            accessibilityLabel="Challenge options"
+          />
         }
       >
-        <DayScrubber
-          day={selectedDay}
-          totalDays={totalDays}
-          onChange={setSelectedDay}
-          style={styles.ticks}
+        {/* The day as its pictures. Every task holds a place from the moment
+            the day opens — photographed ones as the photo, the rest as the gap
+            it will fill — so the block is the shape of the whole day and builds
+            up through it rather than appearing at the end. The list below
+            carries the labels and the times; this carries only the pictures.
+            Laid out as the five on a die for now: the scattered version was
+            fighting the photos rather than framing them. */}
+        <PhotoCollage
+          layout="dice"
+          style={styles.collage}
+          cells={rows.map((row) => ({
+            key: row.task.id,
+            label: row.task.label,
+            photo: row.photo,
+            seed: row.photoSeed,
+            done: row.done,
+            onPress: pressPhoto(row),
+          }))}
         />
 
         <Card padded={false} style={styles.list}>
@@ -136,15 +139,7 @@ export default function TodoScreen() {
               label={row.task.label}
               done={row.done}
               time={row.time}
-              photo={row.photo}
-              photoSeed={row.photoSeed}
-              onToggle={
-                future ? undefined : () => toggleTask(row.task.id, selectedDay)
-              }
-              onPressPhoto={
-                future ? undefined : () => setPhotoFor(row.task.id)
-              }
-              index={i}
+              onPressPhoto={pressSlot(row)}
               divider={i < rows.length - 1}
             />
           ))}
@@ -168,22 +163,33 @@ export default function TodoScreen() {
       />
 
       <AlertDialog
-        visible={photoFor !== null}
-        title="Today's Photo"
-        message="Add a photo for this task (visible on your profile)."
-        onDismiss={() => setPhotoFor(null)}
+        visible={doneFor !== null}
+        title="Task Done"
+        message="Take this one again, or undo it — undoing removes the photo too."
+        onDismiss={() => setDoneFor(null)}
         onDismissed={runPending}
         actions={[
-          { label: 'Camera', onPress: () => openPicker('camera') },
-          { label: 'Library', onPress: () => openPicker('library') },
-          { label: 'Cancel', onPress: () => setPhotoFor(null) },
+          {
+            label: 'Retake Photo',
+            onPress: () => {
+              const taskId = doneFor;
+              if (taskId) pending.current = () => shoot(taskId);
+              setDoneFor(null);
+              // A Modal reports its dismissal on iOS only; everywhere else
+              // there is nothing to wait for, so the push runs on the spot.
+              if (Platform.OS !== 'ios') runPending();
+            },
+          },
+          {
+            label: 'Undo Task',
+            destructive: true,
+            onPress: () => {
+              if (doneFor) undoTask(doneFor, currentDay);
+              setDoneFor(null);
+            },
+          },
+          { label: 'Cancel', onPress: () => setDoneFor(null) },
         ]}
-      />
-
-      <PhotoLibrarySheet
-        taskId={libraryFor}
-        day={selectedDay}
-        onDismiss={() => setLibraryFor(null)}
       />
 
       <AlertDialog
@@ -208,11 +214,20 @@ export default function TodoScreen() {
 }
 
 const styles = StyleSheet.create({
-  ticks: {
-    marginTop: spacing.lg,
+  pressed: {
+    opacity: 0.75,
+  },
+  collage: {
+    // Clear of the title above it.
+    marginTop: spacing['2xl'],
+    // The tiles hang off the page's own gutter.
+    paddingHorizontal: screenPadding,
   },
   list: {
     marginTop: spacing['2xl'],
-    marginHorizontal: spacing.sm,
+    // The page's own gutter, the same one the photo grid hangs off. The card
+    // used to run wider than everything above it, which put the task text
+    // closer to the edge of the screen than anything else on the app.
+    marginHorizontal: screenPadding,
   },
 });

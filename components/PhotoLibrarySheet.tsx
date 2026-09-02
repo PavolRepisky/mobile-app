@@ -16,7 +16,7 @@ import { IconButton } from '@/components/IconButton';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { colors, spacing } from '@/constants/theme';
 import { WALL_COLLECTIONS, type WallItem } from '@/data/content';
-import { useApp, type TaskPhoto } from '@/hooks/useAppState';
+import type { TaskPhoto } from '@/hooks/useAppState';
 
 type Source = 'photos' | 'collections';
 
@@ -35,42 +35,33 @@ const COLLECTION_ITEMS = WALL_COLLECTIONS.flatMap(
 ).filter((item): item is WallItem & { photo: TaskPhoto } => !!item.photo);
 
 export interface PhotoLibrarySheetProps {
-  /** The task being picked for; null keeps the sheet down. */
-  taskId?: string | null;
-  day?: number;
-  /** For callers picking for something other than a task — the profile
-   * circle — which have no task id to open the sheet with. */
-  visible?: boolean;
-  /** Handed the picked photo instead of it going to a task. */
-  onPick?: (photo: TaskPhoto) => void;
+  visible: boolean;
+  /** Handed the picked photo. */
+  onPick: (photo: TaskPhoto) => void;
   onDismiss: () => void;
   /** Fired once the sheet is gone, for callers that navigate on from here. */
   onDismissed?: () => void;
 }
 
 /**
- * Photo picker for a task's proof photo: the phone's library, or the photos
- * already pinned to the wall collections. The second tab is what makes this
- * worth building over the system sheet — most of what goes on a task is
- * something already saved to the app.
+ * Photo picker: the phone's library, or the photos already pinned to the wall
+ * collections. The second tab is what makes this worth building over the
+ * system sheet — most of what gets picked is something already saved to the
+ * app.
  *
- * A sheet rather than a page of its own: it is opened mid-task, from a dialog
- * over the to-do list, and the list it is attaching a photo to should stay
- * visible behind it.
+ * A sheet rather than a page of its own: it is opened mid-flow and whatever it
+ * is picking for should stay visible behind it. Note that a task's proof photo
+ * does *not* come from here — those have to be taken on the spot.
  */
 export function PhotoLibrarySheet({
-  taskId = null,
-  day,
-  visible: visibleProp,
+  visible,
   onPick,
   onDismiss,
   onDismissed,
 }: PhotoLibrarySheetProps) {
-  const { setTaskPhoto } = useApp();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const tile = (width - GAP * (COLUMNS - 1)) / COLUMNS;
-  const visible = visibleProp ?? taskId !== null;
 
   const [source, setSource] = useState<Source>('photos');
   const [permission, requestPermission] = MediaLibrary.usePermissions();
@@ -108,10 +99,10 @@ export function PhotoLibrarySheet({
     inFlight.current = false;
   }, []);
 
-  // Both effects wait on `visible`. The sheet lives in the to-do screen's tree
-  // from the moment it mounts, and asking for the photo library the first time
-  // the app opens — rather than the first time someone picks a photo — is the
-  // one thing that would make it feel like it is taking something.
+  // Both effects wait on `visible`. The sheet lives in its screen's tree from
+  // the moment it mounts, and asking for the photo library the first time the
+  // app opens — rather than the first time someone picks a photo — is the one
+  // thing that would make it feel like it is taking something.
   useEffect(() => {
     if (!visible || !permission || granted || asked.current) return;
     if (!permission.canAskAgain) return;
@@ -126,13 +117,7 @@ export function PhotoLibrarySheet({
   }, [visible, granted, loadPage]);
 
   const choose = (photo: TaskPhoto) => {
-    if (onPick) {
-      onPick(photo);
-      onDismiss();
-      return;
-    }
-    if (!taskId) return;
-    setTaskPhoto(taskId, photo, day);
+    onPick(photo);
     onDismiss();
   };
 
