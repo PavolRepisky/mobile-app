@@ -241,11 +241,21 @@ export const type = {
     lineHeight: 22,
     letterSpacing: bodyTracking,
   },
-  /** Daily-task labels, which the reference sets in the heavy cut. */
   bodyBold: {
     fontFamily: fonts.bodyBold,
     fontSize: 16,
     lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /**
+   * The daily-task label, which the reference sets in the heavy cut. A step
+   * above `bodyBold`: the to-do row lost its check circle, and the label is
+   * now the only thing holding the width beside the photo.
+   */
+  taskLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 18,
+    lineHeight: 24,
     letterSpacing: bodyTracking,
   },
   button: {
@@ -277,6 +287,23 @@ export const type = {
     fontSize: 12,
     lineHeight: 15,
     letterSpacing: bodyTracking,
+  },
+
+  /**
+   * Caveat set as a line of writing rather than a numeral on a note — the day
+   * counted across the To-do home's photo page, the way you would write on the
+   * back of a print. The only place the hand escapes the sticky notes.
+   *
+   * No tracking: the two ramps above exist to pull machine-set faces tighter,
+   * and a joined hand is already spaced the way it is drawn. The line box runs
+   * well past the size because Caveat overshoots its em box in both directions
+   * — the same allowance `StickyNote` makes for its numerals.
+   */
+  script: {
+    fontFamily: fonts.hand,
+    fontSize: 29,
+    lineHeight: 38,
+    letterSpacing: 0,
   },
 } as const;
 

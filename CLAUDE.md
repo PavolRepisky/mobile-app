@@ -62,7 +62,9 @@ only · `lg` 20 · `md` 16 · `sm` 10.
 **Typeface** — three faces, no exceptions:
 - **Playfair Display** — headlines only (`hero`, `headline`, `headlineSm`, `title`).
 - **Quicksand** — everything functional: body, buttons, labels, tabs, captions.
-- **Caveat** — handwritten numerals on sticky notes. Nothing else.
+- **Caveat** — the hand. Numerals on sticky notes, and the day written
+  across the To-do home's photo block (`type.script`). Nothing else: two
+  places, both of them something written by hand on a thing you can hold.
 
 Quicksand runs optically light, so each role is mapped one step up the weight
 ramp; plain copy sits on Medium, not Regular. Don't "correct" this.
@@ -85,7 +87,8 @@ two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
 **Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
-pill · `StickyNote` · `StickerCard` · `PhotoSlot` · `PhotoStrip` ·
+pill, and `DayPill` on its own · `StickyNote` · `StickerCard` · `PhotoSlot` ·
+`PhotoCollage` scattered prints · `PhotoStrip` ·
 `WallSection` · `FriendCard` · `RecipeCard` · `ReviewCard` · `ChallengeDetail`
 · `ChallengePicker` · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.

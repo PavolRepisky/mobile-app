@@ -33,9 +33,15 @@ Functional cuts — Quicksand: `sectionTitle` 23 · `cardTitle` 17 · `body` 16 
 `bodyStrong` 16 · `bodySemi` 16 · `bodyBold` 16 · `button` 17 · `label` 14 ·
 `caption` 13 · `micro` 11 · `tab` 12.
 
+The hand — Caveat: `script` 29, the day written across the To-do home's photo
+block. `StickyNote` sets its own numerals off `fonts.hand` rather than off the
+scale, because their size is a share of the note.
+
 Tracking is baked into the scale: `bodyTracking` (-1) on every Quicksand
 string, `displayTracking` (-0.5) on Playfair. A component building its own
-Quicksand style pulls `bodyTracking` rather than repeating the number.
+Quicksand style pulls `bodyTracking` rather than repeating the number. `script`
+takes none of either: the ramps are there to pull machine-set faces tighter,
+and a joined hand is already spaced the way it is drawn.
 
 ### Space, radius, elevation
 

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Card } from '@/components/Card';
@@ -12,6 +12,14 @@ import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
 import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
+
+/**
+ * Degrees off straight for the writing on the photo block. Barely anything —
+ * a hand writing on a page it is already holding does not swing far, and past
+ * a couple of degrees it stops reading as handwriting and starts reading as a
+ * sticker someone stuck on at an angle.
+ */
+const SCRIPT_TILT = -3;
 
 export default function TodoScreen() {
   const router = useRouter();
@@ -93,13 +101,13 @@ export default function TodoScreen() {
             style={({ pressed }) => (pressed ? styles.pressed : undefined)}
           >
             <Text variant="sectionTitle">{`Day ${currentDay}`}</Text>
-            {/* The line the ticks used to carry: where today stands, and
-                where today stands in the challenge. Without it the heading is
-                a bare number and the page opens on nothing but pictures. */}
+            {/* How far into today. Where today stands in the challenge used
+                to be on this line too, and is now written across the photos
+                below — saying it in both places was saying it twice. */}
             <Text variant="label" color={colors.inkMuted}>
               {done === rows.length
-                ? `All done · ${totalDays - currentDay} days left`
-                : `${done} of ${rows.length} done · ${totalDays - currentDay} days left`}
+                ? 'All done'
+                : `${done} of ${rows.length} done`}
             </Text>
           </Pressable>
         }
@@ -119,18 +127,31 @@ export default function TodoScreen() {
             carries the labels and the times; this carries only the pictures.
             Laid out as the five on a die for now: the scattered version was
             fighting the photos rather than framing them. */}
-        <PhotoCollage
-          layout="dice"
-          style={styles.collage}
-          cells={rows.map((row) => ({
-            key: row.task.id,
-            label: row.task.label,
-            photo: row.photo,
-            seed: row.photoSeed,
-            done: row.done,
-            onPress: pressPhoto(row),
-          }))}
-        />
+        <View style={styles.block}>
+          <PhotoCollage
+            layout="dice"
+            style={styles.collage}
+            cells={rows.map((row) => ({
+              key: row.task.id,
+              label: row.task.label,
+              photo: row.photo,
+              seed: row.photoSeed,
+              done: row.done,
+              onPress: pressPhoto(row),
+            }))}
+          />
+
+          {/* Written across the corner of the page, the way a date goes on the
+              back of a print. `pointerEvents` off so the tile underneath keeps
+              its tap — the writing is on the photos, not between them and the
+              finger. */}
+          <View pointerEvents="none" style={styles.script}>
+            <Text
+              variant="script"
+              style={styles.scriptInk}
+            >{`day ${currentDay} / ${totalDays}`}</Text>
+          </View>
+        </View>
 
         <Card padded={false} style={styles.list}>
           {rows.map((row, i) => (
@@ -217,11 +238,30 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
-  collage: {
+  block: {
     // Clear of the title above it.
     marginTop: spacing['2xl'],
+  },
+  collage: {
     // The tiles hang off the page's own gutter.
     paddingHorizontal: screenPadding,
+  },
+  script: {
+    // Inside the block's own bottom-right corner rather than hanging off it:
+    // below is the gap the task card comes up into, and writing that spilled
+    // into it would read as a caption for the card instead of the photos.
+    position: 'absolute',
+    right: screenPadding + spacing.md,
+    bottom: spacing.sm,
+    transform: [{ rotate: `${SCRIPT_TILT}deg` }],
+  },
+  scriptInk: {
+    // A soft halo of the page's own white. The writing lands on whatever the
+    // last tile happens to be — a pale gap one day, a dark photograph the
+    // next — and ink alone cannot hold against both.
+    textShadowColor: colors.surface,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 7,
   },
   list: {
     marginTop: spacing['2xl'],
