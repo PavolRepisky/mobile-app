@@ -171,12 +171,13 @@ home does (tap opens the story, hold goes back to today).
 `muted` · `tilt`.
 
 **`CalendarMonth`** — `month` (any date inside it) · `days`, a map from day of
-the month to `photo`/`seed` · `inChallenge` · `today` · `label` · `onPress`.
-One month as a seven-column grid, Monday first, with the day's cover shot
-printed behind its numeral. Dates outside the challenge are still drawn, in
-`inkGhost`: dropping them would leave a broken grid rather than a challenge
-that happened to start mid-week. Today takes the ink disc a calendar always
-puts on it, or an ink ring when it already has a photo under it.
+the month to `photo`/`seed` · `past` · `today` · `label` · `onPress`. One month
+as a seven-column grid, Monday first, with the day's cover shot printed behind
+its numeral. The heading is `sectionTitle`, not a Playfair headline: it labels a
+grid of dates rather than opening a page. Photographs lead, so a bare numeral
+stays quiet — `inkMuted` for a day already gone, `inkGhost` for one still to
+come. Today takes the ink disc a calendar always puts on it, or an ink ring when
+it already has a photo under it.
 
 **`PhotoSlot`** — `photo` or `seed` · `width` (points, or a share of the
 parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·

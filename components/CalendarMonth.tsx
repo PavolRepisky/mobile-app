@@ -9,22 +9,22 @@ import {
 } from 'react-native';
 
 import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
-import { Headline } from './Headline';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';
 
 /**
- * One month of the challenge, drawn as a seven-column grid: the day's cover
- * shot sits behind its number, so a month reads as the film you shot that
- * month rather than as a table of dates. Days you have not lived through yet
- * are numbers on their own, and today wears the filled disc a calendar always
- * puts on it.
+ * One month, drawn as a seven-column grid: the day's cover shot sits behind its
+ * number, so a month reads as the film you shot that month rather than as a
+ * table of dates. Days you have not lived through yet are numbers on their own,
+ * and today wears the filled disc a calendar always puts on it.
  *
- * The month is the unit rather than the week because the challenge runs across
- * two or three of them and they are what people name a stretch of time by.
+ * The month is the unit rather than the week because it is what people name a
+ * stretch of time by. The heading is set in the functional face rather than in
+ * Playfair: it is a label on a grid of dates, not a line anybody reads.
  */
 
-const MONTH_NAMES = [
+/** Spoken and printed month names. Exported so callers can label a date too. */
+export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
@@ -49,8 +49,8 @@ export interface CalendarDay {
   photo?: ImageSourcePropType | null;
   /** Seed for the drawn stand-in, where the day's shot is a placeholder. */
   seed?: string | null;
-  /** Inside the challenge — dates before it starts or after it ends are not. */
-  inChallenge?: boolean;
+  /** Already lived through — today counts, tomorrow does not. */
+  past?: boolean;
   /** Today, wherever in the challenge that falls. */
   today?: boolean;
   /** Read in place of the bare numeral. */
@@ -86,9 +86,7 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 
   return (
     <View style={style}>
-      {/* The year is set apart rather than repeated flat, so a scroll across a
-          new-year boundary announces itself. */}
-      <Headline size="headlineSm">{`${MONTH_NAMES[index]} *${year}*`}</Headline>
+      <Text variant="sectionTitle">{`${MONTH_NAMES[index]} ${year}`}</Text>
 
       <View style={styles.weekdays}>
         {WEEKDAYS.map((name) => (
@@ -118,15 +116,15 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 }
 
 function DayCell({ date, day }: { date: number; day: CalendarDay }) {
-  const { photo, seed, inChallenge, today, onPress } = day;
+  const { photo, seed, past, today, onPress } = day;
   const hasShot = !!photo || !!seed;
 
-  // The photographs are the page; every bare numeral stays quiet under them.
-  // A day of the challenge with nothing on it still reads as a day you could
-  // have shot, so it holds more weight than a date outside the run entirely.
+  // The photographs are the page; every bare numeral stays quiet under them. A
+  // day that has been and gone with nothing on it is still a day you could have
+  // shot, so it holds more weight than one that has not arrived yet.
   const numberColor = hasShot
     ? colors.inkInverse
-    : inChallenge
+    : past
       ? colors.inkMuted
       : colors.inkGhost;
 

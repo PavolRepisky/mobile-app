@@ -84,6 +84,13 @@ interface AppState {
    */
   pinDraft: { boardId: string; photo: TaskPhoto } | null;
 
+  /**
+   * The day the app was first opened. The calendar runs from this month to the
+   * current one, so it outlives any one challenge — restarting, or switching to
+   * a different challenge, must not shorten the record of months already lived.
+   */
+  installedAt: Date;
+
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
   tasks: ChallengeTask[];
@@ -159,6 +166,13 @@ const AppContext = createContext<AppContextValue | null>(null);
 // ---------------------------------------------------------------------------
 
 const SEED_DAY = 5;
+
+/**
+ * How long ago the seeded account downloaded the app. Deliberately well before
+ * the seeded challenge began: the calendar starts at the install month, not at
+ * day one, and a seed that put the two on the same day would hide that.
+ */
+const SEED_INSTALLED_DAYS_AGO = 40;
 
 /**
  * Pin ids only have to be unique within a session; there is no backend. They
@@ -308,6 +322,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     avatarSeed: null,
     avatar: null,
   });
+
+  // Set once and never written again: you only ever download the app the once,
+  // so there is no action that moves it and nothing to reset it to.
+  const [installedAt] = useState<Date>(() =>
+    addDays(startOfToday(), -SEED_INSTALLED_DAYS_AGO),
+  );
 
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
@@ -636,6 +656,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppContextValue>(
     () => ({
       profile,
+      installedAt,
       challenge,
       tasks,
       startDate,
@@ -679,7 +700,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       resetAll,
     }),
     [
-      profile, challenge, tasks, startDate, totalDays,
+      profile, installedAt, challenge, tasks, startDate, totalDays,
       paused, progress, savedRecipeIds, postReactions, inviteCode,
       currentDay, endDate, wall, pinDraft,
       setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, setTasks,

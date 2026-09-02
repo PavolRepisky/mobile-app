@@ -1,31 +1,35 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { CalendarMonth, type CalendarDay } from '@/components/CalendarMonth';
-import { DateRange } from '@/components/DateRange';
-import { Headline } from '@/components/Headline';
+import {
+  CalendarMonth,
+  MONTH_NAMES,
+  type CalendarDay,
+} from '@/components/CalendarMonth';
 import { ScreenScroll } from '@/components/Screen';
-import { Text } from '@/components/Text';
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
-import { shortDate } from '@/lib/format';
 
 /**
- * The challenge as a calendar: every month it runs across, with the day's
- * cover shot printed behind its number. It is the history the to-do list
- * leaves behind — tapping a day you photographed plays that day's story.
+ * Your time in the app as a calendar, month by month from the one you
+ * downloaded it in through to the one you are in now, with each day's cover
+ * shot printed behind its number. Tapping a day you photographed plays that
+ * day's story.
  *
- * Dates outside the challenge are still drawn, greyed: a month with its first
- * week missing reads as a broken grid rather than as a challenge that began
- * mid-week.
+ * The run of months belongs to the account rather than to whatever challenge
+ * happens to be going: restarting, or switching to another challenge, must not
+ * shorten the record. The photographs inside it still come from the challenge
+ * you are on, because that is the only progress the app keeps.
  */
 export default function CalendarScreen() {
   const router = useRouter();
-  const { challenge, tasks, progress, startDate, endDate, totalDays, currentDay } =
-    useApp();
+  const { installedAt, tasks, progress, startDate, totalDays } = useApp();
 
   const months = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     /** Which challenge day a calendar date is, or null if it is outside it. */
     const dayNumber = (date: Date) => {
       // Rounded rather than floored: a daylight-saving shift inside the
@@ -48,8 +52,8 @@ export default function CalendarScreen() {
     };
 
     const out: { key: string; month: Date; days: Record<number, CalendarDay> }[] = [];
-    const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    const last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    const cursor = new Date(installedAt.getFullYear(), installedAt.getMonth(), 1);
+    const last = new Date(today.getFullYear(), today.getMonth(), 1);
 
     while (cursor <= last) {
       const year = cursor.getFullYear();
@@ -58,30 +62,28 @@ export default function CalendarScreen() {
       const days: Record<number, CalendarDay> = {};
 
       for (let date = 1; date <= length; date += 1) {
-        const day = dayNumber(new Date(year, month, date));
-        if (day === null) {
-          days[date] = {};
-          continue;
-        }
+        const on = new Date(year, month, date);
+        const day = dayNumber(on);
+        const shot = day === null ? null : cover(day);
 
-        const shot = cover(day);
         days[date] = {
           photo: shot?.photo ?? null,
           seed: shot?.seed ?? null,
-          inChallenge: true,
-          today: day === currentDay,
+          past: on <= today,
+          today: on.getTime() === today.getTime(),
           label: shot
             ? `Day ${day}. Opens this day's story.`
-            : `Day ${day}. Nothing photographed.`,
+            : `${MONTH_NAMES[month]} ${date}. Nothing photographed.`,
           // Only a day with something on it answers to a tap; an empty square
           // opening an empty story would be a dead end.
-          onPress: shot
-            ? () =>
-                router.push({
-                  pathname: '/story',
-                  params: { day: String(day) },
-                })
-            : undefined,
+          onPress:
+            shot && day !== null
+              ? () =>
+                  router.push({
+                    pathname: '/story',
+                    params: { day: String(day) },
+                  })
+              : undefined,
         };
       }
 
@@ -90,38 +92,10 @@ export default function CalendarScreen() {
     }
 
     return out;
-  }, [progress, tasks, startDate, endDate, totalDays, currentDay, router]);
-
-  const photographed = useMemo(
-    () =>
-      Object.values(progress).filter((rows) =>
-        Object.values(rows).some((row) => row.photo || row.photoSeed),
-      ).length,
-    [progress],
-  );
+  }, [installedAt, progress, tasks, startDate, totalDays, router]);
 
   return (
     <ScreenScroll tabBar bottomExtra={spacing['2xl']}>
-      <View style={styles.header}>
-        <Headline size="title">{challenge.name}</Headline>
-
-        <View style={styles.meta}>
-          <DateRange
-            from={shortDate(startDate)}
-            to={shortDate(endDate)}
-            variant="label"
-            color={colors.inkMuted}
-          />
-          <Text variant="label" color={colors.inkMuted} style={styles.dot}>
-            ·
-          </Text>
-
-          <Text variant="label" color={colors.inkMuted}>
-            {`${photographed} of ${totalDays} days`}
-          </Text>
-        </View>
-      </View>
-
       {months.map((entry) => (
         <CalendarMonth
           key={entry.key}
@@ -135,20 +109,6 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: spacing['2xl'],
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    // The challenge name above it is a centred headline, so the line reading
-    // it out has to hang under the middle of it rather than off to one side.
-    justifyContent: 'center',
-    marginTop: spacing.xs,
-  },
-  dot: {
-    marginHorizontal: spacing.sm,
-  },
   month: {
     marginBottom: spacing['3xl'],
   },
