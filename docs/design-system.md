@@ -34,8 +34,9 @@ Functional cuts — Quicksand: `sectionTitle` 23 · `cardTitle` 17 · `body` 16 
 `caption` 13 · `micro` 11 · `tab` 12.
 
 The hand — Caveat: `script` 60, the day written across the middle of the To-do
-home's photo block — big because it sits over the photographs rather than
-beside them, and semibold is the heaviest cut of the face the app carries. `StickyNote` sets its own numerals off `fonts.hand` rather than off the
+home's photo dump — big because it sits over the photographs rather than beside
+them, and semibold is the heaviest cut of the face the app carries · `scriptSm`
+18, the time written on a single print. `StickyNote` sets its own numerals off `fonts.hand` rather than off the
 scale, because their size is a share of the note.
 
 Tracking is baked into the scale: `bodyTracking` (-1) on every Quicksand
@@ -185,7 +186,7 @@ parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
 label) · `done` · `tilt` · `shadow` `boolean|'card'|'hard'` ·
 `accessibilityLabel`.
 **`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `done` · `label` ·
-`onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'`. The day's proof
+`onPress` · `caption`) · `columns` · `layout` `'collage'|'grid'|'dice'|'dump'`. The day's proof
 photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
 are all derived from the cell key, so an arrangement is stable for the life of
 a task. `layout="grid"` is the plain alternative — equal tiles, no tilt, task
@@ -196,6 +197,14 @@ back to the grid). The grid and dice layouts draw no done ticks and no dashed
 "add" tiles: they are a record of the day, and the camera is opened from the
 task rows instead. In the collage, tasks with nothing photographed yet hold
 their place as dashed slots.
+
+`layout="dump"` — what the To-do home uses — is the collage's scatter turned
+all the way up: every picture inside a white print border, deeper at the foot
+the way a developed photograph is, tilted about three times as hard, lapping
+over its neighbours, with `caption` written across the foot of the image in the
+hand. Pass `columns={2}`: a third column shrinks a print to a thumbnail with a
+border round it. The collage's own settings stay almost imperceptible on
+purpose — the two are different claims, not two strengths of the same one.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.
 

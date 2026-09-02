@@ -125,15 +125,25 @@ export default function TodoScreen() {
             it will fill — so the block is the shape of the whole day and builds
             up through it rather than appearing at the end. The list below
             carries the labels and the times; this carries only the pictures.
-            Laid out as the five on a die for now: the scattered version was
-            fighting the photos rather than framing them. */}
+            A photo dump rather than a grid: prints in their white borders,
+            thrown down at angles and overlapping, with the time written on
+            each. The dice arrangement it replaced was five equal squares, and
+            equal squares are a contact sheet however good the photographs. */}
         <View style={styles.block}>
           <PhotoCollage
-            layout="dice"
+            layout="dump"
+            // Two rather than the three a five-task day would take: a print in
+            // a dump is something you look at, and a third column shrinks it
+            // to a thumbnail with a white border round it.
+            columns={2}
             style={styles.collage}
             cells={rows.map((row) => ({
               key: row.task.id,
               label: row.task.label,
+              // The time, not the label: it is written across the foot of the
+              // picture in one line, and the tasks are whole sentences. The
+              // list underneath carries what each one actually was.
+              caption: row.time,
               photo: row.photo,
               seed: row.photoSeed,
               done: row.done,
