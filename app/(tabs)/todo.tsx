@@ -141,13 +141,14 @@ export default function TodoScreen() {
             }))}
           />
 
-          {/* Written across the corner of the page, the way a date goes on the
-              back of a print. `pointerEvents` off so the tile underneath keeps
-              its tap — the writing is on the photos, not between them and the
-              finger. */}
+          {/* Written straight across the middle of the block, over the photos
+              rather than beside them. `pointerEvents` off so the tiles
+              underneath keep their taps — the writing is on the photos, not
+              between them and the finger. */}
           <View pointerEvents="none" style={styles.script}>
             <Text
               variant="script"
+              color={colors.inkInverse}
               style={styles.scriptInk}
             >{`day ${currentDay} / ${totalDays}`}</Text>
           </View>
@@ -247,21 +248,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: screenPadding,
   },
   script: {
-    // Inside the block's own bottom-right corner rather than hanging off it:
-    // below is the gap the task card comes up into, and writing that spilled
-    // into it would read as a caption for the card instead of the photos.
-    position: 'absolute',
-    right: screenPadding + spacing.md,
-    bottom: spacing.sm,
+    // Over the whole block, centred on it: the middle of the four tiles is the
+    // one place a line can run right across the block without any one photo
+    // owning it.
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
     transform: [{ rotate: `${SCRIPT_TILT}deg` }],
   },
   scriptInk: {
-    // A soft halo of the page's own white. The writing lands on whatever the
-    // last tile happens to be — a pale gap one day, a dark photograph the
-    // next — and ink alone cannot hold against both.
-    textShadowColor: colors.surface,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 7,
+    // White, with the dark edge that lets it hold anywhere it lands: the
+    // middle of the block is a white mat on a day the fifth task is
+    // photographed, a pale gap on a day it is not, and the photograph itself
+    // at the corners. White alone would disappear into the first two.
+    textShadowColor: colors.ink,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 9,
   },
   list: {
     marginTop: spacing['2xl'],

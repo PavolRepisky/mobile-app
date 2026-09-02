@@ -33,8 +33,9 @@ Functional cuts — Quicksand: `sectionTitle` 23 · `cardTitle` 17 · `body` 16 
 `bodyStrong` 16 · `bodySemi` 16 · `bodyBold` 16 · `button` 17 · `label` 14 ·
 `caption` 13 · `micro` 11 · `tab` 12.
 
-The hand — Caveat: `script` 29, the day written across the To-do home's photo
-block. `StickyNote` sets its own numerals off `fonts.hand` rather than off the
+The hand — Caveat: `script` 60, the day written across the middle of the To-do
+home's photo block — big because it sits over the photographs rather than
+beside them, and semibold is the heaviest cut of the face the app carries. `StickyNote` sets its own numerals off `fonts.hand` rather than off the
 scale, because their size is a share of the note.
 
 Tracking is baked into the scale: `bodyTracking` (-1) on every Quicksand

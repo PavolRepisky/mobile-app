@@ -291,8 +291,13 @@ export const type = {
 
   /**
    * Caveat set as a line of writing rather than a numeral on a note — the day
-   * counted across the To-do home's photo page, the way you would write on the
-   * back of a print. The only place the hand escapes the sticky notes.
+   * counted across the middle of the To-do home's photo block. The only place
+   * the hand escapes the sticky notes.
+   *
+   * Big on purpose: it is written *over* the photographs rather than beside
+   * them, and at a caption's size that reads as something spilled onto the
+   * page instead of something put there. Caveat's semibold is the heaviest cut
+   * the app carries, so the weight has to come out of the size.
    *
    * No tracking: the two ramps above exist to pull machine-set faces tighter,
    * and a joined hand is already spaced the way it is drawn. The line box runs
@@ -301,8 +306,8 @@ export const type = {
    */
   script: {
     fontFamily: fonts.hand,
-    fontSize: 29,
-    lineHeight: 38,
+    fontSize: 60,
+    lineHeight: 78,
     letterSpacing: 0,
   },
 } as const;
