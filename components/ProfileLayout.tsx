@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -100,6 +101,15 @@ export function ProfileLayout({
     profileActionTop - topPadding(insets.top, topGap),
   );
 
+  /**
+   * How much room the heading has to leave on its right. The corner is not
+   * always one button — the To-do home hangs the day's sticky note off the
+   * same row — so it is measured rather than assumed. It starts at the width
+   * of a lone button, which is what every other screen has, so the common case
+   * is right on the first frame and never reflows.
+   */
+  const [actionWidth, setActionWidth] = useState(profileActionHeight);
+
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
     // resolve against the scroll content instead of the screen.
@@ -125,9 +135,7 @@ export function ProfileLayout({
                 // wraps rather than running under it.
                 paddingLeft: padded ? 0 : screenPadding,
                 paddingRight:
-                  (padded ? 0 : screenPadding) +
-                  profileActionHeight +
-                  spacing.lg,
+                  (padded ? 0 : screenPadding) + actionWidth + spacing.lg,
               },
             ]}
           >
@@ -140,7 +148,14 @@ export function ProfileLayout({
         {children}
       </ScreenScroll>
 
-      {action ? <View style={styles.action}>{action}</View> : null}
+      {action ? (
+        <View
+          style={styles.action}
+          onLayout={(e) => setActionWidth(e.nativeEvent.layout.width)}
+        >
+          {action}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -154,8 +169,10 @@ const styles = StyleSheet.create({
     marginTop: spacing['5xl'],
   },
   leading: {
-    // The same band as the corner button, so the two share a line.
-    height: profileActionHeight,
+    // The same band as the corner button, so the two share a line — but only
+    // as a floor. A heading that runs to a second line grows the band down
+    // rather than being clipped by it.
+    minHeight: profileActionHeight,
     justifyContent: 'center',
   },
   action: {

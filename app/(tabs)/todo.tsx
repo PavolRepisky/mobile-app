@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Card } from '@/components/Card';
@@ -8,19 +8,24 @@ import { IconButton } from '@/components/IconButton';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
 import { ProfileLayout } from '@/components/ProfileLayout';
+import { StickyNote } from '@/components/StickyNote';
 import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
-import { screenPadding, spacing } from '@/constants/theme';
+import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
+
+/** The day badge in the corner, a shade under the pencil beside it. */
+const dayNoteSize = 46;
 
 export default function TodoScreen() {
   const router = useRouter();
-  const { currentDay, undoTask } = useApp();
+  const { currentDay, totalDays, undoTask } = useApp();
 
   // The page is today and nothing else: with the tick scrubber gone there is
   // no way to park on another day, so the collage and the list both read off
   // the current one.
   const rows = useDayProgress(currentDay);
+  const done = rows.filter((row) => row.done).length;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
@@ -92,15 +97,34 @@ export default function TodoScreen() {
             style={({ pressed }) => (pressed ? styles.pressed : undefined)}
           >
             <Text variant="sectionTitle">{`Day ${currentDay}`}</Text>
+            {/* The line the ticks used to carry: where today stands, and
+                where today stands in the challenge. Without it the heading is
+                a bare number and the page opens on nothing but pictures. */}
+            <Text variant="label" color={colors.inkMuted}>
+              {done === rows.length
+                ? `All done · ${totalDays - currentDay} days left`
+                : `${done} of ${rows.length} done · ${totalDays - currentDay} days left`}
+            </Text>
           </Pressable>
         }
         action={
-          <IconButton
-            name="pencil"
-            iconSize={21}
-            onPress={() => setMenuOpen(true)}
-            accessibilityLabel="Challenge options"
-          />
+          <>
+            {/* The reference's day badge, back where it belongs: the pencil on
+                its own left the corner thin, and this is the one place the
+                app's own motif — pastel square, handwritten numeral — reaches
+                the To-do home. It doubles the heading's number on purpose —
+                the reference does the same — which is exactly why a screen
+                reader is told to skip it: hearing the day twice is noise. */}
+            <View importantForAccessibility="no-hide-descendants">
+              <StickyNote value={currentDay} size={dayNoteSize} tilt={-3} />
+            </View>
+            <IconButton
+              name="pencil"
+              iconSize={21}
+              onPress={() => setMenuOpen(true)}
+              accessibilityLabel="Challenge options"
+            />
+          </>
         }
       >
         {/* The day as its pictures. Every task holds a place from the moment
