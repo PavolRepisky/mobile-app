@@ -6,6 +6,7 @@ import {
   CalendarMonth,
   MONTH_NAMES,
   type CalendarDay,
+  type DayShot,
 } from '@/components/CalendarMonth';
 import { ScreenScroll } from '@/components/Screen';
 import { spacing } from '@/constants/theme';
@@ -40,15 +41,15 @@ export default function CalendarScreen() {
       return n >= 1 && n <= totalDays ? n : null;
     };
 
-    /** The first shot of the day, in checklist order — the day's cover. */
-    const cover = (day: number) => {
+    /** Everything photographed that day, in checklist order. */
+    const shotsFor = (day: number) => {
       const rows = progress[day] ?? {};
-      for (const task of tasks) {
+      return tasks.flatMap<DayShot>((task) => {
         const row = rows[task.id];
-        if (row?.photo) return { photo: row.photo, seed: null };
-        if (row?.photoSeed) return { photo: null, seed: row.photoSeed };
-      }
-      return null;
+        if (row?.photo) return [{ photo: row.photo, seed: null }];
+        if (row?.photoSeed) return [{ photo: null, seed: row.photoSeed }];
+        return [];
+      });
     };
 
     const out: { key: string; month: Date; days: Record<number, CalendarDay> }[] = [];
@@ -64,20 +65,19 @@ export default function CalendarScreen() {
       for (let date = 1; date <= length; date += 1) {
         const on = new Date(year, month, date);
         const day = dayNumber(on);
-        const shot = day === null ? null : cover(day);
+        const shots = day === null ? [] : shotsFor(day);
 
         days[date] = {
-          photo: shot?.photo ?? null,
-          seed: shot?.seed ?? null,
+          shots,
           past: on <= today,
           today: on.getTime() === today.getTime(),
-          label: shot
-            ? `Day ${day}. Opens this day's story.`
+          label: shots.length
+            ? `Day ${day}, ${shots.length} photo${shots.length > 1 ? 's' : ''}. Opens this day's story.`
             : `${MONTH_NAMES[month]} ${date}. Nothing photographed.`,
           // Only a day with something on it answers to a tap; an empty square
           // opening an empty story would be a dead end.
           onPress:
-            shot && day !== null
+            shots.length && day !== null
               ? () =>
                   router.push({
                     pathname: '/story',

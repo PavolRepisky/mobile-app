@@ -37,6 +37,14 @@ export interface PhotoCollageProps {
    * long has no such arrangement, so it falls back to the plain grid.
    */
   layout?: 'collage' | 'grid' | 'dice';
+  /**
+   * Multiplies every print height. The scatter's heights are points rather
+   * than proportions — that is what keeps a column's edges landing on a
+   * handful of lines instead of on a continuum — so a block laid out somewhere
+   * narrower or wider than the To-do page scales them rather than reinventing
+   * the arrangement. The day card is the one caller that passes it.
+   */
+  scale?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -94,6 +102,71 @@ function hash(key: string): number {
 function tiltFor(key: string, index: number): number {
   const magnitude = 0.6 + (hash(key) % 5) * 0.32;
   return index % 2 === 0 ? magnitude : -magnitude;
+}
+
+interface Dealt {
+  cell: CollageCell;
+  index: number;
+  height: number;
+}
+
+/**
+ * Deals the prints into columns, each one going to whichever column is
+ * currently shortest, so the block stays balanced whatever the day's length.
+ *
+ * Split out from the render because the day card has to know how tall the
+ * scatter comes out *before* it lays it down: the card is a fixed 4:5, so it
+ * works back from the room it has left to the scale the prints will take.
+ */
+function deal(
+  cells: readonly CollageCell[],
+  columnCount: number,
+  scale: number,
+): { buckets: Dealt[][]; lap: number; height: number } {
+  const lap = Math.round(LAP * scale);
+  const buckets: Dealt[][] = Array.from({ length: columnCount }, () => []);
+  const filled = new Array<number>(columnCount).fill(0);
+
+  cells.forEach((cell, index) => {
+    const height = Math.round(
+      CELL_HEIGHTS[hash(cell.key) % CELL_HEIGHTS.length] * scale,
+    );
+    let shortest = 0;
+    for (let c = 1; c < columnCount; c += 1) {
+      if (filled[c] < filled[shortest]) shortest = c;
+    }
+    buckets[shortest].push({ cell, index, height });
+    filled[shortest] += height - lap;
+  });
+
+  // Each print after the first rides up by `lap`, so a column measures the sum
+  // of its lapped heights plus the one lap the first print never takes.
+  const tallest = Math.max(0, ...filled);
+  const height = tallest > 0 ? tallest + lap : 0;
+
+  // A column holding a single print stretches it to the block's height. The
+  // dealing balances columns by height rather than by count, so an odd number
+  // of prints always leaves one column with one print in it — left at its own
+  // height that print floats in a half-empty column, and the block reads as
+  // having run out rather than as having been laid out.
+  buckets.forEach((bucket) => {
+    if (bucket.length === 1) bucket[0].height = height;
+  });
+
+  return { buckets, lap, height };
+}
+
+/**
+ * How tall the scatter comes out for these cells, in points. Exported for the
+ * day card, which sizes the prints to the space it has rather than the other
+ * way round.
+ */
+export function collageHeight(
+  cells: readonly CollageCell[],
+  columnCount: number,
+  scale = 1,
+): number {
+  return deal(cells, columnCount, scale).height;
 }
 
 /** One print, laid out the same way wherever it is dealt. */
@@ -242,6 +315,7 @@ export function PhotoCollage({
   cells,
   columns,
   layout = 'collage',
+  scale = 1,
   style,
 }: PhotoCollageProps) {
   if (cells.length === 0) return null;
@@ -269,7 +343,7 @@ export function PhotoCollage({
               <View key={cell.key} style={styles.gridCell}>
                 <Print
                   cell={cell}
-                  height={GRID_HEIGHT}
+                  height={Math.round(GRID_HEIGHT * scale)}
                   tick={false}
                   invite={false}
                   // The dice falls back to here on a day that is not five
@@ -291,19 +365,7 @@ export function PhotoCollage({
     );
   }
 
-  const buckets: { cell: CollageCell; index: number; height: number }[][] =
-    Array.from({ length: columnCount }, () => []);
-  const filled = new Array(columnCount).fill(0);
-
-  cells.forEach((cell, index) => {
-    const height = CELL_HEIGHTS[hash(cell.key) % CELL_HEIGHTS.length];
-    let shortest = 0;
-    for (let c = 1; c < columnCount; c += 1) {
-      if (filled[c] < filled[shortest]) shortest = c;
-    }
-    buckets[shortest].push({ cell, index, height });
-    filled[shortest] += height - LAP;
-  });
+  const { buckets, lap } = deal(cells, columnCount, scale);
 
   return (
     <View style={[styles.row, style]}>
@@ -320,8 +382,8 @@ export function PhotoCollage({
               style={[
                 // The first print in a column sits on the top line; every one
                 // after it rides up over the one before.
-                i === 0 ? null : { marginTop: -LAP },
-                { left: NUDGES[index % NUDGES.length] },
+                i === 0 ? null : { marginTop: -lap },
+                { left: Math.round(NUDGES[index % NUDGES.length] * scale) },
                 // Earlier prints sit on top of later ones, so the tick hanging
                 // off a photo's corner is never buried under the print below.
                 { zIndex: bucket.length - i },
@@ -346,6 +408,11 @@ const styles = StyleSheet.create({
   },
   column: {
     flex: 1,
+    // Columns come out uneven — the dealing balances them by height, not by
+    // count, so a three-print day is one print against two. Centring each in
+    // the block's height turns that into an arrangement instead of a page that
+    // ran out halfway down the left side.
+    justifyContent: 'center',
   },
   gridRow: {
     flexDirection: 'row',

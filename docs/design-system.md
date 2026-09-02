@@ -171,9 +171,11 @@ home does (tap opens the story, hold goes back to today).
 `muted` · `tilt`.
 
 **`CalendarMonth`** — `month` (any date inside it) · `days`, a map from day of
-the month to `photo`/`seed` · `past` · `today` · `label` · `onPress`. One month
-as a seven-column grid, Monday first, with the day's cover shot printed behind
-its numeral. The heading is `sectionTitle`, not a Playfair headline: it labels a
+the month to `shots` (up to four `photo`/`seed` pairs) · `past` · `today` ·
+`label` · `onPress`. One month as a seven-column grid, Monday first, with the
+day's photographs tiled behind its numeral — one fills the cell, two split it
+across, three put one over a pair, four take a corner each. A single cover
+would say a day was one picture; the mosaic says how full it was. The heading is `sectionTitle`, not a Playfair headline: it labels a
 grid of dates rather than opening a page. Photographs lead, so a bare numeral
 stays quiet — `inkMuted` for a day already gone, `inkGhost` for one still to
 come. Today takes the ink disc a calendar always puts on it, or an ink ring when
@@ -187,8 +189,25 @@ label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
 `shadow` `boolean|'card'|'hard'` · `accessibilityLabel`. `emptyTone="warm"` is
 for blocks where an empty tile is a gap in a record rather than a well to
 press: the shell's muted tone inside a hairline instead of the cool grey.
+**`DayCard`** — `day` · `date` · `cells` · `challengeName` · `handle`. The day
+composed as one 4:5 page to be posted: a Playfair `*day* five` over the
+scattered prints on the warm paper, closed off with a drawn rule and the
+uppercase `stamp` line. It is the app's face on other people's feeds, so the
+pairing — display italic over hand-laid photographs — is the part that must not
+drift. `DayCardStory` is the same card centred on a 9:16 ink ground.
+`captureRef` is pointed straight at either through a forwarded `ref`; the
+capture and share themselves live in `lib/shareDayCard.ts`, apart from the
+views so a device problem has one file to look at.
+
 **`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `done` · `label` ·
-`onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'`. The day's proof
+`onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'` · `scale`. `scale`
+multiplies the print heights, which are points rather than proportions — the
+day card works back from the room it has left, through `collageHeight(cells,
+columns, scale)`, to the scale its prints should take. In the scatter a column
+holding a single print stretches it to the block's height: the dealing balances
+by height, not by count, so an odd number of prints always strands one column,
+and left at its own height that print reads as a page that ran out rather than
+one that was laid out. The day's proof
 photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
 are all derived from the cell key, so an arrangement is stable for the life of
 a task. `layout="grid"` is the plain alternative — equal tiles, no tilt, task

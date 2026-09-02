@@ -86,13 +86,19 @@ two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
 
 **Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
 pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
-`PhotoSlot` · `PhotoCollage` scattered prints · `PhotoStrip` ·
+`DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
+`PhotoCollage` scattered prints · `PhotoStrip` ·
 `WallSection` · `FriendCard` · `RecipeCard` · `ReviewCard` · `ChallengeDetail`
 · `ChallengePicker` · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 
 ## Conventions
 
+- **The day card is the app's face.** `DayCard` is what leaves the app and
+  lands on somebody else's feed, so its composition is a fixed part of the
+  visual language, not a screen to redecorate. Change what a day *contains*
+  freely; leave the Playfair-over-prints pairing, the warm page and the stamp
+  footer alone.
 - **Comments explain *why*, in prose.** The existing files justify their values
   ("sampled off the reference", "anything heavier reads as a drawn outline").
   Match that. Don't add comments that restate the code.

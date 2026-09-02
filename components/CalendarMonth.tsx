@@ -44,11 +44,36 @@ const TODAY_DISC = 32;
 /** The ink hairline that marks today when it already has a photo on it. */
 const TODAY_RING = 2;
 
-export interface CalendarDay {
-  /** The day's cover shot. Fills the cell, with the numeral over it. */
+/** How many of a day's shots the cell tiles before it stops. */
+const MOSAIC_MAX = 4;
+
+/**
+ * The cut between tiles in the mosaic. A hairline of the page showing through,
+ * so the pieces read as separate photographs rather than as one busy one.
+ */
+const SEAM = 1;
+
+/**
+ * Every piece of the mosaic, whatever shape it ends up: the containers do the
+ * cutting, so a piece only ever has to take its share of one. Kept out of the
+ * stylesheet because it is handed to an `Image` as often as to a `View`, and
+ * the two disagree about what a style is allowed to say.
+ */
+const PIECE = { flex: 1 } as const;
+
+/** One of the day's proof photos — a real picture, or a drawn stand-in. */
+export interface DayShot {
   photo?: ImageSourcePropType | null;
-  /** Seed for the drawn stand-in, where the day's shot is a placeholder. */
   seed?: string | null;
+}
+
+export interface CalendarDay {
+  /**
+   * Everything photographed that day, in checklist order. Up to four are
+   * tiled into the cell: a day is several photographs, and a grid of single
+   * covers hides that the record is fuller than one picture per square.
+   */
+  shots?: readonly DayShot[];
   /** Already lived through — today counts, tomorrow does not. */
   past?: boolean;
   /** Today, wherever in the challenge that falls. */
@@ -116,8 +141,9 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 }
 
 function DayCell({ date, day }: { date: number; day: CalendarDay }) {
-  const { photo, seed, past, today, onPress } = day;
-  const hasShot = !!photo || !!seed;
+  const { shots, past, today, onPress } = day;
+  const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
+  const hasShot = tiles.length > 0;
 
   // The photographs are the page; every bare numeral stays quiet under them. A
   // day that has been and gone with nothing on it is still a day you could have
@@ -136,11 +162,7 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
 
   const body = hasShot ? (
     <View style={[styles.tile, today && styles.tileToday]}>
-      {photo ? (
-        <Image source={photo} style={styles.photo} contentFit="cover" />
-      ) : (
-        <Placeholder seed={seed ?? `day-${date}`} radius={radii.sm} style={styles.photo} />
-      )}
+      <Mosaic tiles={tiles} date={date} />
       {/* The numeral is white on whatever the day happened to look like, so it
           needs a wash under it rather than trusting the photo to be dark. */}
       <View style={styles.scrim} />
@@ -163,6 +185,58 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
     >
       {body}
     </Pressable>
+  );
+}
+
+/**
+ * The day's shots tiled into one square, cut the way a photo grid cuts a set:
+ * one fills it, two split it across, three put one over a pair, and four take
+ * a corner each. Anything past four is dropped — at this size a fifth tile is
+ * a smudge, and the story behind the tap has all of them anyway.
+ */
+function Mosaic({ tiles, date }: { tiles: readonly DayShot[]; date: number }) {
+  const shot = (t: DayShot, i: number) =>
+    t.photo ? (
+      <Image key={i} source={t.photo} style={PIECE} contentFit="cover" />
+    ) : (
+      <Placeholder key={i} seed={t.seed ?? `day-${date}-${i}`} radius={0} style={PIECE} />
+    );
+
+  if (tiles.length === 1) {
+    return <View style={styles.photo}>{shot(tiles[0], 0)}</View>;
+  }
+
+  if (tiles.length === 2) {
+    return (
+      <View style={[styles.photo, styles.mosaicColumn]}>
+        {tiles.map((t, i) => shot(t, i))}
+      </View>
+    );
+  }
+
+  if (tiles.length === 3) {
+    return (
+      <View style={[styles.photo, styles.mosaicColumn]}>
+        {shot(tiles[0], 0)}
+        <View style={styles.mosaicRow}>
+          {shot(tiles[1], 1)}
+          {shot(tiles[2], 2)}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.photo, styles.mosaicColumn]}>
+      <View style={styles.mosaicRow}>
+        {shot(tiles[0], 0)}
+        {shot(tiles[1], 1)}
+      </View>
+      <View style={styles.mosaicRow}>
+        {shot(tiles[2], 2)}
+        {shot(tiles[3], 3)}
+      </View>
+    </View>
   );
 }
 
@@ -209,6 +283,19 @@ const styles = StyleSheet.create({
   photo: {
     ...absoluteFill,
     borderRadius: radii.sm,
+    // The corner is clipped here rather than on each piece: a mosaic's inner
+    // tiles are square, and only the block they make takes the tile's radius.
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+  },
+  mosaicColumn: {
+    flexDirection: 'column',
+    gap: SEAM,
+  },
+  mosaicRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: SEAM,
   },
   scrim: {
     ...absoluteFill,

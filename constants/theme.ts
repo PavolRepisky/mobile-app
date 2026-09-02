@@ -289,6 +289,18 @@ export const type = {
     lineHeight: 14,
     letterSpacing: bodyTracking,
   },
+  /**
+   * The uppercase stamp closing the day card — the challenge name and the
+   * handle under its rule. Letterspaced open rather than set at the body
+   * tracking: capitals pulled a point tighter crowd into a block instead of
+   * reading as something pressed onto the page.
+   */
+  stamp: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.2,
+  },
   tab: {
     fontFamily: fonts.bodyMedium,
     fontSize: 12,
