@@ -17,6 +17,19 @@ import { Text } from './Text';
 /** The done tick on a filled slot. Hangs a quarter of itself off the corner. */
 const BADGE = 26;
 
+/**
+ * What an empty slot shows, and how big. The plus runs a touch larger than the
+ * camera because it is drawn from thin strokes with nothing but air around
+ * them; the picture runs smaller than either, because it is marking a place
+ * rather than offering an action and should not be the first thing the eye
+ * lands on in a block of them.
+ */
+const EMPTY_GLYPHS = {
+  camera: { name: 'camera', size: 26 },
+  add: { name: 'add', size: 28 },
+  image: { name: 'image-outline', size: 22 },
+} as const;
+
 export interface PhotoSlotProps {
   /** A bundled photo. Takes precedence over `seed`, which stands in for one. */
   photo?: ImageSourcePropType | null;
@@ -34,10 +47,15 @@ export interface PhotoSlotProps {
   style?: StyleProp<ViewStyle>;
   /**
    * Empty slots on the profile wall show a `+` rather than a camera, and
-   * `'none'` leaves the tile blank — for the day's grid, where an empty tile
-   * is a gap in a record rather than anything to press.
+   * `'none'` leaves the tile blank.
+   *
+   * `'image'` is the quiet one: an outlined picture rather than a camera or a
+   * plus, drawn a size down. It marks where a photograph is going to go
+   * without asking for one — for the day's block, which is a record, and where
+   * the camera is opened from the task rows instead. A camera on a tile that
+   * does not answer to a tap is an invitation the tile cannot honour.
    */
-  emptyIcon?: 'camera' | 'add' | 'none';
+  emptyIcon?: 'camera' | 'add' | 'image' | 'none';
   /**
    * Turns the empty tile from a flat grey block into an invitation: a dashed
    * field outline with this caption under the glyph. For the task rows, where
@@ -133,8 +151,8 @@ export function PhotoSlot({
     >
       {emptyIcon === 'none' ? null : (
         <Ionicons
-          name={emptyIcon === 'camera' ? 'camera' : 'add'}
-          size={emptyIcon === 'camera' ? 26 : 28}
+          name={EMPTY_GLYPHS[emptyIcon].name}
+          size={EMPTY_GLYPHS[emptyIcon].size}
           color={emptyOutline ? colors.inkMuted : colors.field}
         />
       )}

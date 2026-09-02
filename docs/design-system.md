@@ -172,7 +172,10 @@ home does (tap opens the story, hold goes back to today).
 `'numbered'|'checked'` · `challengeName` · `width` · `tilt`.
 
 **`PhotoSlot`** — `photo` or `seed` · `width` (points, or a share of the
-parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
+parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'image'|'none'`
+(`'image'` is the quiet outlined picture the record layouts use — it marks
+where a photograph goes without asking for one, which a camera on an unpressable
+tile would) ·
 `emptyLabel` ·
 `emptyOutline` (the dashed field on its own, defaults to whether there is a
 label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
@@ -189,9 +192,9 @@ currently uses: four square tiles with the fifth laid over the middle on a
 white mat, the way the five is pipped on a die (any other number of tasks falls
 back to the grid). The grid and dice layouts draw no done ticks and no dashed
 "add" tiles: they are a record of the day, and the camera is opened from the
-task rows instead. Their empty tiles also drop the drop shadow and take the
-warm tone — a gap has nothing to lift off the page, and early in a day the
-block is mostly gaps. In the collage, tasks with nothing photographed yet hold
+task rows instead. Their empty tiles also drop the drop shadow, take the warm
+tone and carry the `'image'` glyph — a gap has nothing to lift off the page,
+and early in a day the block is mostly gaps. In the collage, tasks with nothing photographed yet hold
 their place as dashed slots.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.

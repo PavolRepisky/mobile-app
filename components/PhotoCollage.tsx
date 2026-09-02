@@ -105,12 +105,19 @@ function Print({
   invite = true,
   shadow = 'hard',
   emptyTone,
+  emptyIcon,
 }: {
   cell: CollageCell;
   height: number;
   tilt?: number;
   /** Passed through: the warm gap the record layouts use. */
   emptyTone?: 'sunken' | 'warm';
+  /**
+   * The glyph on an empty tile. Defaults to the camera where the tile is an
+   * invitation and nothing where it is not — the record layouts override it
+   * with the quiet picture mark, which is a place holder rather than an offer.
+   */
+  emptyIcon?: 'camera' | 'add' | 'image' | 'none';
   /** Off for a tile that is only a gap, so nothing lifts off the page. */
   shadow?: 'hard' | false;
   /** The corner tick on a photographed task. */
@@ -133,7 +140,7 @@ function Print({
       // they have to read as places still waiting for a photo, not as prints
       // that failed to load.
       emptyOutline={invite}
-      emptyIcon={invite ? 'camera' : 'none'}
+      emptyIcon={emptyIcon ?? (invite ? 'camera' : 'none')}
       emptyTone={emptyTone}
       tilt={tilt}
       // The same tight, offset drop the task photos carry: prints laid on the
@@ -188,6 +195,7 @@ function DiceGrid({
                     // the page and one picture among them.
                     shadow={cell.photo || cell.seed ? 'hard' : false}
                     emptyTone="warm"
+                    emptyIcon="image"
                   />
                 </View>
               ))}
@@ -215,6 +223,7 @@ function DiceGrid({
                   invite={false}
                   shadow={filled ? 'hard' : false}
                   emptyTone="warm"
+                  emptyIcon="image"
                 />
               </View>
             </View>
@@ -277,6 +286,7 @@ export function PhotoCollage({
                   // same way.
                   shadow={cell.photo || cell.seed ? 'hard' : false}
                   emptyTone="warm"
+                  emptyIcon="image"
                 />
               </View>
             ))}
