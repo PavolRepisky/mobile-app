@@ -172,10 +172,10 @@ home does (tap opens the story, hold goes back to today).
 `'numbered'|'checked'` · `challengeName` · `width` · `tilt`.
 
 **`PhotoSlot`** — `photo` or `seed` · `width` (points, or a share of the
-parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'image'|'none'`
-(`'image'` is the quiet outlined picture the record layouts use — it marks
-where a photograph goes without asking for one, which a camera on an unpressable
-tile would) ·
+parent) / `height`/`radius` · `emptyIcon`
+`'camera'|'add'|'cameraOutline'|'none'` (`'cameraOutline'` is the quiet one the
+record layouts use: the camera drawn hollow and a size down. Never a picture
+glyph — a framed mountain in a grey box is what a failed image looks like) ·
 `emptyLabel` ·
 `emptyOutline` (the dashed field on its own, defaults to whether there is a
 label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
@@ -193,8 +193,10 @@ white mat, the way the five is pipped on a die (any other number of tasks falls
 back to the grid). The grid and dice layouts draw no done ticks and no dashed
 "add" tiles: they are a record of the day, and the camera is opened from the
 task rows instead. Their empty tiles also drop the drop shadow, take the warm
-tone and carry the `'image'` glyph — a gap has nothing to lift off the page,
-and early in a day the block is mostly gaps. In the collage, tasks with nothing photographed yet hold
+tone and carry the `'cameraOutline'` glyph — a gap has nothing to lift off the
+page, and early in a day the block is mostly gaps. The warm tone's hairline is
+dashed for the same reason the invite tiles' heavier rule is: solid and filled
+is what a picture that failed to load looks like. In the collage, tasks with nothing photographed yet hold
 their place as dashed slots.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.

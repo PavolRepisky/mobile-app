@@ -20,14 +20,17 @@ const BADGE = 26;
 /**
  * What an empty slot shows, and how big. The plus runs a touch larger than the
  * camera because it is drawn from thin strokes with nothing but air around
- * them; the picture runs smaller than either, because it is marking a place
- * rather than offering an action and should not be the first thing the eye
- * lands on in a block of them.
+ * them; the hollow camera runs between the two, light enough not to be the
+ * first thing the eye lands on in a block of them.
+ *
+ * Not a picture glyph. A framed mountain centred in a grey box is what every
+ * app in the world draws when an image fails, and a slot waiting for a photo
+ * that has not been taken is the one thing it must not be mistaken for.
  */
 const EMPTY_GLYPHS = {
   camera: { name: 'camera', size: 26 },
   add: { name: 'add', size: 28 },
-  image: { name: 'image-outline', size: 22 },
+  cameraOutline: { name: 'camera-outline', size: 24 },
 } as const;
 
 export interface PhotoSlotProps {
@@ -49,13 +52,13 @@ export interface PhotoSlotProps {
    * Empty slots on the profile wall show a `+` rather than a camera, and
    * `'none'` leaves the tile blank.
    *
-   * `'image'` is the quiet one: an outlined picture rather than a camera or a
-   * plus, drawn a size down. It marks where a photograph is going to go
-   * without asking for one — for the day's block, which is a record, and where
-   * the camera is opened from the task rows instead. A camera on a tile that
-   * does not answer to a tap is an invitation the tile cannot honour.
+   * `'cameraOutline'` is the quiet one: the same camera drawn hollow and a
+   * size down, for the day's block, where the tiles are a record and the
+   * viewfinder is opened from the task rows. It still says *photograph* — a
+   * slot with a picture glyph in it says *this image failed*, which is the one
+   * thing a photograph nobody has taken yet must not look like.
    */
-  emptyIcon?: 'camera' | 'add' | 'image' | 'none';
+  emptyIcon?: 'camera' | 'add' | 'cameraOutline' | 'none';
   /**
    * Turns the empty tile from a flat grey block into an invitation: a dashed
    * field outline with this caption under the glyph. For the task rows, where
@@ -217,14 +220,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   /**
-   * The shell's own muted tone, held by a hairline. The fill sits only a shade
-   * off the page it is on, which is the point — a gap should recede — but a
-   * shape that pale with no edge stops looking like a place and starts looking
-   * like a smudge, so the rule is what draws it.
+   * The shell's own muted tone, held by a dashed hairline. The fill sits only
+   * a shade off the page it is on, which is the point — a gap should recede —
+   * but a shape that pale with no edge stops looking like a place and starts
+   * looking like a smudge, so the rule is what draws it.
+   *
+   * Dashed for the reason the note on `emptyOutlined` gives: a solid tile is
+   * what a picture that failed to arrive looks like, and the dash is the whole
+   * difference between "nothing here yet" and "nothing here". It is a hairline
+   * in the divider tone rather than that heavier rule in `field`, because
+   * these tiles do not answer to a tap and must not look like they do.
    */
   emptyWarm: {
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
+    borderStyle: 'dashed',
     borderColor: colors.divider,
   },
   /**

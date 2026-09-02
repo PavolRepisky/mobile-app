@@ -115,9 +115,10 @@ function Print({
   /**
    * The glyph on an empty tile. Defaults to the camera where the tile is an
    * invitation and nothing where it is not — the record layouts override it
-   * with the quiet picture mark, which is a place holder rather than an offer.
+   * with the hollow camera, which marks the place without offering the press
+   * the dashed-and-filled version does.
    */
-  emptyIcon?: 'camera' | 'add' | 'image' | 'none';
+  emptyIcon?: 'camera' | 'add' | 'cameraOutline' | 'none';
   /** Off for a tile that is only a gap, so nothing lifts off the page. */
   shadow?: 'hard' | false;
   /** The corner tick on a photographed task. */
@@ -195,7 +196,7 @@ function DiceGrid({
                     // the page and one picture among them.
                     shadow={cell.photo || cell.seed ? 'hard' : false}
                     emptyTone="warm"
-                    emptyIcon="image"
+                    emptyIcon="cameraOutline"
                   />
                 </View>
               ))}
@@ -223,7 +224,7 @@ function DiceGrid({
                   invite={false}
                   shadow={filled ? 'hard' : false}
                   emptyTone="warm"
-                  emptyIcon="image"
+                  emptyIcon="cameraOutline"
                 />
               </View>
             </View>
@@ -286,7 +287,7 @@ export function PhotoCollage({
                   // same way.
                   shadow={cell.photo || cell.seed ? 'hard' : false}
                   emptyTone="warm"
-                  emptyIcon="image"
+                  emptyIcon="cameraOutline"
                 />
               </View>
             ))}
