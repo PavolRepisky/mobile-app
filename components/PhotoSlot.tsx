@@ -17,22 +17,6 @@ import { Text } from './Text';
 /** The done tick on a filled slot. Hangs a quarter of itself off the corner. */
 const BADGE = 26;
 
-/**
- * What an empty slot shows, and how big. The plus runs a touch larger than the
- * camera because it is drawn from thin strokes with nothing but air around
- * them; the hollow camera runs between the two, light enough not to be the
- * first thing the eye lands on in a block of them.
- *
- * Not a picture glyph. A framed mountain centred in a grey box is what every
- * app in the world draws when an image fails, and a slot waiting for a photo
- * that has not been taken is the one thing it must not be mistaken for.
- */
-const EMPTY_GLYPHS = {
-  camera: { name: 'camera', size: 26 },
-  add: { name: 'add', size: 28 },
-  cameraOutline: { name: 'camera-outline', size: 24 },
-} as const;
-
 export interface PhotoSlotProps {
   /** A bundled photo. Takes precedence over `seed`, which stands in for one. */
   photo?: ImageSourcePropType | null;
@@ -50,15 +34,10 @@ export interface PhotoSlotProps {
   style?: StyleProp<ViewStyle>;
   /**
    * Empty slots on the profile wall show a `+` rather than a camera, and
-   * `'none'` leaves the tile blank.
-   *
-   * `'cameraOutline'` is the quiet one: the same camera drawn hollow and a
-   * size down, for the day's block, where the tiles are a record and the
-   * viewfinder is opened from the task rows. It still says *photograph* — a
-   * slot with a picture glyph in it says *this image failed*, which is the one
-   * thing a photograph nobody has taken yet must not look like.
+   * `'none'` leaves the tile blank — for the day's grid, where an empty tile
+   * is a gap in a record rather than anything to press.
    */
-  emptyIcon?: 'camera' | 'add' | 'cameraOutline' | 'none';
+  emptyIcon?: 'camera' | 'add' | 'none';
   /**
    * Turns the empty tile from a flat grey block into an invitation: a dashed
    * field outline with this caption under the glyph. For the task rows, where
@@ -154,8 +133,8 @@ export function PhotoSlot({
     >
       {emptyIcon === 'none' ? null : (
         <Ionicons
-          name={EMPTY_GLYPHS[emptyIcon].name}
-          size={EMPTY_GLYPHS[emptyIcon].size}
+          name={emptyIcon === 'camera' ? 'camera' : 'add'}
+          size={emptyIcon === 'camera' ? 26 : 28}
           color={emptyOutline ? colors.inkMuted : colors.field}
         />
       )}
@@ -220,21 +199,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   /**
-   * The shell's own muted tone, held by a dashed hairline. The fill sits only
-   * a shade off the page it is on, which is the point — a gap should recede —
-   * but a shape that pale with no edge stops looking like a place and starts
-   * looking like a smudge, so the rule is what draws it.
-   *
-   * Dashed for the reason the note on `emptyOutlined` gives: a solid tile is
-   * what a picture that failed to arrive looks like, and the dash is the whole
-   * difference between "nothing here yet" and "nothing here". It is a hairline
-   * in the divider tone rather than that heavier rule in `field`, because
-   * these tiles do not answer to a tap and must not look like they do.
+   * The shell's own muted tone, held by a hairline. The fill sits only a shade
+   * off the page it is on, which is the point — a gap should recede — but a
+   * shape that pale with no edge stops looking like a place and starts looking
+   * like a smudge, so the rule is what draws it.
    */
   emptyWarm: {
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderStyle: 'dashed',
     borderColor: colors.divider,
   },
   /**
