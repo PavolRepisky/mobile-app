@@ -211,15 +211,20 @@ one that was laid out. The day's proof
 photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
 are all derived from the cell key, so an arrangement is stable for the life of
 a task. `layout="grid"` is the plain alternative — equal tiles, no tilt, task
-order — and `layout="dice"` is the five-task arrangement the To-do home
-currently uses: four square tiles with the fifth laid over the middle on a
-white mat, the way the five is pipped on a die (any other number of tasks falls
-back to the grid). The grid and dice layouts draw no done ticks and no dashed
-"add" tiles: they are a record of the day, and the camera is opened from the
-task rows instead. Their empty tiles also drop the drop shadow and take the
-warm tone — a gap has nothing to lift off the page, and early in a day the
-block is mostly gaps. In the collage, tasks with nothing photographed yet hold
-their place as dashed slots.
+order — and `layout="dice"` lays five out the way the five is pipped on a die:
+four square tiles with the fifth over the middle on a white mat (any other
+number falls back to the grid). Both draw no done ticks and no dashed "add"
+tiles, and their empty tiles drop the shadow for the warm tone: they are a
+record of the day, the camera is opened from the task rows, and a gap has
+nothing to lift off the page.
+
+The To-do home and the day card both take the scatter, and both pass it only
+what has actually been photographed. That is deliberate: the page you live in
+and the page you would post should not be two different pictures of the same
+day. It costs the block early in a day — it starts empty and grows a print at a
+time, where the die held a place for every task — but the progress line under
+the heading already says how much of the day is left, and the scatter cannot
+carry gaps the way an even grid could.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.
 

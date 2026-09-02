@@ -13,6 +13,15 @@ import { Text } from '@/components/Text';
 import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
+/**
+ * How much bigger the prints run here than the scatter's own heights, which
+ * were cut for a block sitting under a heading rather than for the thing the
+ * page is about. The day card works the same figure out from the room it has
+ * left; this page has no fixed height to work back from, so it takes the
+ * proportion the card lands on and holds it steady.
+ */
+const PRINT_SCALE = 1.4;
+
 export default function TodoScreen() {
   const router = useRouter();
   const { currentDay, totalDays, undoTask } = useApp();
@@ -112,24 +121,27 @@ export default function TodoScreen() {
           />
         }
       >
-        {/* The day as its pictures. Every task holds a place from the moment
-            the day opens — photographed ones as the photo, the rest as the gap
-            it will fill — so the block is the shape of the whole day and builds
-            up through it rather than appearing at the end. The list below
-            carries the labels and the times; this carries only the pictures.
-            Laid out as the five on a die for now: the scattered version was
-            fighting the photos rather than framing them. */}
+        {/* The day as its pictures, laid out exactly as the day card lays
+            them — the page you would post and the page you live in should not
+            be two different pictures of the same day.
+
+            So: only what has been photographed, no dashed gaps and no ticks.
+            The block starts empty and grows a print at a time, which the
+            progress line above already accounts for; holding a place for every
+            task made the shape of the day out of things that were not there
+            yet, and the scatter cannot carry gaps the way the die could. */}
         <PhotoCollage
-          layout="dice"
+          scale={PRINT_SCALE}
           style={styles.collage}
-          cells={rows.map((row) => ({
-            key: row.task.id,
-            label: row.task.label,
-            photo: row.photo,
-            seed: row.photoSeed,
-            done: row.done,
-            onPress: pressPhoto(row),
-          }))}
+          cells={rows
+            .filter((row) => row.photo || row.photoSeed)
+            .map((row) => ({
+              key: row.task.id,
+              label: row.task.label,
+              photo: row.photo,
+              seed: row.photoSeed,
+              onPress: pressPhoto(row),
+            }))}
         />
 
         <Card padded={false} style={styles.list}>

@@ -27,7 +27,7 @@ export interface CollageCell {
 
 export interface PhotoCollageProps {
   cells: readonly CollageCell[];
-  /** Two columns for a short day, three once it runs longer than four tasks. */
+  /** Overrides `collageColumns`, which is what the count would choose itself. */
   columns?: number;
   /**
    * `'collage'` is the scattered page of prints. `'grid'` is the same photos
@@ -154,6 +154,19 @@ function deal(
   });
 
   return { buckets, lap, height };
+}
+
+/**
+ * How many columns a set of prints wants. One print gets a column to itself —
+ * dealt into two it takes half the width and leaves the other half of the
+ * block empty, which early in a day is most of what the page shows.
+ *
+ * Exported so the day card and the collage cannot disagree: the card has to
+ * know the column count to measure the block before it lays it out.
+ */
+export function collageColumns(count: number): number {
+  if (count <= 1) return 1;
+  return count <= 4 ? 2 : 3;
 }
 
 /**
@@ -324,7 +337,7 @@ export function PhotoCollage({
     return <DiceGrid cells={cells} style={style} />;
   }
 
-  const columnCount = columns ?? (cells.length <= 4 ? 2 : 3);
+  const columnCount = columns ?? collageColumns(cells.length);
 
   if (layout === 'grid' || layout === 'dice') {
     // Row-major, so the tiles run in the order the tasks are listed below —

@@ -15,7 +15,12 @@ import {
 } from '@/constants/theme';
 import { longDate, numberToWord } from '@/lib/format';
 import { Headline } from './Headline';
-import { PhotoCollage, collageHeight, type CollageCell } from './PhotoCollage';
+import {
+  PhotoCollage,
+  collageColumns,
+  collageHeight,
+  type CollageCell,
+} from './PhotoCollage';
 import { Text } from './Text';
 
 /**
@@ -86,8 +91,9 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
   const [height, setHeight] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  // Three columns once past four prints, matching the collage's own rule.
-  const columns = cells.length <= 4 ? 2 : 3;
+  // Taken from the collage rather than restated: the two have to agree, or the
+  // block is measured at one width and laid out at another.
+  const columns = collageColumns(cells.length);
 
   // The card's height is fixed by its aspect, so the prints scale to the room
   // left over rather than the card growing to fit them — down where a full day
