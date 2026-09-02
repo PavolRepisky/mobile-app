@@ -44,25 +44,6 @@ const TODAY_DISC = 32;
 /** The ink hairline that marks today when it already has a photo on it. */
 const TODAY_RING = 2;
 
-/** The rule drawn under a stretch of days that belonged to a challenge. */
-const RUN_BAR = 3;
-
-/**
- * A challenge covers most of the weeks it touches, so the rule under it is
- * wallpaper by the time you have scrolled a month. Drawn in ink it read as
- * ruled paper and pushed the numerals into second place; at `inkGhost` it sits
- * in the same quiet layer as they do, and the name written under its opening
- * week is what tells you what the track is.
- */
-const RUN_COLOR = colors.inkGhost;
-
-/**
- * Side inset on a run's rule, matching the one the prints carry, so the rule
- * starts and stops flush with the tile above its first and last day rather
- * than with the cell's outer edge.
- */
-const CELL_INSET = 2;
-
 export interface CalendarDay {
   /** The day's cover shot. Fills the cell, with the numeral over it. */
   photo?: ImageSourcePropType | null;
@@ -70,10 +51,6 @@ export interface CalendarDay {
   seed?: string | null;
   /** Already lived through — today counts, tomorrow does not. */
   past?: boolean;
-  /** Part of a challenge. The run is underlined across the weeks it spans. */
-  inChallenge?: boolean;
-  /** The challenge's opening day — the run is named under the week holding it. */
-  runStart?: boolean;
   /** Today, wherever in the challenge that falls. */
   today?: boolean;
   /** Read in place of the bare numeral. */
@@ -86,8 +63,6 @@ export interface CalendarMonthProps {
   month: Date;
   /** What each date holds, keyed by day of the month. */
   days: Record<number, CalendarDay>;
-  /** Name written under the week where a challenge run opens. */
-  runLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -100,49 +75,7 @@ function leadingBlanks(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
 }
 
-interface Run {
-  /** Column the run opens in, 0-6. */
-  start: number;
-  length: number;
-  /** The challenge starts inside this stretch, so it is the one to name. */
-  named: boolean;
-}
-
-/**
- * The unbroken stretches of challenge days inside one week. A run is per week
- * rather than per month so it can be drawn as a rule beneath that week's
- * columns; a challenge crossing a Sunday simply picks up again on the Monday.
- */
-function challengeRuns(
-  week: (number | null)[],
-  days: Record<number, CalendarDay>,
-): Run[] {
-  const runs: Run[] = [];
-  let i = 0;
-
-  while (i < week.length) {
-    const date = week[i];
-    if (date === null || !days[date]?.inChallenge) {
-      i += 1;
-      continue;
-    }
-
-    const start = i;
-    let named = false;
-    while (i < week.length) {
-      const on = week[i];
-      if (on === null || !days[on]?.inChallenge) break;
-      if (days[on]?.runStart) named = true;
-      i += 1;
-    }
-
-    runs.push({ start, length: i - start, named });
-  }
-
-  return runs;
-}
-
-export function CalendarMonth({ month, days, runLabel, style }: CalendarMonthProps) {
+export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
   const year = month.getFullYear();
   const index = month.getMonth();
 
@@ -150,9 +83,6 @@ export function CalendarMonth({ month, days, runLabel, style }: CalendarMonthPro
     ...Array.from({ length: leadingBlanks(year, index) }, () => null),
     ...Array.from({ length: daysInMonth(year, index) }, (_, i) => i + 1),
   ];
-
-  const weeks: (number | null)[][] = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
 
   return (
     <View style={style}>
@@ -172,54 +102,15 @@ export function CalendarMonth({ month, days, runLabel, style }: CalendarMonthPro
         ))}
       </View>
 
-      {weeks.map((week, wi) => {
-        const runs = challengeRuns(week, days);
-        const named = runLabel ? runs.find((run) => run.named) : undefined;
-
-        return (
-          <View key={wi} style={styles.week}>
-            <View style={styles.weekRow}>
-              {week.map((date, i) => (
-                <View key={date ?? `blank-${wi}-${i}`} style={styles.cell}>
-                  {date === null ? null : (
-                    <DayCell date={date} day={days[date] ?? {}} />
-                  )}
-                </View>
-              ))}
-            </View>
-
-            {runs.length ? (
-              <View style={styles.marks}>
-                {runs.map((run) => (
-                  <View
-                    key={run.start}
-                    style={[
-                      styles.mark,
-                      {
-                        left: `${(run.start / 7) * 100}%`,
-                        width: `${(run.length / 7) * 100}%`,
-                      },
-                    ]}
-                  >
-                    <View style={styles.bar} />
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            {named ? (
-              // Named once, under the week the challenge opens in, rather than
-              // repeated down the page: the rule carries it from there on.
-              <View style={styles.captionRow}>
-                <View style={{ width: `${(named.start / 7) * 100}%` }} />
-                <Text variant="micro" color={colors.inkMuted} style={styles.caption}>
-                  {runLabel}
-                </Text>
-              </View>
-            ) : null}
+      <View style={styles.grid}>
+        {cells.map((date, i) => (
+          <View key={date ?? `blank-${i}`} style={styles.cell}>
+            {date === null ? null : (
+              <DayCell date={date} day={days[date] ?? {}} />
+            )}
           </View>
-        );
-      })}
+        ))}
+      </View>
     </View>
   );
 }
@@ -284,39 +175,16 @@ const styles = StyleSheet.create({
   weekday: {
     flex: 1,
   },
-  week: {
-    marginBottom: spacing.md,
-  },
-  weekRow: {
+  grid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: spacing.md,
   },
   cell: {
     width: `${100 / 7}%`,
     aspectRatio: CELL_ASPECT,
-    // A hair of air between neighbouring prints; the week gap does the rest.
-    paddingHorizontal: CELL_INSET,
-  },
-  marks: {
-    height: RUN_BAR,
-    marginTop: spacing.xs,
-  },
-  mark: {
-    position: 'absolute',
-    top: 0,
-    height: RUN_BAR,
-    paddingHorizontal: CELL_INSET,
-  },
-  bar: {
-    flex: 1,
-    borderRadius: radii.pill,
-    backgroundColor: RUN_COLOR,
-  },
-  captionRow: {
-    flexDirection: 'row',
-    marginTop: spacing.xs,
-  },
-  caption: {
-    marginLeft: CELL_INSET,
+    // A hair of air between neighbouring prints; the row gap does the rest.
+    paddingHorizontal: 2,
   },
   press: {
     flex: 1,
