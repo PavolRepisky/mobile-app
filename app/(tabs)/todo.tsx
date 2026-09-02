@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Card } from '@/components/Card';
@@ -8,14 +8,10 @@ import { IconButton } from '@/components/IconButton';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
 import { ProfileLayout } from '@/components/ProfileLayout';
-import { StickyNote } from '@/components/StickyNote';
 import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
 import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
-
-/** The day badge in the corner, a shade under the pencil beside it. */
-const dayNoteSize = 46;
 
 export default function TodoScreen() {
   const router = useRouter();
@@ -108,23 +104,12 @@ export default function TodoScreen() {
           </Pressable>
         }
         action={
-          <>
-            {/* The reference's day badge, back where it belongs: the pencil on
-                its own left the corner thin, and this is the one place the
-                app's own motif — pastel square, handwritten numeral — reaches
-                the To-do home. It doubles the heading's number on purpose —
-                the reference does the same — which is exactly why a screen
-                reader is told to skip it: hearing the day twice is noise. */}
-            <View importantForAccessibility="no-hide-descendants">
-              <StickyNote value={currentDay} size={dayNoteSize} tilt={-3} />
-            </View>
-            <IconButton
-              name="pencil"
-              iconSize={21}
-              onPress={() => setMenuOpen(true)}
-              accessibilityLabel="Challenge options"
-            />
-          </>
+          <IconButton
+            name="pencil"
+            iconSize={21}
+            onPress={() => setMenuOpen(true)}
+            accessibilityLabel="Challenge options"
+          />
         }
       >
         {/* The day as its pictures. Every task holds a place from the moment
@@ -132,10 +117,12 @@ export default function TodoScreen() {
             it will fill — so the block is the shape of the whole day and builds
             up through it rather than appearing at the end. The list below
             carries the labels and the times; this carries only the pictures.
-            Laid out as the five on a die for now: the scattered version was
-            fighting the photos rather than framing them. */}
+            Set as a photo page rather than a grid: the dice arrangement was
+            five equal squares in a symmetrical block, which is a contact
+            sheet, and the scattered one was fighting the photos rather than
+            framing them. The sizes do the work here and nothing is tilted. */}
         <PhotoCollage
-          layout="dice"
+          layout="mosaic"
           style={styles.collage}
           cells={rows.map((row) => ({
             key: row.task.id,
