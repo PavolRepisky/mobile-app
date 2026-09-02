@@ -170,10 +170,14 @@ home does (tap opens the story, hold goes back to today).
 **`StickyNote`** — `value` · `size` · `colorIndex` (into `stickyPalette`) ·
 `muted` · `tilt`.
 
-**`CalendarMonth`** — `month` (any date inside it) · `days`, a map from day of
-the month to `photo`/`seed` · `past` · `today` · `label` · `onPress`. One month
-as a seven-column grid, Monday first, with the day's cover shot printed behind
-its numeral. The heading is `sectionTitle`, not a Playfair headline: it labels a
+**`CalendarMonth`** — `month` (any date inside it) · `runLabel` · `days`, a map
+from day of the month to `photo`/`seed` · `past` · `today` · `inChallenge` ·
+`runStart` · `label` · `onPress`. One month as a seven-column grid, Monday
+first, with the day's cover shot printed behind its numeral. `inChallenge` days
+are underlined week by week with a soft `inkGhost` track, and `runLabel` is
+written once under the week holding the `runStart` day — a challenge covers
+most of the weeks it touches, so an ink rule read as ruled paper and the name
+is what makes the quiet one mean something. The heading is `sectionTitle`, not a Playfair headline: it labels a
 grid of dates rather than opening a page. Photographs lead, so a bare numeral
 stays quiet — `inkMuted` for a day already gone, `inkGhost` for one still to
 come. Today takes the ink disc a calendar always puts on it, or an ink ring when

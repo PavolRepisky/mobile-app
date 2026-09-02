@@ -19,12 +19,17 @@ import { useApp } from '@/hooks/useAppState';
  *
  * The run of months belongs to the account rather than to whatever challenge
  * happens to be going: restarting, or switching to another challenge, must not
- * shorten the record. The photographs inside it still come from the challenge
- * you are on, because that is the only progress the app keeps.
+ * shorten the record. The challenge itself is marked *inside* that record — an
+ * ink rule under the stretch of days it covers, named where it opens — so it
+ * reads as a season of your year rather than as the whole page.
+ *
+ * Only the challenge you are on is drawn. The app keeps no history of finished
+ * ones, so there is nothing else to rule off yet.
  */
 export default function CalendarScreen() {
   const router = useRouter();
-  const { installedAt, tasks, progress, startDate, totalDays } = useApp();
+  const { challenge, installedAt, tasks, progress, startDate, totalDays } =
+    useApp();
 
   const months = useMemo(() => {
     const today = new Date();
@@ -71,6 +76,10 @@ export default function CalendarScreen() {
           seed: shot?.seed ?? null,
           past: on <= today,
           today: on.getTime() === today.getTime(),
+          // The run is the whole challenge, not just the part already lived:
+          // the rule under it is what tells you how much is still to come.
+          inChallenge: day !== null,
+          runStart: day === 1,
           label: shot
             ? `Day ${day}. Opens this day's story.`
             : `${MONTH_NAMES[month]} ${date}. Nothing photographed.`,
@@ -101,6 +110,7 @@ export default function CalendarScreen() {
           key={entry.key}
           month={entry.month}
           days={entry.days}
+          runLabel={challenge.name}
           style={styles.month}
         />
       ))}
