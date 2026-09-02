@@ -53,6 +53,16 @@ export interface PhotoSlotProps {
    */
   emptyOutline?: boolean;
   /**
+   * `'warm'` trades the cool grey fill for the shell's own muted tone inside a
+   * hairline. The grey is right where an empty slot is a thing to press — it
+   * reads as a well waiting to be filled. In a block that is a record of a day
+   * it is wrong twice over: it is a cold grey on a warm page, and early in a
+   * day most of the block is made of it, so the gaps end up louder than the
+   * photographs. The hairline is what keeps the quieter fill from reading as a
+   * patch where something failed to load.
+   */
+  emptyTone?: 'sunken' | 'warm';
+  /**
    * Marks a filled slot with a tick in the corner. The to-do list has no check
    * circle: a task is done because it was photographed, so the proof carries
    * the status rather than a control sitting next to it.
@@ -92,6 +102,7 @@ export function PhotoSlot({
   emptyIcon = 'camera',
   emptyLabel,
   emptyOutline = !!emptyLabel,
+  emptyTone = 'sunken',
   done,
   tilt,
   shadow = true,
@@ -112,7 +123,14 @@ export function PhotoSlot({
   ) : filled ? (
     <Placeholder seed={seed!} radius={radius} style={box} />
   ) : (
-    <View style={[styles.empty, box, emptyOutline ? styles.emptyOutlined : null]}>
+    <View
+      style={[
+        styles.empty,
+        emptyTone === 'warm' ? styles.emptyWarm : null,
+        box,
+        emptyOutline ? styles.emptyOutlined : null,
+      ]}
+    >
       {emptyIcon === 'none' ? null : (
         <Ionicons
           name={emptyIcon === 'camera' ? 'camera' : 'add'}
@@ -179,6 +197,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /**
+   * The shell's own muted tone, held by a hairline. The fill sits only a shade
+   * off the page it is on, which is the point — a gap should recede — but a
+   * shape that pale with no edge stops looking like a place and starts looking
+   * like a smudge, so the rule is what draws it.
+   */
+  emptyWarm: {
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   /**
    * The dash is what separates "nothing here yet" from "nothing goes here":

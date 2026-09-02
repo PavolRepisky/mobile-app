@@ -175,8 +175,10 @@ home does (tap opens the story, hold goes back to today).
 parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
 `emptyLabel` ·
 `emptyOutline` (the dashed field on its own, defaults to whether there is a
-label) · `done` · `tilt` · `shadow` `boolean|'card'|'hard'` ·
-`accessibilityLabel`.
+label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
+`shadow` `boolean|'card'|'hard'` · `accessibilityLabel`. `emptyTone="warm"` is
+for blocks where an empty tile is a gap in a record rather than a well to
+press: the shell's muted tone inside a hairline instead of the cool grey.
 **`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `done` · `label` ·
 `onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'`. The day's proof
 photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
@@ -187,7 +189,9 @@ currently uses: four square tiles with the fifth laid over the middle on a
 white mat, the way the five is pipped on a die (any other number of tasks falls
 back to the grid). The grid and dice layouts draw no done ticks and no dashed
 "add" tiles: they are a record of the day, and the camera is opened from the
-task rows instead. In the collage, tasks with nothing photographed yet hold
+task rows instead. Their empty tiles also drop the drop shadow and take the
+warm tone — a gap has nothing to lift off the page, and early in a day the
+block is mostly gaps. In the collage, tasks with nothing photographed yet hold
 their place as dashed slots.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.

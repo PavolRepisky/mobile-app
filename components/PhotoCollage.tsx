@@ -104,10 +104,13 @@ function Print({
   tick = true,
   invite = true,
   shadow = 'hard',
+  emptyTone,
 }: {
   cell: CollageCell;
   height: number;
   tilt?: number;
+  /** Passed through: the warm gap the record layouts use. */
+  emptyTone?: 'sunken' | 'warm';
   /** Off for a tile that is only a gap, so nothing lifts off the page. */
   shadow?: 'hard' | false;
   /** The corner tick on a photographed task. */
@@ -131,6 +134,7 @@ function Print({
       // that failed to load.
       emptyOutline={invite}
       emptyIcon={invite ? 'camera' : 'none'}
+      emptyTone={emptyTone}
       tilt={tilt}
       // The same tight, offset drop the task photos carry: prints laid on the
       // page rather than tiles set into it.
@@ -173,7 +177,18 @@ function DiceGrid({
             <View key={r} style={[styles.gridRow, r > 0 && styles.gridGap]}>
               {pair.map((cell) => (
                 <View key={cell.key} style={styles.gridCell}>
-                  <Print cell={cell} height={tile} tick={false} invite={false} />
+                  <Print
+                    cell={cell}
+                    height={tile}
+                    tick={false}
+                    invite={false}
+                    // A gap has nothing to lift off the page. The corners used
+                    // to carry the same hard drop as a photograph, so early in
+                    // a day the block was four empty tiles standing proud of
+                    // the page and one picture among them.
+                    shadow={cell.photo || cell.seed ? 'hard' : false}
+                    emptyTone="warm"
+                  />
                 </View>
               ))}
             </View>
@@ -199,6 +214,7 @@ function DiceGrid({
                   tick={false}
                   invite={false}
                   shadow={filled ? 'hard' : false}
+                  emptyTone="warm"
                 />
               </View>
             </View>
@@ -256,6 +272,11 @@ export function PhotoCollage({
                   height={GRID_HEIGHT}
                   tick={false}
                   invite={false}
+                  // The dice falls back to here on a day that is not five
+                  // tasks long, so its gaps have to sit back into the page the
+                  // same way.
+                  shadow={cell.photo || cell.seed ? 'hard' : false}
+                  emptyTone="warm"
                 />
               </View>
             ))}
