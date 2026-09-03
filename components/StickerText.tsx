@@ -15,14 +15,23 @@ import { Text } from './Text';
  */
 
 /**
- * Directions the white copies are thrown in. Twelve rather than eight: at eight
- * the outline of a heavy display cut comes out lumpy where two arms meet, and
- * the gaps read as a rendering fault rather than as a die-cut edge.
+ * Directions the white copies are thrown in, for a given stroke.
+ *
+ * Each copy covers the ground from the letterform out to the stroke along its
+ * own direction, so what falls between two neighbours is a scallop, and the gap
+ * between them grows with the stroke: a count that reads as a clean die-cut at
+ * six points wide comes out fluted at fourteen. Three directions per point of
+ * stroke keeps that chord under a pixel or so, floored at twelve so a hairline
+ * outline still closes and capped so a very thick one does not lay down a
+ * hundred copies of the same word.
  */
-const POINTS = Array.from({ length: 12 }, (_, i) => {
-  const angle = (i * Math.PI) / 6;
-  return { x: Math.cos(angle), y: Math.sin(angle) };
-});
+function pointsFor(stroke: number) {
+  const count = Math.min(48, Math.max(12, Math.ceil(stroke * 3)));
+  return Array.from({ length: count }, (_, i) => {
+    const angle = (i * 2 * Math.PI) / count;
+    return { x: Math.cos(angle), y: Math.sin(angle) };
+  });
+}
 
 export interface StickerTextProps {
   children: string;
@@ -41,6 +50,8 @@ export function StickerText({
   size = 'headline',
   style,
 }: StickerTextProps) {
+  const points = pointsFor(stroke);
+
   return (
     <View
       accessible
@@ -52,7 +63,7 @@ export function StickerText({
         style,
       ]}
     >
-      {POINTS.map((point, i) => (
+      {points.map((point, i) => (
         <Text
           key={i}
           variant={size}
@@ -84,7 +95,9 @@ export function StickerText({
 
 const styles = StyleSheet.create({
   root: {
-    alignSelf: 'flex-start',
+    // Shrink-wraps the word wherever it is put, so the caller decides where the
+    // sticker goes rather than the sticker filling whatever it is dropped in.
+    alignSelf: 'center',
   },
   /**
    * Every white copy is taken out of the flow and pinned to where the black one

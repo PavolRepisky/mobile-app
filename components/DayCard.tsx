@@ -48,8 +48,13 @@ export const DAY_CARD_STORY_ASPECT = 9 / 16;
  */
 const RULE = 2;
 
-/** How far the sticker's outline stands off its letterforms. */
-const STICKER_STROKE = 7;
+/**
+ * How far the sticker's outline stands off its letterforms. Heavy on purpose:
+ * this is the one thing on the card that has to survive being seen at
+ * thumbnail size in somebody's feed, and a thin outline is the first thing to
+ * disappear when the whole card is an inch wide.
+ */
+const STICKER_STROKE = 15;
 
 /** Degrees the day is applied at. A sticker is never put on square. */
 const STICKER_TILT = -7;
@@ -105,7 +110,16 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
       onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
     >
       {background ? (
-        <Image source={background} style={absoluteFill} contentFit="cover" />
+        <Image
+          source={background}
+          style={absoluteFill}
+          contentFit="cover"
+          // Blurred in the image rather than under a `BlurView`: a native blur
+          // is a live effect the snapshot does not always catch, and a card
+          // that exports without its background is worse than one without a
+          // blur. This bakes in, so what is on screen is what is captured.
+          blurRadius={18}
+        />
       ) : null}
 
       {/* The challenge is the ground, not the subject: held back far enough
@@ -183,12 +197,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.scrim,
   },
   sticker: {
-    position: 'absolute',
-    // Sat over the top of the pile rather than above it, and off to one side:
-    // centred, a die-cut word stops reading as something stuck on and starts
-    // reading as a title bar.
-    top: '11%',
-    left: PAD,
+    // Dead centre, over the whole pile. The prints are the record and the day
+    // is the headline on it, so the day sits on top of them rather than in a
+    // margin beside them.
+    ...absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   prints: {
     flex: 1,
