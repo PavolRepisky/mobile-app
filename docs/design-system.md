@@ -189,13 +189,14 @@ label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
 `shadow` `boolean|'card'|'hard'` · `accessibilityLabel`. `emptyTone="warm"` is
 for blocks where an empty tile is a gap in a record rather than a well to
 press: the shell's muted tone inside a hairline instead of the cool grey.
-**`StickerText`** — `children` · `stroke` · `tilt` · `size`. A display word
-die-cut as a sticker: black letterforms inside a thick white outline that
-follows their shape. React Native has no text stroke, so the outline is drawn —
-the same word laid down twelve times in white, each copy thrown a stroke's
-width along a different point of the compass, with the black word set on top.
-Twelve rather than eight because at eight a heavy display cut comes out lumpy
-where two arms meet.
+**`StickerText`** — `children` · `tilt` · `size`. A word die-cut as a sticker:
+black display type on a white plaque, applied off straight, with the prints'
+own drop shadow under it. It was first drawn as a true outline — the word laid
+down many times in white around a circle, black on top — which does not survive
+being asked for a thick one: every copy is the whole glyph, so the union closes
+the letters' counters, bridges the gaps between them, and scallops where two
+neighbouring copies meet. The plaque gets the same idea with one shape and one
+edge, and thicker is simply more paper rather than more artefact.
 
 **`DayCard`** — `day` · `date` · `cells` · `challengeName` · `handle` ·
 `background`. The day composed as one 4:5 page to be posted: a Playfair `*day* five` over the

@@ -48,14 +48,6 @@ export const DAY_CARD_STORY_ASPECT = 9 / 16;
  */
 const RULE = 2;
 
-/**
- * How far the sticker's outline stands off its letterforms. Heavy on purpose:
- * this is the one thing on the card that has to survive being seen at
- * thumbnail size in somebody's feed, and a thin outline is the first thing to
- * disappear when the whole card is an inch wide.
- */
-const STICKER_STROKE = 15;
-
 /** Degrees the day is applied at. A sticker is never put on square. */
 const STICKER_TILT = -7;
 
@@ -152,11 +144,7 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
       {/* Applied last and over everything, the way a sticker goes on: it laps
           the prints rather than being given a gap of its own. */}
       <View style={styles.sticker} pointerEvents="none">
-        <StickerText
-          size="headline"
-          stroke={STICKER_STROKE}
-          tilt={STICKER_TILT}
-        >
+        <StickerText size="headline" tilt={STICKER_TILT}>
           {`Day ${day}`}
         </StickerText>
       </View>
