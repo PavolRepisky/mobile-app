@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BigSegmentHeader } from '@/components/BigSegmentHeader';
 import { FriendCard } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
 import { ScreenScroll } from '@/components/Screen';
@@ -10,7 +9,8 @@ import { spacing, tabBarTop } from '@/constants/theme';
 import { FRIENDS } from '@/data/content';
 
 /**
- * The people you're doing it with, with a `+` to invite more.
+ * The people you're doing it with, with a `+` to invite more. The tab bar names
+ * the page, so it opens straight on the first card.
  */
 export default function FriendsScreen() {
   const router = useRouter();
@@ -21,17 +21,6 @@ export default function FriendsScreen() {
     // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
       <ScreenScroll tabBar>
-        <BigSegmentHeader
-          options={[
-            {
-              key: 'friends',
-              label: 'Friends',
-              avatars: FRIENDS.map((friend) => friend.avatar),
-            },
-          ]}
-          style={styles.header}
-        />
-
         <View style={styles.sections}>
           {FRIENDS.map((friend) => (
             <FriendCard
@@ -59,10 +48,6 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  header: {
-    marginTop: spacing.lg,
-    marginBottom: spacing['3xl'],
   },
   sections: {
     gap: spacing['3xl'],

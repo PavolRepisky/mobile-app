@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { BigSegmentHeader } from '@/components/BigSegmentHeader';
 import { PhotoStrip } from '@/components/PhotoStrip';
 import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -11,26 +10,14 @@ import { DISCOVER } from '@/data/content';
 
 /**
  * The challenges going on out there, a photo strip each. Tapping one opens its
- * feed.
+ * feed. The tab bar names the page, so it opens straight on the first
+ * challenge rather than on a title repeating the tab.
  */
 export default function DiscoverScreen() {
   const router = useRouter();
 
   return (
     <ScreenScroll tabBar>
-      <BigSegmentHeader
-        options={[
-          {
-            key: 'discover',
-            label: 'Discover',
-            // A photo from three of the challenges below, as the cluster
-            // stands for Discover as a whole rather than any one feed.
-            avatars: DISCOVER.slice(0, 3).map((section) => section.photos[0]),
-          },
-        ]}
-        style={styles.header}
-      />
-
       <View style={styles.sections}>
         {DISCOVER.map((section) => (
           <Pressable
@@ -78,10 +65,6 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginTop: spacing.lg,
-    marginBottom: spacing['3xl'],
-  },
   sections: {
     gap: spacing['3xl'],
   },

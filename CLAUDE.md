@@ -82,8 +82,7 @@ runs step the weight up).
 **Controls** · `PrimaryButton` / `SecondaryButton` / `TextLink` ·
 `IconButton` circular · `Pill` (`floating`|`glass`|`solid`|`muted`|`outline` ×
 `sm`|`md`|`lg`) · `SegmentedTabs` (`underline`|`pill`) · `BigSegmentHeader` the
-avatar-cluster label — two options make a switch, one makes a page title ·
-`RulerSlider` / `DayScrubber` tick pickers.
+two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.

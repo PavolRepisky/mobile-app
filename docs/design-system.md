@@ -122,10 +122,8 @@ false for side-by-side pairs) · `labelStyle`. **`TextLink`** takes
 `variant` `'underline'|'pill'` · `size` `'md'|'lg'` · `align`
 `'center'|'left'|'justify'` · `scrollable` · `dense`.
 
-**`BigSegmentHeader<T>`** — one or two options, each with an avatar cluster
-above an oversized label. Two make a switch and the unselected side drops to
-`inkGhost`; one makes a page title, always lit and inert, which is how Discover
-and Friends are headed now that each has a tab of its own.
+**`BigSegmentHeader<T>`** — exactly two options, each with an avatar cluster
+above an oversized label; the unselected side drops to `inkGhost`.
 
 **`RulerSlider`** — `length` · `index` · `onChange` · `readout` · `caption`.
 **`DayScrubber`** — `day` · `totalDays` · `onChange`, firing as strokes cross
