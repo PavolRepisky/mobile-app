@@ -15,12 +15,7 @@ import {
 } from '@/constants/theme';
 import { longDate, numberToWord } from '@/lib/format';
 import { Headline } from './Headline';
-import {
-  PhotoCollage,
-  collageColumns,
-  collageHeight,
-  type CollageCell,
-} from './PhotoCollage';
+import { PhotoCollage, type CollageCell } from './PhotoCollage';
 import { Text } from './Text';
 
 /**
@@ -48,15 +43,6 @@ export const DAY_CARD_STORY_ASPECT = 9 / 16;
  * reference does it: a hairline reads as a table, a drawn rule as a stamp.
  */
 const RULE = 2;
-
-/**
- * How far the prints may be blown up to fill the page. The scatter's natural
- * heights are sized for the To-do list, where the block is one thing on a long
- * screen; on a card they leave a quiet day sitting in a pool of empty paper.
- * Capped rather than free: past about this the prints stop reading as a
- * handful of photographs laid down and start reading as one poster.
- */
-const MAX_SCALE = 1.8;
 
 /** The hairline that keeps the card's shape on a ground as light as it is. */
 const EDGE = 1;
@@ -94,17 +80,10 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
   const [height, setHeight] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  // Taken from the collage rather than restated: the two have to agree, or the
-  // block is measured at one width and laid out at another.
-  const columns = collageColumns(cells.length);
-
-  // The card's height is fixed by its aspect, so the prints scale to the room
-  // left over rather than the card growing to fit them — down where a full day
-  // would overrun it, up where a quiet one would rattle around inside it.
+  // The card's height is fixed by its aspect, so the pile is handed the room
+  // left over and fits itself into it — drawn narrower where a full day would
+  // overrun, full width where a quiet one leaves the space going spare.
   const room = height - PAD * 2 - headerHeight - FOOTER_HEIGHT - PRINTS_GAP * 2;
-  const natural = collageHeight(cells, columns, 1);
-  const scale =
-    room > 0 && natural > 0 ? Math.min(MAX_SCALE, room / natural) : 1;
 
   return (
     <View
@@ -128,7 +107,7 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
       {/* Centred in what is left, so a short day sits in the middle of the
           page rather than hanging off the heading. */}
       <View style={styles.prints}>
-        <PhotoCollage cells={cells} columns={columns} scale={scale} />
+        <PhotoCollage cells={cells} maxHeight={room > 0 ? room : undefined} />
       </View>
 
       <View style={styles.footer}>

@@ -11,16 +11,16 @@ import { ProfileLayout } from '@/components/ProfileLayout';
 import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
 import { colors, screenPadding, spacing } from '@/constants/theme';
+import { shortLabel } from '@/lib/format';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /**
- * How much bigger the prints run here than the scatter's own heights, which
- * were cut for a block sitting under a heading rather than for the thing the
- * page is about. The day card works the same figure out from the room it has
- * left; this page has no fixed height to work back from, so it takes the
- * proportion the card lands on and holds it steady.
+ * Ceiling on the pile. The page has no fixed height to fit into the way the
+ * card does, and left to fill the width a five-print day pushed the checklist
+ * most of the way off the screen. The block is the day's face, not the whole
+ * page.
  */
-const PRINT_SCALE = 1.4;
+const PILE_MAX_HEIGHT = 300;
 
 export default function TodoScreen() {
   const router = useRouter();
@@ -131,13 +131,14 @@ export default function TodoScreen() {
             task made the shape of the day out of things that were not there
             yet, and the scatter cannot carry gaps the way the die could. */}
         <PhotoCollage
-          scale={PRINT_SCALE}
+          maxHeight={PILE_MAX_HEIGHT}
           style={styles.collage}
           cells={rows
             .filter((row) => row.photo || row.photoSeed)
             .map((row) => ({
               key: row.task.id,
               label: row.task.label,
+              caption: shortLabel(row.task.label),
               photo: row.photo,
               seed: row.photoSeed,
               onPress: pressPhoto(row),

@@ -9,6 +9,7 @@ import {
 
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { PhotoSlot } from './PhotoSlot';
+import { Polaroid, POLAROID_RATIO } from './Polaroid';
 
 /** One print in the collage — a task's proof photo, or the gap where it goes. */
 export interface CollageCell {
@@ -17,9 +18,11 @@ export interface CollageCell {
   photo?: ImageSourcePropType | null;
   seed?: string | null;
   done?: boolean;
+  /** Written by hand in the print's chin. */
+  caption?: string;
   /**
-   * What the tile is read out as. The collage shows no text of its own, so
-   * without this a screen reader gets five identical "Add photo" tiles.
+   * What the tile is read out as. The grid layouts show no text of their own,
+   * so without this a screen reader gets five identical "Add photo" tiles.
    */
   label?: string;
   onPress?: () => void;
@@ -38,44 +41,15 @@ export interface PhotoCollageProps {
    */
   layout?: 'collage' | 'grid' | 'dice';
   /**
-   * Multiplies every print height. The scatter's heights are points rather
-   * than proportions — that is what keeps a column's edges landing on a
-   * handful of lines instead of on a continuum — so a block laid out somewhere
-   * narrower or wider than the To-do page scales them rather than reinventing
-   * the arrangement. The day card is the one caller that passes it.
+   * Ceiling on the pile's height. The pile is laid out in shares of its own
+   * width, so it has one shape and one aspect; where the room is shorter than
+   * that shape wants — the day card, whose height is fixed by its 4:5 — the
+   * whole pile is drawn narrower rather than squashed, and centred in what is
+   * left. Left off, it fills the width it is given.
    */
-  scale?: number;
+  maxHeight?: number;
   style?: StyleProp<ViewStyle>;
 }
-
-/**
- * The heights a print can take. Four of them rather than a range: a set this
- * small keeps the column edges landing on a handful of lines, which is what
- * separates a scatter from noise. Picked per cell off its key, so a task keeps
- * its size for the whole challenge instead of resizing every render.
- */
-const CELL_HEIGHTS = [104, 126, 142, 116];
-
-/**
- * How far a print laps over the one above it in its column. Small — enough to
- * close the gap and read as one print laid partly across another, not enough
- * to hide anything.
- */
-const LAP = 7;
-
-/**
- * Sideways nudges dealt out by position, so no two prints in a row start on
- * the same line and the collage's edges come out faintly ragged.
- */
-const NUDGES = [-5, 4, -3, 6, 2, -6];
-
-/**
- * The furthest a nudge can throw a print. The block insets itself by this much
- * so a nudged print stays inside its own bounds: the day card clips to its
- * rounded corner, and a print thrown past the edge lost the paper border down
- * one side — the very thing that makes it read as a print.
- */
-const NUDGE_MAX = Math.max(...NUDGES.map(Math.abs));
 
 /**
  * Tile height in the grid. One height for every print — the whole point of the
@@ -93,15 +67,6 @@ const DICE_CENTRE = 0.66;
 /** White margin around the centre print, so it reads as laid on top. */
 const MAT = 4;
 
-/**
- * The white border every print in the scatter carries. It is the whole
- * difference between a rounded tile and a photograph: a print has a paper edge,
- * and it is the edge — not the shadow — that says the thing is lying on the
- * page rather than cut into it. Held off the photo's own corner too, so the
- * picture inside stays nearly square while the paper around it is rounded.
- */
-const PRINT_MAT = 5;
-
 /** Stable per key, so the arrangement survives a re-render. */
 function hash(key: string): number {
   let h = 0;
@@ -112,94 +77,145 @@ function hash(key: string): number {
 }
 
 /**
- * Magnitude off the key, direction off the position — the same bargain the
- * task rows strike. Seeding the sign as well leaves neighbours landing on the
- * same angle often enough to look like they had simply been set straight.
- */
-function tiltFor(key: string, index: number): number {
-  // Opened up once the prints gained their paper borders: a straight white
-  // edge shows the angle in a way a photograph bleeding to its own corner
-  // never did, so what used to read as a rendering slip now reads as a hand.
-  const magnitude = 0.9 + (hash(key) % 5) * 0.45;
-  return index % 2 === 0 ? magnitude : -magnitude;
-}
-
-interface Dealt {
-  cell: CollageCell;
-  index: number;
-  height: number;
-}
-
-/**
- * Deals the prints into columns, each one going to whichever column is
- * currently shortest, so the block stays balanced whatever the day's length.
+ * Where each print lands, in shares of the pile's own width — so one set of
+ * numbers describes the arrangement at any size.
  *
- * Split out from the render because the day card has to know how tall the
- * scatter comes out *before* it lays it down: the card is a fixed 4:5, so it
- * works back from the room it has left to the scale the prints will take.
- */
-function deal(
-  cells: readonly CollageCell[],
-  columnCount: number,
-  scale: number,
-): { buckets: Dealt[][]; lap: number; height: number } {
-  const lap = Math.round(LAP * scale);
-  const buckets: Dealt[][] = Array.from({ length: columnCount }, () => []);
-  const filled = new Array<number>(columnCount).fill(0);
-
-  cells.forEach((cell, index) => {
-    const height = Math.round(
-      CELL_HEIGHTS[hash(cell.key) % CELL_HEIGHTS.length] * scale,
-    );
-    let shortest = 0;
-    for (let c = 1; c < columnCount; c += 1) {
-      if (filled[c] < filled[shortest]) shortest = c;
-    }
-    buckets[shortest].push({ cell, index, height });
-    filled[shortest] += height - lap;
-  });
-
-  // Each print after the first rides up by `lap`, so a column measures the sum
-  // of its lapped heights plus the one lap the first print never takes.
-  const tallest = Math.max(0, ...filled);
-  const height = tallest > 0 ? tallest + lap : 0;
-
-  // A column holding a single print stretches it to the block's height. The
-  // dealing balances columns by height rather than by count, so an odd number
-  // of prints always leaves one column with one print in it — left at its own
-  // height that print floats in a half-empty column, and the block reads as
-  // having run out rather than as having been laid out.
-  buckets.forEach((bucket) => {
-    if (bucket.length === 1) bucket[0].height = height;
-  });
-
-  return { buckets, lap, height };
-}
-
-/**
- * How many columns a set of prints wants. One print gets a column to itself —
- * dealt into two it takes half the width and leaves the other half of the
- * block empty, which early in a day is most of what the page shows.
+ * These are laid out by hand rather than generated. A pile is a composition:
+ * which print sits on top, which corner laps over which, where the eye enters.
+ * Dealt by rule it comes out evenly spaced and reads as a grid that slipped;
+ * placed, it reads as a handful of prints somebody put down.
  *
- * Exported so the day card and the collage cannot disagree: the card has to
- * know the column count to measure the block before it lays it out.
+ * One rule they all keep: a print may lap over another's picture, never over
+ * its chin. Prints are drawn in order, so a later one covers an earlier one,
+ * and a caption buried under the next photograph is worse than no caption —
+ * it reads as a rendering fault rather than as a pile. Every row therefore
+ * starts below the row above it has finished, chin included.
  */
-export function collageColumns(count: number): number {
-  if (count <= 1) return 1;
-  return count <= 4 ? 2 : 3;
+interface Slot {
+  x: number;
+  y: number;
+  w: number;
+  /** Degrees off straight. Big enough to see — a print is never square on. */
+  rot: number;
+}
+
+const PILES: Record<number, readonly Slot[]> = {
+  1: [{ x: 0.19, y: 0, w: 0.62, rot: -2.5 }],
+  2: [
+    { x: 0.0, y: 0.08, w: 0.54, rot: -4 },
+    { x: 0.44, y: 0.0, w: 0.54, rot: 3 },
+  ],
+  3: [
+    { x: 0.0, y: 0.03, w: 0.5, rot: -4.5 },
+    { x: 0.47, y: 0.0, w: 0.5, rot: 3.5 },
+    { x: 0.23, y: 0.59, w: 0.53, rot: -1.5 },
+  ],
+  4: [
+    { x: 0.0, y: 0.0, w: 0.44, rot: -4 },
+    { x: 0.53, y: 0.03, w: 0.44, rot: 3 },
+    { x: 0.03, y: 0.55, w: 0.44, rot: 2.5 },
+    { x: 0.53, y: 0.58, w: 0.44, rot: -3.5 },
+  ],
+  5: [
+    { x: 0.0, y: 0.02, w: 0.36, rot: -5 },
+    { x: 0.32, y: 0.0, w: 0.36, rot: 2.5 },
+    { x: 0.64, y: 0.03, w: 0.36, rot: -2 },
+    { x: 0.08, y: 0.46, w: 0.4, rot: 3.5 },
+    { x: 0.52, y: 0.49, w: 0.4, rot: -3 },
+  ],
+};
+
+/**
+ * Past five there is no composed arrangement, so prints fall into a pair of
+ * staggered columns — still overlapping and still off straight, just no longer
+ * arranged. A challenge that long is a list, and the pile admits it.
+ */
+function pileFor(count: number): readonly Slot[] {
+  const preset = PILES[count];
+  if (preset) return preset;
+
+  return Array.from({ length: count }, (_, i) => {
+    const right = i % 2 === 1;
+    return {
+      x: right ? 0.53 : 0,
+      y: Math.floor(i / 2) * 0.34 + (right ? 0.03 : 0),
+      w: 0.45,
+      rot: right ? 3 : -3.5,
+    };
+  });
 }
 
 /**
- * How tall the scatter comes out for these cells, in points. Exported for the
- * day card, which sizes the prints to the space it has rather than the other
- * way round.
+ * How tall the pile comes out for a given number of prints, as a share of its
+ * width. The day card works back through this from the room it has left to the
+ * width the pile should be drawn at.
  */
-export function collageHeight(
-  cells: readonly CollageCell[],
-  columnCount: number,
-  scale = 1,
-): number {
-  return deal(cells, columnCount, scale).height;
+export function collageRatio(count: number): number {
+  if (count === 0) return 0;
+  return Math.max(
+    ...pileFor(count).map((slot) => slot.y + slot.w * POLAROID_RATIO),
+  );
+}
+
+/**
+ * The prints as a pile: square instant photographs in white frames, each one
+ * off straight, lapping over its neighbours, captioned by hand in the chin.
+ */
+function Pile({
+  cells,
+  maxHeight,
+  style,
+}: {
+  cells: readonly CollageCell[];
+  maxHeight?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [available, setAvailable] = useState(0);
+
+  const slots = pileFor(cells.length);
+  const ratio = collageRatio(cells.length);
+
+  // Narrower rather than shorter: the pile keeps its shape and gives up width
+  // when the room is not tall enough for it.
+  const width =
+    maxHeight && ratio > 0
+      ? Math.min(available, maxHeight / ratio)
+      : available;
+
+  return (
+    <View style={style}>
+      {/* Measured on a bare child rather than on the styled box itself: a
+          caller's `style` may carry padding, and `onLayout` reports the box
+          including it — so the pile would be drawn that much too wide and
+          hang over both edges of the column it was meant to sit in. */}
+      <View onLayout={(e) => setAvailable(e.nativeEvent.layout.width)}>
+        {width > 0 ? (
+          <View style={[styles.pile, { width, height: width * ratio }]}>
+            {cells.map((cell, i) => {
+              const slot = slots[i];
+              return (
+                <Polaroid
+                  key={cell.key}
+                  width={slot.w * width}
+                  photo={cell.photo}
+                  seed={cell.seed}
+                  caption={cell.caption}
+                  tilt={slot.rot}
+                  onPress={cell.onPress}
+                  accessibilityLabel={cell.label}
+                  style={{
+                    position: 'absolute',
+                    left: slot.x * width,
+                    top: slot.y * width,
+                  }}
+                />
+              );
+            })}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
 }
 
 /** One print, laid out the same way wherever it is dealt. */
@@ -211,7 +227,6 @@ function Print({
   invite = true,
   shadow = 'hard',
   emptyTone,
-  mat,
 }: {
   cell: CollageCell;
   height: number;
@@ -228,22 +243,11 @@ function Print({
    * is simply a gap in it.
    */
   invite?: boolean;
-  /**
-   * Lay the print on a paper mat. Only in the scatter, and only where there is
-   * a photograph: a white card with a shadow around an empty grey slot is the
-   * loudest thing on a block that should be quiet until it is shot.
-   */
-  mat?: boolean;
 }) {
-  const filled = !!(cell.photo || cell.seed);
-
-  const slot = (
+  return (
     <PhotoSlot
       width="100%"
-      // The mat takes its border out of the print rather than adding to it, so
-      // a matted print measures exactly what the dealing said it would and the
-      // card's scale arithmetic still lands.
-      height={mat && filled ? height - PRINT_MAT * 2 : height}
+      height={height}
       photo={cell.photo}
       seed={cell.seed}
       done={tick && cell.done}
@@ -253,27 +257,13 @@ function Print({
       emptyOutline={invite}
       emptyIcon={invite ? 'camera' : 'none'}
       emptyTone={emptyTone}
-      // On a matted print the paper carries both, or the photo would tilt
-      // inside a straight border and cast a second shadow onto its own mat.
-      tilt={mat && filled ? undefined : tilt}
-      radius={mat && filled ? radii.sm : undefined}
-      shadow={mat && filled ? false : shadow}
+      tilt={tilt}
+      // The same tight, offset drop the task photos carry: prints laid on the
+      // page rather than tiles set into it.
+      shadow={shadow}
       onPress={cell.onPress}
       accessibilityLabel={cell.label}
     />
-  );
-
-  if (!mat || !filled) return slot;
-
-  return (
-    <View
-      style={[
-        styles.print,
-        tilt ? { transform: [{ rotate: `${tilt}deg` }] } : null,
-      ]}
-    >
-      {slot}
-    </View>
   );
 }
 
@@ -358,23 +348,18 @@ function DiceGrid({
 }
 
 /**
- * The day's proof photos as a page of prints rather than a grid of thumbnails:
- * unequal sizes, each one off straight by a degree or so, lapping over its
- * neighbour. Tasks with nothing photographed yet hold their place as dashed
- * slots, so the collage is the shape of the whole day from the first tap and
- * fills in as the day is worked through.
- *
- * Prints are dealt into whichever column is currently shortest, the way
- * `MasonryGrid` does it, so the block stays balanced whatever the day's length.
+ * The day's proof photos as a pile of instant prints rather than a grid of
+ * thumbnails: square pictures in white frames with the deep chin under them,
+ * each off straight, lapping over its neighbours, captioned by hand.
  *
  * `layout="grid"` drops all of that for equal tiles in task order — the plain
- * arrangement, for when the scatter is doing the photos no favours.
+ * arrangement, for when the pile is doing the photos no favours.
  */
 export function PhotoCollage({
   cells,
   columns,
   layout = 'collage',
-  scale = 1,
+  maxHeight,
   style,
 }: PhotoCollageProps) {
   if (cells.length === 0) return null;
@@ -383,12 +368,11 @@ export function PhotoCollage({
     return <DiceGrid cells={cells} style={style} />;
   }
 
-  const columnCount = columns ?? collageColumns(cells.length);
+  const columnCount = columns ?? (cells.length <= 4 ? 2 : 3);
 
   if (layout === 'grid' || layout === 'dice') {
-    // Row-major, so the tiles run in the order the tasks are listed below —
-    // the collage's shortest-column dealing scrambles that, which a grid
-    // regular enough to be read as a table cannot afford.
+    // Row-major, in the order the tasks are listed below: a grid regular
+    // enough to be read as a table cannot afford to reorder them.
     const rows: CollageCell[][] = [];
     for (let i = 0; i < cells.length; i += columnCount) {
       rows.push(cells.slice(i, i + columnCount));
@@ -402,7 +386,7 @@ export function PhotoCollage({
               <View key={cell.key} style={styles.gridCell}>
                 <Print
                   cell={cell}
-                  height={Math.round(GRID_HEIGHT * scale)}
+                  height={GRID_HEIGHT}
                   tick={false}
                   invite={false}
                   // The dice falls back to here on a day that is not five
@@ -424,65 +408,15 @@ export function PhotoCollage({
     );
   }
 
-  const { buckets, lap } = deal(cells, columnCount, scale);
-
-  return (
-    <View
-      style={[
-        styles.row,
-        { paddingHorizontal: Math.round(NUDGE_MAX * scale) },
-        style,
-      ]}
-    >
-      {buckets.map((bucket, c) => (
-        <View
-          key={c}
-          // Left columns paint over right ones for the same reason cells do:
-          // the nudges can close the gutter, and the tick belongs on top.
-          style={[styles.column, { zIndex: columnCount - c }]}
-        >
-          {bucket.map(({ cell, index, height }, i) => (
-            <View
-              key={cell.key}
-              style={[
-                // The first print in a column sits on the top line; every one
-                // after it rides up over the one before.
-                i === 0 ? null : { marginTop: -lap },
-                { left: Math.round(NUDGES[index % NUDGES.length] * scale) },
-                // Earlier prints sit on top of later ones, so the tick hanging
-                // off a photo's corner is never buried under the print below.
-                { zIndex: bucket.length - i },
-              ]}
-            >
-              <Print
-                cell={cell}
-                height={height}
-                tilt={tiltFor(cell.key, index)}
-                mat
-              />
-            </View>
-          ))}
-        </View>
-      ))}
-    </View>
-  );
+  return <Pile cells={cells} maxHeight={maxHeight} style={style} />;
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    // Tighter than a grid gutter on purpose: with the nudges on top of it the
-    // columns very nearly touch, which is what makes the block read as one
-    // collage instead of two lists side by side.
-    gap: spacing.sm,
-  },
-  column: {
-    flex: 1,
-    // Columns come out uneven — the dealing balances them by height, not by
-    // count, so a three-print day is one print against two. Centring each in
-    // the block's height turns that into an arrangement instead of a page that
-    // ran out halfway down the left side.
-    justifyContent: 'center',
+  pile: {
+    // Prints are placed against this box, so it has to be the thing they are
+    // measured from. Centred, because a pile drawn narrower than its room
+    // should sit in the middle of it rather than against one edge.
+    alignSelf: 'center',
   },
   gridRow: {
     flexDirection: 'row',
@@ -498,13 +432,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  print: {
-    padding: PRINT_MAT,
-    // The paper's own corner, a shade rounder than the picture inside it.
-    borderRadius: radii.sm + PRINT_MAT,
-    backgroundColor: colors.surface,
-    ...shadows.hard,
   },
   mat: {
     padding: MAT,

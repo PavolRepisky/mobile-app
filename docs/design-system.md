@@ -199,37 +199,52 @@ drift. `DayCardStory` is the same card centred on a 9:16 ink ground.
 capture and share themselves live in `lib/shareDayCard.ts`, apart from the
 views so a device problem has one file to look at.
 
-**`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `done` · `label` ·
-`onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'` · `scale`. `scale`
-multiplies the print heights, which are points rather than proportions — the
-day card works back from the room it has left, through `collageHeight(cells,
-columns, scale)`, to the scale its prints should take. In the scatter a column
-holding a single print stretches it to the block's height: the dealing balances
-by height, not by count, so an odd number of prints always strands one column,
-and left at its own height that print reads as a page that ran out rather than
-one that was laid out. The day's proof
-photos as a page of prints rather than a grid: sizes, tilts and sideways nudges
-are all derived from the cell key, so an arrangement is stable for the life of
-a task. In the scatter each photograph is laid on a white paper mat that takes
-its border out of the print rather than adding to it — the mat carries the tilt
-and the shadow, and the paper edge, not the shadow, is what makes the thing
-read as lying on the page instead of cut into it. The block insets itself by
-the widest nudge so a thrown print never loses that border to a clipping
-parent. `layout="grid"` is the plain alternative — equal tiles, no tilt, task
-order — and `layout="dice"` lays five out the way the five is pipped on a die:
-four square tiles with the fifth over the middle on a white mat (any other
-number falls back to the grid). Both draw no done ticks and no dashed "add"
-tiles, and their empty tiles drop the shadow for the warm tone: they are a
-record of the day, the camera is opened from the task rows, and a gap has
-nothing to lift off the page.
+**`Polaroid`** — `width` · `photo`/`seed` · `caption` · `tilt` · `onPress`. One
+instant print: a square picture in a white frame with a deep chin under it,
+captioned by hand. The chin is the whole thing — a photograph in an even border
+is a framed picture, while one with four times as much paper below it as above
+is a Polaroid, and the eye reads that shape before it reads the picture. It is
+also where the caption goes, which is what turns proof shots into somebody's
+account of their day. Everything is a share of `width`, so the same print is a
+thumbnail on the To-do page and a full-bleed print on an export.
 
-The To-do home and the day card both take the scatter, and both pass it only
-what has actually been photographed. That is deliberate: the page you live in
-and the page you would post should not be two different pictures of the same
-day. It costs the block early in a day — it starts empty and grows a print at a
-time, where the die held a place for every task — but the progress line under
-the heading already says how much of the day is left, and the scatter cannot
-carry gaps the way an even grid could.
+**`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `caption` · `done` ·
+`label` · `onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'` ·
+`maxHeight`. The default `collage` is a pile of `Polaroid`s: prints off
+straight, lapping over each other, laid out against `PILES` — placements
+written by hand per count, in shares of the pile's own width. Dealt by rule a
+pile comes out evenly spaced and reads as a grid that slipped; placed, it reads
+as a handful of prints somebody put down. Every preset keeps one rule: a print
+may lap over another's picture, never over its chin, since prints are drawn in
+order and a caption buried under the next photograph reads as a rendering fault
+rather than as a pile.
+
+Because the pile is described in shares of its width it has one shape and one
+aspect, given by `collageRatio(count)`. `maxHeight` is a ceiling: where the room
+is shorter than that shape wants — the day card, whose height is fixed by its
+4:5 — the whole pile is drawn *narrower* and centred rather than squashed. The
+width it measures against comes off a bare inner view, not the styled box: a
+caller's `style` may carry padding, and `onLayout` reports the box including it.
+
+`layout="grid"` is the plain alternative — equal tiles, no tilt, task order —
+and `layout="dice"` lays five out the way the five is pipped on a die: four
+square tiles with the fifth over the middle on a white mat (any other number
+falls back to the grid). Both draw no done ticks and no dashed "add" tiles, and
+their empty tiles drop the shadow for the warm tone: they are a record of the
+day, the camera is opened from the task rows, and a gap has nothing to lift off
+the page.
+
+The To-do home and the day card both take the pile, and both pass it only what
+has actually been photographed. That is deliberate: the page you live in and
+the page you would post should not be two different pictures of the same day.
+It costs the block early in a day — it starts empty and grows a print at a
+time — but the progress line under the heading already says how much of the day
+is left, and a pile cannot carry gaps the way an even grid could. Captions come
+from `shortLabel`, which strips the parentheticals and emoji a checklist label
+carries for the list rather than for a caption, then cuts to three words:
+counting characters instead leaves "one 45-minute", which is a caption of
+nothing.
+
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.
 

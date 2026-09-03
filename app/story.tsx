@@ -18,7 +18,7 @@ import { DayCard, DayCardStory } from '@/components/DayCard';
 import { Placeholder } from '@/components/Placeholder';
 import { Text } from '@/components/Text';
 import { absoluteFill, colors, radii, spacing } from '@/constants/theme';
-import { addDays } from '@/lib/format';
+import { addDays, shortLabel } from '@/lib/format';
 import { saveDayCard, shareDayCard } from '@/lib/shareDayCard';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
@@ -78,12 +78,15 @@ export default function StoryScreen() {
   /** What the card lays out: what was photographed, and nothing else. */
   const cells = useMemo(
     () =>
-      stories.map((story) => ({
-        key: story.key,
-        photo: story.photo,
-        seed: story.photo ? null : story.seed,
-      })),
-    [stories],
+      rows
+        .filter((row) => row.photo || row.photoSeed)
+        .map((row) => ({
+          key: row.task.id,
+          caption: shortLabel(row.task.label),
+          photo: row.photo ?? null,
+          seed: row.photo ? null : (row.photoSeed ?? row.task.id),
+        })),
+    [rows],
   );
 
   // Nothing photographed yet: one empty frame rather than a blank screen, so

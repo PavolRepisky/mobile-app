@@ -295,6 +295,17 @@ export const type = {
    * tracking: capitals pulled a point tighter crowd into a block instead of
    * reading as something pressed onto the page.
    */
+  /**
+   * The caption written in the chin of a print. Caveat, because a photograph
+   * laid on a page is captioned by hand — the face runs small and loose, so it
+   * sets larger than a sans would at the same optical size.
+   */
+  hand: {
+    fontFamily: fonts.hand,
+    fontSize: 17,
+    lineHeight: 20,
+    letterSpacing: 0,
+  },
   stamp: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
