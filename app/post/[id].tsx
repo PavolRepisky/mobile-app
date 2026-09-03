@@ -97,7 +97,7 @@ export default function PostViewerScreen() {
             onPress={() => reactToPost(post.id, emoji)}
             style={({ pressed }) => pressed && styles.pressed}
           >
-            {/* The same lens as the recipe times, rather than a white disc. */}
+            {/* The same lens as the pills over the strips, not a white disc. */}
             <GlassSurface radius={28}>
               <View
                 style={[

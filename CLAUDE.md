@@ -37,8 +37,8 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 
 | tone | token | used for |
 | --- | --- | --- |
-| `app` *(default)* | `background` `#F8F5F0` | the warm shell: to-do, friends, recipes, profile |
-| `plain` | `backgroundPlain` `#FFFFFF` | own profile, a friend's profile, a recipe, a wall day |
+| `app` *(default)* | `background` `#F8F5F0` | the warm shell: discover, friends, to-do, profile |
+| `plain` | `backgroundPlain` `#FFFFFF` | own profile, a friend's profile, a wall day |
 | `alt` | `backgroundAlt` `#F8F6F5` | the settings stack |
 | `warm` | `backgroundWarm` `#FBF6F3` | profile-views |
 
@@ -62,7 +62,10 @@ only · `lg` 20 · `md` 16 · `sm` 10.
 **Typeface** — three faces, no exceptions:
 - **Playfair Display** — headlines only (`hero`, `headline`, `headlineSm`, `title`).
 - **Quicksand** — everything functional: body, buttons, labels, tabs, captions.
-- **Caveat** — handwritten numerals on sticky notes. Nothing else.
+- **Caveat** — the app's handwriting: numerals on sticky notes, and the
+  caption in the chin of a `Polaroid`. Nothing else. A print is captioned by
+  hand or not at all; setting those in Quicksand turns a pile of photographs
+  back into a gallery with labels under it.
 
 Quicksand runs optically light, so each role is mapped one step up the weight
 ramp; plain copy sits on Medium, not Regular. Don't "correct" this.
@@ -71,7 +74,7 @@ ramp; plain copy sits on Medium, not Regular. Don't "correct" this.
 
 **Layout** · `Screen` / `ScreenScroll` page shell · `ProfileLayout` avatar +
 action + body · `ScreenHeader` back/close + title · `Card` white or muted
-surface · `MasonryGrid` balanced columns · `EmptyState` icon + title + hint.
+surface · `EmptyState` icon + title + hint.
 
 **Type** · `Text` (variant) · `Headline` (Playfair, `**bold**` and `*italic*`
 runs step the weight up).
@@ -79,19 +82,28 @@ runs step the weight up).
 **Controls** · `PrimaryButton` / `SecondaryButton` / `TextLink` ·
 `IconButton` circular · `Pill` (`floating`|`glass`|`solid`|`muted`|`outline` ×
 `sm`|`md`|`lg`) · `SegmentedTabs` (`underline`|`pill`) · `BigSegmentHeader` the
-two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
+avatar-cluster label — two options make a switch, one makes a page title ·
+`RulerSlider` / `DayScrubber` tick pickers.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
 **Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
-pill · `StickyNote` · `StickerCard` · `PhotoSlot` · `PhotoStrip` ·
-`WallSection` · `FriendCard` · `RecipeCard` · `ReviewCard` · `ChallengeDetail`
+pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
+`DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
+`Polaroid` one instant print · `PhotoCollage` a pile of them ·
+`StickerText` die-cut display word · `PhotoStrip` ·
+`WallSection` · `FriendCard` · `ReviewCard` · `ChallengeDetail`
 · `ChallengePicker` · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 
 ## Conventions
 
+- **The day card is the app's face.** `DayCard` is what leaves the app and
+  lands on somebody else's feed, so its composition is a fixed part of the
+  visual language, not a screen to redecorate. Change what a day *contains*
+  freely; leave the Playfair-over-prints pairing, the warm page and the stamp
+  footer alone.
 - **Comments explain *why*, in prose.** The existing files justify their values
   ("sampled off the reference", "anything heavier reads as a drawn outline").
   Match that. Don't add comments that restate the code.

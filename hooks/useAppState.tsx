@@ -84,6 +84,13 @@ interface AppState {
    */
   pinDraft: { boardId: string; photo: TaskPhoto } | null;
 
+  /**
+   * The day the app was first opened. The calendar runs from this month to the
+   * current one, so it outlives any one challenge — restarting, or switching to
+   * a different challenge, must not shorten the record of months already lived.
+   */
+  installedAt: Date;
+
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
   tasks: ChallengeTask[];
@@ -92,7 +99,6 @@ interface AppState {
   paused: boolean;
 
   progress: Progress;
-  savedRecipeIds: string[];
   /** The emoji left on a feed post, by post id. */
   postReactions: Record<string, string>;
   inviteCode: string;
@@ -122,6 +128,14 @@ interface AppActions {
 
   toggleTask: (taskId: string, day?: number) => void;
   setTaskPhoto: (taskId: string, photo: TaskPhoto | null, day?: number) => void;
+  /**
+   * A task is only ever ticked off by photographing it, so the shot and the
+   * tick land together rather than through two calls that could be left half
+   * applied. Retaking a photo on an already-done task keeps it done.
+   */
+  completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number) => void;
+  /** The other half of that bargain: the tick goes, and the proof goes with it. */
+  undoTask: (taskId: string, day?: number) => void;
 
   renameWallBoard: (boardId: string, title: string) => void;
   /** Opens a pin for `boardId` on the picked photo, for the Create Pin screen. */
@@ -136,7 +150,6 @@ interface AppActions {
     patch: { title: string; note?: string; link?: string; photo?: TaskPhoto },
   ) => void;
 
-  toggleSavedRecipe: (id: string) => void;
   /** Tapping the emoji already on a post takes it back off. */
   reactToPost: (postId: string, emoji: string) => void;
   resetAll: () => void;
@@ -151,6 +164,13 @@ const AppContext = createContext<AppContextValue | null>(null);
 // ---------------------------------------------------------------------------
 
 const SEED_DAY = 5;
+
+/**
+ * How long ago the seeded account downloaded the app. Deliberately well before
+ * the seeded challenge began: the calendar starts at the install month, not at
+ * day one, and a seed that put the two on the same day would hide that.
+ */
+const SEED_INSTALLED_DAYS_AGO = 40;
 
 /**
  * Pin ids only have to be unique within a session; there is no backend. They
@@ -301,6 +321,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     avatar: null,
   });
 
+  // Set once and never written again: you only ever download the app the once,
+  // so there is no action that moves it and nothing to reset it to.
+  const [installedAt] = useState<Date>(() =>
+    addDays(startOfToday(), -SEED_INSTALLED_DAYS_AGO),
+  );
+
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
     tinted(SEED_CHALLENGE.tasks),
@@ -319,10 +345,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
   );
-  const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([
-    'avo-toast',
-    'salmon-tartine',
-  ]);
   // Seeded from the posts that ship already reacted to, so those stay as they
   // are until someone taps the emoji back off.
   const [postReactions, setPostReactions] = useState<Record<string, string>>(
@@ -480,6 +502,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay],
   );
 
+  const completeTaskWithPhoto = useCallback(
+    (taskId: string, photo: TaskPhoto, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        const existing = dayMap[taskId];
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              ...existing,
+              done: true,
+              // Retaking leaves the original stamp alone: the task was done
+              // when it was first photographed, not when it was reshot.
+              time: existing?.done ? existing.time : timeStamp(new Date()),
+              photo,
+              // A real photo replaces the seeded stand-in rather than sitting
+              // behind it.
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
+  const undoTask = useCallback(
+    (taskId: string, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              done: false,
+              time: undefined,
+              photo: null,
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
   const renameWallBoard = useCallback((boardId: string, title: string) => {
     setWall((prev) =>
       prev.map((board) =>
@@ -542,12 +614,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const toggleSavedRecipe = useCallback((id: string) => {
-    setSavedRecipeIds((list) =>
-      list.includes(id) ? list.filter((r) => r !== id) : [...list, id],
-    );
-  }, []);
-
   const reactToPost = useCallback((postId: string, emoji: string) => {
     setPostReactions((map) => {
       if (map[postId] === emoji) {
@@ -578,13 +644,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppContextValue>(
     () => ({
       profile,
+      installedAt,
       challenge,
       tasks,
       startDate,
       totalDays,
       paused,
       progress,
-      savedRecipeIds,
       postReactions,
       inviteCode,
       currentDay,
@@ -608,23 +674,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       restartChallenge,
       toggleTask,
       setTaskPhoto,
+      completeTaskWithPhoto,
+      undoTask,
       renameWallBoard,
       startPinDraft,
       setPinDraftPhoto,
       clearPinDraft,
       addWallPin,
       updateWallPin,
-      toggleSavedRecipe,
       reactToPost,
       resetAll,
     }),
     [
-      profile, challenge, tasks, startDate, totalDays,
-      paused, progress, savedRecipeIds, postReactions, inviteCode,
+      profile, installedAt, challenge, tasks, startDate, totalDays,
+      paused, progress, postReactions, inviteCode,
       currentDay, endDate, wall, pinDraft,
       setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
-      toggleTask, setTaskPhoto, toggleSavedRecipe, reactToPost, resetAll,
+      toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
+      reactToPost, resetAll,
       renameWallBoard, startPinDraft, setPinDraftPhoto, clearPinDraft,
       addWallPin, updateWallPin,
     ],

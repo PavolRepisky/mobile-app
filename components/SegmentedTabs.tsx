@@ -21,7 +21,7 @@ export interface SegmentedTabsProps<T extends string = string> {
   options: readonly SegmentOption<T>[];
   value: T;
   onChange: (key: T) => void;
-  /** Recipe categories scroll horizontally; the two-up tabs do not. */
+  /** A row too long for the screen scrolls sideways; two-up tabs do not. */
   scrollable?: boolean;
   /** `justify` spreads the row across its container on even gaps. */
   align?: 'center' | 'left' | 'justify';
@@ -43,9 +43,9 @@ export interface SegmentedTabsProps<T extends string = string> {
 }
 
 /**
- * Underlined text tabs. Used five different ways in the reference — Most
- * Popular/Custom, Profile/My Wall, Sticker/Post-it, the recipe categories, and
- * the Saved sheet — so it takes an icon slot and a scrollable mode.
+ * Underlined text tabs. Used several different ways in the reference — Most
+ * Popular/Custom, Profile/My Wall, Sticker/Post-it — so it takes an icon slot
+ * and a scrollable mode.
  */
 export function SegmentedTabs<T extends string = string>({
   options,
@@ -139,8 +139,8 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
   },
   /**
-   * Nudged down from the section-title size so all five recipe categories fit
-   * one 390pt row, as they do in the reference.
+   * Nudged down from the section-title size so a five-up row still fits one
+   * 390pt screen, as it does in the reference.
    */
   lgLabel: {
     fontSize: 19,

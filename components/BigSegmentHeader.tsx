@@ -18,16 +18,24 @@ export interface BigSegmentOption<T extends string> {
 }
 
 export interface BigSegmentHeaderProps<T extends string> {
-  options: readonly [BigSegmentOption<T>, BigSegmentOption<T>];
-  value: T;
-  onChange: (key: T) => void;
+  /**
+   * Two options draw the switch; one draws a page title. Discover and Friends
+   * were a single screen before they were tabs of their own, and the title
+   * form is what is left of that header once the bar does the switching.
+   */
+  options:
+    | readonly [BigSegmentOption<T>]
+    | readonly [BigSegmentOption<T>, BigSegmentOption<T>];
+  /** Which side is lit. A lone option is its own page, so it needs neither. */
+  value?: T;
+  onChange?: (key: T) => void;
   style?: StyleProp<ViewStyle>;
 }
 
 /**
- * The Discover / Friends switch: two oversized labels with an overlapping
- * avatar cluster above each. The inactive side greys out rather than
- * disappearing.
+ * Oversized label with an overlapping avatar cluster above it. As a pair it is
+ * the Discover / Friends switch and the inactive side greys out rather than
+ * disappearing; alone it is a page's title, always lit and inert.
  */
 export function BigSegmentHeader<T extends string>({
   options,
@@ -35,18 +43,14 @@ export function BigSegmentHeader<T extends string>({
   onChange,
   style,
 }: BigSegmentHeaderProps<T>) {
+  const title = options.length === 1;
+
   return (
     <View style={[styles.row, style]}>
       {options.map((option) => {
-        const active = option.key === value;
-        return (
-          <Pressable
-            key={option.key}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(option.key)}
-            style={styles.item}
-          >
+        const active = title || option.key === value;
+        const content = (
+          <>
             <View style={styles.cluster}>
               {option.avatars.map((avatar, i) => (
                 <Avatar
@@ -68,6 +72,24 @@ export function BigSegmentHeader<T extends string>({
             >
               {option.label}
             </Text>
+          </>
+        );
+
+        // A title is not a control: pressing it would go nowhere, and leaving
+        // it a tab would have a screen reader announce a one-tab tab list.
+        return title ? (
+          <View key={option.key} accessibilityRole="header" style={styles.item}>
+            {content}
+          </View>
+        ) : (
+          <Pressable
+            key={option.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange?.(option.key)}
+            style={styles.item}
+          >
+            {content}
           </Pressable>
         );
       })}

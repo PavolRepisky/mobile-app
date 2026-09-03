@@ -118,7 +118,7 @@ export default function FeedScreen() {
                       </View>
 
                       {postReactions[post.id] ? (
-                        // The same lens the recipe times use, so the photo
+                        // The same lens the pills over the strips use, so the photo
                         // carries through the bubble instead of a white disc.
                         <GlassSurface radius={17} shadow={false}>
                           <View style={styles.reaction}>

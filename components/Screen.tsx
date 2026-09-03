@@ -29,8 +29,8 @@ interface CommonProps {
   tabBar?: boolean;
   /**
    * Gap between the status bar and the first thing on the screen. Screens
-   * opening on a headline take the default; ones opening on a control row —
-   * the recipe tabs — sit closer, since the row reads as the header itself.
+   * opening on a headline take the default; ones opening on a control row sit
+   * closer, since the row reads as the header itself.
    */
   topGap?: number;
   style?: StyleProp<ViewStyle>;
@@ -42,7 +42,13 @@ interface CommonProps {
  * preview the layouts are checked in — the content would otherwise start hard
  * against the top edge.
  */
-const topPadding = (insetTop: number, gap: number) =>
+/**
+ * Where a screen's content starts, measured from the very top of the display.
+ * Exported because anything floating *over* a screen has to know it: the
+ * corner action button is placed from the display edge, so the only way to
+ * work out how far the page has to be pushed down to clear it is from here.
+ */
+export const topPadding = (insetTop: number, gap: number = screenTopGap) =>
   Math.max(insetTop + gap, screenTopGap);
 
 const TONES = {

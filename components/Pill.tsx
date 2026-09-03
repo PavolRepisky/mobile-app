@@ -37,8 +37,8 @@ export interface PillProps {
 
 /**
  * The rounded label that shows up everywhere: joined-counts overlapping photo
- * strips, the Day N badge under the avatar, prep times on recipe cards, the
- * readout above the ruler sliders.
+ * strips, the Day N badge under the avatar, the readout above the ruler
+ * sliders.
  */
 export function Pill({
   label,
