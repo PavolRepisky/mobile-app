@@ -90,7 +90,8 @@ two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
 **Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
 pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
 `DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
-`Polaroid` one instant print · `PhotoCollage` a pile of them · `PhotoStrip` ·
+`Polaroid` one instant print · `PhotoCollage` a pile of them ·
+`StickerText` die-cut display word · `PhotoStrip` ·
 `WallSection` · `FriendCard` · `RecipeCard` · `ReviewCard` · `ChallengeDetail`
 · `ChallengePicker` · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.

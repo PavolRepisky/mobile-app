@@ -1,31 +1,35 @@
+import { Image } from 'expo-image';
 import { forwardRef, useState } from 'react';
 import {
   StyleSheet,
   View,
+  type ImageSourcePropType,
   type StyleProp,
   type View as RNView,
   type ViewStyle,
 } from 'react-native';
 
 import {
+  absoluteFill,
   colors,
   radii,
   spacing,
   type as typeScale,
 } from '@/constants/theme';
-import { longDate, numberToWord } from '@/lib/format';
-import { Headline } from './Headline';
+import { longDate } from '@/lib/format';
 import { PhotoCollage, type CollageCell } from './PhotoCollage';
+import { StickerText } from './StickerText';
 import { Text } from './Text';
 
 /**
  * The day, composed as one page to be posted.
  *
  * This is the app's face on other people's feeds, so it is deliberately not a
- * grid of thumbnails under a caption: it is the scatter of prints the To-do
- * page already lays out, on the warm paper, under a Playfair "day five". What
- * makes it ours is that pairing — a display italic over hand-laid photographs
- * — and it is what a stranger is meant to recognise the second time.
+ * grid of thumbnails under a caption: it is a pile of instant prints thrown
+ * down over a photograph of the challenge itself, with the day die-cut over
+ * the top of them. What makes it ours is that stack — a display word outlined
+ * in white, over hand-laid prints, over the challenge — and it is what a
+ * stranger is meant to recognise the second time.
  *
  * Everything inside is laid out in points at one size and captured scaled up,
  * so there is one composition rather than a screen one and an export one that
@@ -44,8 +48,11 @@ export const DAY_CARD_STORY_ASPECT = 9 / 16;
  */
 const RULE = 2;
 
-/** The hairline that keeps the card's shape on a ground as light as it is. */
-const EDGE = 1;
+/** How far the sticker's outline stands off its letterforms. */
+const STICKER_STROKE = 7;
+
+/** Degrees the day is applied at. A sticker is never put on square. */
+const STICKER_TILT = -7;
 
 /** The card's own margin. Named because the prints measure back through it. */
 const PAD = spacing['2xl'];
@@ -66,6 +73,12 @@ export interface DayCardProps {
   challengeName: string;
   /** Bottom-right stamp, e.g. "@julia_575". */
   handle?: string;
+  /**
+   * The challenge's own photograph, behind everything. The prints are laid on
+   * it the way they would be laid on a table, which is what the card is a
+   * picture of.
+   */
+  background?: ImageSourcePropType | null;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -74,7 +87,7 @@ export interface DayCardProps {
  * card, rather than at a wrapper whose padding would land in the PNG.
  */
 export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
-  { day, date, cells, challengeName, handle, style },
+  { day, date, cells, challengeName, handle, background, style },
   ref,
 ) {
   const [height, setHeight] = useState(0);
@@ -91,15 +104,16 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
       style={[styles.card, style]}
       onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
     >
-      <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
-        {/* Bold rather than black — `size="title"` steps the weight down for
-            exactly this reason. `*day*` takes the italic of that same bold. */}
-        <Headline size="title">{`*day* ${numberToWord(day)}`}</Headline>
+      {background ? (
+        <Image source={background} style={absoluteFill} contentFit="cover" />
+      ) : null}
 
-        {/* Set in the footer's cut rather than as plain copy, so the card
-            opens and closes on the same pressed-in capitals and the heading
-            sits between them rather than on top of a caption. */}
-        <Text variant="stamp" color={colors.inkMuted} center style={styles.date}>
+      {/* The challenge is the ground, not the subject: held back far enough
+          that white type reads over whatever it happens to be a picture of. */}
+      <View style={styles.wash} />
+
+      <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
+        <Text variant="stamp" color={colors.onMediaSoft}>
           {longDate(date).toUpperCase()}
         </Text>
       </View>
@@ -111,14 +125,26 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
       </View>
 
       <View style={styles.footer}>
-        <Text variant="stamp" color={colors.inkSoft}>
+        <Text variant="stamp" color={colors.inkInverse}>
           {challengeName.toUpperCase()}
         </Text>
         {handle ? (
-          <Text variant="stamp" color={colors.inkMuted}>
+          <Text variant="stamp" color={colors.onMediaSoft}>
             {handle.toUpperCase()}
           </Text>
         ) : null}
+      </View>
+
+      {/* Applied last and over everything, the way a sticker goes on: it laps
+          the prints rather than being given a gap of its own. */}
+      <View style={styles.sticker} pointerEvents="none">
+        <StickerText
+          size="headline"
+          stroke={STICKER_STROKE}
+          tilt={STICKER_TILT}
+        >
+          {`Day ${day}`}
+        </StickerText>
       </View>
     </View>
   );
@@ -143,22 +169,26 @@ export const DayCardStory = forwardRef<
 const styles = StyleSheet.create({
   card: {
     aspectRatio: DAY_CARD_ASPECT,
-    // The warm shell rather than white: the card is a page out of the app, and
-    // in a feed of white cards the warm one reads as somewhere rather than as
-    // a template.
+    // Behind the challenge photograph rather than instead of it: the warm
+    // shell is what shows while the image is still decoding, and what shows
+    // for a challenge that has no photograph of its own.
     backgroundColor: colors.background,
     borderRadius: radii.card,
-    // The card is posted onto grounds we do not choose. On the ink Story
-    // backdrop the warm page carries itself; dropped on somebody's white feed
-    // it would bleed out at the edges without this.
-    borderWidth: EDGE,
-    borderColor: colors.dividerStrong,
     padding: PAD,
     justifyContent: 'space-between',
     overflow: 'hidden',
   },
-  date: {
-    marginTop: spacing.sm,
+  wash: {
+    ...absoluteFill,
+    backgroundColor: colors.scrim,
+  },
+  sticker: {
+    position: 'absolute',
+    // Sat over the top of the pile rather than above it, and off to one side:
+    // centred, a die-cut word stops reading as something stuck on and starts
+    // reading as a title bar.
+    top: '11%',
+    left: PAD,
   },
   prints: {
     flex: 1,

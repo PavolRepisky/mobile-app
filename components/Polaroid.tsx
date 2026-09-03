@@ -40,6 +40,14 @@ const CHIN = 0.22;
 const CORNER = 0.02;
 
 /**
+ * The caption's size, as a share of the frame. Tied to the print rather than
+ * fixed, because a print is a thumbnail on one screen and a full-bleed picture
+ * on an export — at one size the chin holds the caption and at the other it
+ * ellipsises it halfway through a word.
+ */
+const CAPTION = 0.105;
+
+/**
  * A print's height over its width. The picture window is square — the format
  * shoots square — so this is the two borders plus the chin around it.
  */
@@ -100,7 +108,16 @@ export function Polaroid({
           // One line, never wrapped: a caption that runs to two lines in the
           // chin stops looking written on the print and starts looking typeset
           // into it.
-          <Text variant="hand" color={colors.inkSoft} center numberOfLines={1}>
+          <Text
+            variant="hand"
+            color={colors.inkSoft}
+            center
+            numberOfLines={1}
+            style={{
+              fontSize: Math.round(width * CAPTION),
+              lineHeight: Math.round(width * CAPTION * 1.2),
+            }}
+          >
             {caption}
           </Text>
         ) : null}

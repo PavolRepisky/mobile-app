@@ -189,12 +189,21 @@ label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
 `shadow` `boolean|'card'|'hard'` · `accessibilityLabel`. `emptyTone="warm"` is
 for blocks where an empty tile is a gap in a record rather than a well to
 press: the shell's muted tone inside a hairline instead of the cool grey.
-**`DayCard`** — `day` · `date` · `cells` · `challengeName` · `handle`. The day
-composed as one 4:5 page to be posted: a Playfair `*day* five` over the
+**`StickerText`** — `children` · `stroke` · `tilt` · `size`. A display word
+die-cut as a sticker: black letterforms inside a thick white outline that
+follows their shape. React Native has no text stroke, so the outline is drawn —
+the same word laid down twelve times in white, each copy thrown a stroke's
+width along a different point of the compass, with the black word set on top.
+Twelve rather than eight because at eight a heavy display cut comes out lumpy
+where two arms meet.
+
+**`DayCard`** — `day` · `date` · `cells` · `challengeName` · `handle` ·
+`background`. The day composed as one 4:5 page to be posted: a Playfair `*day* five` over the
 scattered prints on the warm paper, closed off with a drawn rule and the
 uppercase `stamp` line. It is the app's face on other people's feeds, so the
-pairing — display italic over hand-laid photographs — is the part that must not
-drift. `DayCardStory` is the same card centred on a 9:16 ink ground.
+stack — a `StickerText` day over hand-laid prints over the challenge's own
+photograph, everything under it held back by a scrim so white type reads — is
+the part that must not drift. `DayCardStory` is the same card centred on a 9:16 ink ground.
 `captureRef` is pointed straight at either through a forwarded `ref`; the
 capture and share themselves live in `lib/shareDayCard.ts`, apart from the
 views so a device problem has one file to look at.

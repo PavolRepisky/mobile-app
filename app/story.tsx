@@ -18,6 +18,7 @@ import { DayCard, DayCardStory } from '@/components/DayCard';
 import { Placeholder } from '@/components/Placeholder';
 import { Text } from '@/components/Text';
 import { absoluteFill, colors, radii, spacing } from '@/constants/theme';
+import { challengeStrip } from '@/data/content';
 import { addDays, shortLabel } from '@/lib/format';
 import { saveDayCard, shareDayCard } from '@/lib/shareDayCard';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
@@ -145,12 +146,18 @@ export default function StoryScreen() {
   /** The calendar date this day fell on — the card is stamped with it. */
   const date = addDays(startDate, viewing - 1);
 
+  const cover = challengeStrip(challenge.id)[0];
+
   const cardProps = {
     day: viewing,
     date,
     cells,
     challengeName: challenge.stamp,
     handle: profile.handle,
+    // The challenge's own opening shot — the picture it is known by everywhere
+    // else it appears. A challenge whose set is drawn stand-ins rather than
+    // photographs has nothing to put behind the prints, and says so.
+    background: typeof cover === 'string' ? null : cover,
   };
 
   /**

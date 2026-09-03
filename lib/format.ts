@@ -86,8 +86,17 @@ export function shortLabel(label: string, maxWords = 3): string {
     .trim()
     .toLowerCase();
 
-  return dropDanglingWord(plain.split(' ').slice(0, maxWords).join(' '));
+  const words = plain.split(' ');
+
+  // "One 45-minute workout per day" is about a workout, not about one of them.
+  // Dropping the leading filler buys back a word for something worth reading.
+  while (words.length > 1 && LEADING_FILLER.has(words[0])) words.shift();
+
+  return dropDanglingWord(words.slice(0, maxWords).join(' '));
 }
+
+/** Openers that carry nothing once the label is down to a few words. */
+const LEADING_FILLER = new Set(['a', 'an', 'one', 'the']);
 
 /**
  * Words a caption must not end on. Cutting "read any book or listen to a
