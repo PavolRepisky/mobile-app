@@ -60,6 +60,12 @@ export interface PolaroidProps {
   seed?: string | null;
   /** Written in the chin. Nothing is written where there is nothing to say. */
   caption?: string;
+  /**
+   * Whether the picture has come up. An undeveloped print is the whole frame
+   * and the whole caption with a blank window where the photograph goes — the
+   * day is on the paper, it just has not appeared yet.
+   */
+  developed?: boolean;
   /** Degrees off straight. */
   tilt?: number;
   onPress?: () => void;
@@ -72,6 +78,7 @@ export function Polaroid({
   photo,
   seed,
   caption,
+  developed = true,
   tilt = 0,
   onPress,
   accessibilityLabel,
@@ -95,8 +102,8 @@ export function Polaroid({
         style,
       ]}
     >
-      <View style={{ width: window, height: window }}>
-        {photo ? (
+      <View style={[styles.window, { width: window, height: window }]}>
+        {!developed ? null : photo ? (
           <Image source={photo} style={styles.photo} contentFit="cover" />
         ) : (
           <Placeholder seed={seed ?? 'print'} radius={0} style={styles.photo} />
@@ -145,6 +152,12 @@ const styles = StyleSheet.create({
     // The tight, offset drop the rest of the app's photographs carry: a print
     // lying on the page rather than a tile set into it.
     ...shadows.hard,
+  },
+  window: {
+    // Showing through wherever the picture has not come up. Painted on the
+    // window rather than swapped in for it, so a print is the same object
+    // developed or not and only the photograph appears.
+    backgroundColor: colors.undeveloped,
   },
   photo: {
     width: '100%',

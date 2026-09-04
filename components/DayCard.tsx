@@ -76,6 +76,12 @@ export interface DayCardProps {
    * picture of.
    */
   background?: ImageSourcePropType | null;
+  /**
+   * Whether the day's pictures have come up. A card for a day that was never
+   * finished is the whole composition with blank windows in it — the day is on
+   * the paper, and what is missing is what was not done.
+   */
+  developed?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -84,7 +90,7 @@ export interface DayCardProps {
  * card, rather than at a wrapper whose padding would land in the PNG.
  */
 export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
-  { day, date, cells, challengeName, handle, background, style },
+  { day, date, cells, challengeName, handle, background, developed = true, style },
   ref,
 ) {
   const [height, setHeight] = useState(0);
@@ -127,7 +133,10 @@ export const DayCard = forwardRef<RNView, DayCardProps>(function DayCard(
       {/* Centred in what is left, so a short day sits in the middle of the
           page rather than hanging off the heading. */}
       <View style={styles.prints}>
-        <PhotoCollage cells={cells} maxHeight={room > 0 ? room : undefined} />
+        <PhotoCollage
+          cells={cells.map((cell) => ({ ...cell, developed }))}
+          maxHeight={room > 0 ? room : undefined}
+        />
       </View>
 
       <View style={styles.footer}>

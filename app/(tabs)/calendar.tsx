@@ -41,6 +41,16 @@ export default function CalendarScreen() {
       return n >= 1 && n <= totalDays ? n : null;
     };
 
+    /**
+     * Whether that day was closed out. The pictures only come up on a day
+     * every task was finished, so a month shows at a glance which days were
+     * actually seen through rather than merely photographed.
+     */
+    const developedOn = (day: number) => {
+      const rows = progress[day] ?? {};
+      return tasks.length > 0 && tasks.every((task) => rows[task.id]?.done);
+    };
+
     /** Everything photographed that day, in checklist order. */
     const shotsFor = (day: number) => {
       const rows = progress[day] ?? {};
@@ -69,10 +79,13 @@ export default function CalendarScreen() {
 
         days[date] = {
           shots,
+          developed: day !== null && developedOn(day),
           past: on <= today,
           today: on.getTime() === today.getTime(),
           label: shots.length
-            ? `Day ${day}, ${shots.length} photo${shots.length > 1 ? 's' : ''}. Opens this day's story.`
+            ? `Day ${day}, ${shots.length} photo${shots.length > 1 ? 's' : ''}${
+                day !== null && developedOn(day) ? '' : ', not finished'
+              }. Opens this day's story.`
             : `${MONTH_NAMES[month]} ${date}. Nothing photographed.`,
           // Only a day with something on it answers to a tap; an empty square
           // opening an empty story would be a dead end.

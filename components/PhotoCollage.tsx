@@ -20,6 +20,8 @@ export interface CollageCell {
   done?: boolean;
   /** Written by hand in the print's chin. */
   caption?: string;
+  /** Whether this print's picture has come up. Defaults to developed. */
+  developed?: boolean;
   /**
    * What the tile is read out as. The grid layouts show no text of their own,
    * so without this a screen reader gets five identical "Add photo" tiles.
@@ -200,6 +202,7 @@ function Pile({
                   photo={cell.photo}
                   seed={cell.seed}
                   caption={cell.caption}
+                  developed={cell.developed}
                   tilt={slot.rot}
                   onPress={cell.onPress}
                   accessibilityLabel={cell.label}

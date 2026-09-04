@@ -148,6 +148,12 @@ export default function StoryScreen() {
 
   const cover = challengeStrip(challenge.id)[0];
 
+  // The card only develops on a day every task was finished. The frames behind
+  // it are left alone: those are photographs you took, and the app has no
+  // business holding them back from you — what is withheld is the composed
+  // page, which is the thing that leaves.
+  const developed = rows.length > 0 && rows.every((row) => row.done);
+
   const cardProps = {
     day: viewing,
     date,
@@ -158,6 +164,7 @@ export default function StoryScreen() {
     // else it appears. A challenge whose set is drawn stand-ins rather than
     // photographs has nothing to put behind the prints, and says so.
     background: typeof cover === 'string' ? null : cover,
+    developed,
   };
 
   /**
@@ -185,20 +192,35 @@ export default function StoryScreen() {
         <View style={styles.cardFrame} pointerEvents="box-none">
           <DayCard ref={cardRef} {...cardProps} style={styles.card} />
 
-          <View style={styles.actions}>
-            <CardAction
-              icon="share-outline"
-              label="Share"
-              onPress={run('share')}
-              disabled={busy}
-            />
-            <CardAction
-              icon="download-outline"
-              label="Save"
-              onPress={run('save')}
-              disabled={busy}
-            />
-          </View>
+          {developed ? (
+            <View style={styles.actions}>
+              <CardAction
+                icon="share-outline"
+                label="Share"
+                onPress={run('share')}
+                disabled={busy}
+              />
+              <CardAction
+                icon="download-outline"
+                label="Save"
+                onPress={run('save')}
+                disabled={busy}
+              />
+            </View>
+          ) : (
+            // No disabled buttons: a share that cannot be pressed invites the
+            // press and then refuses it. The line says what is missing instead.
+            <Text
+              variant="body"
+              color={colors.onMediaSoft}
+              center
+              style={styles.locked}
+            >
+              {rows.length - rows.filter((row) => row.done).length === 1
+                ? 'One task left — finish the day and it develops'
+                : `${rows.length - rows.filter((row) => row.done).length} tasks left — finish the day and it develops`}
+            </Text>
+          )}
         </View>
       ) : current.photo ? (
         <Image
@@ -342,6 +364,11 @@ const styles = StyleSheet.create({
   },
   card: {
     alignSelf: 'stretch',
+  },
+  locked: {
+    marginTop: spacing['2xl'],
+    paddingHorizontal: spacing['3xl'],
+    zIndex: 2,
   },
   actions: {
     flexDirection: 'row',

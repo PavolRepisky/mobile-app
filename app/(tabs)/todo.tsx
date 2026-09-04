@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Card } from '@/components/Card';
@@ -10,8 +10,8 @@ import { PopoverMenu } from '@/components/PopoverMenu';
 import { ProfileLayout } from '@/components/ProfileLayout';
 import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
-import { colors, screenPadding, spacing } from '@/constants/theme';
-import { shortLabel } from '@/lib/format';
+import { colors, radii, screenPadding, spacing } from '@/constants/theme';
+import { numberToWord, shortLabel } from '@/lib/format';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /**
@@ -31,6 +31,12 @@ export default function TodoScreen() {
   // the current one.
   const rows = useDayProgress(currentDay);
   const done = rows.filter((row) => row.done).length;
+
+  // The day's pictures come up together or not at all. Until the last task
+  // lands the prints are on the page but blank, so the pile is a promise
+  // rather than a gallery — and finishing is what redeems it.
+  const developed = rows.length > 0 && done === rows.length;
+  const left = rows.length - done;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
@@ -126,10 +132,12 @@ export default function TodoScreen() {
             be two different pictures of the same day.
 
             So: only what has been photographed, no dashed gaps and no ticks.
-            The block starts empty and grows a print at a time, which the
-            progress line above already accounts for; holding a place for every
-            task made the shape of the day out of things that were not there
-            yet, and the scatter cannot carry gaps the way the die could. */}
+            The block starts empty and grows a print at a time; holding a place
+            for every task made the shape of the day out of things that were
+            not there yet, and the pile cannot carry gaps the way a grid could.
+
+            Photographing a task puts its print on the pile straight away, but
+            blank: the picture does not come up until the whole day is done. */}
         <PhotoCollage
           maxHeight={PILE_MAX_HEIGHT}
           style={styles.collage}
@@ -141,9 +149,31 @@ export default function TodoScreen() {
               caption: shortLabel(row.task.label),
               photo: row.photo,
               seed: row.photoSeed,
+              developed,
               onPress: pressPhoto(row),
             }))}
         />
+
+        {/* What is standing between the pile and the picture. Sits under the
+            prints rather than by the heading: it is a caption on them, not
+            another line of status about the day. */}
+        {developed || done === 0 ? null : (
+          <View style={styles.develop}>
+            <View style={styles.developTrack}>
+              <View
+                style={[
+                  styles.developFill,
+                  { width: `${(done / rows.length) * 100}%` },
+                ]}
+              />
+            </View>
+            <Text variant="label" color={colors.inkMuted}>
+              {left === 1
+                ? 'One more and they develop'
+                : `${numberToWord(left)} more and they develop`}
+            </Text>
+          </View>
+        )}
 
         <Card padded={false} style={styles.list}>
           {rows.map((row, i) => (
@@ -235,6 +265,24 @@ const styles = StyleSheet.create({
     marginTop: spacing['2xl'],
     // The tiles hang off the page's own gutter.
     paddingHorizontal: screenPadding,
+  },
+  develop: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingHorizontal: screenPadding,
+  },
+  developTrack: {
+    alignSelf: 'stretch',
+    height: 3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.divider,
+    overflow: 'hidden',
+  },
+  developFill: {
+    height: '100%',
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
   },
   list: {
     marginTop: spacing['2xl'],

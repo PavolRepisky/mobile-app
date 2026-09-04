@@ -74,6 +74,12 @@ export interface CalendarDay {
    * covers hides that the record is fuller than one picture per square.
    */
   shots?: readonly DayShot[];
+  /**
+   * Whether that day's pictures came up. A day left unfinished keeps its
+   * square — you did photograph something — but the square stays blank, so a
+   * month reads at a glance as which days were actually closed.
+   */
+  developed?: boolean;
   /** Already lived through — today counts, tomorrow does not. */
   past?: boolean;
   /** Today, wherever in the challenge that falls. */
@@ -141,31 +147,51 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 }
 
 function DayCell({ date, day }: { date: number; day: CalendarDay }) {
-  const { shots, past, today, onPress } = day;
+  const { shots, developed = true, past, today, onPress } = day;
   const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
   const hasShot = tiles.length > 0;
 
   // The photographs are the page; every bare numeral stays quiet under them. A
   // day that has been and gone with nothing on it is still a day you could have
   // shot, so it holds more weight than one that has not arrived yet.
-  const numberColor = hasShot
-    ? colors.inkInverse
-    : past
-      ? colors.inkMuted
-      : colors.inkGhost;
+  const numberColor =
+    hasShot && developed
+      ? colors.inkInverse
+      : past
+        ? colors.inkMuted
+        : colors.inkGhost;
 
+  // White reads on a photograph and vanishes on blank film, so the numeral
+  // follows what is actually behind it rather than whether a shot exists.
+  const overPhoto = hasShot && developed;
   const numeral = (
-    <Text variant="bodyBold" color={today ? colors.inkInverse : numberColor}>
+    <Text
+      variant="bodyBold"
+      color={
+        today && !overPhoto
+          ? colors.inkInverse
+          : overPhoto
+            ? colors.inkInverse
+            : numberColor
+      }
+    >
       {date}
     </Text>
   );
 
   const body = hasShot ? (
     <View style={[styles.tile, today && styles.tileToday]}>
-      <Mosaic tiles={tiles} date={date} />
-      {/* The numeral is white on whatever the day happened to look like, so it
-          needs a wash under it rather than trusting the photo to be dark. */}
-      <View style={styles.scrim} />
+      {developed ? (
+        <>
+          <Mosaic tiles={tiles} date={date} />
+          {/* The numeral is white on whatever the day happened to look like,
+              so it needs a wash under it rather than trusting the photo to be
+              dark. */}
+          <View style={styles.scrim} />
+        </>
+      ) : (
+        <View style={styles.blank} />
+      )}
       {numeral}
     </View>
   ) : (
@@ -296,6 +322,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     gap: SEAM,
+  },
+  blank: {
+    ...absoluteFill,
+    borderRadius: radii.sm,
+    backgroundColor: colors.undeveloped,
   },
   scrim: {
     ...absoluteFill,

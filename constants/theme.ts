@@ -15,7 +15,7 @@ export const colors = {
   /** Warm off-white behind the logged-in app (home, friends, profile, settings). */
   background: '#F8F5F0',
   /** Pure white — a deliberate split from the warm app shell. Own profile,
-   * a friend's profile, a recipe and a wall day all sit on it. */
+   * a friend's profile and a wall day all sit on it. */
   backgroundPlain: '#FFFFFF',
   /** Slightly cooler off-white used by the settings stack. */
   backgroundAlt: '#F8F6F5',
@@ -31,6 +31,12 @@ export const colors = {
   surfaceMuted: '#F1F0EA',
   /** Empty photo slots and "add" tiles on the wall. */
   surfaceSunken: '#F2F2F2',
+  /**
+   * The face of a print that has not come up yet. A shade off the paper it is
+   * printed on and a shade warm of grey, the way film looks before it develops
+   * — a flat white window would read as a photograph that failed to load.
+   */
+  undeveloped: '#EBE7DF',
 
   /** Primary text and the solid pill buttons. */
   ink: '#141414',
@@ -158,7 +164,7 @@ export const fonts = {
   bodyMedium: 'Quicksand_500Medium',
   /** Card titles and buttons — strong, but below the section-title bold. */
   bodySemi: 'Quicksand_600SemiBold',
-  /** Section titles and the recipe category tabs. */
+  /** Section titles and the underlined tab rows. */
   bodyBold: 'Quicksand_700Bold',
   /** Muted secondary copy — amounts, timestamps, captions. */
   bodyLight: 'Quicksand_400Regular',
@@ -380,7 +386,7 @@ export const tabBarBottom = (insetBottom: number) =>
 
 /**
  * Distance from the bottom of the screen to the *top* edge of the bar, for
- * anything that has to sit clear of it (the saved-recipes button).
+ * anything that has to sit clear of it (the invite button).
  */
 export const tabBarTop = (insetBottom: number) =>
   tabBarBottom(insetBottom) + tabBar.height;
