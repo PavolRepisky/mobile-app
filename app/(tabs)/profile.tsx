@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { Card } from '@/components/Card';
 import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
 import { Pill, pillHeights } from '@/components/Pill';
@@ -19,30 +17,18 @@ import {
   profileAvatarSize,
 } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
-import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import { WallSection } from '@/components/WallSection';
 import {
   colors,
   fonts,
   glass,
-  radii,
   screenPadding,
   shadows,
   spacing,
 } from '@/constants/theme';
 import { challengePhotos, FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
-
-/** The four faces on the ambassador card, bundled so the row never waits. */
-const ambassadorFaces = [
-  require('@/assets/ambassadors/amb-1.jpg'),
-  require('@/assets/ambassadors/amb-2.jpg'),
-  require('@/assets/ambassadors/amb-3.jpg'),
-  require('@/assets/ambassadors/amb-4.jpg'),
-];
-
-type Tab = 'profile' | 'wall';
 
 /** No ring here, so the circle is the To-do ring's inner disc, not its outer. */
 const avatarSize = ringInnerSize(profileAvatarSize);
@@ -66,7 +52,6 @@ export default function ProfileScreen() {
     trophies,
     livesLeft,
   } = useApp();
-  const [tab, setTab] = useState<Tab>('profile');
 
   // The circle goes straight to the library sheet — no source dialog in
   // between, since picking is the only thing the tap can mean.
@@ -157,8 +142,8 @@ export default function ProfileScreen() {
             />
           </Pressable>
 
-          {/* Part of the identity block rather than of the Profile tab, so the
-              tally stays put when you switch over to the wall. */}
+          {/* Part of the identity block: what the account has to show for
+              itself belongs with the name, above the page's sections. */}
           <ProfileStats
             stats={[
               {
@@ -185,119 +170,53 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <SegmentedTabs
-          options={[
-            { key: 'profile', label: 'Profile' },
-            { key: 'wall', label: 'My Wall' },
-          ]}
-          value={tab}
-          onChange={setTab}
-          style={styles.tabs}
-        />
+        {/* Playfair rather than the Quicksand `sectionTitle` the rest of the
+            app sets a heading in: these two have to outrank the collection
+            names below, which already use that variant. Changing register
+            separates them where setting the same face larger would not. */}
+        <Headline size="headlineSm" style={styles.challengeTitle}>
+          Challenge
+        </Headline>
 
-        {tab === 'profile' ? (
-          <>
-            <View style={styles.joined}>
-              {/* The same four tiles, at the same size, as the challenge's row
-                  on Discover — one challenge, one picture of it. */}
-              <PhotoStrip
-                photos={challengePhotos(challenge.id) ?? challenge.photoSeeds}
-                height={167}
-                style={styles.joinedStrip}
-              />
-              <View pointerEvents="none" style={styles.joinedBadge}>
-                <Pill
-                  icon="checkmark"
-                  tone="glass"
-                  bold
-                  label={`Joined ${challenge.name}`}
-                  style={styles.joinedPill}
-                />
-              </View>
-            </View>
-
-            {/* The card clips its contents, and on iOS a view cannot both
-                clip and cast — so the shadow lives out here. */}
-            <View style={styles.promoShadow}>
-              <Card onPress={() => {}} padded={false}>
-                <View style={styles.promoRow}>
-                  {/* A cut-out rather than a tile, so it stands on the card the
-                      way the day's photos stand on the To-do list. */}
-                  <Image
-                    source={require('@/assets/support/newspaper.png')}
-                    contentFit="contain"
-                    transition={200}
-                    style={styles.promoArt}
-                  />
-                  <View style={styles.promoBody}>
-                    <Headline size="title" weight={500}>
-                      {'Her 75\n*support*'}
-                    </Headline>
-                    <Text
-                      variant="bodySemi"
-                      color={colors.inkMuted}
-                      center
-                      style={styles.promoList}
-                    >
-                      {'• suggest a feature\n• report a bug\n• get help'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={22} color={colors.ink} />
-                </View>
-              </Card>
-            </View>
-
-            <View style={styles.promoShadow}>
-              <Card onPress={() => {}} padded={false}>
-                <View style={styles.promoRow}>
-                  <View style={styles.promoBody}>
-                    <View style={styles.promoAvatars}>
-                      {ambassadorFaces.map((face, i) => (
-                        <Avatar
-                          key={i}
-                          source={face}
-                          size={62}
-                          style={[styles.avatarRing, i > 0 && styles.avatarOverlap]}
-                        />
-                      ))}
-                    </View>
-                    <Headline size="title" weight={500}>
-                      {"We're hiring\nTikTok & Instagram\n*ambassadors*"}
-                    </Headline>
-                    <Text
-                      variant="bodySemi"
-                      color={colors.inkMuted}
-                      center
-                      style={styles.promoList}
-                    >
-                      Get paid to do your challenge
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={22} color={colors.ink} />
-                </View>
-              </Card>
-            </View>
-          </>
-        ) : (
-          <View>
-            {wall.map((board) => (
-              <WallSection
-                key={board.id}
-                title={board.title}
-                items={board.pins}
-                editable
-                onRename={(next) => renameWallBoard(board.id, next)}
-                onAddPhoto={() => setPinningTo(board.id)}
-                onPressItem={(item) =>
-                  router.push({
-                    pathname: '/wall/[id]',
-                    params: { id: item.id },
-                  })
-                }
-              />
-            ))}
+        <View style={styles.joined}>
+          {/* The same four tiles, at the same size, as the challenge's row
+              on Discover — one challenge, one picture of it. */}
+          <PhotoStrip
+            photos={challengePhotos(challenge.id) ?? challenge.photoSeeds}
+            height={167}
+            style={styles.joinedStrip}
+          />
+          <View pointerEvents="none" style={styles.joinedBadge}>
+            <Pill
+              icon="checkmark"
+              tone="glass"
+              bold
+              label={`Joined ${challenge.name}`}
+              style={styles.joinedPill}
+            />
           </View>
-        )}
+        </View>
+
+        <Headline size="headlineSm" style={styles.pinsTitle}>
+          Pins
+        </Headline>
+
+        {wall.map((board) => (
+          <WallSection
+            key={board.id}
+            title={board.title}
+            items={board.pins}
+            editable
+            onRename={(next) => renameWallBoard(board.id, next)}
+            onAddPhoto={() => setPinningTo(board.id)}
+            onPressItem={(item) =>
+              router.push({
+                pathname: '/wall/[id]',
+                params: { id: item.id },
+              })
+            }
+          />
+        ))}
       </ScreenScroll>
 
       <View style={styles.topBar}>
@@ -399,15 +318,21 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   // Runs the full page width so the two hairlines land on the thirds, and sits
-  // closer to the bio than to the tabs below it: it belongs to the name, not
-  // to the switch.
+  // closer to the bio above than to the first section heading below: it
+  // belongs to the name, not to the page.
   stats: {
     alignSelf: 'stretch',
     marginTop: spacing.xl,
   },
-  tabs: {
-    marginTop: spacing.lg,
-    marginBottom: spacing['2xl'],
+  challengeTitle: {
+    marginTop: spacing['3xl'],
+    // The badge's top half hangs in the section's own padding, so this is the
+    // gap above the badge rather than above the photographs.
+    marginBottom: spacing.md,
+  },
+  pinsTitle: {
+    marginTop: spacing['3xl'],
+    marginBottom: spacing.lg,
   },
   joined: {
     marginHorizontal: -spacing.xl,
@@ -431,49 +356,5 @@ const styles = StyleSheet.create({
   },
   joinedPill: {
     alignSelf: 'center',
-  },
-  // Carries the card's fill and corner as well as the shadow: on iOS a
-  // transparent host squares the shadow off at its bounds instead of letting
-  // it follow the rounded edge.
-  promoShadow: {
-    marginTop: spacing['2xl'],
-    borderRadius: radii.card,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  promoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  // The art keeps its own proportions, so the cut-out never letterboxes.
-  // The shadow sits on the image itself rather than on a wrapper: a
-  // transparent wrapper squares it off at the bounds instead of letting it
-  // follow the figure.
-  promoArt: {
-    width: 96,
-    aspectRatio: 597 / 727,
-    ...shadows.hard,
-  },
-  promoBody: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  promoList: {
-    marginTop: spacing.sm,
-  },
-  promoAvatars: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  // The faces overlap, so each carries the card's own colour as a ring and the
-  // one behind stops bleeding into the one in front.
-  avatarRing: {
-    borderWidth: 3,
-    borderColor: colors.surface,
-  },
-  avatarOverlap: {
-    marginLeft: -spacing.lg,
   },
 });
