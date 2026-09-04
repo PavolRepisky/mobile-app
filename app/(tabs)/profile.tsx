@@ -1,13 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
 import { Pill, pillHeights } from '@/components/Pill';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
+import { PhotoSlot } from '@/components/PhotoSlot';
 import { PhotoStrip } from '@/components/PhotoStrip';
 import { ProfileStats } from '@/components/ProfileStats';
 import { ringInnerSize } from '@/components/DayRing';
@@ -18,7 +24,6 @@ import {
 } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { WallSection } from '@/components/WallSection';
 import {
   colors,
   fonts,
@@ -40,6 +45,15 @@ const avatarSize = ringInnerSize(profileAvatarSize);
  */
 const joinedBadgeHeight = pillHeights.md + glass.rimWidth * 2;
 
+/**
+ * The pin grid: three prints across the page, keeping the proportions a wall
+ * tile has always had (124 × 172) so a pin looks the same here as it does on
+ * a friend's wall, where the collections are still rows.
+ */
+const pinColumns = 3;
+const pinAspect = 124 / 172;
+const pinGap = spacing.md;
+
 export default function ProfileScreen() {
   const router = useRouter();
   const {
@@ -47,11 +61,21 @@ export default function ProfileScreen() {
     challenge,
     setAvatarPhoto,
     wall,
-    renameWallBoard,
     startPinDraft,
     trophies,
     livesLeft,
   } = useApp();
+
+  // Every pin from every collection, in the order the collections are held.
+  // The grouping still exists in state — a friend's wall reads it — it just
+  // has nothing to say on your own page.
+  const pins = wall.flatMap((board) => board.pins);
+
+  const { width: windowWidth } = useWindowDimensions();
+  const pinWidth = Math.floor(
+    (windowWidth - screenPadding * 2 - pinGap * (pinColumns - 1)) / pinColumns,
+  );
+  const pinHeight = Math.round(pinWidth / pinAspect);
 
   // The circle goes straight to the library sheet — no source dialog in
   // between, since picking is the only thing the tap can mean.
@@ -170,13 +194,12 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* Playfair rather than the Quicksand `sectionTitle` the rest of the
-            app sets a heading in: these two have to outrank the collection
-            names below, which already use that variant. Changing register
-            separates them where setting the same face larger would not. */}
-        <Headline size="headlineSm" style={styles.challengeTitle}>
+        {/* The same Quicksand `sectionTitle` that heads "Day 5" on To-do and
+            the rows on Discover. Pins carries no collection names any more, so
+            there is nothing underneath for a heading to have to outrank. */}
+        <Text variant="sectionTitle" style={styles.challengeTitle}>
           Challenge
-        </Headline>
+        </Text>
 
         <View style={styles.joined}>
           {/* The same four tiles, at the same size, as the challenge's row
@@ -197,34 +220,51 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Headline size="headlineSm" style={styles.pinsTitle}>
+        <Text variant="sectionTitle" style={styles.pinsTitle}>
           Pins
-        </Headline>
+        </Text>
 
-        {wall.map((board) => (
-          <WallSection
-            key={board.id}
-            title={board.title}
-            items={board.pins}
-            editable
-            onRename={(next) => renameWallBoard(board.id, next)}
-            onAddPhoto={() => setPinningTo(board.id)}
-            onPressItem={(item) =>
-              router.push({
-                pathname: '/wall/[id]',
-                params: { id: item.id },
-              })
-            }
+        <View style={styles.pinGrid}>
+          {pins.map((pin) => (
+            <PhotoSlot
+              key={pin.id}
+              photo={pin.photo}
+              seed={pin.id}
+              width={pinWidth}
+              height={pinHeight}
+              shadow={false}
+              onPress={() =>
+                router.push({
+                  pathname: '/wall/[id]',
+                  params: { id: pin.id },
+                })
+              }
+            />
+          ))}
+
+          {/* Straight to the library: with no collection names on the page
+              there is no second thing the tile could offer to do. The pin
+              files into the first collection, which nothing here shows. */}
+          <PhotoSlot
+            seed={null}
+            width={pinWidth}
+            height={pinHeight}
+            emptyIcon="add"
+            shadow="hard"
+            onPress={() => setPinningTo(wall[0]?.id ?? null)}
           />
-        ))}
+        </View>
       </ScreenScroll>
 
       <View style={styles.topBar}>
         <View style={styles.spacer} />
+        {/* The To-do pencil's button exactly: the default glass lens at the
+            default size, glyph set to 21. The two sit on the same line as
+            each other across the two screens, so they should not be two
+            different kinds of button. */}
         <IconButton
           name="settings-outline"
-          background="transparent"
-          shadow={false}
+          iconSize={21}
           onPress={() => router.push('/account/settings')}
           accessibilityLabel="Settings"
         />
@@ -333,6 +373,13 @@ const styles = StyleSheet.create({
   pinsTitle: {
     marginTop: spacing['3xl'],
     marginBottom: spacing.lg,
+  },
+  // The tile widths are worked out from this same gap, so three land on a row
+  // with the page's own margins either side and nothing left over.
+  pinGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: pinGap,
   },
   joined: {
     marginHorizontal: -spacing.xl,
