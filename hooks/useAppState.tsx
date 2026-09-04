@@ -84,6 +84,13 @@ interface AppState {
    */
   pinDraft: { boardId: string; photo: TaskPhoto } | null;
 
+  /**
+   * The day the app was first opened. The calendar runs from this month to the
+   * current one, so it outlives any one challenge — restarting, or switching to
+   * a different challenge, must not shorten the record of months already lived.
+   */
+  installedAt: Date;
+
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
   tasks: ChallengeTask[];
@@ -92,14 +99,23 @@ interface AppState {
   paused: boolean;
 
   progress: Progress;
-  savedRecipeIds: string[];
   /** The emoji left on a feed post, by post id. */
   postReactions: Record<string, string>;
   inviteCode: string;
 
+  /** Challenges carried to the last day. One trophy, one finish. */
+  trophies: number;
+
   /** 1-indexed, clamped to the challenge length. */
   currentDay: number;
   endDate: Date;
+
+  /** Days already gone by with at least one task left unticked. */
+  missedDays: number;
+  /** The allowance a challenge starts with, so a screen can show "2 of 3". */
+  livesTotal: number;
+  /** What is left of that allowance, floored at zero. */
+  livesLeft: number;
 }
 
 interface AppActions {
@@ -122,6 +138,14 @@ interface AppActions {
 
   toggleTask: (taskId: string, day?: number) => void;
   setTaskPhoto: (taskId: string, photo: TaskPhoto | null, day?: number) => void;
+  /**
+   * A task is only ever ticked off by photographing it, so the shot and the
+   * tick land together rather than through two calls that could be left half
+   * applied. Retaking a photo on an already-done task keeps it done.
+   */
+  completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number) => void;
+  /** The other half of that bargain: the tick goes, and the proof goes with it. */
+  undoTask: (taskId: string, day?: number) => void;
 
   renameWallBoard: (boardId: string, title: string) => void;
   /** Opens a pin for `boardId` on the picked photo, for the Create Pin screen. */
@@ -136,7 +160,6 @@ interface AppActions {
     patch: { title: string; note?: string; link?: string; photo?: TaskPhoto },
   ) => void;
 
-  toggleSavedRecipe: (id: string) => void;
   /** Tapping the emoji already on a post takes it back off. */
   reactToPost: (postId: string, emoji: string) => void;
   resetAll: () => void;
@@ -151,6 +174,28 @@ const AppContext = createContext<AppContextValue | null>(null);
 // ---------------------------------------------------------------------------
 
 const SEED_DAY = 5;
+
+/**
+ * How long ago the seeded account downloaded the app. Deliberately well before
+ * the seeded challenge began: the calendar starts at the install month, not at
+ * day one, and a seed that put the two on the same day would hide that.
+ */
+const SEED_INSTALLED_DAYS_AGO = 40;
+
+/**
+ * Days you are allowed to miss before the challenge is lost. Fixed at three
+ * whatever the challenge and however long it runs — a rule you can hold in
+ * your head is the point of it, and one that moved with the length would have
+ * to be explained on every screen that shows it.
+ */
+const LIVES_PER_CHALLENGE = 3;
+
+/**
+ * Challenges the seeded account has already finished. Nothing increments this
+ * yet: reaching the last day is not an event the app observes, so the count is
+ * seeded and left alone until finishing a challenge is wired up.
+ */
+const SEED_TROPHIES = 2;
 
 /**
  * Pin ids only have to be unique within a session; there is no backend. They
@@ -301,6 +346,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     avatar: null,
   });
 
+  // Set once and never written again: you only ever download the app the once,
+  // so there is no action that moves it and nothing to reset it to.
+  const [installedAt] = useState<Date>(() =>
+    addDays(startOfToday(), -SEED_INSTALLED_DAYS_AGO),
+  );
+
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
     tinted(SEED_CHALLENGE.tasks),
@@ -319,10 +370,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
   );
-  const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([
-    'avo-toast',
-    'salmon-tartine',
-  ]);
   // Seeded from the posts that ship already reacted to, so those stay as they
   // are until someone taps the emoji back off.
   const [postReactions, setPostReactions] = useState<Record<string, string>>(
@@ -332,6 +379,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ),
   );
   const [inviteCode] = useState(makeInviteCode);
+  // Never written: see SEED_TROPHIES. Held as state rather than read straight
+  // off the constant so finishing a challenge has somewhere to land.
+  const [trophies] = useState(SEED_TROPHIES);
 
   // -- derived ---------------------------------------------------------------
 
@@ -346,6 +396,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => addDays(startDate, totalDays - 1),
     [startDate, totalDays],
   );
+
+  /**
+   * Only days that are fully behind you can be missed — today is still open
+   * however little of it is ticked, which is why the walk stops short of
+   * `currentDay` rather than including it.
+   */
+  const missedDays = useMemo(() => {
+    let missed = 0;
+    for (let day = 1; day < currentDay; day += 1) {
+      const rows = progress[day];
+      if (!tasks.every((t) => rows?.[t.id]?.done)) missed += 1;
+    }
+    return missed;
+  }, [progress, currentDay, tasks]);
+
+  // Floored rather than left negative: past the allowance the challenge is
+  // lost, and how far past says nothing more than that.
+  const livesLeft = Math.max(0, LIVES_PER_CHALLENGE - missedDays);
 
   // -- actions ---------------------------------------------------------------
 
@@ -480,6 +548,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay],
   );
 
+  const completeTaskWithPhoto = useCallback(
+    (taskId: string, photo: TaskPhoto, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        const existing = dayMap[taskId];
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              ...existing,
+              done: true,
+              // Retaking leaves the original stamp alone: the task was done
+              // when it was first photographed, not when it was reshot.
+              time: existing?.done ? existing.time : timeStamp(new Date()),
+              photo,
+              // A real photo replaces the seeded stand-in rather than sitting
+              // behind it.
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
+  const undoTask = useCallback(
+    (taskId: string, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              done: false,
+              time: undefined,
+              photo: null,
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
   const renameWallBoard = useCallback((boardId: string, title: string) => {
     setWall((prev) =>
       prev.map((board) =>
@@ -542,12 +660,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const toggleSavedRecipe = useCallback((id: string) => {
-    setSavedRecipeIds((list) =>
-      list.includes(id) ? list.filter((r) => r !== id) : [...list, id],
-    );
-  }, []);
-
   const reactToPost = useCallback((postId: string, emoji: string) => {
     setPostReactions((map) => {
       if (map[postId] === emoji) {
@@ -578,17 +690,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppContextValue>(
     () => ({
       profile,
+      installedAt,
       challenge,
       tasks,
       startDate,
       totalDays,
       paused,
       progress,
-      savedRecipeIds,
       postReactions,
       inviteCode,
+      trophies,
       currentDay,
       endDate,
+      missedDays,
+      livesTotal: LIVES_PER_CHALLENGE,
+      livesLeft,
       wall,
       pinDraft,
 
@@ -608,23 +724,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       restartChallenge,
       toggleTask,
       setTaskPhoto,
+      completeTaskWithPhoto,
+      undoTask,
       renameWallBoard,
       startPinDraft,
       setPinDraftPhoto,
       clearPinDraft,
       addWallPin,
       updateWallPin,
-      toggleSavedRecipe,
       reactToPost,
       resetAll,
     }),
     [
-      profile, challenge, tasks, startDate, totalDays,
-      paused, progress, savedRecipeIds, postReactions, inviteCode,
-      currentDay, endDate, wall, pinDraft,
+      profile, installedAt, challenge, tasks, startDate, totalDays,
+      paused, progress, postReactions, inviteCode, trophies,
+      currentDay, endDate, missedDays, livesLeft, wall, pinDraft,
       setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
-      toggleTask, setTaskPhoto, toggleSavedRecipe, reactToPost, resetAll,
+      toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
+      reactToPost, resetAll,
       renameWallBoard, startPinDraft, setPinDraftPhoto, clearPinDraft,
       addWallPin, updateWallPin,
     ],

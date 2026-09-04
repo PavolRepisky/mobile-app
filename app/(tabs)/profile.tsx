@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
@@ -10,8 +10,8 @@ import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
 import { Pill, pillHeights } from '@/components/Pill';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
-import { PhotoSlot } from '@/components/PhotoSlot';
 import { PhotoStrip } from '@/components/PhotoStrip';
+import { ProfileStats } from '@/components/ProfileStats';
 import { ringInnerSize } from '@/components/DayRing';
 import {
   profileActionHeight,
@@ -31,7 +31,7 @@ import {
   shadows,
   spacing,
 } from '@/constants/theme';
-import { challengePhotos } from '@/data/content';
+import { challengePhotos, FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
 /** The four faces on the ambassador card, bundled so the row never waits. */
@@ -59,11 +59,12 @@ export default function ProfileScreen() {
   const {
     profile,
     challenge,
-    progress,
     setAvatarPhoto,
     wall,
     renameWallBoard,
     startPinDraft,
+    trophies,
+    livesLeft,
   } = useApp();
   const [tab, setTab] = useState<Tab>('profile');
 
@@ -83,23 +84,6 @@ export default function ProfileScreen() {
     pending.current = null;
     next?.();
   };
-
-  // Days that have at least one proof photo, newest first. A day's shots are
-  // either real pictures or the drawn stand-ins, so both are carried through.
-  const photoDays = Object.keys(progress)
-    .map(Number)
-    .sort((a, b) => b - a)
-    .map((day) => ({
-      day,
-      shots: Object.entries(progress[day] ?? {})
-        .filter(([, p]) => p.photo || p.photoSeed)
-        .map(([taskId, p]) => ({
-          taskId,
-          photo: p.photo ?? null,
-          seed: p.photoSeed ?? null,
-        })),
-    }))
-    .filter((entry) => entry.shots.length > 0);
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -172,6 +156,33 @@ export default function ProfileScreen() {
               style={styles.bioPencil}
             />
           </Pressable>
+
+          {/* Part of the identity block rather than of the Profile tab, so the
+              tally stays put when you switch over to the wall. */}
+          <ProfileStats
+            stats={[
+              {
+                key: 'friends',
+                icon: 'people',
+                value: FRIENDS.length,
+                label: 'Friends',
+                onPress: () => router.push('/friends'),
+              },
+              {
+                key: 'trophies',
+                icon: 'trophy',
+                value: trophies,
+                label: 'Trophies',
+              },
+              {
+                key: 'lives',
+                icon: 'heart',
+                value: livesLeft,
+                label: livesLeft === 1 ? 'Life' : 'Lives',
+              },
+            ]}
+            style={styles.stats}
+          />
         </View>
 
         <SegmentedTabs
@@ -204,30 +215,6 @@ export default function ProfileScreen() {
                 />
               </View>
             </View>
-
-            {photoDays.map((entry) => (
-              <View key={entry.day} style={styles.daySection}>
-                <Text variant="sectionTitle" style={styles.dayTitle}>
-                  Day {entry.day}
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.dayRow}
-                >
-                  {entry.shots.map((shot) => (
-                    <PhotoSlot
-                      key={shot.taskId}
-                      photo={shot.photo}
-                      seed={shot.seed}
-                      width={136}
-                      height={196}
-                      shadow={false}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            ))}
 
             {/* The card clips its contents, and on iOS a view cannot both
                 clip and cast — so the shadow lives out here. */}
@@ -314,14 +301,9 @@ export default function ProfileScreen() {
       </ScreenScroll>
 
       <View style={styles.topBar}>
-        <IconButton
-          name="footsteps"
-          onPress={() => router.push('/account/views')}
-          accessibilityLabel="Profile views"
-        />
         <View style={styles.spacer} />
         <IconButton
-          name="ellipsis-horizontal"
+          name="settings-outline"
           background="transparent"
           shadow={false}
           onPress={() => router.push('/account/settings')}
@@ -416,6 +398,13 @@ const styles = StyleSheet.create({
   bioPencil: {
     marginLeft: spacing.sm,
   },
+  // Runs the full page width so the two hairlines land on the thirds, and sits
+  // closer to the bio than to the tabs below it: it belongs to the name, not
+  // to the switch.
+  stats: {
+    alignSelf: 'stretch',
+    marginTop: spacing.xl,
+  },
   tabs: {
     marginTop: spacing.lg,
     marginBottom: spacing['2xl'],
@@ -442,18 +431,6 @@ const styles = StyleSheet.create({
   },
   joinedPill: {
     alignSelf: 'center',
-  },
-  daySection: {
-    marginTop: spacing['2xl'],
-    marginHorizontal: -spacing.xl,
-    paddingLeft: spacing.xl,
-  },
-  dayTitle: {
-    marginBottom: spacing.md,
-  },
-  dayRow: {
-    gap: spacing.md,
-    paddingRight: spacing.xl,
   },
   // Carries the card's fill and corner as well as the shadow: on iOS a
   // transparent host squares the shadow off at its bounds instead of letting
