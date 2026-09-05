@@ -391,6 +391,9 @@ const MOSAIC_PIECE = { flex: 1 } as const;
  */
 const MOSAIC_RATIO = 1;
 
+/** Diameter of the corner badge a photographed tile carries in label mode. */
+const MOSAIC_BADGE = 26;
+
 /** One piece of the mosaic: the photo itself, or its drawn stand-in, filling
  * whatever share of the block it was given. */
 function MosaicTile({
@@ -437,6 +440,17 @@ function MosaicTile({
       </View>
     ) : null;
 
+  // A photographed tile has nothing else asking to be pressed again, so a
+  // pencil sits on its corner the way the "edit" affordance does everywhere
+  // else in the app — not a checkmark repeating what the print already says,
+  // but a cue that the tap still does something: retake, or undo.
+  const badge =
+    showLabels && filled && cell.onPress ? (
+      <View style={[styles.mosaicBadge, shadows.soft]}>
+        <Ionicons name="pencil" size={13} color={colors.inkInverse} />
+      </View>
+    ) : null;
+
   // In label mode the seam between tiles is wide enough to see, so each one
   // reads as its own square rather than a shard of one photograph — which
   // means it wants the corner and the lift a pressable tile carries anywhere
@@ -453,7 +467,10 @@ function MosaicTile({
     </>
   );
   const body = showLabels ? (
-    <View style={[MOSAIC_PIECE, styles.mosaicCard]}>{piece}</View>
+    <View style={[MOSAIC_PIECE, styles.mosaicCard]}>
+      {piece}
+      {badge}
+    </View>
   ) : (
     piece
   );
@@ -740,6 +757,21 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radii.sm,
     overflow: 'hidden',
+  },
+  // Hangs off the card's own corner, the same way a done tick does elsewhere
+  // in the app — outside the clip, on the card itself, so it is never cut off.
+  mosaicBadge: {
+    position: 'absolute',
+    right: -MOSAIC_BADGE / 4,
+    bottom: -MOSAIC_BADGE / 4,
+    width: MOSAIC_BADGE,
+    height: MOSAIC_BADGE,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mosaicEmpty: {
     backgroundColor: colors.surfaceMuted,
