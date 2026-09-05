@@ -1,6 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  type LayoutRectangle,
+} from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { IconButton } from '@/components/IconButton';
@@ -17,9 +23,9 @@ import { useApp, useDayProgress } from '@/hooks/useAppState';
  * frames and no dashes — except every task gets a tile, done or not, and each
  * one carries its own label rather than an accessibility string. An
  * unphotographed tile is a flat, quiet fill; there is no separate list below
- * it any more, so the grid is the whole to-do.
+ * it any more, so the grid stands in for the page rather than sitting on it,
+ * and is sized to fill almost all of it.
  */
-const GRID_MAX_HEIGHT = 340;
 
 export default function TodoScreen() {
   const router = useRouter();
@@ -29,6 +35,16 @@ export default function TodoScreen() {
   // no way to park on another day, so the grid reads off the current one.
   const rows = useDayProgress(currentDay);
   const done = rows.filter((row) => row.done).length;
+
+  /**
+   * The space the page actually leaves for the grid, once the heading above
+   * it has taken its own room. The mosaic block is drawn square by default;
+   * handing it this box's own ratio (height ÷ width) instead is what lets it
+   * stand as tall as the page rather than only as tall as it is wide.
+   */
+  const [gridBox, setGridBox] = useState<LayoutRectangle | null>(null);
+  const gridWidth = gridBox ? gridBox.width - screenPadding * 2 : 0;
+  const gridRatio = gridWidth > 0 && gridBox ? gridBox.height / gridWidth : 1;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
@@ -73,6 +89,9 @@ export default function TodoScreen() {
       <ProfileLayout
         tabBar
         padded={false}
+        // The grid stands in for the page, so it takes whatever height the
+        // heading above it leaves rather than sitting at its own.
+        fill
         // The day is a label, not a Playfair line, so it does not need the
         // full headline gap under the status bar to breathe.
         topGap={spacing.sm}
@@ -111,26 +130,32 @@ export default function TodoScreen() {
         }
       >
         {/* Experiment: no separate list — every task is a tile in the day's
-            own mosaic, the label set inside it rather than beside it. An
-            unphotographed task is a flat, quiet fill rather than a dashed
-            invite; tapping it opens the viewfinder outright the same as the
-            row's circle used to. A photographed one shows the print itself
-            and asks retake-or-undo the way the row's filled circle used to —
-            there is no tick on the corner any more, since a task's place in
-            the mosaic already says it is done. */}
-        <PhotoCollage
-          layout="mosaic"
-          showLabels
-          maxHeight={GRID_MAX_HEIGHT}
-          style={styles.grid}
-          cells={rows.map((row) => ({
-            key: row.task.id,
-            label: row.task.label,
-            photo: row.photo,
-            seed: row.photoSeed,
-            onPress: pressSlot(row),
-          }))}
-        />
+            own mosaic, the label set inside it rather than beside it, a
+            camera glyph in the ones still waiting to say a tap shoots the
+            photo that finishes them. A photographed tile shows the print
+            itself and asks retake-or-undo the way the row's filled circle
+            used to — there is no tick on the corner any more, since a task's
+            place in the mosaic already says it is done. */}
+        <View
+          style={styles.gridArea}
+          onLayout={(e) => setGridBox(e.nativeEvent.layout)}
+        >
+          {gridBox ? (
+            <PhotoCollage
+              layout="mosaic"
+              showLabels
+              ratio={gridRatio}
+              style={styles.grid}
+              cells={rows.map((row) => ({
+                key: row.task.id,
+                label: row.task.label,
+                photo: row.photo,
+                seed: row.photoSeed,
+                onPress: pressSlot(row),
+              }))}
+            />
+          ) : null}
+        </View>
       </ProfileLayout>
 
       <PopoverMenu
@@ -204,11 +229,16 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
-  grid: {
+  gridArea: {
+    flex: 1,
     // Clear of the title above it.
     marginTop: spacing['2xl'],
+  },
+  grid: {
     // The tile hangs off the page's own gutter, the same one every other
-    // screen hangs off.
+    // screen hangs off. Subtracted by hand from `gridArea`'s own measured
+    // width to work out the ratio the block is asked to fill — the two have
+    // to agree on the same inset.
     paddingHorizontal: screenPadding,
   },
 });

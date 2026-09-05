@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
@@ -70,6 +71,13 @@ export interface PhotoCollageProps {
    * task itself written into the cell.
    */
   showLabels?: boolean;
+  /**
+   * `mosaic` only: height as a share of width. Defaults to the calendar day
+   * cell's own square; the to-do grid wants the block to stand in for the
+   * page rather than sit as a cover shot on it, so it hands in the room the
+   * page actually left over instead of taking the default shape.
+   */
+  ratio?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -408,6 +416,16 @@ function MosaicTile({
     showLabels && cell.label ? (
       <View style={styles.mosaicLabelWrap} pointerEvents="none">
         {filled ? <View style={styles.mosaicScrim} /> : null}
+        {/* Only an untaken tile invites a tap — a photographed one already
+            shows what pressing it made, so it needs no glyph asking for one. */}
+        {!filled && cell.onPress ? (
+          <Ionicons
+            name="camera"
+            size={20}
+            color={colors.inkMuted}
+            style={styles.mosaicTapIcon}
+          />
+        ) : null}
         <Text
           variant="label"
           color={filled ? colors.inkInverse : colors.inkSlate}
@@ -511,19 +529,19 @@ function Mosaic({
   cells,
   maxHeight,
   radius = radii.lg,
+  ratio = MOSAIC_RATIO,
   showLabels,
   style,
 }: {
   cells: readonly CollageCell[];
   maxHeight?: number;
   radius?: number;
+  ratio?: number;
   showLabels?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const [available, setAvailable] = useState(0);
-  const width = maxHeight
-    ? Math.min(available, maxHeight / MOSAIC_RATIO)
-    : available;
+  const width = maxHeight ? Math.min(available, maxHeight / ratio) : available;
 
   return (
     <View style={style}>
@@ -532,7 +550,7 @@ function Mosaic({
           <View
             style={[
               styles.mosaicBlock,
-              { width, height: width * MOSAIC_RATIO, borderRadius: radius },
+              { width, height: width * ratio, borderRadius: radius },
             ]}
           >
             <MosaicLayout cells={cells} showLabels={showLabels} />
@@ -557,6 +575,7 @@ export function PhotoCollage({
   layout = 'collage',
   maxHeight,
   radius,
+  ratio,
   showLabels,
   style,
 }: PhotoCollageProps) {
@@ -568,6 +587,7 @@ export function PhotoCollage({
         cells={cells}
         maxHeight={maxHeight}
         radius={radius}
+        ratio={ratio}
         showLabels={showLabels}
         style={style}
       />
@@ -676,6 +696,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.sm,
+  },
+  mosaicTapIcon: {
+    marginBottom: spacing.xs,
   },
   mosaicScrim: {
     ...absoluteFill,
