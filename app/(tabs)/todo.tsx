@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { IconButton } from '@/components/IconButton';
-import { PhotoSlot } from '@/components/PhotoSlot';
+import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
 import { ProfileLayout } from '@/components/ProfileLayout';
 import { Text } from '@/components/Text';
@@ -12,13 +12,14 @@ import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /**
- * Experiment: the day's tasks as a grid of photo tiles rather than a checklist
- * — two to a row, the label written under each tile rather than beside it.
- * Every task gets a cell whether or not it is photographed yet, so the grid
- * is the whole to-do list, not a record layered on top of one.
+ * Experiment: the day's tasks as the same mosaic block the calendar's own day
+ * cells cut theirs — photos merged edge to edge behind a hairline seam, no
+ * frames and no dashes — except every task gets a tile, done or not, and each
+ * one carries its own label rather than an accessibility string. An
+ * unphotographed tile is a flat, quiet fill; there is no separate list below
+ * it any more, so the grid is the whole to-do.
  */
-const GRID_COLUMNS = 2;
-const GRID_HEIGHT = 150;
+const GRID_MAX_HEIGHT = 340;
 
 export default function TodoScreen() {
   const router = useRouter();
@@ -65,13 +66,6 @@ export default function TodoScreen() {
   const pressSlot = (row: (typeof rows)[number]) => () =>
     row.done ? setDoneFor(row.task.id) : shoot(row.task.id);
 
-  // Cut into rows of `GRID_COLUMNS`, in task order — the grid is read the
-  // same way the list it replaces was.
-  const gridRows: (typeof rows)[number][][] = [];
-  for (let i = 0; i < rows.length; i += GRID_COLUMNS) {
-    gridRows.push(rows.slice(i, i + GRID_COLUMNS));
-  }
-
   return (
     <>
       {/* No identity: the avatar belongs on the Profile tab, and this screen
@@ -116,53 +110,27 @@ export default function TodoScreen() {
           />
         }
       >
-        {/* Experiment: the list is gone, and every task is a tile in a grid
-            instead, its own label written under it in place of the row it
-            used to sit on. An unphotographed task is the same dashed camera
-            invite its row's circle used to be; tapping it opens the
-            viewfinder outright. A photographed one shows the print itself,
-            ticked in the corner, and asks retake-or-undo the way the row's
-            filled circle used to. */}
-        <View style={styles.grid}>
-          {gridRows.map((gridRow, r) => (
-            <View key={r} style={[styles.gridRow, r > 0 && styles.gridGap]}>
-              {gridRow.map((row) => (
-                <View key={row.task.id} style={styles.cell}>
-                  <PhotoSlot
-                    width="100%"
-                    height={GRID_HEIGHT}
-                    photo={row.photo}
-                    seed={row.photoSeed}
-                    done={row.done}
-                    emptyOutline={!row.done}
-                    emptyIcon={row.done ? 'none' : 'camera'}
-                    emptyTone="warm"
-                    shadow={row.photo || row.photoSeed ? 'hard' : false}
-                    onPress={pressSlot(row)}
-                    accessibilityLabel={row.task.label}
-                  />
-                  <Text
-                    variant="label"
-                    color={colors.inkSlate}
-                    center
-                    numberOfLines={2}
-                    style={styles.caption}
-                  >
-                    {row.task.label}
-                  </Text>
-                </View>
-              ))}
-              {/* A short last row keeps its tile the width of a full one's
-                  rather than stretching it across the page. */}
-              {Array.from(
-                { length: GRID_COLUMNS - gridRow.length },
-                (_, i) => (
-                  <View key={`pad-${i}`} style={styles.cell} />
-                ),
-              )}
-            </View>
-          ))}
-        </View>
+        {/* Experiment: no separate list — every task is a tile in the day's
+            own mosaic, the label set inside it rather than beside it. An
+            unphotographed task is a flat, quiet fill rather than a dashed
+            invite; tapping it opens the viewfinder outright the same as the
+            row's circle used to. A photographed one shows the print itself
+            and asks retake-or-undo the way the row's filled circle used to —
+            there is no tick on the corner any more, since a task's place in
+            the mosaic already says it is done. */}
+        <PhotoCollage
+          layout="mosaic"
+          showLabels
+          maxHeight={GRID_MAX_HEIGHT}
+          style={styles.grid}
+          cells={rows.map((row) => ({
+            key: row.task.id,
+            label: row.task.label,
+            photo: row.photo,
+            seed: row.photoSeed,
+            onPress: pressSlot(row),
+          }))}
+        />
       </ProfileLayout>
 
       <PopoverMenu
@@ -239,20 +207,8 @@ const styles = StyleSheet.create({
   grid: {
     // Clear of the title above it.
     marginTop: spacing['2xl'],
-    // The page's own gutter, the same one every other screen hangs off.
+    // The tile hangs off the page's own gutter, the same one every other
+    // screen hangs off.
     paddingHorizontal: screenPadding,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  gridGap: {
-    marginTop: spacing.xl,
-  },
-  cell: {
-    flex: 1,
-  },
-  caption: {
-    marginTop: spacing.sm,
   },
 });
