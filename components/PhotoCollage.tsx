@@ -421,8 +421,8 @@ function MosaicTile({
         {!filled && cell.onPress ? (
           <Ionicons
             name="camera"
-            size={20}
-            color={colors.inkMuted}
+            size={22}
+            color={colors.ink}
             style={styles.mosaicTapIcon}
           />
         ) : null}
@@ -437,13 +437,29 @@ function MosaicTile({
       </View>
     ) : null;
 
+  // In label mode the seam between tiles is wide enough to see, so each one
+  // reads as its own square rather than a shard of one photograph — which
+  // means it wants the corner and the lift a pressable tile carries anywhere
+  // else in the app, not the flush edge a merged mosaic piece has.
+  const piece = showLabels ? (
+    <View style={styles.mosaicCardClip}>
+      {content}
+      {label}
+    </View>
+  ) : (
+    <>
+      {content}
+      {label}
+    </>
+  );
+  const body = showLabels ? (
+    <View style={[MOSAIC_PIECE, styles.mosaicCard]}>{piece}</View>
+  ) : (
+    piece
+  );
+
   if (!cell.onPress)
-    return (
-      <View style={MOSAIC_PIECE}>
-        {content}
-        {label}
-      </View>
-    );
+    return <View style={MOSAIC_PIECE}>{body}</View>;
 
   return (
     <Pressable
@@ -452,8 +468,7 @@ function MosaicTile({
       onPress={cell.onPress}
       style={MOSAIC_PIECE}
     >
-      {content}
-      {label}
+      {body}
     </Pressable>
   );
 }
@@ -474,13 +489,18 @@ function MosaicLayout({
   cells: readonly CollageCell[];
   showLabels?: boolean;
 }) {
+  // A wider seam once each piece is its own card — the merged mosaic's
+  // hairline would read as a crack rather than a gap between two tiles.
+  const column = showLabels ? styles.mosaicColumnLoose : styles.mosaicColumn;
+  const row = showLabels ? styles.mosaicRowLoose : styles.mosaicRow;
+
   if (cells.length === 1) {
     return <MosaicTile cell={cells[0]} showLabels={showLabels} />;
   }
 
   if (cells.length === 2) {
     return (
-      <View style={styles.mosaicColumn}>
+      <View style={column}>
         {cells.map((cell) => (
           <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
         ))}
@@ -490,10 +510,10 @@ function MosaicLayout({
 
   if (cells.length === 4) {
     return (
-      <View style={styles.mosaicColumn}>
-        {[cells.slice(0, 2), cells.slice(2, 4)].map((row, r) => (
-          <View key={r} style={styles.mosaicRow}>
-            {row.map((cell) => (
+      <View style={column}>
+        {[cells.slice(0, 2), cells.slice(2, 4)].map((pair, r) => (
+          <View key={r} style={row}>
+            {pair.map((cell) => (
               <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
             ))}
           </View>
@@ -507,11 +527,11 @@ function MosaicLayout({
   for (let i = 0; i < rest.length; i += 2) rows.push(rest.slice(i, i + 2));
 
   return (
-    <View style={styles.mosaicColumn}>
+    <View style={column}>
       <MosaicTile cell={head} showLabels={showLabels} />
-      {rows.map((row, r) => (
-        <View key={r} style={styles.mosaicRow}>
-          {row.map((cell) => (
+      {rows.map((pair, r) => (
+        <View key={r} style={row}>
+          {pair.map((cell) => (
             <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
           ))}
         </View>
@@ -549,8 +569,16 @@ function Mosaic({
         {width > 0 ? (
           <View
             style={[
-              styles.mosaicBlock,
-              { width, height: width * ratio, borderRadius: radius },
+              // Each tile carries its own corner and shadow in label mode, so
+              // the block that holds them needs neither of its own — one
+              // rounded, clipped, shadowed box wrapping five more of the same
+              // would double up on all three.
+              showLabels ? styles.mosaicLoose : styles.mosaicBlock,
+              {
+                width,
+                height: width * ratio,
+                borderRadius: showLabels ? 0 : radius,
+              },
             ]}
           >
             <MosaicLayout cells={cells} showLabels={showLabels} />
@@ -678,6 +706,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     ...shadows.soft,
   },
+  // Label mode's outer box: no corner, no clip, no lift of its own — each
+  // tile inside carries all three, and the gap between them shows the page.
+  mosaicLoose: {
+    alignSelf: 'center',
+  },
   mosaicColumn: {
     flex: 1,
     flexDirection: 'column',
@@ -687,6 +720,26 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     gap: MOSAIC_SEAM,
+  },
+  mosaicColumnLoose: {
+    flex: 1,
+    flexDirection: 'column',
+    gap: spacing.sm,
+  },
+  mosaicRowLoose: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  mosaicCard: {
+    borderRadius: radii.sm,
+    backgroundColor: colors.surface,
+    ...shadows.soft,
+  },
+  mosaicCardClip: {
+    flex: 1,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
   },
   mosaicEmpty: {
     backgroundColor: colors.surfaceMuted,
