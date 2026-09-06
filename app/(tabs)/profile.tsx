@@ -1,17 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { Card } from '@/components/Card';
-import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
 import { Pill, pillHeights } from '@/components/Pill';
+import { PhotoCollage } from '@/components/PhotoCollage';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
 import { PhotoStrip } from '@/components/PhotoStrip';
+import { ProfileStats } from '@/components/ProfileStats';
 import { ringInnerSize } from '@/components/DayRing';
 import {
   profileActionHeight,
@@ -19,30 +24,17 @@ import {
   profileAvatarSize,
 } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
-import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { WallSection } from '@/components/WallSection';
 import {
   colors,
   fonts,
   glass,
-  radii,
   screenPadding,
   shadows,
   spacing,
 } from '@/constants/theme';
-import { challengePhotos } from '@/data/content';
+import { challengePhotos, FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
-
-/** The four faces on the ambassador card, bundled so the row never waits. */
-const ambassadorFaces = [
-  require('@/assets/ambassadors/amb-1.jpg'),
-  require('@/assets/ambassadors/amb-2.jpg'),
-  require('@/assets/ambassadors/amb-3.jpg'),
-  require('@/assets/ambassadors/amb-4.jpg'),
-];
-
-type Tab = 'profile' | 'wall';
 
 /** No ring here, so the circle is the To-do ring's inner disc, not its outer. */
 const avatarSize = ringInnerSize(profileAvatarSize);
@@ -54,18 +46,38 @@ const avatarSize = ringInnerSize(profileAvatarSize);
  */
 const joinedBadgeHeight = pillHeights.md + glass.rimWidth * 2;
 
+/**
+ * The pin grid: three across the page. Square, not the portrait wall-tile
+ * shape hand-picked pins used to keep — a saved post is a day's mosaic, the
+ * same square cut the calendar's day cells and a friend's card use, and a
+ * hand-picked pin sits happily cropped into the same square beside them.
+ */
+const pinColumns = 3;
+const pinAspect = 1;
+const pinGap = spacing.md;
+
 export default function ProfileScreen() {
   const router = useRouter();
   const {
     profile,
     challenge,
-    progress,
     setAvatarPhoto,
     wall,
-    renameWallBoard,
     startPinDraft,
+    trophies,
+    livesLeft,
   } = useApp();
-  const [tab, setTab] = useState<Tab>('profile');
+
+  // Every pin from every collection, in the order the collections are held.
+  // The grouping still exists in state — a friend's wall reads it — it just
+  // has nothing to say on your own page.
+  const pins = wall.flatMap((board) => board.pins);
+
+  const { width: windowWidth } = useWindowDimensions();
+  const pinWidth = Math.floor(
+    (windowWidth - screenPadding * 2 - pinGap * (pinColumns - 1)) / pinColumns,
+  );
+  const pinHeight = Math.round(pinWidth / pinAspect);
 
   // The circle goes straight to the library sheet — no source dialog in
   // between, since picking is the only thing the tap can mean.
@@ -83,23 +95,6 @@ export default function ProfileScreen() {
     pending.current = null;
     next?.();
   };
-
-  // Days that have at least one proof photo, newest first. A day's shots are
-  // either real pictures or the drawn stand-ins, so both are carried through.
-  const photoDays = Object.keys(progress)
-    .map(Number)
-    .sort((a, b) => b - a)
-    .map((day) => ({
-      day,
-      shots: Object.entries(progress[day] ?? {})
-        .filter(([, p]) => p.photo || p.photoSeed)
-        .map(([taskId, p]) => ({
-          taskId,
-          photo: p.photo ?? null,
-          seed: p.photoSeed ?? null,
-        })),
-    }))
-    .filter((entry) => entry.shots.length > 0);
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -172,158 +167,130 @@ export default function ProfileScreen() {
               style={styles.bioPencil}
             />
           </Pressable>
+
+          {/* Part of the identity block: what the account has to show for
+              itself belongs with the name, above the page's sections. */}
+          <ProfileStats
+            stats={[
+              {
+                key: 'friends',
+                icon: 'people',
+                iconColor: colors.sky,
+                value: FRIENDS.length,
+                label: 'Friends',
+                onPress: () => router.push('/friends'),
+              },
+              {
+                key: 'trophies',
+                icon: 'trophy',
+                iconColor: colors.gold,
+                value: trophies,
+                label: 'Trophies',
+                onPress: () => router.push('/trophies'),
+              },
+              {
+                key: 'lives',
+                icon: 'heart',
+                iconColor: colors.destructive,
+                value: livesLeft,
+                label: livesLeft === 1 ? 'Life' : 'Lives',
+              },
+            ]}
+            style={styles.stats}
+          />
         </View>
 
-        <SegmentedTabs
-          options={[
-            { key: 'profile', label: 'Profile' },
-            { key: 'wall', label: 'My Wall' },
-          ]}
-          value={tab}
-          onChange={setTab}
-          style={styles.tabs}
-        />
+        {/* The same Quicksand `sectionTitle` that heads "Day 5" on To-do and
+            the rows on Discover. Pins carries no collection names any more, so
+            there is nothing underneath for a heading to have to outrank. */}
+        <Text variant="sectionTitle" style={styles.challengeTitle}>
+          Challenge
+        </Text>
 
-        {tab === 'profile' ? (
-          <>
-            <View style={styles.joined}>
-              {/* The same four tiles, at the same size, as the challenge's row
-                  on Discover — one challenge, one picture of it. */}
-              <PhotoStrip
-                photos={challengePhotos(challenge.id) ?? challenge.photoSeeds}
-                height={167}
-                style={styles.joinedStrip}
-              />
-              <View pointerEvents="none" style={styles.joinedBadge}>
-                <Pill
-                  icon="checkmark"
-                  tone="glass"
-                  bold
-                  label={`Joined ${challenge.name}`}
-                  style={styles.joinedPill}
-                />
-              </View>
-            </View>
+        <View style={styles.joined}>
+          {/* The same four tiles, at the same size, as the challenge's row
+              on Discover — one challenge, one picture of it. */}
+          <PhotoStrip
+            photos={challengePhotos(challenge.id) ?? challenge.photoSeeds}
+            height={167}
+            style={styles.joinedStrip}
+          />
+          <View pointerEvents="none" style={styles.joinedBadge}>
+            <Pill
+              icon="checkmark"
+              tone="glass"
+              bold
+              label={`Joined ${challenge.name}`}
+              style={styles.joinedPill}
+            />
+          </View>
+        </View>
 
-            {photoDays.map((entry) => (
-              <View key={entry.day} style={styles.daySection}>
-                <Text variant="sectionTitle" style={styles.dayTitle}>
-                  Day {entry.day}
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.dayRow}
-                >
-                  {entry.shots.map((shot) => (
-                    <PhotoSlot
-                      key={shot.taskId}
-                      photo={shot.photo}
-                      seed={shot.seed}
-                      width={136}
-                      height={196}
-                      shadow={false}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            ))}
+        <Text variant="sectionTitle" style={styles.pinsTitle}>
+          Pins
+        </Text>
 
-            {/* The card clips its contents, and on iOS a view cannot both
-                clip and cast — so the shadow lives out here. */}
-            <View style={styles.promoShadow}>
-              <Card onPress={() => {}} padded={false}>
-                <View style={styles.promoRow}>
-                  {/* A cut-out rather than a tile, so it stands on the card the
-                      way the day's photos stand on the To-do list. */}
-                  <Image
-                    source={require('@/assets/support/newspaper.png')}
-                    contentFit="contain"
-                    transition={200}
-                    style={styles.promoArt}
-                  />
-                  <View style={styles.promoBody}>
-                    <Headline size="title" weight={500}>
-                      {'Her 75\n*support*'}
-                    </Headline>
-                    <Text
-                      variant="bodySemi"
-                      color={colors.inkMuted}
-                      center
-                      style={styles.promoList}
-                    >
-                      {'• suggest a feature\n• report a bug\n• get help'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={22} color={colors.ink} />
-                </View>
-              </Card>
-            </View>
-
-            <View style={styles.promoShadow}>
-              <Card onPress={() => {}} padded={false}>
-                <View style={styles.promoRow}>
-                  <View style={styles.promoBody}>
-                    <View style={styles.promoAvatars}>
-                      {ambassadorFaces.map((face, i) => (
-                        <Avatar
-                          key={i}
-                          source={face}
-                          size={62}
-                          style={[styles.avatarRing, i > 0 && styles.avatarOverlap]}
-                        />
-                      ))}
-                    </View>
-                    <Headline size="title" weight={500}>
-                      {"We're hiring\nTikTok & Instagram\n*ambassadors*"}
-                    </Headline>
-                    <Text
-                      variant="bodySemi"
-                      color={colors.inkMuted}
-                      center
-                      style={styles.promoList}
-                    >
-                      Get paid to do your challenge
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={22} color={colors.ink} />
-                </View>
-              </Card>
-            </View>
-          </>
-        ) : (
-          <View>
-            {wall.map((board) => (
-              <WallSection
-                key={board.id}
-                title={board.title}
-                items={board.pins}
-                editable
-                onRename={(next) => renameWallBoard(board.id, next)}
-                onAddPhoto={() => setPinningTo(board.id)}
-                onPressItem={(item) =>
+        <View style={styles.pinGrid}>
+          {pins.map((pin) =>
+            pin.cells ? (
+              <Pressable
+                key={pin.id}
+                accessibilityRole="button"
+                accessibilityLabel={pin.title}
+                onPress={() =>
                   router.push({
                     pathname: '/wall/[id]',
-                    params: { id: item.id },
+                    params: { id: pin.id },
+                  })
+                }
+                style={({ pressed }) => [
+                  { width: pinWidth, height: pinHeight },
+                  pressed && styles.pressed,
+                ]}
+              >
+                <PhotoCollage layout="mosaic" cells={pin.cells} />
+              </Pressable>
+            ) : (
+              <PhotoSlot
+                key={pin.id}
+                photo={pin.photo}
+                seed={pin.id}
+                width={pinWidth}
+                height={pinHeight}
+                shadow={false}
+                onPress={() =>
+                  router.push({
+                    pathname: '/wall/[id]',
+                    params: { id: pin.id },
                   })
                 }
               />
-            ))}
-          </View>
-        )}
+            ),
+          )}
+
+          {/* Straight to the library: with no collection names on the page
+              there is no second thing the tile could offer to do. The pin
+              files into the first collection, which nothing here shows. */}
+          <PhotoSlot
+            seed={null}
+            width={pinWidth}
+            height={pinHeight}
+            emptyIcon="add"
+            shadow="hard"
+            onPress={() => setPinningTo(wall[0]?.id ?? null)}
+          />
+        </View>
       </ScreenScroll>
 
       <View style={styles.topBar}>
-        <IconButton
-          name="footsteps"
-          onPress={() => router.push('/account/views')}
-          accessibilityLabel="Profile views"
-        />
         <View style={styles.spacer} />
+        {/* The To-do pencil's button exactly: the default glass lens at the
+            default size, glyph set to 21. The two sit on the same line as
+            each other across the two screens, so they should not be two
+            different kinds of button. */}
         <IconButton
-          name="ellipsis-horizontal"
-          background="transparent"
-          shadow={false}
+          name="settings-outline"
+          iconSize={21}
           onPress={() => router.push('/account/settings')}
           accessibilityLabel="Settings"
         />
@@ -416,9 +383,29 @@ const styles = StyleSheet.create({
   bioPencil: {
     marginLeft: spacing.sm,
   },
-  tabs: {
-    marginTop: spacing.lg,
-    marginBottom: spacing['2xl'],
+  // Runs the full page width so the two hairlines land on the thirds, and sits
+  // closer to the bio above than to the first section heading below: it
+  // belongs to the name, not to the page.
+  stats: {
+    alignSelf: 'stretch',
+    marginTop: spacing.xl,
+  },
+  challengeTitle: {
+    marginTop: spacing['3xl'],
+    // The badge's top half hangs in the section's own padding, so this is the
+    // gap above the badge rather than above the photographs.
+    marginBottom: spacing.md,
+  },
+  pinsTitle: {
+    marginTop: spacing['3xl'],
+    marginBottom: spacing.lg,
+  },
+  // The tile widths are worked out from this same gap, so three land on a row
+  // with the page's own margins either side and nothing left over.
+  pinGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: pinGap,
   },
   joined: {
     marginHorizontal: -spacing.xl,
@@ -442,61 +429,5 @@ const styles = StyleSheet.create({
   },
   joinedPill: {
     alignSelf: 'center',
-  },
-  daySection: {
-    marginTop: spacing['2xl'],
-    marginHorizontal: -spacing.xl,
-    paddingLeft: spacing.xl,
-  },
-  dayTitle: {
-    marginBottom: spacing.md,
-  },
-  dayRow: {
-    gap: spacing.md,
-    paddingRight: spacing.xl,
-  },
-  // Carries the card's fill and corner as well as the shadow: on iOS a
-  // transparent host squares the shadow off at its bounds instead of letting
-  // it follow the rounded edge.
-  promoShadow: {
-    marginTop: spacing['2xl'],
-    borderRadius: radii.card,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  promoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  // The art keeps its own proportions, so the cut-out never letterboxes.
-  // The shadow sits on the image itself rather than on a wrapper: a
-  // transparent wrapper squares it off at the bounds instead of letting it
-  // follow the figure.
-  promoArt: {
-    width: 96,
-    aspectRatio: 597 / 727,
-    ...shadows.hard,
-  },
-  promoBody: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  promoList: {
-    marginTop: spacing.sm,
-  },
-  promoAvatars: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  // The faces overlap, so each carries the card's own colour as a ring and the
-  // one behind stops bleeding into the one in front.
-  avatarRing: {
-    borderWidth: 3,
-    borderColor: colors.surface,
-  },
-  avatarOverlap: {
-    marginLeft: -spacing.lg,
   },
 });

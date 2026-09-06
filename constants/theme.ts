@@ -15,7 +15,7 @@ export const colors = {
   /** Warm off-white behind the logged-in app (home, friends, profile, settings). */
   background: '#F8F5F0',
   /** Pure white — a deliberate split from the warm app shell. Own profile,
-   * a friend's profile, a recipe and a wall day all sit on it. */
+   * a friend's profile and a wall day all sit on it. */
   backgroundPlain: '#FFFFFF',
   /** Slightly cooler off-white used by the settings stack. */
   backgroundAlt: '#F8F6F5',
@@ -27,10 +27,19 @@ export const colors = {
 
   /** Cards, the tab bar, circular icon buttons. */
   surface: '#FFFFFF',
+  /** The reaction strip's circles, which sit directly on a friend's photo —
+   * held just off full white so the picture underneath still reads through. */
+  surfaceOnPhoto: 'rgba(255,255,255,0.92)',
   /** Inset panels: the invite card, "Create Daily Task+" well. */
   surfaceMuted: '#F1F0EA',
   /** Empty photo slots and "add" tiles on the wall. */
   surfaceSunken: '#F2F2F2',
+  /**
+   * The face of a print that has not come up yet. A shade off the paper it is
+   * printed on and a shade warm of grey, the way film looks before it develops
+   * — a flat white window would read as a photograph that failed to load.
+   */
+  undeveloped: '#EBE7DF',
 
   /** Primary text and the solid pill buttons. */
   ink: '#141414',
@@ -74,12 +83,22 @@ export const colors = {
   blush: '#EEC5BF',
   gold: '#F3D362',
 
+  /** The friends stat's icon on the profile page. */
+  sky: '#5B9BD5',
+
   /** Handwritten numerals on the sticky notes. */
   stickyInk: '#2B2B2B',
 
   /** Scrims. */
   scrim: 'rgba(0,0,0,0.45)',
   scrimLight: 'rgba(28,26,24,0.18)',
+  /**
+   * The wash under a numeral or label printed straight onto a photo, where
+   * there is no room for a plate behind it — the calendar's day numbers. Held
+   * to a third so the picture still reads through it, which is as light as it
+   * can go and still carry white text over a sunlit shot.
+   */
+  scrimPhoto: 'rgba(0,0,0,0.34)',
 
   /**
    * Washes that sit *on* glass rather than on a background. They are black at a
@@ -151,7 +170,7 @@ export const fonts = {
   bodyMedium: 'Quicksand_500Medium',
   /** Card titles and buttons — strong, but below the section-title bold. */
   bodySemi: 'Quicksand_600SemiBold',
-  /** Section titles and the recipe category tabs. */
+  /** Section titles and the underlined tab rows. */
   bodyBold: 'Quicksand_700Bold',
   /** Muted secondary copy — amounts, timestamps, captions. */
   bodyLight: 'Quicksand_400Regular',
@@ -241,11 +260,21 @@ export const type = {
     lineHeight: 22,
     letterSpacing: bodyTracking,
   },
-  /** Daily-task labels, which the reference sets in the heavy cut. */
   bodyBold: {
     fontFamily: fonts.bodyBold,
     fontSize: 16,
     lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /**
+   * The daily-task label, which the reference sets in the heavy cut. A step
+   * above `bodyBold`: the to-do row lost its check circle, and the label is
+   * now the only thing holding the width beside the photo.
+   */
+  taskLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 18,
+    lineHeight: 24,
     letterSpacing: bodyTracking,
   },
   button: {
@@ -256,6 +285,17 @@ export const type = {
   },
   label: {
     fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: bodyTracking,
+  },
+  /**
+   * `label`, one step up the weight ramp — the mosaic tile's task name, which
+   * has to hold its own printed over a photo rather than sitting on plain
+   * background the way most `label` copy does.
+   */
+  labelBold: {
+    fontFamily: fonts.bodySemi,
     fontSize: 14,
     lineHeight: 18,
     letterSpacing: bodyTracking,
@@ -271,6 +311,29 @@ export const type = {
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: bodyTracking,
+  },
+  /**
+   * The uppercase stamp closing the day card — the challenge name and the
+   * handle under its rule. Letterspaced open rather than set at the body
+   * tracking: capitals pulled a point tighter crowd into a block instead of
+   * reading as something pressed onto the page.
+   */
+  /**
+   * The caption written in the chin of a print. Caveat, because a photograph
+   * laid on a page is captioned by hand — the face runs small and loose, so it
+   * sets larger than a sans would at the same optical size.
+   */
+  hand: {
+    fontFamily: fonts.hand,
+    fontSize: 17,
+    lineHeight: 20,
+    letterSpacing: 0,
+  },
+  stamp: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.2,
   },
   tab: {
     fontFamily: fonts.bodyMedium,
@@ -340,7 +403,7 @@ export const tabBarBottom = (insetBottom: number) =>
 
 /**
  * Distance from the bottom of the screen to the *top* edge of the bar, for
- * anything that has to sit clear of it (the saved-recipes button).
+ * anything that has to sit clear of it (the invite button).
  */
 export const tabBarTop = (insetBottom: number) =>
   tabBarBottom(insetBottom) + tabBar.height;
