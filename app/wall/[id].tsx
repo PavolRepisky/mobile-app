@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconButton } from '@/components/IconButton';
 import { Placeholder } from '@/components/Placeholder';
+import { PhotoCollage } from '@/components/PhotoCollage';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { colors, radii, spacing } from '@/constants/theme';
@@ -55,7 +56,9 @@ export default function WallItemScreen() {
           onPress={() => router.back()}
           accessibilityLabel="Back"
         />
-        {mine ? (
+        {/* A saved day has no title or photo of its own to rewrite — it is
+            what it was when it was pinned. */}
+        {mine && !mine.cells ? (
           <IconButton
             name="pencil"
             iconSize={21}
@@ -70,8 +73,10 @@ export default function WallItemScreen() {
         ) : null}
       </View>
 
-      <View style={styles.photo}>
-        {item.photo ? (
+      <View style={[styles.photo, mine?.cells && styles.photoGrid]}>
+        {mine?.cells ? (
+          <PhotoCollage layout="mosaic" cells={mine.cells} radius={radii.card} />
+        ) : item.photo ? (
           <Image
             source={item.photo}
             contentFit="cover"
@@ -140,6 +145,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: colors.surfaceSunken,
+  },
+  // A day's mosaic is square, not full-bleed like a single photo — centred
+  // in the space a photo would otherwise stretch to fill.
+  photoGrid: {
+    justifyContent: 'center',
   },
   caption: {
     paddingTop: spacing['2xl'],

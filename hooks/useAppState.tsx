@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import type { CollageCell } from '@/components/PhotoCollage';
 import {
   CHALLENGES,
   CUSTOM_CHALLENGE,
@@ -16,7 +17,8 @@ import {
   type Challenge,
   type ChallengeTask,
 } from '@/data/challenges';
-import { FEED_POSTS, WALL_COLLECTIONS, WALL_SECTIONS } from '@/data/content';
+import { FEED_POSTS, WALL_SECTIONS } from '@/data/content';
+import { TROPHIES } from '@/data/trophies';
 import { addDays, timeStamp } from '@/lib/format';
 import type { ImageSourcePropType } from 'react-native';
 
@@ -58,7 +60,14 @@ export interface Profile {
 export interface WallPin {
   id: string;
   title: string;
-  photo: TaskPhoto;
+  /** A hand-picked photo — a book cover, a recipe, a wishlist find. */
+  photo?: TaskPhoto;
+  /**
+   * A saved friend's day instead of one photo: the same mosaic cut their card
+   * on the Friends tab uses, so a pin reads as a day grid rather than a single
+   * print wherever it turns up. Mutually exclusive with `photo`.
+   */
+  cells?: readonly CollageCell[];
   /** The note written under the title on the pin's own screen. */
   note?: string;
   link?: string;
@@ -84,6 +93,13 @@ interface AppState {
    */
   pinDraft: { boardId: string; photo: TaskPhoto } | null;
 
+  /**
+   * The day the app was first opened. The calendar runs from this month to the
+   * current one, so it outlives any one challenge — restarting, or switching to
+   * a different challenge, must not shorten the record of months already lived.
+   */
+  installedAt: Date;
+
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
   tasks: ChallengeTask[];
@@ -92,14 +108,29 @@ interface AppState {
   paused: boolean;
 
   progress: Progress;
-  savedRecipeIds: string[];
-  /** The emoji left on a feed post, by post id. */
+  /** The emoji left on a feed post, by post id — also used for a friend's
+   * post on the Friends tab, keyed by their friend id. */
   postReactions: Record<string, string>;
+  /** Comments left on a friend's post, by friend id, oldest first. There is
+   * no one else to have posted them: this is a single-player app. */
+  friendComments: Record<string, string[]>;
+  /** A friend's day, saved to your Pins — friend id to the pin it made. */
+  savedPosts: Record<string, string>;
   inviteCode: string;
+
+  /** Challenges carried to the last day. One trophy, one finish. */
+  trophies: number;
 
   /** 1-indexed, clamped to the challenge length. */
   currentDay: number;
   endDate: Date;
+
+  /** Days already gone by with at least one task left unticked. */
+  missedDays: number;
+  /** The allowance a challenge starts with, so a screen can show "2 of 3". */
+  livesTotal: number;
+  /** What is left of that allowance, floored at zero. */
+  livesLeft: number;
 }
 
 interface AppActions {
@@ -122,6 +153,14 @@ interface AppActions {
 
   toggleTask: (taskId: string, day?: number) => void;
   setTaskPhoto: (taskId: string, photo: TaskPhoto | null, day?: number) => void;
+  /**
+   * A task is only ever ticked off by photographing it, so the shot and the
+   * tick land together rather than through two calls that could be left half
+   * applied. Retaking a photo on an already-done task keeps it done.
+   */
+  completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number) => void;
+  /** The other half of that bargain: the tick goes, and the proof goes with it. */
+  undoTask: (taskId: string, day?: number) => void;
 
   renameWallBoard: (boardId: string, title: string) => void;
   /** Opens a pin for `boardId` on the picked photo, for the Create Pin screen. */
@@ -136,9 +175,17 @@ interface AppActions {
     patch: { title: string; note?: string; link?: string; photo?: TaskPhoto },
   ) => void;
 
-  toggleSavedRecipe: (id: string) => void;
   /** Tapping the emoji already on a post takes it back off. */
   reactToPost: (postId: string, emoji: string) => void;
+  /** Appends a comment to a friend's post. Blank text is a no-op. */
+  addFriendComment: (friendId: string, text: string) => void;
+  /** Pins a friend's day grid to your Pins, or takes it back off if it is
+   * already there. */
+  toggleSavePost: (
+    friendId: string,
+    title: string,
+    cells: readonly CollageCell[],
+  ) => void;
   resetAll: () => void;
 }
 
@@ -153,6 +200,21 @@ const AppContext = createContext<AppContextValue | null>(null);
 const SEED_DAY = 5;
 
 /**
+ * How long ago the seeded account downloaded the app. Deliberately well before
+ * the seeded challenge began: the calendar starts at the install month, not at
+ * day one, and a seed that put the two on the same day would hide that.
+ */
+const SEED_INSTALLED_DAYS_AGO = 40;
+
+/**
+ * Days you are allowed to miss before the challenge is lost. Fixed at three
+ * whatever the challenge and however long it runs — a rule you can hold in
+ * your head is the point of it, and one that moved with the length would have
+ * to be explained on every screen that shows it.
+ */
+const LIVES_PER_CHALLENGE = 3;
+
+/**
  * Pin ids only have to be unique within a session; there is no backend. They
  * carry no board name: a board is identified by its title, titles have spaces
  * in them, and the id travels as a URL segment when a pin is opened.
@@ -160,38 +222,24 @@ const SEED_DAY = 5;
 let pinSeq = 0;
 
 /**
- * The wall opens with four of its eight collections already filled, from the
- * photographed sets that ship with the app — an empty wall gives no idea what
- * one is for. A collection is matched to its set by title, so the four with
- * nothing behind them (Wishlist, Supplements, Podcasts, Playlists) start bare
- * and are the ones to fill by hand.
- *
- * Ids are prefixed rather than reused: the same photographed items stand on
- * friends' walls under their own ids, and a pin sharing one would put a pencil
- * on somebody else's page.
+ * The board a saved friend's day files into. Kept off the end of the row
+ * rather than the front: the "+" tile on your own Pins always files a
+ * hand-picked photo into `wall[0]`, and a saved post landing there first
+ * would steal that slot from "My Wishlist".
  */
-const seedWall = (): WallBoard[] =>
-  WALL_SECTIONS.map((title) => ({
-    id: title,
-    title,
-    pins:
-      WALL_COLLECTIONS.find((set) => set.title === title)?.items.flatMap(
-        (item) =>
-          item.photo
-            ? [
-                {
-                  id: `pin-seed-${item.id}`,
-                  title: item.title,
-                  photo: item.photo,
-                  // Written as one field on the pin screen, so the lines the
-                  // set carries are joined back into the breaks you would
-                  // have typed.
-                  note: item.note?.join('\n'),
-                },
-              ]
-            : [],
-      ) ?? [],
-  }));
+const SAVED_POSTS_BOARD_ID = 'saved-posts';
+
+/**
+ * Every collection the wall offers starts named but empty — a heading
+ * waiting to be filled by hand, not a seeded gallery of stock photos. The
+ * saved-posts board is the one exception: it exists to be filled from the
+ * Friends tab rather than the library, so it carries no name of its own on
+ * your own Pins page.
+ */
+const seedWall = (): WallBoard[] => [
+  ...WALL_SECTIONS.map((title) => ({ id: title, title, pins: [] })),
+  { id: SAVED_POSTS_BOARD_ID, title: 'Saved Posts', pins: [] },
+];
 const SEED_CHALLENGE = CHALLENGES[0];
 
 /**
@@ -301,6 +349,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     avatar: null,
   });
 
+  // Set once and never written again: you only ever download the app the once,
+  // so there is no action that moves it and nothing to reset it to.
+  const [installedAt] = useState<Date>(() =>
+    addDays(startOfToday(), -SEED_INSTALLED_DAYS_AGO),
+  );
+
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
     tinted(SEED_CHALLENGE.tasks),
@@ -319,10 +373,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
   );
-  const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([
-    'avo-toast',
-    'salmon-tartine',
-  ]);
   // Seeded from the posts that ship already reacted to, so those stay as they
   // are until someone taps the emoji back off.
   const [postReactions, setPostReactions] = useState<Record<string, string>>(
@@ -331,7 +381,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         FEED_POSTS.filter((p) => p.reaction).map((p) => [p.id, p.reaction!]),
       ),
   );
+  const [friendComments, setFriendComments] = useState<Record<string, string[]>>({});
+  const [savedPosts, setSavedPosts] = useState<Record<string, string>>({});
   const [inviteCode] = useState(makeInviteCode);
+  // Challenges the seeded account has already finished — see data/trophies.
+  // Nothing increments this yet: reaching the last day is not an event the
+  // app observes, so the list is seeded and left alone until finishing a
+  // challenge is wired up.
+  const [trophies] = useState(TROPHIES.length);
 
   // -- derived ---------------------------------------------------------------
 
@@ -346,6 +403,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => addDays(startDate, totalDays - 1),
     [startDate, totalDays],
   );
+
+  /**
+   * Only days that are fully behind you can be missed — today is still open
+   * however little of it is ticked, which is why the walk stops short of
+   * `currentDay` rather than including it.
+   */
+  const missedDays = useMemo(() => {
+    let missed = 0;
+    for (let day = 1; day < currentDay; day += 1) {
+      const rows = progress[day];
+      if (!tasks.every((t) => rows?.[t.id]?.done)) missed += 1;
+    }
+    return missed;
+  }, [progress, currentDay, tasks]);
+
+  // Floored rather than left negative: past the allowance the challenge is
+  // lost, and how far past says nothing more than that.
+  const livesLeft = Math.max(0, LIVES_PER_CHALLENGE - missedDays);
 
   // -- actions ---------------------------------------------------------------
 
@@ -480,6 +555,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay],
   );
 
+  const completeTaskWithPhoto = useCallback(
+    (taskId: string, photo: TaskPhoto, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        const existing = dayMap[taskId];
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              ...existing,
+              done: true,
+              // Retaking leaves the original stamp alone: the task was done
+              // when it was first photographed, not when it was reshot.
+              time: existing?.done ? existing.time : timeStamp(new Date()),
+              photo,
+              // A real photo replaces the seeded stand-in rather than sitting
+              // behind it.
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
+  const undoTask = useCallback(
+    (taskId: string, day?: number) => {
+      const target = day ?? currentDay;
+      setProgress((prev) => {
+        const dayMap = prev[target] ?? {};
+        return {
+          ...prev,
+          [target]: {
+            ...dayMap,
+            [taskId]: {
+              done: false,
+              time: undefined,
+              photo: null,
+              photoSeed: null,
+            },
+          },
+        };
+      });
+    },
+    [currentDay],
+  );
+
   const renameWallBoard = useCallback((boardId: string, title: string) => {
     setWall((prev) =>
       prev.map((board) =>
@@ -542,12 +667,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const toggleSavedRecipe = useCallback((id: string) => {
-    setSavedRecipeIds((list) =>
-      list.includes(id) ? list.filter((r) => r !== id) : [...list, id],
-    );
-  }, []);
-
   const reactToPost = useCallback((postId: string, emoji: string) => {
     setPostReactions((map) => {
       if (map[postId] === emoji) {
@@ -557,6 +676,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { ...map, [postId]: emoji };
     });
   }, []);
+
+  const addFriendComment = useCallback((friendId: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setFriendComments((map) => ({
+      ...map,
+      [friendId]: [...(map[friendId] ?? []), trimmed],
+    }));
+  }, []);
+
+  const toggleSavePost = useCallback(
+    (friendId: string, title: string, cells: readonly CollageCell[]) => {
+      setSavedPosts((saved) => {
+        const existingId = saved[friendId];
+        if (existingId) {
+          setWall((prev) =>
+            prev.map((board) => ({
+              ...board,
+              pins: board.pins.filter((pin) => pin.id !== existingId),
+            })),
+          );
+          const { [friendId]: _removed, ...rest } = saved;
+          return rest;
+        }
+
+        const id = `pin-saved-${pinSeq++}`;
+        setWall((prev) =>
+          prev.map((board) =>
+            board.id === SAVED_POSTS_BOARD_ID
+              ? { ...board, pins: [...board.pins, { id, title, cells }] }
+              : board,
+          ),
+        );
+        return { ...saved, [friendId]: id };
+      });
+    },
+    [],
+  );
 
   const resetAll = useCallback(() => {
     setChallenge(SEED_CHALLENGE);
@@ -573,22 +730,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     setWall(seedWall());
     setPinDraft(null);
+    setFriendComments({});
+    setSavedPosts({});
   }, []);
 
   const value = useMemo<AppContextValue>(
     () => ({
       profile,
+      installedAt,
       challenge,
       tasks,
       startDate,
       totalDays,
       paused,
       progress,
-      savedRecipeIds,
       postReactions,
+      friendComments,
+      savedPosts,
       inviteCode,
+      trophies,
       currentDay,
       endDate,
+      missedDays,
+      livesTotal: LIVES_PER_CHALLENGE,
+      livesLeft,
       wall,
       pinDraft,
 
@@ -608,23 +773,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       restartChallenge,
       toggleTask,
       setTaskPhoto,
+      completeTaskWithPhoto,
+      undoTask,
       renameWallBoard,
       startPinDraft,
       setPinDraftPhoto,
       clearPinDraft,
       addWallPin,
       updateWallPin,
-      toggleSavedRecipe,
       reactToPost,
+      addFriendComment,
+      toggleSavePost,
       resetAll,
     }),
     [
-      profile, challenge, tasks, startDate, totalDays,
-      paused, progress, savedRecipeIds, postReactions, inviteCode,
-      currentDay, endDate, wall, pinDraft,
+      profile, installedAt, challenge, tasks, startDate, totalDays,
+      paused, progress, postReactions, friendComments, savedPosts, inviteCode, trophies,
+      currentDay, endDate, missedDays, livesLeft, wall, pinDraft,
       setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
-      toggleTask, setTaskPhoto, toggleSavedRecipe, reactToPost, resetAll,
+      toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
+      reactToPost, addFriendComment, toggleSavePost, resetAll,
       renameWallBoard, startPinDraft, setPinDraftPhoto, clearPinDraft,
       addWallPin, updateWallPin,
     ],

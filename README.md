@@ -2,7 +2,7 @@
 
 An iOS + Android app built with Expo (SDK 57), React Native and TypeScript,
 using Expo Router. It rebuilds the flows in `reference/` — a 75-day challenge
-tracker with a social layer, a recipe library and an aesthetic profile wall.
+tracker with a social layer and an aesthetic profile wall.
 
 ## Running
 
@@ -42,10 +42,10 @@ weights seen in `reference/screens/`:
 
 | Token | Face | Used by |
 |---|---|---|
-| `body` | Quicksand Medium (500) | body copy, recipe steps |
+| `body` | Quicksand Medium (500) | body copy, captions |
 | `bodyMedium` | Quicksand Medium (500) | emphasis, labels, tab bar |
 | `bodySemi` | Quicksand SemiBold (600) | buttons, card titles |
-| `bodyBold` | Quicksand Bold (700) | section titles, recipe category tabs |
+| `bodyBold` | Quicksand Bold (700) | section titles, underlined tab rows |
 | `bodyLight` | Quicksand Regular (400) | captions and muted secondary copy |
 
 Plain copy sits on Medium rather than Regular: at Regular, Quicksand reads
@@ -80,18 +80,18 @@ headlines use them together.
 
 ```
 app/                     routes (Expo Router)
-  (tabs)/                Recipes · Friends · To do · Profile
-  account/ challenge/ feed/ friend/ post/ recipe/   pushed + modal routes
+  (tabs)/                Discover · Friends · To do · Calendar · Profile
+  account/ challenge/ feed/ friend/ post/   pushed + modal routes
 components/              shared UI
 constants/theme.ts       design tokens
-data/                    mock challenges, recipes, friends, feed content
+data/                    mock challenges, friends, feed content
 hooks/useAppState.tsx    all app state, in memory
 lib/                     date/word formatting
 ```
 
 The tab bar is a floating pill drawn over the content, built on the headless
-`expo-router/ui` tabs so it can be positioned freely. Bar order follows the
-reference (Recipes · Friends · To do · Profile) while **To do** is the app's
+`expo-router/ui` tabs so it can be positioned freely. Bar order is
+Discover · Friends · To do · Calendar · Profile while **To do** is the app's
 real home and the initial route.
 
 ## State

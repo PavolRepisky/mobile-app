@@ -78,8 +78,12 @@ takes `bottomExtra` and any `ScrollViewProps`. Screens opening on a headline
 take the default `topGap`; ones opening on a control row pass a smaller value
 because the row reads as the header itself.
 
-**`ProfileLayout`** — `identity` and optional `action` nodes above `children`,
-plus `tone` / `padded` / `tabBar` / `bottomExtra`. Exports
+**`ProfileLayout`** — `identity` and optional `action` / `leading` nodes above
+`children`, plus `tone` / `padded` / `tabBar` / `bottomExtra`. `action` floats
+in the top-right corner; `leading` is the page's heading on that same line at
+the left — the To-do home's date — but it sits *in* the scroll and travels with
+it, so the title leaves the screen with the content it names while the button
+stays reachable. Exports
 `profileAvatarSize` (120), `profileActionTop` (56), `profileActionHeight` (52)
 so callers can align against it.
 
@@ -145,20 +149,112 @@ else (`visible` + `onPick`). **`ChallengeLengthSheet`** wraps `RulerSlider`.
 
 ### Content
 
-**`TaskRow`** — `label` · `done` · `time` · `photo`/`photoSeed` · `onToggle` ·
-`onPressPhoto` · `index` · `divider`. **`CheckCircle`** is exported separately
-(default size 46).
+**`TaskRow`** — `label` · `done` · `time` · `onPressPhoto` · `divider`. The row
+is a check circle, a label and a completion stamp; the proof photo is not on it
+— that lives in the day's `PhotoCollage`. **`CheckCircle`** is exported
+separately (default size 36) and takes `emptyIcon`, the glyph shown while the
+circle is still hollow. Pass it only where the circle is pressable: on a
+friend's list a camera would be inviting you to photograph their day.
 
 **`DayRing`** — `day` · `state` `'full'|'partial'|'none'` · `avatar`/`avatarSeed`
 · `size` · `onPress` · `onDoublePressDay` (the way back to today from a
 scrubbed day). `ringInnerSize(size)` gives the inner diameter.
+**`DayPill`** is the "Day N" chip on its own — `day` · `onPress` ·
+`onDoublePress` · `onLongPress`. The lens has to lap over something to refract
+it, so give it a negative margin onto whatever sits behind. `onDoublePress` is
+ignored once `onPress` is set: a tap action and a double tap cannot share a
+pill without holding every tap back to see whether a second one follows, so a
+screen wanting both puts the second on `onLongPress` — which is what the To-do
+home does (tap opens the story, hold goes back to today).
 
 **`StickyNote`** — `value` · `size` · `colorIndex` (into `stickyPalette`) ·
-`muted` · `tilt`. **`StickerCard`** — `day` · `from`/`to` · `tasks` · `mode`
-`'numbered'|'checked'` · `challengeName` · `width` · `tilt`.
+`muted` · `tilt`.
 
-**`PhotoSlot`** — `photo` or `seed` · `width`/`height`/`radius` ·
-`emptyIcon` `'camera'|'add'` · `tilt` · `shadow` `boolean|'card'|'hard'`.
+**`CalendarMonth`** — `month` (any date inside it) · `days`, a map from day of
+the month to `shots` (up to four `photo`/`seed` pairs) · `past` · `today` ·
+`label` · `onPress`. One month as a seven-column grid, Monday first, with the
+day's photographs tiled behind its numeral — one fills the cell, two split it
+across, three put one over a pair, four take a corner each. A single cover
+would say a day was one picture; the mosaic says how full it was. The heading is `sectionTitle`, not a Playfair headline: it labels a
+grid of dates rather than opening a page. Photographs lead, so a bare numeral
+stays quiet — `inkMuted` for a day already gone, `inkGhost` for one still to
+come. Today takes the ink disc a calendar always puts on it, or an ink ring when
+it already has a photo under it.
+
+**`PhotoSlot`** — `photo` or `seed` · `width` (points, or a share of the
+parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
+`emptyLabel` ·
+`emptyOutline` (the dashed field on its own, defaults to whether there is a
+label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
+`shadow` `boolean|'card'|'hard'` · `accessibilityLabel`. `emptyTone="warm"` is
+for blocks where an empty tile is a gap in a record rather than a well to
+press: the shell's muted tone inside a hairline instead of the cool grey.
+**`StickerText`** — `children` · `tilt` · `size`. A word die-cut as a sticker:
+black display type on a white plaque, applied off straight, with the prints'
+own drop shadow under it. It was first drawn as a true outline — the word laid
+down many times in white around a circle, black on top — which does not survive
+being asked for a thick one: every copy is the whole glyph, so the union closes
+the letters' counters, bridges the gaps between them, and scallops where two
+neighbouring copies meet. The plaque gets the same idea with one shape and one
+edge, and thicker is simply more paper rather than more artefact.
+
+**`DayCard`** — `day` · `date` · `cells` · `challengeName` · `handle` ·
+`background`. The day composed as one 4:5 page to be posted: a Playfair `*day* five` over the
+scattered prints on the warm paper, closed off with a drawn rule and the
+uppercase `stamp` line. It is the app's face on other people's feeds, so the
+stack — a `StickerText` day over hand-laid prints over the challenge's own
+photograph, everything under it held back by a scrim so white type reads — is
+the part that must not drift. `DayCardStory` is the same card centred on a 9:16 ink ground.
+`captureRef` is pointed straight at either through a forwarded `ref`; the
+capture and share themselves live in `lib/shareDayCard.ts`, apart from the
+views so a device problem has one file to look at.
+
+**`Polaroid`** — `width` · `photo`/`seed` · `caption` · `tilt` · `onPress`. One
+instant print: a square picture in a white frame with a deep chin under it,
+captioned by hand. The chin is the whole thing — a photograph in an even border
+is a framed picture, while one with four times as much paper below it as above
+is a Polaroid, and the eye reads that shape before it reads the picture. It is
+also where the caption goes, which is what turns proof shots into somebody's
+account of their day. Everything is a share of `width`, so the same print is a
+thumbnail on the To-do page and a full-bleed print on an export.
+
+**`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `caption` · `done` ·
+`label` · `onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'` ·
+`maxHeight`. The default `collage` is a pile of `Polaroid`s: prints off
+straight, lapping over each other, laid out against `PILES` — placements
+written by hand per count, in shares of the pile's own width. Dealt by rule a
+pile comes out evenly spaced and reads as a grid that slipped; placed, it reads
+as a handful of prints somebody put down. Every preset keeps one rule: a print
+may lap over another's picture, never over its chin, since prints are drawn in
+order and a caption buried under the next photograph reads as a rendering fault
+rather than as a pile.
+
+Because the pile is described in shares of its width it has one shape and one
+aspect, given by `collageRatio(count)`. `maxHeight` is a ceiling: where the room
+is shorter than that shape wants — the day card, whose height is fixed by its
+4:5 — the whole pile is drawn *narrower* and centred rather than squashed. The
+width it measures against comes off a bare inner view, not the styled box: a
+caller's `style` may carry padding, and `onLayout` reports the box including it.
+
+`layout="grid"` is the plain alternative — equal tiles, no tilt, task order —
+and `layout="dice"` lays five out the way the five is pipped on a die: four
+square tiles with the fifth over the middle on a white mat (any other number
+falls back to the grid). Both draw no done ticks and no dashed "add" tiles, and
+their empty tiles drop the shadow for the warm tone: they are a record of the
+day, the camera is opened from the task rows, and a gap has nothing to lift off
+the page.
+
+The To-do home and the day card both take the pile, and both pass it only what
+has actually been photographed. That is deliberate: the page you live in and
+the page you would post should not be two different pictures of the same day.
+It costs the block early in a day — it starts empty and grows a print at a
+time — but the progress line under the heading already says how much of the day
+is left, and a pile cannot carry gaps the way an even grid could. Captions come
+from `shortLabel`, which strips the parentheticals and emoji a checklist label
+carries for the list rather than for a caption, then cuts to three words:
+counting characters instead leaves "one 45-minute", which is a caption of
+nothing.
+
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.
 
@@ -175,8 +271,16 @@ screen can lock its scroll. **`ChallengePicker`** has `popular`/`custom` tabs.
 `AvatarPlaceholder` / `AvatarSilhouette` — deterministic gradient stand-ins
 seeded by a string, and the only place literal hex is allowed.
 
-**`FloatingTabBar`** + `TabBarButton` — icons `'recipes'|'friends'|'todo'|'profile'`,
-a glass lens behind the bar and a light pill behind the active tab.
+**`FloatingTabBar`** + `TabBarButton` — icons
+`'recipes'|'friends'|'todo'|'calendar'|'profile'` (outline until focused), a
+glass lens behind the bar and a light pill behind the active tab. `filled`
+turns a tab into a solid ink disc with no label — the centre tab only.
+
+**`TrophyCard`** — `trophy` · `challenge` · `width`. One finished challenge,
+flat on the page: a big gold trophy glyph, the `Headline` name under it, then
+a `DateRange`. No card surface, no photos. `app/trophies.tsx` decks every
+trophy into a horizontal, peeking, snap-scrolled row of these — one to swipe
+through at a time, reached from the Trophies column in `ProfileStats`.
 
 ---
 

@@ -52,7 +52,22 @@ export interface Friend {
   avatar: AvatarSource;
   day: number;
   bio: string | null;
-  tasks: readonly { label: string; done: boolean; time?: string }[];
+  /**
+   * How long ago today's post went up — same static-string convention as
+   * `DiscoverSection.metaTime`, since there is no backend clock to read one
+   * from. Only ever shown on the Friends tab, so the feed authors — who never
+   * appear there — leave it unset.
+   */
+  postedAgo?: string;
+  tasks: readonly {
+    label: string;
+    done: boolean;
+    time?: string;
+    /** Bundled proof photo for a done task. */
+    photo?: ImageSourcePropType;
+    /** Stand-in seed, used whenever a done task has no bundled photo yet. */
+    photoSeed?: string;
+  }[];
 }
 
 export const FRIENDS: readonly Friend[] = [
@@ -62,10 +77,50 @@ export const FRIENDS: readonly Friend[] = [
     avatar: require('../assets/friends/lily.jpg'),
     day: 3,
     bio: null,
+    postedAgo: '15h ago',
     tasks: [
-      { label: 'Follow a strict diet (no cheat meals, no alcohol)', done: true, time: '2:14 PM' },
-      { label: 'Drink water', done: true, time: '4:30 PM' },
+      {
+        label: 'Follow a strict diet (no cheat meals, no alcohol)',
+        done: true,
+        time: '2:14 PM',
+        // Already bundled for the home screen's own "eat clean" stand-in.
+        photo: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
+      },
+      {
+        label: 'Drink water',
+        done: true,
+        time: '4:30 PM',
+        // Already bundled for the water task elsewhere in the app's history.
+        photo: require('../assets/challenges/medium/infused-water.jpg'),
+      },
       { label: 'Do two 45-minute workouts, one must be outside', done: false },
+      { label: 'Read 10 pages of a non-fiction book', done: false },
+    ],
+  },
+  {
+    id: 'zoe',
+    name: 'Zoe',
+    // Not used as an avatar anywhere else in the app.
+    avatar: require('../assets/ambassadors/amb-2.jpg'),
+    day: 12,
+    bio: null,
+    postedAgo: '3h ago',
+    tasks: [
+      {
+        label: 'Follow a strict diet (no cheat meals, no alcohol)',
+        done: true,
+        time: '7:45 AM',
+        // Already bundled for the wall's own "what I eat" set.
+        photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
+      },
+      { label: 'Drink water', done: false },
+      {
+        label: 'Do two 45-minute workouts, one must be outside',
+        done: true,
+        time: '6:10 PM',
+        // Already bundled for the medium challenge's own strip.
+        photo: require('../assets/challenges/medium/outdoor-run.jpg'),
+      },
       { label: 'Read 10 pages of a non-fiction book', done: false },
     ],
   },
@@ -295,7 +350,7 @@ export const FEED_POSTS: readonly FeedPost[] = [
   },
 ];
 
-export const REACTIONS = ['❤️', '🔥', '👏', '😍', '😂'] as const;
+export const REACTIONS = ['❤️', '🔥', '👏', '😂'] as const;
 
 // ---------------------------------------------------------------------------
 // Profile wall

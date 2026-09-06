@@ -62,3 +62,57 @@ export function addDays(date: Date, days: number): Date {
 export function joinedLabel(count: number): string {
   return `+${count.toLocaleString('en-US')} joined`;
 }
+
+/**
+ * A task label cut down to what fits handwritten in the chin of a print:
+ * "Eat clean (no junk food and no alcohol) 🥗" becomes "eat clean".
+ *
+ * Parentheticals and emoji go first — they are the parts of a checklist label
+ * that exist for the list rather than for a caption. What is left is cut to a
+ * few words rather than to a character count: counting characters cuts "one
+ * 45-minute workout per day" down to "one 45-minute", which is not a caption of
+ * anything, where counting words leaves "one 45-minute workout". Nothing is
+ * ellipsised — a caption that trails off reads as something truncated, where a
+ * short one just reads as a short caption.
+ */
+export function shortLabel(label: string, maxWords = 3): string {
+  const plain = label
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(
+      /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu,
+      ' ',
+    )
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  const words = plain.split(' ');
+
+  // "One 45-minute workout per day" is about a workout, not about one of them.
+  // Dropping the leading filler buys back a word for something worth reading.
+  while (words.length > 1 && LEADING_FILLER.has(words[0])) words.shift();
+
+  return dropDanglingWord(words.slice(0, maxWords).join(' '));
+}
+
+/** Openers that carry nothing once the label is down to a few words. */
+const LEADING_FILLER = new Set(['a', 'an', 'one', 'the']);
+
+/**
+ * Words a caption must not end on. Cutting "read any book or listen to a
+ * podcast" at a word boundary leaves "read any book or", which reads as a
+ * sentence someone stopped writing; dropping the conjunction leaves "read any
+ * book", which reads as a caption.
+ */
+const DANGLING = new Set([
+  'a', 'an', 'and', 'at', 'by', 'for', 'from', 'in', 'of', 'on', 'or', 'per',
+  'the', 'to', 'with',
+]);
+
+function dropDanglingWord(text: string): string {
+  const words = text.split(' ');
+  while (words.length > 1 && DANGLING.has(words[words.length - 1])) {
+    words.pop();
+  }
+  return words.join(' ');
+}

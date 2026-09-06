@@ -11,7 +11,15 @@ import {
   View,
 } from 'react-native';
 
-import { bodyTracking, colors, fonts, radii, shadows, spacing } from '@/constants/theme';
+import {
+  absoluteFill,
+  bodyTracking,
+  colors,
+  fonts,
+  radii,
+  shadows,
+  spacing,
+} from '@/constants/theme';
 import type { Challenge, ChallengeTask } from '@/data/challenges';
 import { challengeStrip, REVIEWS } from '@/data/content';
 import { joinedLabel } from '@/lib/format';
@@ -502,7 +510,7 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   deleteLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...absoluteFill,
     backgroundColor: colors.destructive,
     flexDirection: 'row',
     alignItems: 'center',

@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
@@ -167,7 +167,7 @@ export function PopoverMenu({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...absoluteFill,
     backgroundColor: colors.frostBackdrop,
   },
   // Left unfilled, and padded on the inside instead: a background here would

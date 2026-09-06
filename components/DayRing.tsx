@@ -43,6 +43,13 @@ export interface DayRingProps {
 /** How close two taps have to fall to count as one gesture. */
 const DOUBLE_TAP_MS = 280;
 
+/**
+ * Outer height of the pill. Exported because it is laid *over* things — the
+ * ring, the collage — and whatever it laps onto has to know how far to pull
+ * itself up under it.
+ */
+export const dayPillHeight = 35;
+
 const RING_WIDTH = 3.5;
 /** No gap: the photo runs right up under the band, so the page colour never
  * shows as a pale circle between the two. */
@@ -84,19 +91,6 @@ export function DayRing({
       : state === 'partial'
         ? ([colors.field, colors.field] as const)
         : ([colors.inkGhost, colors.inkGhost] as const);
-
-  const lastTap = useRef(0);
-  const handleDayPress = () => {
-    const now = Date.now();
-    if (now - lastTap.current < DOUBLE_TAP_MS) {
-      // Cleared rather than left standing, so a third tap starts a fresh
-      // gesture instead of firing again off the second.
-      lastTap.current = 0;
-      onDoublePressDay?.();
-      return;
-    }
-    lastTap.current = now;
-  };
 
   return (
     <View style={[styles.wrap, style]}>
@@ -142,28 +136,88 @@ export function DayRing({
         </Pressable>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Day ${day}`}
-        accessibilityHint={
-          onDoublePressDay ? 'Double tap to go back to today' : undefined
-        }
-        onPress={onDoublePressDay ? handleDayPress : undefined}
+      <DayPill
+        day={day}
+        onDoublePress={onDoublePressDay}
         style={styles.dayPillWrap}
-      >
-        {/* The lens cannot clip its children and cast a shadow at once, so
-            the drop lives on this wrapper rather than on the glass. */}
-        <View style={[styles.dayPillShadow, shadows.hard]}>
-          <GlassSurface radius={radii.pill} shadow={false}>
-            <View style={styles.dayPill}>
-              <Text variant="button" style={styles.dayText}>
-                Day {day}
-              </Text>
-            </View>
-          </GlassSurface>
-        </View>
-      </Pressable>
+      />
     </View>
+  );
+}
+
+export interface DayPillProps {
+  day: number;
+  /** Opens the day's story. */
+  onPress?: () => void;
+  /**
+   * Double tap — the way back to today from a scrubbed day, on a pill that
+   * has nothing else to do with a tap. A single tap does nothing, so it
+   * cannot be hit by accident. Ignored when `onPress` is set: a screen that
+   * wants both wires the second one to `onLongPress` instead, since a tap
+   * action and a double tap cannot share the same pill without holding every
+   * tap back to see whether a second one is coming.
+   */
+  onDoublePress?: () => void;
+  /** Long press. The home for "back to today" on a pill that already taps. */
+  onLongPress?: () => void;
+  style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * The "Day N" chip: the same liquid-glass lens as the tab bar, casting the
+ * hard, offset drop the sticky note does, which is what keeps it sitting on
+ * the page rather than floating over it. It is drawn to lap over whatever is
+ * behind it — the avatar on a ring, the first print of the collage on the
+ * to-do page — because the lens has nothing to refract on bare background and
+ * flattens into a plain chip there.
+ */
+export function DayPill({
+  day,
+  onPress,
+  onDoublePress,
+  onLongPress,
+  style,
+}: DayPillProps) {
+  const lastTap = useRef(0);
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current < DOUBLE_TAP_MS) {
+      // Cleared rather than left standing, so a third tap starts a fresh
+      // gesture instead of firing again off the second.
+      lastTap.current = 0;
+      onDoublePress?.();
+      return;
+    }
+    lastTap.current = now;
+  };
+
+  const hint = onLongPress
+    ? 'Press and hold to go back to today'
+    : onDoublePress
+      ? 'Double tap to go back to today'
+      : undefined;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={onPress ? `Day ${day} story` : `Day ${day}`}
+      accessibilityHint={hint}
+      onPress={onPress ?? (onDoublePress ? handleDoubleTap : undefined)}
+      onLongPress={onLongPress}
+      style={style}
+    >
+      {/* The lens cannot clip its children and cast a shadow at once, so
+          the drop lives on this wrapper rather than on the glass. */}
+      <View style={[styles.dayPillShadow, shadows.hard]}>
+        <GlassSurface radius={radii.pill} shadow={false}>
+          <View style={styles.dayPill}>
+            <Text variant="button" style={styles.dayText}>
+              Day {day}
+            </Text>
+          </View>
+        </GlassSurface>
+      </View>
+    </Pressable>
   );
 }
 
@@ -184,6 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayPillWrap: {
+    // Laps over the bottom of the ring, which is the whole point of the lens.
     marginTop: -18,
   },
   dayPillShadow: {
@@ -194,7 +249,7 @@ const styles = StyleSheet.create({
   },
   dayPill: {
     paddingHorizontal: 18,
-    height: 35,
+    height: dayPillHeight,
     alignItems: 'center',
     justifyContent: 'center',
   },

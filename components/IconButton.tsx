@@ -29,7 +29,7 @@ export interface IconButtonProps {
 /**
  * The circular button used for back / close / edit throughout the app. It is
  * liquid glass by default: these sit *over* the page rather than in it, so
- * they take the same lens as the reaction bubbles and recipe times.
+ * they take the same lens as the reaction bubbles.
  */
 export function IconButton({
   name,

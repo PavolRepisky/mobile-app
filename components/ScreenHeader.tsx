@@ -15,7 +15,7 @@ import { Text, type TextProps } from './Text';
 export interface ScreenHeaderProps {
   /** Playfair title with optional `*accent*` markers. */
   title?: string;
-  /** Inter subtitle under the title (Settings, Profile views). */
+  /** Inter subtitle under the title. */
   subtitle?: string;
   /** Small caps Inter title instead of Playfair — used by Settings / Bio. */
   plainTitle?: string;

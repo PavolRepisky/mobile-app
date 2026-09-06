@@ -1,61 +1,65 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  type LayoutRectangle,
+} from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
-import { Card } from '@/components/Card';
-import { DayRing, type DayRingState } from '@/components/DayRing';
-import { DayScrubber } from '@/components/DayScrubber';
+import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
-import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
+import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
-import { ProfileLayout, profileAvatarSize } from '@/components/ProfileLayout';
-import { StickyNote } from '@/components/StickyNote';
-import { TaskRow } from '@/components/TaskRow';
-import { spacing } from '@/constants/theme';
+import { ProfileLayout } from '@/components/ProfileLayout';
+import { Text } from '@/components/Text';
+import { colors, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
+
+/**
+ * Experiment: the day's tasks as the same mosaic block the calendar's own day
+ * cells cut theirs — photos merged edge to edge behind a hairline seam, no
+ * frames and no dashes — except every task gets a tile, done or not, and each
+ * one carries its own label rather than an accessibility string. An
+ * unphotographed tile is a flat, quiet fill; there is no separate list below
+ * it any more, so the grid stands in for the page rather than sitting on it,
+ * and is sized to fill almost all of it.
+ */
+
+/** Diameter of a progress dot beside the "done today" line. */
+const DOT = 12;
+/** Ring weight on a dot still waiting on its task. */
+const DOT_RING = 2;
 
 export default function TodoScreen() {
   const router = useRouter();
-  const {
-    currentDay,
-    totalDays,
-    profile,
-    toggleTask,
-  } = useApp();
+  const { currentDay, totalDays, undoTask } = useApp();
 
-  // The scrubber can park on any day of the challenge; everything above and
-  // below it — the note, the ring, the task list — follows that day, not
-  // today. Days still ahead have no progress recorded, so they read as open.
-  const [selectedDay, setSelectedDay] = useState(currentDay);
-  useEffect(() => {
-    setSelectedDay(currentDay);
-  }, [currentDay]);
+  // The page is today and nothing else: with the tick scrubber gone there is
+  // no way to park on another day, so the grid reads off the current one.
+  const rows = useDayProgress(currentDay);
+  const done = rows.filter((row) => row.done).length;
 
-  const rows = useDayProgress(selectedDay);
-  const future = selectedDay > currentDay;
-
-  // The ring reads as a story ring: colour once the day is finished outright,
-  // a plain grey band while there is proof on it but tasks still open, and a
-  // lighter grey one on a day with no photos to open.
-  const ringState: DayRingState = rows.length > 0 && rows.every((row) => row.done)
-    ? 'full'
-    : rows.some((row) => row.photo || row.photoSeed)
-      ? 'partial'
-      : 'none';
+  /**
+   * The space the page actually leaves for the grid, once the heading above
+   * it has taken its own room. The mosaic block is drawn square by default;
+   * handing it this box's own ratio (height ÷ width) instead is what lets it
+   * stand as tall as the page rather than only as tall as it is wide.
+   */
+  const [gridBox, setGridBox] = useState<LayoutRectangle | null>(null);
+  const gridWidth = gridBox ? gridBox.width - screenPadding * 2 : 0;
+  const gridRatio = gridWidth > 0 && gridBox ? gridBox.height / gridWidth : 1;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
-  // The task whose photo slot was tapped: the source dialog is shared, so it
-  // needs to remember what it is picking for.
-  const [photoFor, setPhotoFor] = useState<string | null>(null);
-  /** The task the library sheet is open for, once a source has been chosen. */
-  const [libraryFor, setLibraryFor] = useState<string | null>(null);
+  /** The done task whose photo was tapped, waiting on retake-or-undo. */
+  const [doneFor, setDoneFor] = useState<string | null>(null);
 
   /**
-   * Held until the dialog has actually gone. Both destinations present
-   * something of their own — a pushed page or a second modal — and starting
-   * that while the dialog is still dismissing is what drops it on iOS.
+   * Held until the dialog has actually gone: a retake pushes the camera, and
+   * starting that while the dialog is still dismissing is what drops it on iOS.
    */
   const pending = useRef<(() => void) | null>(null);
   const runPending = () => {
@@ -64,91 +68,115 @@ export default function TodoScreen() {
     next?.();
   };
 
-  const openPicker = (source: 'camera' | 'library') => {
-    const taskId = photoFor;
-    if (!taskId) return;
-    pending.current = () => {
-      if (source === 'library') {
-        setLibraryFor(taskId);
-        return;
-      }
-      router.push({
-        pathname: '/photo/camera',
-        params: { taskId, day: String(selectedDay) },
-      });
-    };
-    setPhotoFor(null);
-    // A Modal reports its dismissal on iOS only; everywhere else there is
-    // nothing to wait for, so it runs on the spot.
-    if (Platform.OS !== 'ios') runPending();
+  /**
+   * The one way a task is ever ticked off. There is no library route and no
+   * source dialog: the proof has to be photographed on the spot, so the photo
+   * slot leads straight to the viewfinder.
+   */
+  const shoot = (taskId: string) => {
+    router.push({
+      pathname: '/photo/camera',
+      params: { taskId, day: String(currentDay) },
+    });
   };
+
+  /**
+   * What pressing a slot does, wherever it is pressed from. An empty one has
+   * a single obvious meaning, so it opens the camera outright; a filled one
+   * could mean either of two things, so it asks which.
+   */
+  const pressSlot = (row: (typeof rows)[number]) => () =>
+    row.done ? setDoneFor(row.task.id) : shoot(row.task.id);
 
   return (
     <>
+      {/* No identity: the avatar belongs on the Profile tab, and this screen
+          leads with the day itself. */}
       <ProfileLayout
         tabBar
         padded={false}
-        identity={
-          <DayRing
-            day={selectedDay}
-            state={ringState}
-            size={profileAvatarSize}
-            avatarSeed={profile.avatarSeed}
-            avatar={profile.avatar}
+        // The grid stands in for the page, so it takes whatever height the
+        // heading above it leaves rather than sitting at its own.
+        fill
+        leading={
+          // The day is the page's title, and tapping it opens that day's
+          // story — the way tapping the ring used to.
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Day ${currentDay} of ${totalDays}. Opens this day's story.`}
             onPress={() =>
               router.push({
                 pathname: '/story',
-                params: { day: String(selectedDay) },
+                params: { day: String(currentDay) },
               })
             }
-            onDoublePressDay={() => setSelectedDay(currentDay)}
-          />
+            style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+          >
+            {/* Where today stands in the challenge, said once and set big —
+                the number used to be a plain Quicksand label with the same
+                fact split off into a second line of "days left"; folded into
+                one Playfair line it reads as the day's real headline instead
+                of a caption. */}
+            <Headline size="headlineSm" align="left">
+              {`Day ${currentDay} of ${totalDays}`}
+            </Headline>
+            {/* What's left of today: the count in words, then the same thing
+                again as a dot per task, filled in as each is photographed. */}
+            <View style={styles.progressRow}>
+              <Text variant="label" color={colors.inkMuted}>
+                {done === rows.length ? 'All done today' : `${done} done today`}
+              </Text>
+              <Text variant="label" color={colors.inkMuted}>
+                ·
+              </Text>
+              <View style={styles.dots}>
+                {rows.map((row) => (
+                  <View
+                    key={row.task.id}
+                    style={[styles.dot, row.done && styles.dotDone]}
+                  />
+                ))}
+              </View>
+            </View>
+          </Pressable>
         }
         action={
-          <>
-            <StickyNote
-              value={selectedDay}
-              size={62}
-              colorIndex={0}
-              tilt={-2}
-              onPress={() => router.push('/sticker')}
-            />
-            <IconButton
-              name="pencil"
-              iconSize={21}
-              onPress={() => setMenuOpen(true)}
-              accessibilityLabel="Challenge options"
-            />
-          </>
+          <IconButton
+            name="pencil"
+            iconSize={21}
+            onPress={() => setMenuOpen(true)}
+            accessibilityLabel="Challenge options"
+          />
         }
       >
-        <DayScrubber
-          day={selectedDay}
-          totalDays={totalDays}
-          onChange={setSelectedDay}
-          style={styles.ticks}
-        />
-
-        <Card padded={false} style={styles.list}>
-          {rows.map((row, i) => (
-            <TaskRow
-              key={row.task.id}
-              label={row.task.label}
-              done={row.done}
-              time={row.time}
-              photo={row.photo}
-              photoSeed={row.photoSeed}
-              onToggle={
-                future ? undefined : () => toggleTask(row.task.id, selectedDay)
-              }
-              onPressPhoto={
-                future ? undefined : () => setPhotoFor(row.task.id)
-              }
-              index={i}
-              divider={i < rows.length - 1}
+        {/* Experiment: no separate list — every task is a tile in the day's
+            own mosaic, the label set inside it rather than beside it, a
+            camera glyph in the ones still waiting to say a tap shoots the
+            photo that finishes them. A photographed tile shows the print
+            itself and asks retake-or-undo the way the row's filled circle
+            used to — there is no tick on the corner any more, since a task's
+            place in the mosaic already says it is done. */}
+        <View
+          style={styles.gridArea}
+          onLayout={(e) => setGridBox(e.nativeEvent.layout)}
+        >
+          {gridBox ? (
+            <PhotoCollage
+              layout="mosaic"
+              showLabels
+              ratio={gridRatio}
+              style={styles.grid}
+              cells={rows.map((row) => ({
+                key: row.task.id,
+                label: row.task.label,
+                photo: row.photo,
+                seed: row.photoSeed,
+                time: row.time,
+                onPress: pressSlot(row),
+              }))}
             />
-          ))}
-        </Card>
+          ) : null}
+        </View>
       </ProfileLayout>
 
       <PopoverMenu
@@ -168,22 +196,33 @@ export default function TodoScreen() {
       />
 
       <AlertDialog
-        visible={photoFor !== null}
-        title="Today's Photo"
-        message="Add a photo for this task (visible on your profile)."
-        onDismiss={() => setPhotoFor(null)}
+        visible={doneFor !== null}
+        title="Task Done"
+        message="Take this one again, or undo it — undoing removes the photo too."
+        onDismiss={() => setDoneFor(null)}
         onDismissed={runPending}
         actions={[
-          { label: 'Camera', onPress: () => openPicker('camera') },
-          { label: 'Library', onPress: () => openPicker('library') },
-          { label: 'Cancel', onPress: () => setPhotoFor(null) },
+          {
+            label: 'Retake Photo',
+            onPress: () => {
+              const taskId = doneFor;
+              if (taskId) pending.current = () => shoot(taskId);
+              setDoneFor(null);
+              // A Modal reports its dismissal on iOS only; everywhere else
+              // there is nothing to wait for, so the push runs on the spot.
+              if (Platform.OS !== 'ios') runPending();
+            },
+          },
+          {
+            label: 'Undo Task',
+            destructive: true,
+            onPress: () => {
+              if (doneFor) undoTask(doneFor, currentDay);
+              setDoneFor(null);
+            },
+          },
+          { label: 'Cancel', onPress: () => setDoneFor(null) },
         ]}
-      />
-
-      <PhotoLibrarySheet
-        taskId={libraryFor}
-        day={selectedDay}
-        onDismiss={() => setLibraryFor(null)}
       />
 
       <AlertDialog
@@ -208,11 +247,44 @@ export default function TodoScreen() {
 }
 
 const styles = StyleSheet.create({
-  ticks: {
-    marginTop: spacing.lg,
+  pressed: {
+    opacity: 0.75,
   },
-  list: {
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  dots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  // A hollow ring rather than a flat grey disc — the same "empty outline,
+  // ink fill" the check circle used to draw on the row, so a pending dot
+  // reads as a place waiting to be filled rather than a smaller, greyer dot.
+  dot: {
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+    borderWidth: DOT_RING,
+    borderColor: colors.field,
+  },
+  dotDone: {
+    borderColor: colors.ink,
+    backgroundColor: colors.ink,
+  },
+  gridArea: {
+    flex: 1,
+    // Clear of the heading above it.
     marginTop: spacing['2xl'],
-    marginHorizontal: spacing.sm,
+  },
+  grid: {
+    // The tile hangs off the page's own gutter, the same one every other
+    // screen hangs off. Subtracted by hand from `gridArea`'s own measured
+    // width to work out the ratio the block is asked to fill — the two have
+    // to agree on the same inset.
+    paddingHorizontal: screenPadding,
   },
 });

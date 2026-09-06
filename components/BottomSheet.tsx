@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { absoluteFill, colors, radii, screenPadding, shadows, spacing } from '@/constants/theme';
 
-/** Share of the screen the tall (saved recipes) sheet occupies. */
+/** Share of the screen the tall sheet occupies. */
 const TALL_RATIO = 0.78;
 
 const DURATION = 280;
@@ -75,8 +75,8 @@ function useKeyboardInset() {
  * the tint with it, so one value fades both the blur and the dim.
  *
  * It animates in its own component because driving `intensity` means a
- * re-render per frame, and that would otherwise drag the whole sheet — saved
- * recipe grid included — through 60 renders a second.
+ * re-render per frame, and that would otherwise drag the whole sheet — every
+ * row of its contents included — through 60 renders a second.
  */
 function SheetBackdrop({
   visible,
@@ -140,7 +140,7 @@ export interface BottomSheetProps {
   children: React.ReactNode;
   /** Shows the small grabber at the top edge. */
   handle?: boolean;
-  /** Sheet fills most of the screen (the Saved recipes sheet). */
+  /** Sheet fills most of the screen and scrolls its contents. */
   tall?: boolean;
   padded?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -148,7 +148,7 @@ export interface BottomSheetProps {
 
 /**
  * Sheet anchored to the bottom edge, dimming and dismissing on backdrop tap.
- * Used for the inline task editor and the saved-recipes sheet.
+ * Used for the inline task editor.
  *
  * The two layers are animated separately rather than left to the Modal's own
  * `slide`, which drags the backdrop up with the sheet: the sheet travels up

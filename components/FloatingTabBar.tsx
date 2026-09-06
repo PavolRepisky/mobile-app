@@ -13,16 +13,32 @@ import { colors, radii, shadows, tabBar, tabBarBottom, type } from '@/constants/
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
-export type TabIcon = 'recipes' | 'friends' | 'todo' | 'profile';
+export type TabIcon = 'discover' | 'friends' | 'todo' | 'calendar' | 'profile';
 
-function Glyph({ icon, active }: { icon: TabIcon; active: boolean }) {
-  const color = colors.ink;
+/** The filled centre tab's disc. Sized to sit inside the bar with air around it. */
+const FILLED_SIZE = 52;
+
+function Glyph({
+  icon,
+  active,
+  color = colors.ink,
+}: {
+  icon: TabIcon;
+  active: boolean;
+  color?: string;
+}) {
   const size = 24;
 
   switch (icon) {
-    case 'recipes':
+    // Challenges you have not joined yet: the tab is a bearing to take, not a
+    // list to read.
+    case 'discover':
       return (
-        <Ionicons name={active ? 'grid' : 'grid-outline'} size={size} color={color} />
+        <Ionicons
+          name={active ? 'compass' : 'compass-outline'}
+          size={size + 2}
+          color={color}
+        />
       );
     case 'friends':
       return (
@@ -40,6 +56,16 @@ function Glyph({ icon, active }: { icon: TabIcon; active: boolean }) {
           color={color}
         />
       );
+    // The month grid of proof photos is a record of the days gone by, so the
+    // tab is dated rather than starred.
+    case 'calendar':
+      return (
+        <Ionicons
+          name={active ? 'calendar' : 'calendar-outline'}
+          size={size}
+          color={color}
+        />
+      );
     case 'profile':
       return (
         <Ionicons
@@ -54,6 +80,11 @@ function Glyph({ icon, active }: { icon: TabIcon; active: boolean }) {
 export interface TabBarButtonProps extends PressableProps {
   icon: TabIcon;
   label: string;
+  /**
+   * Draw the tab as a solid ink disc with no label — the centre tab, which
+   * reads as the bar's one action rather than as another destination.
+   */
+  filled?: boolean;
   /** Injected by `TabTrigger asChild`. */
   isFocused?: boolean;
 }
@@ -63,7 +94,7 @@ export interface TabBarButtonProps extends PressableProps {
  * both states, which is what the reference does.
  */
 export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
-  function TabBarButton({ icon, label, isFocused, style, ...rest }, ref) {
+  function TabBarButton({ icon, label, filled, isFocused, style, ...rest }, ref) {
     return (
       <Pressable
         ref={ref}
@@ -71,12 +102,22 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
         accessibilityState={{ selected: !!isFocused }}
         accessibilityLabel={label}
         {...rest}
-        style={[styles.tab, isFocused && styles.tabActive]}
+        style={[styles.tab, !filled && isFocused && styles.tabActive]}
       >
-        <Glyph icon={icon} active={!!isFocused} />
-        <Text variant="tab" style={styles.tabLabel}>
-          {label}
-        </Text>
+        {filled ? (
+          // The disc carries the emphasis on its own, so it looks the same
+          // focused or not — like the shutter button it is modelled on.
+          <View style={styles.disc}>
+            <Glyph icon={icon} active color={colors.inkInverse} />
+          </View>
+        ) : (
+          <>
+            <Glyph icon={icon} active={!!isFocused} />
+            <Text variant="tab" style={styles.tabLabel}>
+              {label}
+            </Text>
+          </>
+        )}
       </Pressable>
     );
   },
@@ -137,5 +178,13 @@ const styles = StyleSheet.create({
   tabLabel: {
     ...type.tab,
     color: colors.ink,
+  },
+  disc: {
+    width: FILLED_SIZE,
+    height: FILLED_SIZE,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

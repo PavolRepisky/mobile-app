@@ -30,7 +30,7 @@ function hash(seed: string): number {
 }
 
 export interface PlaceholderProps {
-  /** Any stable string — a task id, recipe name, day number. */
+  /** Any stable string — a task id, a friend's name, a day number. */
   seed?: string;
   radius?: number;
   style?: StyleProp<ViewStyle>;

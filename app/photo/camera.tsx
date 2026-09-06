@@ -23,7 +23,7 @@ export default function TaskCameraScreen() {
     /** `avatar` shoots for the profile circle instead of a task. */
     target?: string;
   }>();
-  const { setTaskPhoto, setAvatarPhoto } = useApp();
+  const { completeTaskWithPhoto, setAvatarPhoto } = useApp();
 
   const camera = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -42,7 +42,9 @@ export default function TaskCameraScreen() {
         if (target === 'avatar') {
           setAvatarPhoto({ uri: shot.uri });
         } else if (taskId) {
-          setTaskPhoto(taskId, { uri: shot.uri }, Number(day));
+          // Taking the shot is what ticks the task off — this screen is the
+          // only way a task on the list is ever completed.
+          completeTaskWithPhoto(taskId, { uri: shot.uri }, Number(day));
         }
         router.back();
         return;

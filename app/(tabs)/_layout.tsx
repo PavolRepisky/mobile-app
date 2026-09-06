@@ -7,8 +7,12 @@ import { FloatingTabBar, TabBarButton } from '@/components/FloatingTabBar';
  * Headless tabs so the bar can be a floating pill drawn over the content
  * rather than a docked bar that shortens it.
  *
- * Bar order follows the reference (Recipes · Friends · To do · Profile) while
- * To do is the app's real home, so it is the initial route.
+ * Bar order is Discover · Friends · To do · Calendar · Profile: the two social
+ * pages lead, then the day itself, then Calendar beside the page it belongs to
+ * — the month grid of proof photos is the to-do list's own history. Discover
+ * and Friends were one screen behind a switch until they earned a tab each. To
+ * do is the app's real home, so it is the initial route, and it is the one tab
+ * drawn as a filled disc.
  */
 export default function TabsLayout() {
   return (
@@ -21,8 +25,8 @@ export default function TabsLayout() {
 
       <TabList asChild>
         <FloatingTabBar>
-          <TabTrigger name="recipes" href="/recipes" asChild>
-            <TabBarButton icon="recipes" label="Recipes" />
+          <TabTrigger name="discover" href="/discover" asChild>
+            <TabBarButton icon="discover" label="Discover" />
           </TabTrigger>
 
           <TabTrigger name="friends" href="/friends" asChild>
@@ -30,7 +34,11 @@ export default function TabsLayout() {
           </TabTrigger>
 
           <TabTrigger name="todo" href="/todo" asChild>
-            <TabBarButton icon="todo" label="To do" />
+            <TabBarButton icon="todo" label="To do" filled />
+          </TabTrigger>
+
+          <TabTrigger name="calendar" href="/calendar" asChild>
+            <TabBarButton icon="calendar" label="Calendar" />
           </TabTrigger>
 
           <TabTrigger name="profile" href="/profile" asChild>
