@@ -139,9 +139,12 @@ export interface DiscoverSection {
   title: string;
   /** The four tiles standing for the challenge wherever it appears. */
   photos: readonly PhotoSource[];
-  meta: string;
-  metaTime?: string;
   members: number;
+  /**
+   * When this round started, ISO `YYYY-MM-DD`. The card's own end date is
+   * this plus the matching `Challenge.defaultDays` — never stored twice.
+   */
+  startDate: string;
 }
 
 export const DISCOVER: readonly DiscoverSection[] = [
@@ -154,8 +157,8 @@ export const DISCOVER: readonly DiscoverSection[] = [
       require('../assets/challenges/her75/terrace-treadmill.jpg'),
       require('../assets/challenges/her75/sunset-table.jpg'),
     ],
-    meta: '8 new posts',
     members: 226754,
+    startDate: '2026-06-01',
   },
   {
     id: 'hard',
@@ -166,9 +169,8 @@ export const DISCOVER: readonly DiscoverSection[] = [
       require('../assets/challenges/hard/grocery-basket.jpg'),
       require('../assets/challenges/hard/study-desk.jpg'),
     ],
-    meta: 'Sarah posted',
-    metaTime: '23h ago',
     members: 118402,
+    startDate: '2026-07-14',
   },
   {
     id: 'medium',
@@ -179,8 +181,8 @@ export const DISCOVER: readonly DiscoverSection[] = [
       require('../assets/challenges/medium/guasha-ice-bowl.jpg'),
       require('../assets/challenges/medium/book-in-bed.jpg'),
     ],
-    meta: '3 new posts',
     members: 64810,
+    startDate: '2026-08-01',
   },
   {
     id: 'soft',
@@ -191,8 +193,8 @@ export const DISCOVER: readonly DiscoverSection[] = [
       require('../assets/challenges/soft/poolside-stretch.jpg'),
       require('../assets/challenges/soft/evening-reading.jpg'),
     ],
-    meta: '12 new posts',
     members: 91233,
+    startDate: '2026-08-20',
   },
 ];
 
