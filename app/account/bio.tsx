@@ -42,16 +42,19 @@ export default function BioScreen() {
       style={[styles.root, { paddingTop: insets.top }]}
     >
       <View style={styles.header}>
+        {/* The title has to come before the buttons: it stretches full width
+            as a flex child, and painted on top it swallows taps meant for
+            whatever sits under it — the back chevron was going dead here. */}
+        <Text variant="sectionTitle" center>
+          Bio
+        </Text>
+
         <IconButton
           name="chevron-back"
           onPress={() => router.back()}
           accessibilityLabel="Go back"
           style={styles.back}
         />
-
-        <Text variant="sectionTitle" center>
-          Bio
-        </Text>
 
         <Pressable
           accessibilityRole="button"

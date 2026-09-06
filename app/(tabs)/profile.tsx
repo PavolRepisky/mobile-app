@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -10,8 +9,9 @@ import {
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { EmptyState } from '@/components/EmptyState';
+import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
-import { Pill, pillHeights } from '@/components/Pill';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
@@ -28,7 +28,6 @@ import { Text } from '@/components/Text';
 import {
   colors,
   fonts,
-  glass,
   screenPadding,
   shadows,
   spacing,
@@ -38,13 +37,6 @@ import { useApp } from '@/hooks/useAppState';
 
 /** No ring here, so the circle is the To-do ring's inner disc, not its outer. */
 const avatarSize = ringInnerSize(profileAvatarSize);
-
-/**
- * Outer height of the joined badge: the pill itself plus the glass rim it
- * carries on both edges. The badge straddles the strip's top edge, so half of
- * this hangs above the photos and half laps over them.
- */
-const joinedBadgeHeight = pillHeights.md + glass.rimWidth * 2;
 
 /**
  * The pin grid: three across the page. Square, not the portrait wall-tile
@@ -61,16 +53,18 @@ export default function ProfileScreen() {
   const {
     profile,
     challenge,
+    currentDay,
+    totalDays,
     setAvatarPhoto,
     wall,
-    startPinDraft,
     trophies,
     livesLeft,
   } = useApp();
 
   // Every pin from every collection, in the order the collections are held.
   // The grouping still exists in state — a friend's wall reads it — it just
-  // has nothing to say on your own page.
+  // has nothing to say on your own page. The only way in now is saving a
+  // friend's post, so there is nothing here to seed the grid by hand.
   const pins = wall.flatMap((board) => board.pins);
 
   const { width: windowWidth } = useWindowDimensions();
@@ -82,19 +76,6 @@ export default function ProfileScreen() {
   // The circle goes straight to the library sheet — no source dialog in
   // between, since picking is the only thing the tap can mean.
   const [libraryOpen, setLibraryOpen] = useState(false);
-
-  /** The wall collection the library was opened for, or null for the circle. */
-  const [pinningTo, setPinningTo] = useState<string | null>(null);
-  /**
-   * Held until the sheet has actually gone: pushing the Create Pin screen
-   * while it is still on its way down is what drops it on iOS.
-   */
-  const pending = useRef<(() => void) | null>(null);
-  const runPending = () => {
-    const next = pending.current;
-    pending.current = null;
-    next?.();
-  };
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -200,86 +181,75 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* The same Quicksand `sectionTitle` that heads "Day 5" on To-do and
-            the rows on Discover. Pins carries no collection names any more, so
-            there is nothing underneath for a heading to have to outrank. */}
-        <Text variant="sectionTitle" style={styles.challengeTitle}>
-          Challenge
+        {/* The challenge's own name carries the section — the same weight a
+            Discover row gives its title — with the day count under it in the
+            same words the To-do home uses for it, so the two never disagree. */}
+        <Headline size="headlineSm" align="left" style={styles.challengeTitle}>
+          {challenge.name}
+        </Headline>
+        <Text variant="bodyBold" color={colors.inkMuted} style={styles.challengeDay}>
+          Day {currentDay} of {totalDays}
         </Text>
 
-        <View style={styles.joined}>
-          {/* The same four tiles, at the same size, as the challenge's row
-              on Discover — one challenge, one picture of it. */}
-          <PhotoStrip
-            photos={challengePhotos(challenge.id) ?? challenge.photoSeeds}
-            height={167}
-            style={styles.joinedStrip}
-          />
-          <View pointerEvents="none" style={styles.joinedBadge}>
-            <Pill
-              icon="checkmark"
-              tone="glass"
-              bold
-              label={`Joined ${challenge.name}`}
-              style={styles.joinedPill}
-            />
-          </View>
-        </View>
+        {/* The same four tiles, at the same size, as the challenge's row on
+            Discover — one challenge, one picture of it. No badge on top: the
+            title above already says you're in it. */}
+        <PhotoStrip
+          photos={challengePhotos(challenge.id) ?? challenge.photoSeeds}
+          height={167}
+          style={styles.joinedStrip}
+        />
 
         <Text variant="sectionTitle" style={styles.pinsTitle}>
           Pins
         </Text>
 
-        <View style={styles.pinGrid}>
-          {pins.map((pin) =>
-            pin.cells ? (
-              <Pressable
-                key={pin.id}
-                accessibilityRole="button"
-                accessibilityLabel={pin.title}
-                onPress={() =>
-                  router.push({
-                    pathname: '/wall/[id]',
-                    params: { id: pin.id },
-                  })
-                }
-                style={({ pressed }) => [
-                  { width: pinWidth, height: pinHeight },
-                  pressed && styles.pressed,
-                ]}
-              >
-                <PhotoCollage layout="mosaic" cells={pin.cells} />
-              </Pressable>
-            ) : (
-              <PhotoSlot
-                key={pin.id}
-                photo={pin.photo}
-                seed={pin.id}
-                width={pinWidth}
-                height={pinHeight}
-                shadow={false}
-                onPress={() =>
-                  router.push({
-                    pathname: '/wall/[id]',
-                    params: { id: pin.id },
-                  })
-                }
-              />
-            ),
-          )}
-
-          {/* Straight to the library: with no collection names on the page
-              there is no second thing the tile could offer to do. The pin
-              files into the first collection, which nothing here shows. */}
-          <PhotoSlot
-            seed={null}
-            width={pinWidth}
-            height={pinHeight}
-            emptyIcon="add"
-            shadow="hard"
-            onPress={() => setPinningTo(wall[0]?.id ?? null)}
+        {pins.length === 0 ? (
+          <EmptyState
+            icon="bookmark-outline"
+            title="No pins yet"
+            hint="Save a friend's post to pin it here."
           />
-        </View>
+        ) : (
+          <View style={styles.pinGrid}>
+            {pins.map((pin) =>
+              pin.cells ? (
+                <Pressable
+                  key={pin.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={pin.title}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/wall/[id]',
+                      params: { id: pin.id },
+                    })
+                  }
+                  style={({ pressed }) => [
+                    { width: pinWidth, height: pinHeight },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <PhotoCollage layout="mosaic" cells={pin.cells} />
+                </Pressable>
+              ) : (
+                <PhotoSlot
+                  key={pin.id}
+                  photo={pin.photo}
+                  seed={pin.id}
+                  width={pinWidth}
+                  height={pinHeight}
+                  shadow={false}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/wall/[id]',
+                      params: { id: pin.id },
+                    })
+                  }
+                />
+              ),
+            )}
+          </View>
+        )}
       </ScreenScroll>
 
       <View style={styles.topBar}>
@@ -295,21 +265,6 @@ export default function ProfileScreen() {
           accessibilityLabel="Settings"
         />
       </View>
-
-      <PhotoLibrarySheet
-        visible={pinningTo !== null}
-        onPick={(photo) => {
-          const boardId = pinningTo;
-          if (!boardId) return;
-          pending.current = () => router.push('/wall/create');
-          startPinDraft(boardId, photo);
-          // A Modal reports its dismissal on iOS only; everywhere else there
-          // is nothing to wait for, so the push runs on the spot.
-          if (Platform.OS !== 'ios') runPending();
-        }}
-        onDismiss={() => setPinningTo(null)}
-        onDismissed={runPending}
-      />
 
       <PhotoLibrarySheet
         visible={libraryOpen}
@@ -392,8 +347,9 @@ const styles = StyleSheet.create({
   },
   challengeTitle: {
     marginTop: spacing['3xl'],
-    // The badge's top half hangs in the section's own padding, so this is the
-    // gap above the badge rather than above the photographs.
+  },
+  challengeDay: {
+    marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
   pinsTitle: {
@@ -407,27 +363,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: pinGap,
   },
-  joined: {
-    marginHorizontal: -spacing.xl,
-    paddingHorizontal: spacing.xl,
-    // Exactly the half of the badge that hangs above the photos.
-    paddingTop: joinedBadgeHeight / 2,
-  },
   // The strip runs wider than the page gutter on either side, as it does on
   // Discover.
   joinedStrip: {
     marginHorizontal: -spacing.sm,
-  },
-  // Pinned to the top of the section rather than to the strip, so the badge's
-  // waist lands on the strip's top edge.
-  joinedBadge: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  joinedPill: {
-    alignSelf: 'center',
   },
 });
