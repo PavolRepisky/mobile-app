@@ -33,10 +33,16 @@ import { useApp, type TaskPhoto } from '@/hooks/useAppState';
  * button in the app is the same size. */
 const ACTION_SIZE = 46;
 
-/** Width and height of a photo tile in the build-up row: narrow enough that
- * all four sit level without wrapping, tall enough to read as a print. */
-const PHOTO_WIDTH = 78;
-const PHOTO_HEIGHT = 132;
+/** Same height the preview page gives its own stacked strip. */
+const PHOTO_STRIP_HEIGHT = 190;
+
+/**
+ * How far each tile laps over the next, as a % of the strip's width, and the
+ * degrees each is nudged off square — copied from `PhotoStrip`'s own stacked
+ * layout so the photos cover each other exactly the way they do there.
+ */
+const TILE_LAP = 3;
+const TILE_TILTS = [-1.2, 1.4, -0.9, 1.6];
 
 interface DraftTask {
   id: string;
@@ -101,11 +107,14 @@ export default function CreateChallengeScreen() {
   const headerTop = Math.max(profileActionTop, topPadding(insets.top));
   const titleOffset = headerTop - topPadding(insets.top);
 
-  // The row only ever shows what's filled plus one open slot to fill next —
-  // the rest stay off until the reader reaches them, so the strip visibly
-  // builds itself the way the preview page's own photos read as laid down
-  // one at a time rather than four wells waiting at once.
-  const nextSlot = photos.findIndex((p) => p === null);
+  // The strip only ever shows what's filled plus one open slot to fill next —
+  // the rest stay off until the reader reaches them, so it visibly builds
+  // itself the way the preview page's own photos read as laid down one at a
+  // time rather than four wells waiting at once. The lap and tilt divide the
+  // strip by however many tiles are showing, so the stack re-covers itself
+  // correctly at every count from one photo up to all four.
+  const filledCount = photos.filter((p) => p !== null).length;
+  const visibleCount = Math.min(photos.length, filledCount + 1);
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -147,22 +156,42 @@ export default function CreateChallengeScreen() {
         <Text variant="sectionTitleSm" style={styles.sectionLabel}>
           Photos
         </Text>
-        <View style={styles.photoRow}>
-          {photos.map((photo, i) =>
-            photo || i === nextSlot ? (
-              <PhotoSlot
+        <View style={{ height: PHOTO_STRIP_HEIGHT }}>
+          {photos.map((photo, i) => {
+            if (i >= visibleCount) return null;
+            const share = 100 / visibleCount;
+            const left = i * share;
+            const right =
+              i === visibleCount - 1 ? 100 : (i + 1) * share + TILE_LAP;
+            return (
+              <View
                 key={i}
-                photo={photo}
-                width={PHOTO_WIDTH}
-                height={PHOTO_HEIGHT}
-                radius={radii.md}
-                tilt={photo ? (i % 2 ? 1.5 : -1.5) : undefined}
-                emptyLabel="Add photo"
-                onPress={() => setActiveSlot(i)}
-                accessibilityLabel={photo ? `Change photo ${i + 1}` : `Add photo ${i + 1}`}
-              />
-            ) : null,
-          )}
+                style={[
+                  styles.photoTile,
+                  {
+                    left: `${left}%`,
+                    width: `${right - left}%`,
+                    transform: [
+                      { rotate: `${TILE_TILTS[i % TILE_TILTS.length]}deg` },
+                    ],
+                  },
+                ]}
+              >
+                <PhotoSlot
+                  photo={photo}
+                  width="100%"
+                  height={PHOTO_STRIP_HEIGHT}
+                  radius={radii.md}
+                  shadow={false}
+                  emptyLabel={photo ? undefined : 'Add photo'}
+                  onPress={() => setActiveSlot(i)}
+                  accessibilityLabel={
+                    photo ? `Change photo ${i + 1}` : `Add photo ${i + 1}`
+                  }
+                />
+              </View>
+            );
+          })}
         </View>
 
         <Text variant="sectionTitleSm" style={styles.sectionLabel}>
@@ -171,7 +200,7 @@ export default function CreateChallengeScreen() {
         <View style={styles.taskList}>
           {tasks.map((task, i) => (
             <View key={task.id} style={styles.taskRow}>
-              <CheckCircle checked size={ACTION_SIZE} />
+              <CheckCircle checked />
               <View style={styles.taskField}>
                 <TextInput
                   value={task.label}
@@ -312,9 +341,11 @@ const styles = StyleSheet.create({
     marginTop: spacing['3xl'],
     marginBottom: spacing.lg,
   },
-  photoRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
+  photoTile: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    ...shadows.soft,
   },
   taskList: {
     marginBottom: spacing['2xl'],
