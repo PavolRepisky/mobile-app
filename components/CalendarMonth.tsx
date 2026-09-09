@@ -93,6 +93,8 @@ export interface CalendarDay {
   past?: boolean;
   /** Today, wherever in the challenge that falls. */
   today?: boolean;
+  /** Every task on this day has its photo. */
+  complete?: boolean;
   /** Read in place of the bare numeral. */
   label?: string;
   onPress?: () => void;
@@ -126,7 +128,7 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 
   return (
     <View style={style}>
-      <Text variant="sectionTitle">{`${MONTH_NAMES[index]} ${year}`}</Text>
+      <Text variant="sectionTitleSm">{`${MONTH_NAMES[index]} ${year}`}</Text>
 
       <View style={styles.weekdays}>
         {WEEKDAYS.map((name) => (
@@ -156,9 +158,12 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 }
 
 function DayCell({ date, day }: { date: number; day: CalendarDay }) {
-  const { shots, past, today, onPress } = day;
+  const { shots, past, today, complete, onPress } = day;
   const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
   const hasShot = tiles.length > 0;
+  // The story-ring only crowns today once every task on it has its photo —
+  // a single shot mid-day shouldn't read the same as a finished one.
+  const ring = today && complete;
 
   // The photographs are the page; every bare numeral stays quiet under them. A
   // day that has been and gone with nothing on it is still a day you could have
@@ -189,16 +194,16 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
 
   const content = (
     <>
-      <Mosaic tiles={tiles} date={date} today={today} />
+      <Mosaic tiles={tiles} date={date} ring={ring} />
       {/* The numeral is white on whatever the day happened to look like, so it
           needs a wash under it rather than trusting the photo to be dark. */}
-      <View style={[styles.scrim, today && styles.scrimToday]} />
+      <View style={[styles.scrim, ring && styles.scrimToday]} />
       {numeral}
     </>
   );
 
   const body = hasShot ? (
-    today ? (
+    ring ? (
       <LinearGradient
         colors={gradients.storyRing}
         start={{ x: 0.1, y: 0 }}
@@ -239,11 +244,11 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
 function Mosaic({
   tiles,
   date,
-  today,
+  ring,
 }: {
   tiles: readonly DayShot[];
   date: number;
-  today?: boolean;
+  ring?: boolean;
 }) {
   const shot = (t: DayShot, i: number) =>
     t.photo ? (
@@ -252,7 +257,7 @@ function Mosaic({
       <Placeholder key={i} seed={t.seed ?? `day-${date}-${i}`} radius={0} style={PIECE} />
     );
 
-  const photoStyle = [styles.photo, today && styles.photoToday];
+  const photoStyle = [styles.photo, ring && styles.photoToday];
 
   if (tiles.length === 1) {
     return <View style={photoStyle}>{shot(tiles[0], 0)}</View>;
