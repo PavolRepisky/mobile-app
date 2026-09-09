@@ -7,12 +7,12 @@ import { FloatingTabBar, TabBarButton } from '@/components/FloatingTabBar';
  * Headless tabs so the bar can be a floating pill drawn over the content
  * rather than a docked bar that shortens it.
  *
- * Bar order is Discover · Friends · To do · Calendar · Profile: the two social
- * pages lead, then the day itself, then Calendar beside the page it belongs to
- * — the month grid of proof photos is the to-do list's own history. Discover
- * and Friends were one screen behind a switch until they earned a tab each. To
- * do is the app's real home, so it is the initial route, and it is the one tab
- * drawn as a filled disc.
+ * Bar order is Challenges · Friends · To do · Calendar · Profile: the two
+ * social pages lead, then the day itself, then Calendar beside the page it
+ * belongs to — the month grid of proof photos is the to-do list's own
+ * history. Challenges and Friends were one screen behind a switch until they
+ * earned a tab each. To do is the app's real home, so it is the initial
+ * route, and it is the one tab drawn as a filled disc.
  */
 export default function TabsLayout() {
   return (
@@ -26,7 +26,7 @@ export default function TabsLayout() {
       <TabList asChild>
         <FloatingTabBar>
           <TabTrigger name="discover" href="/discover" asChild>
-            <TabBarButton icon="discover" label="Discover" />
+            <TabBarButton icon="discover" label="Challenges" />
           </TabTrigger>
 
           <TabTrigger name="friends" href="/friends" asChild>

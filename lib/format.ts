@@ -64,6 +64,22 @@ export function joinedLabel(count: number): string {
 }
 
 /**
+ * Rounded down to a friendly order of magnitude — a "+" badge reads as a
+ * floor on the count, not a live tally, so the exact figure would promise a
+ * precision nobody asked for.
+ */
+function roundDownToMagnitude(count: number): number {
+  const step =
+    count < 1_000 ? 100 : count < 10_000 ? 1_000 : count < 100_000 ? 10_000 : 100_000;
+  return Math.floor(count / step) * step;
+}
+
+/** 226754 → "220,000+ members". */
+export function memberCountLabel(count: number): string {
+  return `${roundDownToMagnitude(count).toLocaleString('en-US')}+ members`;
+}
+
+/**
  * A task label cut down to what fits handwritten in the chin of a print:
  * "Eat clean (no junk food and no alcohol) 🥗" becomes "eat clean".
  *

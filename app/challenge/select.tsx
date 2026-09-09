@@ -28,6 +28,7 @@ export default function SelectChallengeScreen() {
           selectChallenge(id);
           router.push('/challenge/detail');
         }}
+        onCreateNew={() => router.push('/challenge/create')}
       />
     </ScreenScroll>
   );

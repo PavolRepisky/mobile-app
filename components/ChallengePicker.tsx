@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { colors, spacing } from '@/constants/theme';
 import { CHALLENGES, CUSTOM_CHALLENGE } from '@/data/challenges';
 import { challengeStrip } from '@/data/content';
+import { useApp } from '@/hooks/useAppState';
 import { joinedLabel } from '@/lib/format';
 import { Headline } from './Headline';
 import { ChallengeRow, PhotoStrip } from './PhotoStrip';
@@ -14,19 +15,23 @@ export type PickerTab = 'popular' | 'custom';
 
 export interface ChallengePickerProps {
   onSelect: (challengeId: string) => void;
+  /** Opens the Create Challenge form. */
+  onCreateNew: () => void;
   initialTab?: PickerTab;
 }
 
 /**
- * "Select your challenge" — the Most Popular list, plus a Custom tab holding a
- * single build-your-own entry. Reached from the pencil menu on the To-do
- * home, so it lives here rather than in a route file.
+ * "Select your challenge" — the Most Popular list, plus a Custom tab holding
+ * whatever the user has built themselves. Reached from the pencil menu on the
+ * To-do home, so it lives here rather than in a route file.
  */
 export function ChallengePicker({
   onSelect,
+  onCreateNew,
   initialTab = 'popular',
 }: ChallengePickerProps) {
   const [tab, setTab] = useState<PickerTab>(initialTab);
+  const { customChallenges } = useApp();
 
   return (
     <View>
@@ -61,16 +66,26 @@ export function ChallengePicker({
         </View>
       ) : (
         <View style={styles.list}>
+          {customChallenges.map((c) => (
+            <ChallengeRow
+              key={c.id}
+              title={c.name}
+              photos={c.photos ?? challengeStrip(c.id)}
+              onPress={() => onSelect(c.id)}
+              style={styles.row}
+            />
+          ))}
+
           <PhotoStrip
             photos={challengeStrip(CUSTOM_CHALLENGE.id)}
             height={167}
-            onPress={() => onSelect(CUSTOM_CHALLENGE.id)}
+            onPress={onCreateNew}
           />
           <Text variant="sectionTitle" style={styles.customTitle}>
             Create your challenge
           </Text>
           <Text variant="body" color={colors.inkMuted}>
-            Choose your own tasks
+            Name it, add photos, and choose your own tasks
           </Text>
         </View>
       )}

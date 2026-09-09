@@ -133,6 +133,7 @@ export default function RootLayout() {
             />
             <Stack.Screen name="feed/[id]" />
             <Stack.Screen name="challenge/select" />
+            <Stack.Screen name="challenge/create" />
             <Stack.Screen name="challenge/detail" />
             <Stack.Screen name="account/settings" />
             <Stack.Screen name="account/bio" />
