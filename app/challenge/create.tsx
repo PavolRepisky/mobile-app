@@ -166,6 +166,32 @@ export default function CreateChallengeScreen() {
         <Text variant="sectionTitleSm" style={styles.sectionLabel}>
           Duration
         </Text>
+        {/* A plain stepper, set beside the ruler to compare against it —
+            both drive the same day count, so nudging either one moves both. */}
+        <View style={styles.stepperRow}>
+          <IconButton
+            name="remove"
+            size={48}
+            iconSize={20}
+            background={colors.surfaceSunken}
+            shadow={false}
+            onPress={() => setDayIndex((i) => Math.max(0, i - 1))}
+            accessibilityLabel="Fewer days"
+          />
+          <Text variant="sectionTitle" center style={styles.stepperValue}>
+            {days} days
+          </Text>
+          <IconButton
+            name="add"
+            size={48}
+            iconSize={20}
+            background={colors.surfaceSunken}
+            shadow={false}
+            onPress={() => setDayIndex((i) => Math.min(DAY_OPTIONS - 1, i + 1))}
+            accessibilityLabel="More days"
+          />
+        </View>
+
         {/* Same ruler settings drives Duration with, minus the date-range
             caption underneath it — a draft challenge has no start date yet,
             so there's nothing for it to read out but the day count itself,
@@ -369,6 +395,16 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginTop: spacing['3xl'],
     marginBottom: spacing.lg,
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xl,
+    marginBottom: spacing['2xl'],
+  },
+  stepperValue: {
+    minWidth: 96,
   },
   // Ticks run to both page edges rather than stopping at the gutter, same as
   // the settings sheet's own ruler — it reads as a strip the page is a
