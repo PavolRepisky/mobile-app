@@ -380,8 +380,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Matches "Join Challenge" on the preview page's dock — that button
+  // overrides PrimaryButton's own full pill down to this softer corner.
   addButton: {
     marginTop: spacing.lg,
+    borderRadius: radii.md,
   },
   pressed: {
     opacity: 0.85,
