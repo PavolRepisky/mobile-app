@@ -141,6 +141,9 @@ export default function CreateChallengeScreen() {
           </Text>
         </View>
 
+        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
+          Name
+        </Text>
         <Field label="Name">
           <TextInput
             value={name}
@@ -151,6 +154,9 @@ export default function CreateChallengeScreen() {
           />
         </Field>
 
+        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
+          Description
+        </Text>
         <Field label="Description" style={styles.tall}>
           <TextInput
             value={description}
@@ -331,7 +337,7 @@ function Field({
 }) {
   return (
     <View style={[styles.field, style]}>
-      <Text variant="sectionTitleSm">{label}</Text>
+      <Text variant="bodyBold">{label}</Text>
       {children}
     </View>
   );
@@ -384,7 +390,7 @@ const styles = StyleSheet.create({
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     gap: spacing.xl,
     marginBottom: spacing['2xl'],
   },
