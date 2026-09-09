@@ -141,7 +141,10 @@ export default function CreateChallengeScreen() {
           </Text>
         </View>
 
-        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
+        <Text
+          variant="sectionTitleSm"
+          style={[styles.sectionLabel, styles.detailsLabel]}
+        >
           Details
         </Text>
         <Field label="Name">
@@ -383,6 +386,11 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginTop: spacing['3xl'],
     marginBottom: spacing.lg,
+  },
+  // Field already carries its own top margin below the label, so stacking
+  // sectionLabel's own marginBottom on top of it left too much air over Name.
+  detailsLabel: {
+    marginBottom: 0,
   },
   stepperRow: {
     flexDirection: 'row',
