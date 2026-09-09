@@ -18,18 +18,14 @@ import { Text } from './Text';
 
 /**
  * The empty circle's outline: its weight, and how far outside the circle it
- * sits. Dashed at the same weight the collage's empty slots are, because they
- * are the day's two ways of drawing the same thing — a place waiting to be
- * filled — and a hollow ring next to a dashed tile reads as two different
- * states rather than one.
+ * sits.
  *
  * Laid around the circle rather than bordered onto it. A border is drawn
  * inside the box, which cuts its own weight out of the shape: the ink that
  * floods in on a tick then lands a rim smaller than the outline that promised
- * it, and the dashes read as a groove in the circle instead of a line about
- * to be filled.
+ * it.
  */
-const RING = 1.75;
+const RING = 1.5;
 
 export interface CheckCircleProps {
   checked: boolean;
@@ -47,7 +43,7 @@ export interface CheckCircleProps {
 /** Filled circle with a white tick, or a hollow outline when undone. */
 export function CheckCircle({
   checked,
-  size = 36,
+  size = 32,
   onPress,
   emptyIcon,
 }: CheckCircleProps) {
@@ -183,6 +179,13 @@ export function CheckCircle({
 export interface TaskRowProps {
   label: string;
   done: boolean;
+  /**
+   * Strikes the label through when the circle fills. Defaults to `done` —
+   * set it to `false` for a row that wants the filled circle without
+   * claiming the task itself is finished, e.g. a preview list showing what a
+   * challenge includes rather than a reader's own progress against it.
+   */
+  strike?: boolean;
   /** Completion time, e.g. "7:19am". Only shown once done. */
   time?: string | null;
   /**
@@ -194,6 +197,12 @@ export interface TaskRowProps {
   onPressPhoto?: () => void;
   /** Last row in a card omits its divider. */
   divider?: boolean;
+  /**
+   * Overrides the label's scale. Defaults to `taskLabel`, the heavy cut the
+   * to-do list sets its rows in; a page with its own bigger headline above
+   * the list can hand this a lighter variant instead of competing with it.
+   */
+  labelVariant?: keyof typeof type;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -238,9 +247,11 @@ function strikeTop(line: TextLayoutLine): number {
 export function TaskRow({
   label,
   done,
+  strike: strikeProp = done,
   time,
   onPressPhoto,
   divider = true,
+  labelVariant = 'taskLabel',
   style,
 }: TaskRowProps) {
   // Measured line boxes for the label. Empty until the text has laid out —
@@ -249,7 +260,7 @@ export function TaskRow({
   const [lines, setLines] = useState<readonly TextLayoutLine[]>([]);
   const drawn = lines.length > 0;
 
-  const strike = useRef(new Animated.Value(done ? 1 : 0)).current;
+  const strike = useRef(new Animated.Value(strikeProp ? 1 : 0)).current;
   const stamp = useRef(new Animated.Value(done && time ? 1 : 0)).current;
   const settled = useRef(false);
 
@@ -259,7 +270,7 @@ export function TaskRow({
   if (time) lastTime.current = time;
 
   useEffect(() => {
-    const shown = done ? 1 : 0;
+    const shown = strikeProp ? 1 : 0;
     // The first pass is the row appearing, not the user ticking anything.
     if (!settled.current) {
       settled.current = true;
@@ -279,12 +290,12 @@ export function TaskRow({
         duration: 260,
         // Trails the rule rather than racing it: the line lands, the time
         // follows it in.
-        delay: done ? STRIKE_MS * 0.55 : 0,
+        delay: strikeProp ? STRIKE_MS * 0.55 : 0,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
-  }, [done, strike, stamp]);
+  }, [strikeProp, strike, stamp]);
 
   const handleTextLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
     const next = e.nativeEvent.lines.filter((line) => line.width > 0);
@@ -349,9 +360,9 @@ export function TaskRow({
       >
         <View>
           <Text
-            variant="taskLabel"
+            variant={labelVariant}
             onTextLayout={handleTextLayout}
-            style={done && !drawn ? styles.struck : undefined}
+            style={strikeProp && !drawn ? styles.struck : undefined}
           >
             {label}
           </Text>
@@ -411,8 +422,9 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md,
   },
   /*
-   * The label carries no size override: it sits at the scale's own `bodyBold`
-   * and takes the width the photo left behind when it moved to the collage.
+   * The label carries no size override of its own — that comes from
+   * `labelVariant` — and takes the width the photo left behind when it moved
+   * to the collage.
    */
   struck: {
     textDecorationLine: 'line-through',
@@ -437,7 +449,6 @@ const styles = StyleSheet.create({
     right: -RING,
     bottom: -RING,
     borderWidth: RING,
-    borderStyle: 'dashed',
   },
   fill: {
     position: 'absolute',

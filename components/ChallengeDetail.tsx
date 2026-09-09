@@ -21,12 +21,11 @@ import {
   spacing,
 } from '@/constants/theme';
 import type { Challenge, ChallengeTask } from '@/data/challenges';
-import { challengeStrip, REVIEWS } from '@/data/content';
+import { challengeStrip } from '@/data/content';
 import { joinedLabel } from '@/lib/format';
 import { BottomSheet } from './BottomSheet';
 import { CheckCircle } from './TaskRow';
 import { PhotoStrip } from './PhotoStrip';
-import { ReviewCard } from './ReviewCard';
 import { StickyNote } from './StickyNote';
 import { Text } from './Text';
 
@@ -53,7 +52,7 @@ export interface ChallengeDetailProps {
 
 /**
  * The body of a challenge screen: photo strip, the "Create Daily Task+" well,
- * the reorderable sticky-note task list, then the review wall.
+ * then the reorderable sticky-note task list.
  *
  * Tapping a task's pencil raises an inline sheet with the label in a field.
  */
@@ -440,12 +439,6 @@ export function ChallengeDetail({
         })}
       </View>
 
-      <View style={styles.reviews}>
-        {REVIEWS.map((review) => (
-          <ReviewCard key={review.id} review={review} style={styles.review} />
-        ))}
-      </View>
-
       <BottomSheet visible={!!editing} onDismiss={commit} handle={false}>
         <View style={styles.editorRow}>
           {/* The note the row was carrying, so the sheet is plainly this task
@@ -532,13 +525,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: spacing.md,
-  },
-  reviews: {
-    marginTop: spacing['3xl'],
-    gap: spacing.xl,
-  },
-  review: {
-    ...shadows.soft,
   },
   editorRow: {
     flexDirection: 'row',

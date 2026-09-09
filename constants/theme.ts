@@ -47,6 +47,9 @@ export const colors = {
   inkSoft: '#3A3A3A',
   /** Timestamps, placeholders, inactive tab labels, review bodies. */
   inkMuted: '#9C9C9C',
+  /** A step darker than `inkMuted` — meta rows that want to stay quiet but
+   * still read at a glance, like the days/tasks line on the Discover list. */
+  inkFaded: '#7E7E7E',
   /**
    * Checklist labels. Sampled off the friends reference, where the task text
    * is a cool near-black rather than the flat `ink` used for titles.
@@ -230,6 +233,17 @@ export const type = {
     fontFamily: fonts.bodyBold,
     fontSize: 23,
     lineHeight: 28,
+    letterSpacing: bodyTracking,
+  },
+  /**
+   * A touch under `sectionTitle`'s own default. Discover's per-challenge
+   * titles and the preview page's "Daily Tasks" and "Reviews" headings all
+   * share this cut, so the three read as the same weight of heading.
+   */
+  sectionTitleSm: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 22,
+    lineHeight: 26,
     letterSpacing: bodyTracking,
   },
   cardTitle: {

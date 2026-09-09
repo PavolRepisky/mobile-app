@@ -200,12 +200,15 @@ export interface DiscoverSection {
    * this plus the matching `Challenge.defaultDays` — never stored twice.
    */
   startDate: string;
+  /** Who started this round. An id into `PEOPLE`, so the preview's "Created
+   * by" row opens the same profile screen the Friends tab does. */
+  creatorId: string;
 }
 
 export const DISCOVER: readonly DiscoverSection[] = [
   {
     id: 'her75',
-    title: 'Her 75 Challenge',
+    title: 'Get Fit for Summer',
     photos: [
       require('../assets/challenges/her75/gym-floor-selfie.jpg'),
       require('../assets/challenges/her75/grocery-cart.jpg'),
@@ -214,10 +217,11 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 226754,
     startDate: '2026-06-01',
+    creatorId: 'mia',
   },
   {
     id: 'hard',
-    title: '75 Day Hard',
+    title: 'No Excuses Challenge',
     photos: [
       require('../assets/challenges/hard/mirror-selfie.jpg'),
       require('../assets/challenges/hard/dumbbells-overhead.jpg'),
@@ -226,10 +230,11 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 118402,
     startDate: '2026-07-14',
+    creatorId: 'elena',
   },
   {
     id: 'medium',
-    title: '75 Medium',
+    title: 'Balanced Reset',
     photos: [
       require('../assets/challenges/medium/outdoor-run.jpg'),
       require('../assets/challenges/medium/infused-water.jpg'),
@@ -238,10 +243,11 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 64810,
     startDate: '2026-08-01',
+    creatorId: 'sofia',
   },
   {
     id: 'soft',
-    title: '75 Soft',
+    title: 'Fresh Start',
     photos: [
       require('../assets/challenges/soft/early-alarm.jpg'),
       require('../assets/challenges/soft/sunset-walk.jpg'),
@@ -250,6 +256,7 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 91233,
     startDate: '2026-08-20',
+    creatorId: 'camila',
   },
 ];
 
