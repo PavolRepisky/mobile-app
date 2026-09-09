@@ -141,10 +141,7 @@ export default function CreateChallengeScreen() {
           </Text>
         </View>
 
-        <Text
-          variant="sectionTitleSm"
-          style={[styles.sectionLabel, styles.detailsLabel]}
-        >
+        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
           Details
         </Text>
         <Field label="Name">
@@ -157,7 +154,7 @@ export default function CreateChallengeScreen() {
           />
         </Field>
 
-        <Field label="Description" style={styles.tall}>
+        <Field label="Description" style={[styles.fieldGap, styles.tall]}>
           <TextInput
             value={description}
             onChangeText={setDescription}
@@ -363,12 +360,16 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   field: {
-    marginTop: spacing['2xl'],
     borderWidth: 1,
     borderColor: colors.divider,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+  },
+  // Only between Name and Description — there's no title between the two to
+  // carry the gap the way sectionLabel does for every other field/section.
+  fieldGap: {
+    marginTop: spacing['2xl'],
   },
   tall: {
     minHeight: 148,
@@ -386,11 +387,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginTop: spacing['3xl'],
     marginBottom: spacing.lg,
-  },
-  // Field already carries its own top margin below the label, so stacking
-  // sectionLabel's own marginBottom on top of it left too much air over Name.
-  detailsLabel: {
-    marginBottom: 0,
   },
   stepperRow: {
     flexDirection: 'row',
