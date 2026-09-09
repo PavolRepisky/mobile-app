@@ -178,7 +178,7 @@ export default function CreateChallengeScreen() {
             onPress={() => setDayIndex((i) => Math.max(0, i - 1))}
             accessibilityLabel="Fewer days"
           />
-          <Text variant="sectionTitle" center style={styles.stepperValue}>
+          <Text variant="sectionTitleSm" center style={styles.stepperValue}>
             {days} days
           </Text>
           <IconButton
