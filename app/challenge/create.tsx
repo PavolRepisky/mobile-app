@@ -17,7 +17,6 @@ import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
 import { profileActionTop } from '@/components/ProfileLayout';
-import { RulerSlider } from '@/components/RulerSlider';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { CheckCircle } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
@@ -166,8 +165,6 @@ export default function CreateChallengeScreen() {
         <Text variant="sectionTitleSm" style={styles.sectionLabel}>
           Duration
         </Text>
-        {/* A plain stepper, set beside the ruler to compare against it —
-            both drive the same day count, so nudging either one moves both. */}
         <View style={styles.stepperRow}>
           <IconButton
             name="remove"
@@ -191,18 +188,6 @@ export default function CreateChallengeScreen() {
             accessibilityLabel="More days"
           />
         </View>
-
-        {/* Same ruler settings drives Duration with, minus the date-range
-            caption underneath it — a draft challenge has no start date yet,
-            so there's nothing for it to read out but the day count itself,
-            which the readout pill above the ruler already carries. */}
-        <RulerSlider
-          length={DAY_OPTIONS}
-          index={dayIndex}
-          onChange={setDayIndex}
-          readout={`${days} days`}
-          style={styles.ruler}
-        />
 
         <Text variant="sectionTitleSm" style={styles.sectionLabel}>
           Photos
@@ -346,7 +331,7 @@ function Field({
 }) {
   return (
     <View style={[styles.field, style]}>
-      <Text variant="bodyBold">{label}</Text>
+      <Text variant="sectionTitleSm">{label}</Text>
       {children}
     </View>
   );
@@ -399,18 +384,12 @@ const styles = StyleSheet.create({
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: spacing.xl,
     marginBottom: spacing['2xl'],
   },
   stepperValue: {
     minWidth: 96,
-  },
-  // Ticks run to both page edges rather than stopping at the gutter, same as
-  // the settings sheet's own ruler — it reads as a strip the page is a
-  // window onto, not a control boxed inside it.
-  ruler: {
-    marginHorizontal: -screenPadding,
   },
   photoTile: {
     position: 'absolute',
