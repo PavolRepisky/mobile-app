@@ -350,7 +350,9 @@ const styles = StyleSheet.create({
     ...shadows.soft,
   },
   taskList: {
-    marginBottom: spacing['2xl'],
+    // No margin of its own — ScreenScroll's own bottom padding is already
+    // the page's closing air; stacking this on top of it was what read as a
+    // dead gap under the last button.
   },
   taskRow: {
     flexDirection: 'row',
