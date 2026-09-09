@@ -142,7 +142,7 @@ export default function CreateChallengeScreen() {
         </View>
 
         <Text variant="sectionTitleSm" style={styles.sectionLabel}>
-          Name
+          Details
         </Text>
         <Field label="Name">
           <TextInput
@@ -154,9 +154,6 @@ export default function CreateChallengeScreen() {
           />
         </Field>
 
-        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
-          Description
-        </Text>
         <Field label="Description" style={styles.tall}>
           <TextInput
             value={description}
