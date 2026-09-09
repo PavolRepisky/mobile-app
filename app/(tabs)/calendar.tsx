@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   CalendarMonth,
@@ -8,7 +9,9 @@ import {
   type CalendarDay,
   type DayShot,
 } from '@/components/CalendarMonth';
-import { ScreenScroll } from '@/components/Screen';
+import { profileActionHeight, profileActionTop } from '@/components/ProfileLayout';
+import { ScreenScroll, topPadding } from '@/components/Screen';
+import { Text } from '@/components/Text';
 import { spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 
@@ -25,7 +28,13 @@ import { useApp } from '@/hooks/useAppState';
  */
 export default function CalendarScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { installedAt, tasks, progress, startDate, totalDays } = useApp();
+
+  // Lines the title up on the same row every other tab root's corner button
+  // sits on, the way Discover's own "Challenges" title does — even though
+  // this screen has no button of its own to share the line with.
+  const titleOffset = Math.max(profileActionTop, topPadding(insets.top)) - topPadding(insets.top);
 
   const months = useMemo(() => {
     const today = new Date();
@@ -96,6 +105,12 @@ export default function CalendarScreen() {
 
   return (
     <ScreenScroll tabBar bottomExtra={spacing['2xl']}>
+      <View style={[styles.titleBand, { marginTop: titleOffset }]}>
+        <Text variant="sectionTitle" center>
+          Calendar
+        </Text>
+      </View>
+
       {months.map((entry) => (
         <CalendarMonth
           key={entry.key}
@@ -109,6 +124,11 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
+  titleBand: {
+    minHeight: profileActionHeight,
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
   month: {
     marginBottom: spacing['3xl'],
   },
