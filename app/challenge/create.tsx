@@ -110,9 +110,7 @@ export default function CreateChallengeScreen() {
   // The strip only ever shows what's filled plus one open slot to fill next —
   // the rest stay off until the reader reaches them, so it visibly builds
   // itself the way the preview page's own photos read as laid down one at a
-  // time rather than four wells waiting at once. The lap and tilt divide the
-  // strip by however many tiles are showing, so the stack re-covers itself
-  // correctly at every count from one photo up to all four.
+  // time rather than four wells waiting at once.
   const filledCount = photos.filter((p) => p !== null).length;
   const visibleCount = Math.min(photos.length, filledCount + 1);
 
@@ -159,10 +157,14 @@ export default function CreateChallengeScreen() {
         <View style={{ height: PHOTO_STRIP_HEIGHT }}>
           {photos.map((photo, i) => {
             if (i >= visibleCount) return null;
-            const share = 100 / visibleCount;
+            // Sized against the full four-up layout, not against how many
+            // are showing yet — a lone photo keeps the width it will end up
+            // with rather than stretching to fill the empty strip and then
+            // shrinking as the rest arrive.
+            const share = 100 / photos.length;
             const left = i * share;
             const right =
-              i === visibleCount - 1 ? 100 : (i + 1) * share + TILE_LAP;
+              i === photos.length - 1 ? 100 : (i + 1) * share + TILE_LAP;
             return (
               <View
                 key={i}
