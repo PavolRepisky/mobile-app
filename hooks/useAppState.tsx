@@ -103,6 +103,9 @@ interface AppState {
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
   tasks: ChallengeTask[];
+  /** Challenges built from scratch on the Create Challenge screen, newest
+   * last. Selectable from the picker's Custom tab alongside the presets. */
+  customChallenges: Challenge[];
   startDate: Date;
   totalDays: number;
   paused: boolean;
@@ -140,6 +143,15 @@ interface AppActions {
   setAvatarPhoto: (photo: TaskPhoto | null) => void;
 
   selectChallenge: (id: string) => void;
+  /** Builds a new custom challenge from the create-challenge form, adds it to
+   * `customChallenges`, and hands it back so the screen can navigate on. */
+  addChallenge: (input: {
+    name: string;
+    description: string;
+    photos: readonly TaskPhoto[];
+    tasks: readonly string[];
+    days: number;
+  }) => Challenge;
   setTasks: (tasks: ChallengeTask[]) => void;
   updateTaskLabel: (taskId: string, label: string) => void;
   addTask: () => void;
@@ -359,6 +371,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
     tinted(SEED_CHALLENGE.tasks),
   );
+  const [customChallenges, setCustomChallenges] = useState<Challenge[]>([]);
   const [startDate, setStartDateState] = useState<Date>(
     addDays(startOfToday(), -(SEED_DAY - 1)),
   );
@@ -440,13 +453,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProfile((p) => ({ ...p, avatar }));
   }, []);
 
-  const selectChallenge = useCallback((id: string) => {
-    const next = id === CUSTOM_CHALLENGE.id ? CUSTOM_CHALLENGE : challengeById(id);
-    setChallenge(next);
-    setTasksState(tinted(next.tasks));
-    setTotalDays(next.defaultDays);
-    setProgress({});
-  }, []);
+  const selectChallenge = useCallback(
+    (id: string) => {
+      const next =
+        id === CUSTOM_CHALLENGE.id
+          ? CUSTOM_CHALLENGE
+          : customChallenges.find((c) => c.id === id) ?? challengeById(id);
+      setChallenge(next);
+      setTasksState(tinted(next.tasks));
+      setTotalDays(next.defaultDays);
+      setProgress({});
+    },
+    [customChallenges],
+  );
+
+  const addChallenge = useCallback(
+    (input: {
+      name: string;
+      description: string;
+      photos: readonly TaskPhoto[];
+      tasks: readonly string[];
+      days: number;
+    }) => {
+      const built: Challenge = {
+        id: `custom-${Date.now()}`,
+        name: input.name,
+        stamp: 'Custom',
+        description: input.description,
+        joined: 0,
+        photoSeeds: [],
+        photos: input.photos,
+        defaultDays: input.days,
+        tasks: tinted(
+          input.tasks.map((label, i) => ({ id: `ct${Date.now()}-${i}`, label })),
+        ),
+      };
+      setCustomChallenges((list) => [...list, built]);
+      return built;
+    },
+    [],
+  );
 
   const setTasks = useCallback((next: ChallengeTask[]) => {
     setTasksState(next);
@@ -756,12 +802,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       livesLeft,
       wall,
       pinDraft,
+      customChallenges,
 
       setName,
       setBio,
       setAvatarSeed,
       setAvatarPhoto,
       selectChallenge,
+      addChallenge,
       setTasks,
       updateTaskLabel,
       addTask,
@@ -789,8 +837,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       profile, installedAt, challenge, tasks, startDate, totalDays,
       paused, progress, postReactions, friendComments, savedPosts, inviteCode, trophies,
-      currentDay, endDate, missedDays, livesLeft, wall, pinDraft,
-      setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, setTasks,
+      currentDay, endDate, missedDays, livesLeft, wall, pinDraft, customChallenges,
+      setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
       toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
       reactToPost, addFriendComment, toggleSavePost, resetAll,

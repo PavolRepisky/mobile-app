@@ -12,10 +12,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/Buttons';
+import { MAX_DAYS, MIN_DAYS } from '@/components/ChallengeLengthSheet';
 import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
 import { profileActionTop } from '@/components/ProfileLayout';
+import { RulerSlider } from '@/components/RulerSlider';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { CheckCircle } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
@@ -44,6 +46,12 @@ const PHOTO_STRIP_HEIGHT = 190;
 const TILE_LAP = 3;
 const TILE_TILTS = [-1.2, 1.4, -0.9, 1.6];
 
+/** Same length options the settings ruler picks from. */
+const DAY_OPTIONS = MAX_DAYS - MIN_DAYS + 1;
+
+/** Where a fresh draft starts the ruler — the length every preset defaults to. */
+const DEFAULT_DAYS = 75;
+
 interface DraftTask {
   id: string;
   label: string;
@@ -69,9 +77,12 @@ export default function CreateChallengeScreen() {
     null,
   ]);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const [dayIndex, setDayIndex] = useState(DEFAULT_DAYS - MIN_DAYS);
   const [tasks, setTasks] = useState<DraftTask[]>([
     { id: 'draft-task-0', label: '' },
   ]);
+
+  const days = MIN_DAYS + dayIndex;
 
   const addTaskRow = () =>
     setTasks((list) => [
@@ -96,6 +107,7 @@ export default function CreateChallengeScreen() {
       description: description.trim(),
       photos: photos.filter((p): p is TaskPhoto => p !== null),
       tasks: tasks.map((t) => t.label.trim()).filter(Boolean),
+      days,
     });
     router.back();
   };
@@ -150,6 +162,21 @@ export default function CreateChallengeScreen() {
             style={[styles.input, styles.multiline]}
           />
         </Field>
+
+        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
+          Duration
+        </Text>
+        {/* Same ruler settings drives Duration with, minus the date-range
+            caption underneath it — a draft challenge has no start date yet,
+            so there's nothing for it to read out but the day count itself,
+            which the readout pill above the ruler already carries. */}
+        <RulerSlider
+          length={DAY_OPTIONS}
+          index={dayIndex}
+          onChange={setDayIndex}
+          readout={`${days} days`}
+          style={styles.ruler}
+        />
 
         <Text variant="sectionTitleSm" style={styles.sectionLabel}>
           Photos
@@ -342,6 +369,12 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginTop: spacing['3xl'],
     marginBottom: spacing.lg,
+  },
+  // Ticks run to both page edges rather than stopping at the gutter, same as
+  // the settings sheet's own ruler — it reads as a strip the page is a
+  // window onto, not a control boxed inside it.
+  ruler: {
+    marginHorizontal: -screenPadding,
   },
   photoTile: {
     position: 'absolute',

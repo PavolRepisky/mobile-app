@@ -10,9 +10,12 @@ import { DateRange } from './DateRange';
 import { Headline } from './Headline';
 import { RulerSlider } from './RulerSlider';
 
-/** 7 to 120 days, in single-day steps. */
-const MIN_DAYS = 7;
-const MAX_DAYS = 120;
+/**
+ * 7 to 120 days, in single-day steps. Exported so the create-challenge form
+ * can drive the same ruler over the same range without a second copy of it.
+ */
+export const MIN_DAYS = 7;
+export const MAX_DAYS = 120;
 const OPTIONS = MAX_DAYS - MIN_DAYS + 1;
 
 /**
