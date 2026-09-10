@@ -62,6 +62,12 @@ export const colors = {
 
   /** Text input fills and unselected control strokes. */
   field: '#CDCDCD',
+  /**
+   * A step darker than `field` — the calendar's "today, in progress" marker
+   * (the no-photo disc and the partial ring), which sits over a photo mosaic
+   * and needs more weight than a control stroke does.
+   */
+  fieldStrong: '#8C8C8C',
   /** Hairlines, and the light pill behind the active tab. */
   divider: '#E9E8E2',
   /** Slightly stronger separator inside cards. */

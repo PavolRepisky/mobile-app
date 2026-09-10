@@ -47,9 +47,10 @@ const TODAY_DISC = 32;
  * story-ring gradient as the avatar on the To-do home, so "today" reads the
  * same way everywhere it shows up. A flat colour, even a bright one, could
  * still wash out against a photo close to it in hue; the gradient always has
- * some stretch of it that doesn't.
+ * some stretch of it that doesn't. Wider than a hairline so the flat
+ * `field` band of a partial day doesn't disappear next to it.
  */
-const TODAY_RING = 3;
+const TODAY_RING = 3.5;
 
 /**
  * The mosaic and its scrim sit inside today's ring, not under it, so their
@@ -161,9 +162,13 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
   const { shots, past, today, complete, onPress } = day;
   const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
   const hasShot = tiles.length > 0;
-  // The story-ring only crowns today once every task on it has its photo —
-  // a single shot mid-day shouldn't read the same as a finished one.
-  const ring = today && complete;
+  // Same vocabulary as DayRing's avatar: `full` once every task has its
+  // photo, `partial` the moment today has any shot at all, so a day mid-way
+  // through reads as "started" the instant you take the first photo instead
+  // of staying indistinguishable from any other past day until it's done.
+  const ringKind: 'full' | 'partial' | 'none' =
+    today && complete ? 'full' : today && hasShot ? 'partial' : 'none';
+  const ring = ringKind !== 'none';
 
   // The photographs are the page; every bare numeral stays quiet under them. A
   // day that has been and gone with nothing on it is still a day you could have
@@ -181,7 +186,7 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
     <Text
       variant="bodyBold"
       color={
-        today && !overPhoto
+        today
           ? colors.inkInverse
           : overPhoto
             ? colors.inkInverse
@@ -203,7 +208,7 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
   );
 
   const body = hasShot ? (
-    ring ? (
+    ringKind === 'full' ? (
       <LinearGradient
         colors={gradients.storyRing}
         start={{ x: 0.1, y: 0 }}
@@ -212,6 +217,10 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
       >
         <View style={styles.tileInnerToday}>{content}</View>
       </LinearGradient>
+    ) : ringKind === 'partial' ? (
+      <View style={[styles.tileTodayRing, styles.tileTodayRingPartial]}>
+        <View style={styles.tileInnerToday}>{content}</View>
+      </View>
     ) : (
       <View style={styles.tile}>{content}</View>
     )
@@ -339,6 +348,12 @@ const styles = StyleSheet.create({
     padding: TODAY_RING,
     ...shadows.soft,
   },
+  // Flat instead of the gradient, and a step darker than DayRing's own
+  // partial grey — this band sits right on a photo mosaic and needs the
+  // extra weight to still read as a ring rather than a shadow.
+  tileTodayRingPartial: {
+    backgroundColor: colors.fieldStrong,
+  },
   tileInnerToday: {
     flex: 1,
     borderRadius: TODAY_INNER_RADIUS,
@@ -389,7 +404,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.pill,
-    backgroundColor: colors.ink,
+    // Same `fieldStrong` grey as the partial ring, so today reads as one
+    // colour whether it already has a photo or not.
+    backgroundColor: colors.fieldStrong,
   },
 });
 
