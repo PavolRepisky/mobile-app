@@ -677,7 +677,9 @@ export function PhotoCollage({
                   cell={cell}
                   height={GRID_HEIGHT}
                   tick={false}
-                  invite={false}
+                  // Only a cell wired up to do something invites the tap —
+                  // one just standing in a feed post has nothing to open.
+                  invite={!!cell.onPress}
                   // The dice falls back to here on a day that is not five
                   // tasks long, so its gaps have to sit back into the page the
                   // same way.
