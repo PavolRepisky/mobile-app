@@ -5,35 +5,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
-import { PhotoCollage, type CollageCell } from '@/components/PhotoCollage';
 import { profileActionTop } from '@/components/ProfileLayout';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import { colors, screenPadding, shadows, spacing } from '@/constants/theme';
-import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
+import { FEED_AUTHORS, FRIENDS } from '@/data/content';
 
 /** Matches every other tab root's own corner button. */
 const ADD_SIZE = 46;
 
 type Tab = 'friends' | 'members';
 
-const memberCell = (person: Friend, onPress: () => void): CollageCell => ({
-  key: person.id,
-  label: person.name,
-  onPress,
-  ...(typeof person.avatar === 'string'
-    ? { seed: person.avatar }
-    : { photo: person.avatar }),
-});
-
 /**
  * The people you're doing it with: your own friends' days in one feed, and
- * everyone else posting in the same challenge a tap away in Members — laid
- * out in the same mosaic grid the To-do tab cuts its own day into, so a
- * member reads as a face in that block rather than a row in a directory. The
- * header matches every other tab root's own — centred title, a black "+"
- * pinned top-right — rather than the page carrying its own floating button.
+ * everyone else posting in the same challenge in the same feed shape under
+ * Members — the same `FriendCard` post, just posted by people you haven't
+ * added rather than people you have. The header matches every other tab
+ * root's own — centred title, a black "+" pinned top-right — rather than the
+ * page carrying its own floating button.
  */
 export default function CommunityScreen() {
   const router = useRouter();
@@ -48,6 +38,8 @@ export default function CommunityScreen() {
 
   const openProfile = (id: string) =>
     router.push({ pathname: '/friend/[id]', params: { id } });
+
+  const posts = tab === 'friends' ? FRIENDS : FEED_AUTHORS;
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -70,26 +62,16 @@ export default function CommunityScreen() {
           style={styles.tabs}
         />
 
-        {tab === 'friends' ? (
-          <View style={styles.sections}>
-            {FRIENDS.map((friend) => (
-              <FriendCard
-                key={friend.id}
-                friend={friend}
-                onPress={() => openProfile(friend.id)}
-                style={styles.friendCard}
-              />
-            ))}
-          </View>
-        ) : (
-          <PhotoCollage
-            layout="mosaic"
-            showLabels
-            cells={FEED_AUTHORS.map((person) =>
-              memberCell(person, () => openProfile(person.id)),
-            )}
-          />
-        )}
+        <View style={styles.sections}>
+          {posts.map((person) => (
+            <FriendCard
+              key={person.id}
+              friend={person}
+              onPress={() => openProfile(person.id)}
+              style={styles.friendCard}
+            />
+          ))}
+        </View>
       </ScreenScroll>
 
       {/* Pinned to the same line as every other tab root's corner button,

@@ -58,8 +58,7 @@ export interface Friend {
   /**
    * How long ago today's post went up — same static-string convention as
    * `DiscoverSection.metaTime`, since there is no backend clock to read one
-   * from. Only ever shown on the Friends tab, so the feed authors — who never
-   * appear there — leave it unset.
+   * from.
    */
   postedAgo?: string;
   /** The three stats their own profile shows under its bio — the same set
@@ -155,9 +154,10 @@ const tasksDone = (times: readonly (string | null)[]) =>
 
 /**
  * The people posting in the challenge feeds. Same shape as a friend — tapping
- * an avatar in a feed opens the profile screen the Friends tab opens — but
- * kept apart from FRIENDS, since posting in a challenge you are both in does
- * not make someone your friend.
+ * an avatar in a feed opens the profile screen the Friends tab opens, and the
+ * Community tab's own Members feed is just these posts instead of FRIENDS' —
+ * but kept apart from FRIENDS, since posting in a challenge you are both in
+ * does not make someone your friend.
  */
 export const FEED_AUTHORS: readonly Friend[] = [
   {
@@ -167,6 +167,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
     day: 12,
     bio: 'purple lights and 5am alarms',
+    postedAgo: '2h ago',
     friendCount: 31,
     trophies: 6,
     livesLeft: 3,
@@ -179,6 +180,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     avatar: require('../assets/feed/author-hair-flip.jpg'),
     day: 28,
     bio: 'day 28 and finally sleeping properly',
+    postedAgo: '6h ago',
     friendCount: 40,
     trophies: 9,
     livesLeft: 1,
@@ -191,6 +193,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     avatar: require('../assets/feed/author-car-night.jpg'),
     day: 41,
     bio: 'late drives, early gym',
+    postedAgo: '20m ago',
     friendCount: 27,
     trophies: 11,
     livesLeft: 3,
@@ -203,6 +206,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
     day: 7,
     bio: 'same hoodie in every photo, sorry',
+    postedAgo: '1d ago',
     friendCount: 15,
     trophies: 1,
     livesLeft: 2,
@@ -215,6 +219,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
     day: 55,
     bio: 'started for the glow, stayed for the walks',
+    postedAgo: '9h ago',
     friendCount: 52,
     trophies: 14,
     livesLeft: 3,
