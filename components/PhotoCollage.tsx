@@ -85,9 +85,11 @@ export interface PhotoCollageProps {
    */
   ratio?: number;
   /**
-   * `mosaic` only: width of the hairline between cells, in px. Defaults to
-   * `MOSAIC_SEAM`; the to-do grid and a friend's post ask for `0` so their
-   * tiles run flush into one block with no cut between them.
+   * `mosaic` only: gap between cells, in px. Defaults to the calendar day
+   * cell's own hairline (`MOSAIC_SEAM`) and flush, square-cornered tiles; set
+   * it and every tile also rounds its own corners into that gap — the to-do
+   * grid and a friend's post ask for a real gap this way, so each tile reads
+   * as its own cut print rather than the calendar's one merged block.
    */
   seam?: number;
   style?: StyleProp<ViewStyle>;
@@ -397,14 +399,6 @@ const MOSAIC_SEAM = 1;
  * it falls in, whatever shape that row or column ends up. */
 const MOSAIC_PIECE = { flex: 1 } as const;
 
-/** How far a `seam={0}` mosaic's own tiles sit inset from their cell, on
- * every side. With no gap left between cells, each tile carries its own —
- * a grid of individually rounded prints instead of one merged block. */
-const TILE_INSET = 4;
-
-/** Corner of each of those tiles. */
-const TILE_RADIUS = 10;
-
 /**
  * How tall the mosaic block sits under its own width. Square, so a handful of
  * proof shots reads as one combined photograph rather than a list of them.
@@ -424,10 +418,11 @@ function MosaicTile({
 }) {
   const filled = !!(cell.photo || cell.seed);
 
-  // A zero-seam block has no gap of its own between cells, so each tile
-  // carries its own instead — every print its own small rounded rectangle
-  // rather than one flush, edgeless block.
-  const tileStyle = [MOSAIC_PIECE, seam === 0 && styles.mosaicTileInset];
+  // A caller with its own `seam` wants a real gap between cells rather than
+  // the default hairline, so each tile rounds its own corners into that gap
+  // instead of butting square against it — a grid of individually cut
+  // prints, not one merged block with a crack running through it.
+  const tileStyle = [MOSAIC_PIECE, seam !== undefined && styles.mosaicTileRounded];
 
   const content = cell.photo ? (
     <Image source={cell.photo} style={tileStyle} contentFit="cover" />
@@ -474,10 +469,9 @@ function MosaicTile({
       </View>
     ) : null;
 
-  // The default block sits flush edge to edge — the to-do grid wants to
-  // read as the same merged block the calendar's own day cell cuts, the
-  // moment it's standing in for rather than a set of individual cards. A
-  // `seam={0}` block trades that for `tileStyle`'s own inset instead.
+  // The default block sits flush edge to edge — the calendar's own day cell
+  // cut, one merged block rather than a set of individual cards. A caller
+  // with its own `seam` trades that for `tileStyle`'s own rounded corner.
   const piece = (
     <>
       {content}
@@ -768,11 +762,13 @@ const styles = StyleSheet.create({
   mosaicEmpty: {
     backgroundColor: colors.surfaceMuted,
   },
-  // `seam={0}` only: every tile's own inset and rounding, photographed or
-  // not — layered onto `MOSAIC_PIECE` rather than replacing it.
-  mosaicTileInset: {
-    margin: TILE_INSET,
-    borderRadius: TILE_RADIUS,
+  // A caller with its own `seam` only: every tile's own corner, layered onto
+  // `MOSAIC_PIECE` rather than replacing it. No margin — the container's
+  // `gap` (see `MosaicArrangement`) is what actually spaces the tiles apart,
+  // once each side of a pair rather than doubled up the way a per-tile inset
+  // would stack.
+  mosaicTileRounded: {
+    borderRadius: radii.sm,
   },
   mosaicInviteWrap: {
     ...absoluteFill,

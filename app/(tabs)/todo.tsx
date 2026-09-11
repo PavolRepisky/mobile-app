@@ -16,8 +16,9 @@ import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /**
  * The day opens on the calm mosaic block the calendar's own day cells cut
- * theirs — photos merged flush edge to edge, no seam between them — with an
- * open task's tile inviting a tap. That tap is the only way into the live camera
+ * theirs, but gridded rather than merged — each shot its own rounded print
+ * with a real gap between — with an open task's tile inviting a tap. That
+ * tap is the only way into the live camera
  * grid, where every other open task sits over the viewfinder as a frosted,
  * labelled tile until it is shot; closing the camera, or finishing the last
  * task, drops back to the calm view.
@@ -109,7 +110,7 @@ export default function TodoScreen() {
                 <PhotoCollage
                   layout="mosaic"
                   showLabels
-                  seam={0}
+                  seam={spacing.sm}
                   ratio={gridRatio}
                   style={styles.grid}
                   cells={rows.map((row) => ({
