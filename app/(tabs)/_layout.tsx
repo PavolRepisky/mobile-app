@@ -2,19 +2,22 @@ import { StyleSheet } from 'react-native';
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
 
 import { FloatingTabBar, TabBarButton } from '@/components/FloatingTabBar';
+import { useApp } from '@/hooks/useAppState';
 
 /**
  * Headless tabs so the bar can be a floating pill drawn over the content
  * rather than a docked bar that shortens it.
  *
- * Bar order is Discover · Friends · To do · Calendar · Profile: the two social
- * pages lead, then the day itself, then Calendar beside the page it belongs to
- * — the month grid of proof photos is the to-do list's own history. Discover
- * and Friends were one screen behind a switch until they earned a tab each. To
- * do is the app's real home, so it is the initial route, and it is the one tab
- * drawn as a filled disc.
+ * Bar order is Challenges · Community · To do · Calendar · Profile: the two
+ * social pages lead, then the day itself, then Calendar beside the page it
+ * belongs to — the month grid of proof photos is the to-do list's own
+ * history. Challenges and Community were one screen behind a switch until
+ * they earned a tab each. To do is the app's real home, so it is the initial
+ * route, and it is the one tab drawn as a filled disc.
  */
 export default function TabsLayout() {
+  const { tabBarHidden } = useApp();
+
   return (
     // `flex: 1` on both the root and the slot keeps each screen exactly one
     // viewport tall, so scroll views scroll internally and absolutely
@@ -24,13 +27,13 @@ export default function TabsLayout() {
       <TabSlot style={styles.slot} />
 
       <TabList asChild>
-        <FloatingTabBar>
+        <FloatingTabBar hidden={tabBarHidden}>
           <TabTrigger name="discover" href="/discover" asChild>
-            <TabBarButton icon="discover" label="Discover" />
+            <TabBarButton icon="discover" label="Challenges" />
           </TabTrigger>
 
-          <TabTrigger name="friends" href="/friends" asChild>
-            <TabBarButton icon="friends" label="Friends" />
+          <TabTrigger name="community" href="/community" asChild>
+            <TabBarButton icon="community" label="Community" />
           </TabTrigger>
 
           <TabTrigger name="todo" href="/todo" asChild>
