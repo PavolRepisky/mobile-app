@@ -383,9 +383,11 @@ function DiceGrid({
   );
 }
 
-/** The cut between pieces in the mosaic — a hairline of the page showing
- * through, the same seam the calendar's day cells cut their shots on. */
-const MOSAIC_SEAM = 1;
+/** The cut between pieces in the mosaic — a rule of the page showing
+ * through, the same seam the calendar's day cells cut their shots on. A
+ * touch wider than a true hairline so it reads on a light page, not just
+ * against the camera feed the live grid's own version sits on. */
+const MOSAIC_SEAM = 2;
 
 /** Every piece of the mosaic takes an equal share of whatever row or column
  * it falls in, whatever shape that row or column ends up. */
@@ -716,15 +718,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     ...shadows.soft,
   },
-  // The to-do grid's own cut: a dark seam matching the live camera grid's
-  // per-cell border, rather than the light page every other mosaic — the
-  // calendar's day cell, a friend's day — shows through its own hairline. The
+  // The to-do grid's own cut: a seam of its own rather than the light page
+  // every other mosaic — the calendar's day cell, a friend's day — shows
+  // through its own hairline. `inkFaded` rather than the live camera grid's
+  // near-black `inkSoft`: that seam sits on a dark camera feed, this one on
+  // a light page, and the same weight read as a smear of soot across it. The
   // same line also frames the block's own outer edge, so the grid reads as
   // one complete cut rather than internal seams floating with no border.
   mosaicBlockDark: {
-    backgroundColor: colors.inkSoft,
+    backgroundColor: colors.inkFaded,
     borderWidth: MOSAIC_SEAM,
-    borderColor: colors.inkSoft,
+    borderColor: colors.inkFaded,
   },
   // Sits on the photo itself, rather than hung off a card's corner the way a
   // done tick is — a time stamp is read off the print, not pinned to it as a
