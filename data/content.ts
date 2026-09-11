@@ -3,6 +3,7 @@ import type { ImageSourcePropType } from 'react-native';
 import type { AvatarSource } from '@/components/Avatar';
 import type { PhotoSource } from '@/components/PhotoStrip';
 import type { Review } from '@/components/ReviewCard';
+import { CHALLENGES } from './challenges';
 
 // ---------------------------------------------------------------------------
 // Reviews shown under every challenge detail
@@ -77,6 +78,15 @@ export interface Friend {
   }[];
 }
 
+/**
+ * The checklist everyone in a challenge is working through — read from the
+ * seed challenge itself (`useAppState`'s own `SEED_CHALLENGE`, `CHALLENGES[0]`)
+ * rather than copied out by hand, so a friend's or member's grid always has
+ * exactly as many cells as the to-do tab's own, whatever that challenge's
+ * task list happens to be.
+ */
+const CHALLENGE_TASKS = CHALLENGES[0].tasks.map((task) => task.label);
+
 export const FRIENDS: readonly Friend[] = [
   {
     id: 'lily',
@@ -91,21 +101,22 @@ export const FRIENDS: readonly Friend[] = [
     livesLeft: 3,
     tasks: [
       {
-        label: 'Follow a strict diet (no cheat meals, no alcohol)',
+        label: CHALLENGE_TASKS[0],
         done: true,
         time: '2:14 PM',
         // Already bundled for the home screen's own "eat clean" stand-in.
         photo: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
       },
       {
-        label: 'Drink water',
+        label: CHALLENGE_TASKS[1],
         done: true,
         time: '4:30 PM',
         // Already bundled for the water task elsewhere in the app's history.
         photo: require('../assets/challenges/medium/infused-water.jpg'),
       },
-      { label: 'Do two 45-minute workouts, one must be outside', done: false },
-      { label: 'Read 10 pages of a non-fiction book', done: false },
+      { label: CHALLENGE_TASKS[2], done: false },
+      { label: CHALLENGE_TASKS[3], done: false },
+      { label: CHALLENGE_TASKS[4], done: false },
     ],
   },
   {
@@ -122,29 +133,28 @@ export const FRIENDS: readonly Friend[] = [
     livesLeft: 2,
     tasks: [
       {
-        label: 'Follow a strict diet (no cheat meals, no alcohol)',
+        label: CHALLENGE_TASKS[0],
         done: true,
         time: '7:45 AM',
         // Already bundled for the wall's own "what I eat" set.
         photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
       },
-      { label: 'Drink water', done: false },
+      { label: CHALLENGE_TASKS[1], done: false },
+      { label: CHALLENGE_TASKS[2], done: false },
       {
-        label: 'Do two 45-minute workouts, one must be outside',
+        label: CHALLENGE_TASKS[3],
         done: true,
         time: '6:10 PM',
         // Already bundled for the medium challenge's own strip.
         photo: require('../assets/challenges/medium/outdoor-run.jpg'),
       },
-      { label: 'Read 10 pages of a non-fiction book', done: false },
+      { label: CHALLENGE_TASKS[4], done: false },
     ],
   },
 ];
 
-/** The checklist everyone in a challenge is working through. */
-const CHALLENGE_TASKS = FRIENDS[0].tasks.map((task) => task.label);
-
-/** Builds a person's day from which of the four tasks they have ticked off. */
+/** Builds a person's day from which of the challenge's own tasks they have
+ * ticked off, in the same order `CHALLENGE_TASKS` lists them. */
 const tasksDone = (times: readonly (string | null)[]) =>
   CHALLENGE_TASKS.map((label, i) => ({
     label,
@@ -171,7 +181,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 31,
     trophies: 6,
     livesLeft: 3,
-    tasks: tasksDone(['7:10 AM', '11:02 AM', '6:40 PM', null]),
+    tasks: tasksDone(['7:10 AM', '11:02 AM', '6:40 PM', null, '9:30 PM']),
   },
   {
     id: 'sofia',
@@ -184,7 +194,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 40,
     trophies: 9,
     livesLeft: 1,
-    tasks: tasksDone(['9:15 AM', '1:20 PM', null, '10:05 PM']),
+    tasks: tasksDone(['9:15 AM', '1:20 PM', null, '10:05 PM', null]),
   },
   {
     id: 'elena',
@@ -197,7 +207,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 27,
     trophies: 11,
     livesLeft: 3,
-    tasks: tasksDone(['6:02 AM', '8:45 AM', '7:30 PM', '9:50 PM']),
+    tasks: tasksDone(['6:02 AM', '8:45 AM', '7:30 PM', '9:50 PM', null]),
   },
   {
     id: 'nora',
@@ -210,7 +220,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 15,
     trophies: 1,
     livesLeft: 2,
-    tasks: tasksDone([null, '3:12 PM', null, null]),
+    tasks: tasksDone([null, '3:12 PM', null, null, null]),
   },
   {
     id: 'camila',
@@ -223,7 +233,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 52,
     trophies: 14,
     livesLeft: 3,
-    tasks: tasksDone(['8:30 AM', '12:00 PM', '5:15 PM', null]),
+    tasks: tasksDone(['8:30 AM', '12:00 PM', '5:15 PM', null, '9:00 PM']),
   },
 ];
 
