@@ -397,6 +397,15 @@ const MOSAIC_SEAM = 1;
  * it falls in, whatever shape that row or column ends up. */
 const MOSAIC_PIECE = { flex: 1 } as const;
 
+/** How far an empty slot sits inset from its own cell. Photographed tiles
+ * stay flush to their neighbours; this is the only gap a zero-seam mosaic
+ * has left, so it carries the job alone — big enough to read as a floating
+ * chip rather than a rounded corner on an otherwise square tile. */
+const EMPTY_INSET = 4;
+
+/** Corner of an empty slot's own inset rectangle. */
+const EMPTY_RADIUS = 10;
+
 /**
  * How tall the mosaic block sits under its own width. Square, so a handful of
  * proof shots reads as one combined photograph rather than a list of them.
@@ -407,9 +416,11 @@ const MOSAIC_RATIO = 1;
  * whatever share of the block it was given. */
 function MosaicTile({
   cell,
+  seam,
   showLabels,
 }: {
   cell: CollageCell;
+  seam?: number;
   showLabels?: boolean;
 }) {
   const filled = !!(cell.photo || cell.seed);
@@ -418,9 +429,16 @@ function MosaicTile({
     <Image source={cell.photo} style={MOSAIC_PIECE} contentFit="cover" />
   ) : filled ? (
     <Placeholder seed={cell.seed ?? cell.key} radius={0} style={MOSAIC_PIECE} />
+  ) : seam === 0 ? (
+    // A zero-seam block has no gap of its own left to mark a task still
+    // waiting on a photo, so this inset stand-in carries that gap alone —
+    // its own small floating chip rather than a flush, edgeless fill.
+    <View style={MOSAIC_PIECE}>
+      <View style={styles.mosaicEmptyInset} />
+    </View>
   ) : (
-    // No photo and nothing standing in for one: a flat, quiet fill rather
-    // than a drawn print for a task that was never taken.
+    // The seam between cells already does that job here: a flat, quiet fill
+    // rather than a drawn print for a task that was never taken.
     <View style={[MOSAIC_PIECE, styles.mosaicEmpty]} />
   );
 
@@ -459,9 +477,10 @@ function MosaicTile({
       </View>
     ) : null;
 
-  // Flush edge to edge whether or not it carries a label — the to-do grid
-  // wants to read as the same merged block the calendar's own day cell cuts,
-  // the moment it's standing in for rather than a set of individual cards.
+  // A photographed tile sits flush edge to edge — the to-do grid wants to
+  // read as the same merged block the calendar's own day cell cuts, the
+  // moment it's standing in for rather than a set of individual cards. Only
+  // an empty one on a zero-seam block insets itself; see `mosaicEmptyInset`.
   const piece = (
     <>
       {content}
@@ -598,7 +617,7 @@ function Mosaic({
               cells={cells}
               seam={seam}
               renderCell={(cell) => (
-                <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
+                <MosaicTile key={cell.key} cell={cell} seam={seam} showLabels={showLabels} />
               )}
             />
           </View>
@@ -750,6 +769,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.scrimPhoto,
   },
   mosaicEmpty: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  mosaicEmptyInset: {
+    flex: 1,
+    margin: EMPTY_INSET,
+    borderRadius: EMPTY_RADIUS,
     backgroundColor: colors.surfaceMuted,
   },
   mosaicInviteWrap: {
