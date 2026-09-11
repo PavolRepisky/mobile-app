@@ -397,14 +397,13 @@ const MOSAIC_SEAM = 1;
  * it falls in, whatever shape that row or column ends up. */
 const MOSAIC_PIECE = { flex: 1 } as const;
 
-/** How far an empty slot sits inset from its own cell. Photographed tiles
- * stay flush to their neighbours; this is the only gap a zero-seam mosaic
- * has left, so it carries the job alone — big enough to read as a floating
- * chip rather than a rounded corner on an otherwise square tile. */
-const EMPTY_INSET = 4;
+/** How far a `seam={0}` mosaic's own tiles sit inset from their cell, on
+ * every side. With no gap left between cells, each tile carries its own —
+ * a grid of individually rounded prints instead of one merged block. */
+const TILE_INSET = 4;
 
-/** Corner of an empty slot's own inset rectangle. */
-const EMPTY_RADIUS = 10;
+/** Corner of each of those tiles. */
+const TILE_RADIUS = 10;
 
 /**
  * How tall the mosaic block sits under its own width. Square, so a handful of
@@ -425,21 +424,19 @@ function MosaicTile({
 }) {
   const filled = !!(cell.photo || cell.seed);
 
+  // A zero-seam block has no gap of its own between cells, so each tile
+  // carries its own instead — every print its own small rounded rectangle
+  // rather than one flush, edgeless block.
+  const tileStyle = [MOSAIC_PIECE, seam === 0 && styles.mosaicTileInset];
+
   const content = cell.photo ? (
-    <Image source={cell.photo} style={MOSAIC_PIECE} contentFit="cover" />
+    <Image source={cell.photo} style={tileStyle} contentFit="cover" />
   ) : filled ? (
-    <Placeholder seed={cell.seed ?? cell.key} radius={0} style={MOSAIC_PIECE} />
-  ) : seam === 0 ? (
-    // A zero-seam block has no gap of its own left to mark a task still
-    // waiting on a photo, so this inset stand-in carries that gap alone —
-    // its own small floating chip rather than a flush, edgeless fill.
-    <View style={MOSAIC_PIECE}>
-      <View style={styles.mosaicEmptyInset} />
-    </View>
+    <Placeholder seed={cell.seed ?? cell.key} radius={0} style={tileStyle} />
   ) : (
-    // The seam between cells already does that job here: a flat, quiet fill
-    // rather than a drawn print for a task that was never taken.
-    <View style={[MOSAIC_PIECE, styles.mosaicEmpty]} />
+    // No photo and nothing standing in for one: a flat, quiet fill rather
+    // than a drawn print for a task that was never taken.
+    <View style={[...tileStyle, styles.mosaicEmpty]} />
   );
 
   // Only an untaken tile invites a tap — a photographed one already shows
@@ -477,10 +474,10 @@ function MosaicTile({
       </View>
     ) : null;
 
-  // A photographed tile sits flush edge to edge — the to-do grid wants to
+  // The default block sits flush edge to edge — the to-do grid wants to
   // read as the same merged block the calendar's own day cell cuts, the
-  // moment it's standing in for rather than a set of individual cards. Only
-  // an empty one on a zero-seam block insets itself; see `mosaicEmptyInset`.
+  // moment it's standing in for rather than a set of individual cards. A
+  // `seam={0}` block trades that for `tileStyle`'s own inset instead.
   const piece = (
     <>
       {content}
@@ -771,11 +768,11 @@ const styles = StyleSheet.create({
   mosaicEmpty: {
     backgroundColor: colors.surfaceMuted,
   },
-  mosaicEmptyInset: {
-    flex: 1,
-    margin: EMPTY_INSET,
-    borderRadius: EMPTY_RADIUS,
-    backgroundColor: colors.surfaceMuted,
+  // `seam={0}` only: every tile's own inset and rounding, photographed or
+  // not — layered onto `MOSAIC_PIECE` rather than replacing it.
+  mosaicTileInset: {
+    margin: TILE_INSET,
+    borderRadius: TILE_RADIUS,
   },
   mosaicInviteWrap: {
     ...absoluteFill,
