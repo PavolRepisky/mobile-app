@@ -27,10 +27,10 @@ export interface FriendCardProps {
 
 /**
  * A friend's day as one flat post — avatar, name and how long ago it went up
- * underneath, then the photo itself: their finished tasks cut into one block
- * the way the to-do tab cuts your own day. No card, no tilt, no shadow: it
- * sits directly on the page the way a feed post does, not something dropped
- * on top of it.
+ * underneath, then the photo itself: the same live grid the to-do tab cuts
+ * their day into, done tasks and empty slots alike, not just a curated pick
+ * of what they've finished. No card, no tilt, no shadow: it sits directly on
+ * the page the way a feed post does, not something dropped on top of it.
  *
  * Only the avatar and the name lead to their profile — the photo itself is
  * for reacting to, not tapping through. A tap on the corner icon, or a double
@@ -67,15 +67,18 @@ export function FriendCard({ friend, onPress, style }: FriendCardProps) {
   const [draft, setDraft] = useState('');
   const lastTap = useRef(0);
 
-  const shot = friend.tasks.filter((task) => task.done);
   const picked = postReactions[friend.id] ?? null;
   const comments = friendComments[friend.id] ?? [];
 
-  const cells: CollageCell[] = shot.map((task) => ({
+  // Every task, not just the ones they've shot — the same set of cells the
+  // to-do tab's own grid renders for the signed-in account, so an unfinished
+  // task shows up as an empty slot rather than being left out of the post.
+  const cells: CollageCell[] = friend.tasks.map((task) => ({
     key: task.label,
     label: task.label,
     photo: task.photo,
     seed: task.photoSeed,
+    time: task.time,
   }));
 
   // Kept mounted for the length of the exit animation, so the row shrinks
@@ -144,15 +147,7 @@ export function FriendCard({ friend, onPress, style }: FriendCardProps) {
           accessibilityState={{ expanded: picking }}
           onPress={tapPhoto}
         >
-          {shot.length > 0 ? (
-            <PhotoCollage layout="mosaic" radius={radii.sm} cells={cells} />
-          ) : (
-            <View style={styles.empty}>
-              <Text variant="label" color={colors.inkMuted}>
-                Nothing posted yet today
-              </Text>
-            </View>
-          )}
+          <PhotoCollage layout="mosaic" showLabels radius={radii.sm} cells={cells} />
         </Pressable>
 
         {mounted ? (
@@ -283,13 +278,6 @@ const styles = StyleSheet.create({
   },
   photoWrap: {
     marginTop: spacing.md,
-  },
-  empty: {
-    height: 260,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceSunken,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   reactionGroup: {
     position: 'absolute',
