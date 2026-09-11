@@ -84,6 +84,12 @@ export interface PhotoCollageProps {
    * page actually left over instead of taking the default shape.
    */
   ratio?: number;
+  /**
+   * `mosaic` only: width of the hairline between cells, in px. Defaults to
+   * `MOSAIC_SEAM`; the to-do grid and a friend's post ask for `0` so their
+   * tiles run flush into one block with no cut between them.
+   */
+  seam?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -418,28 +424,26 @@ function MosaicTile({
     <View style={[MOSAIC_PIECE, styles.mosaicEmpty]} />
   );
 
+  // Only an untaken tile invites a tap — a photographed one already shows
+  // what pressing it made, so it needs no glyph asking for one.
+  const inviteIcon =
+    showLabels && !filled && cell.onPress ? (
+      <View style={styles.mosaicInviteWrap} pointerEvents="none">
+        <Ionicons name="camera" size={22} color={colors.ink} />
+      </View>
+    ) : null;
+
+  // The same small pill badge the live camera grid labels its own tiles
+  // with, bottom-centred over the print rather than dimming the whole tile
+  // to hold a centred caption.
   const label =
     showLabels && cell.label ? (
       <View style={styles.mosaicLabelWrap} pointerEvents="none">
-        {filled ? <View style={styles.mosaicScrim} /> : null}
-        {/* Only an untaken tile invites a tap — a photographed one already
-            shows what pressing it made, so it needs no glyph asking for one. */}
-        {!filled && cell.onPress ? (
-          <Ionicons
-            name="camera"
-            size={22}
-            color={colors.ink}
-            style={styles.mosaicTapIcon}
-          />
-        ) : null}
-        <Text
-          variant="labelBold"
-          color={filled ? colors.inkInverse : colors.inkSlate}
-          center
-          numberOfLines={3}
-        >
-          {cell.label}
-        </Text>
+        <View style={styles.mosaicLabelBadge}>
+          <Text variant="labelBold" color={colors.inkInverse} center numberOfLines={2}>
+            {cell.label}
+          </Text>
+        </View>
       </View>
     ) : null;
 
@@ -455,30 +459,20 @@ function MosaicTile({
       </View>
     ) : null;
 
-  // In label mode the seam between tiles is wide enough to see, so each one
-  // reads as its own square rather than a shard of one photograph — which
-  // means it wants the corner and the lift a pressable tile carries anywhere
-  // else in the app, not the flush edge a merged mosaic piece has.
-  const piece = showLabels ? (
-    <View style={styles.mosaicCardClip}>
-      {content}
-      {label}
-      {timeBadge}
-    </View>
-  ) : (
+  // Flush edge to edge whether or not it carries a label — the to-do grid
+  // wants to read as the same merged block the calendar's own day cell cuts,
+  // the moment it's standing in for rather than a set of individual cards.
+  const piece = (
     <>
       {content}
+      {inviteIcon}
       {label}
+      {timeBadge}
     </>
-  );
-  const body = showLabels ? (
-    <View style={[MOSAIC_PIECE, styles.mosaicCard]}>{piece}</View>
-  ) : (
-    piece
   );
 
   if (!cell.onPress)
-    return <View style={MOSAIC_PIECE}>{body}</View>;
+    return <View style={MOSAIC_PIECE}>{piece}</View>;
 
   return (
     <Pressable
@@ -487,44 +481,49 @@ function MosaicTile({
       onPress={cell.onPress}
       style={MOSAIC_PIECE}
     >
-      {body}
+      {piece}
     </Pressable>
   );
 }
 
+export interface MosaicArrangementProps<T extends { key: string }> {
+  cells: readonly T[];
+  /** Must set `key={cell.key}` on the element it returns. */
+  renderCell: (cell: T) => React.ReactElement;
+  /**
+   * Overrides the seam width in px, for a caller that needs no gap at all —
+   * the live camera grid draws its own border per cell, so a real gap here
+   * would show a sliver of whatever sits behind the grid rather than a seam.
+   */
+  seam?: number;
+}
+
 /**
- * Cuts the day's shots into one block the way the calendar's day cell does:
- * one photo fills it, two split it top and bottom, three put one over a pair,
- * and four take a corner each. Past four there is no such fixed arrangement,
- * so the calendar drops the rest — but here the mosaic is the day's own
- * record rather than a cover shot, so it cannot afford to lose one: a fifth
- * print and beyond fall in behind the first the same way the third does,
+ * Cuts a set of cells into the same shape the calendar's day cell uses: one
+ * fills it, two split it top and bottom, three put one over a pair, and four
+ * take a corner each. Past four there is no such fixed arrangement, so a
+ * fifth cell and beyond fall in behind the first the same way the third does,
  * stacked in rows of two under it.
+ *
+ * Generic over what a cell renders as, and pulled out of `PhotoCollage` so
+ * the to-do tab's live camera grid can lay its cells out identically without
+ * re-deriving the split.
  */
-function MosaicLayout({
+export function MosaicArrangement<T extends { key: string }>({
   cells,
-  showLabels,
-}: {
-  cells: readonly CollageCell[];
-  showLabels?: boolean;
-}) {
-  // A wider seam once each piece is its own card — the merged mosaic's
-  // hairline would read as a crack rather than a gap between two tiles.
-  const column = showLabels ? styles.mosaicColumnLoose : styles.mosaicColumn;
-  const row = showLabels ? styles.mosaicRowLoose : styles.mosaicRow;
+  renderCell,
+  seam,
+}: MosaicArrangementProps<T>) {
+  const gap = seam ?? MOSAIC_SEAM;
+  const column = { flex: 1, flexDirection: 'column', gap } as const;
+  const row = { flex: 1, flexDirection: 'row', gap } as const;
 
   if (cells.length === 1) {
-    return <MosaicTile cell={cells[0]} showLabels={showLabels} />;
+    return renderCell(cells[0]);
   }
 
   if (cells.length === 2) {
-    return (
-      <View style={column}>
-        {cells.map((cell) => (
-          <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
-        ))}
-      </View>
-    );
+    return <View style={column}>{cells.map(renderCell)}</View>;
   }
 
   if (cells.length === 4) {
@@ -532,9 +531,7 @@ function MosaicLayout({
       <View style={column}>
         {[cells.slice(0, 2), cells.slice(2, 4)].map((pair, r) => (
           <View key={r} style={row}>
-            {pair.map((cell) => (
-              <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
-            ))}
+            {pair.map(renderCell)}
           </View>
         ))}
       </View>
@@ -542,17 +539,15 @@ function MosaicLayout({
   }
 
   const [head, ...rest] = cells;
-  const rows: CollageCell[][] = [];
-  for (let i = 0; i < rest.length; i += 2) rows.push(rest.slice(i, i + 2));
+  const pairs: T[][] = [];
+  for (let i = 0; i < rest.length; i += 2) pairs.push(rest.slice(i, i + 2));
 
   return (
     <View style={column}>
-      <MosaicTile cell={head} showLabels={showLabels} />
-      {rows.map((pair, r) => (
+      {renderCell(head)}
+      {pairs.map((pair, r) => (
         <View key={r} style={row}>
-          {pair.map((cell) => (
-            <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
-          ))}
+          {pair.map(renderCell)}
         </View>
       ))}
     </View>
@@ -569,6 +564,7 @@ function Mosaic({
   maxHeight,
   radius = radii.lg,
   ratio = MOSAIC_RATIO,
+  seam,
   showLabels,
   style,
 }: {
@@ -576,6 +572,7 @@ function Mosaic({
   maxHeight?: number;
   radius?: number;
   ratio?: number;
+  seam?: number;
   showLabels?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -588,19 +585,22 @@ function Mosaic({
         {width > 0 ? (
           <View
             style={[
-              // Each tile carries its own corner and shadow in label mode, so
-              // the block that holds them needs neither of its own — one
-              // rounded, clipped, shadowed box wrapping five more of the same
-              // would double up on all three.
-              showLabels ? styles.mosaicLoose : styles.mosaicBlock,
+              styles.mosaicBlock,
+              showLabels && styles.mosaicBlockDark,
               {
                 width,
                 height: width * ratio,
-                borderRadius: showLabels ? 0 : radius,
+                borderRadius: radius,
               },
             ]}
           >
-            <MosaicLayout cells={cells} showLabels={showLabels} />
+            <MosaicArrangement
+              cells={cells}
+              seam={seam}
+              renderCell={(cell) => (
+                <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
+              )}
+            />
           </View>
         ) : null}
       </View>
@@ -623,6 +623,7 @@ export function PhotoCollage({
   maxHeight,
   radius,
   ratio,
+  seam,
   showLabels,
   style,
 }: PhotoCollageProps) {
@@ -635,6 +636,7 @@ export function PhotoCollage({
         maxHeight={maxHeight}
         radius={radius}
         ratio={ratio}
+        seam={seam}
         showLabels={showLabels}
         style={style}
       />
@@ -725,45 +727,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     ...shadows.soft,
   },
-  // Label mode's outer box: no corner, no clip, no lift of its own — each
-  // tile inside carries all three, and the gap between them shows the page.
-  mosaicLoose: {
-    alignSelf: 'center',
+  // The to-do grid's own cut: a dark seam matching the live camera grid's
+  // per-cell border, rather than the light page every other mosaic — the
+  // calendar's day cell, a friend's day — shows through its own hairline. The
+  // same line also frames the block's own outer edge, so the grid reads as
+  // one complete cut rather than internal seams floating with no border.
+  mosaicBlockDark: {
+    backgroundColor: colors.inkSoft,
+    borderWidth: MOSAIC_SEAM,
+    borderColor: colors.inkSoft,
   },
-  mosaicColumn: {
-    flex: 1,
-    flexDirection: 'column',
-    gap: MOSAIC_SEAM,
-  },
-  mosaicRow: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: MOSAIC_SEAM,
-  },
-  mosaicColumnLoose: {
-    flex: 1,
-    flexDirection: 'column',
-    gap: spacing.sm,
-  },
-  mosaicRowLoose: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  // Square rather than cut to `radii.sm` — the loose mosaic reads as a set of
-  // proof shots pinned edge to edge, and a rounded corner on every one of them
-  // fights the hairline seam for the same job of separating tile from tile.
-  mosaicCard: {
-    backgroundColor: colors.surface,
-    ...shadows.soft,
-  },
-  mosaicCardClip: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  // Sits inside the clip, on the photo itself, rather than hung off the
-  // card's corner the way a done tick is — a time stamp is read off the
-  // print, not pinned to it as a status.
+  // Sits on the photo itself, rather than hung off a card's corner the way a
+  // done tick is — a time stamp is read off the print, not pinned to it as a
+  // status.
   mosaicTimeBadge: {
     position: 'absolute',
     top: spacing.xs,
@@ -776,17 +752,25 @@ const styles = StyleSheet.create({
   mosaicEmpty: {
     backgroundColor: colors.surfaceMuted,
   },
-  mosaicLabelWrap: {
+  mosaicInviteWrap: {
     ...absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.sm,
   },
-  mosaicTapIcon: {
-    marginBottom: spacing.xs,
+  // The live camera grid's own badge: a small pill hugging the label rather
+  // than a caption stretched across a dimmed tile.
+  mosaicLabelWrap: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    left: spacing.xs,
+    right: spacing.xs,
+    alignItems: 'center',
   },
-  mosaicScrim: {
-    ...absoluteFill,
+  mosaicLabelBadge: {
+    maxWidth: '100%',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: radii.pill,
     backgroundColor: colors.scrimPhoto,
   },
 });
