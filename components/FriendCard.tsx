@@ -37,8 +37,6 @@ export interface FriendCardProps {
  * tap anywhere on the grid, slides a reaction bar out from under the toggle —
  * right to left, fused to it as one capsule rather than a separate shape;
  * tapping anywhere else on the photo dismisses it without picking one.
- * The bookmark sits above the reaction toggle in the same corner column,
- * pinning the day's grid to your own Pins — a separate act from reacting.
  * A comment field sits under the photo, the one place this app lets you talk
  * back to somebody else's day.
  */
@@ -53,25 +51,18 @@ const SLIDE_MS = 220;
 const easingFor = (open: boolean) =>
   open ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic);
 
-/** Size of the corner circles — the save button and the reaction toggle. */
+/** Size of the reaction toggle's circle. */
 const REACTION_SIZE = 42;
 
 /** Width of one emoji's tap target inside the shared reaction bar. */
 const REACTION_ITEM = 44;
 
 /** How far the bar travels as it slides in — its own full width, so it reads
- * as sliding out from under the corner column rather than fading in place. */
+ * as sliding out from under the toggle rather than fading in place. */
 const REACTIONS_BAR_WIDTH = REACTIONS.length * REACTION_ITEM;
 
 export function FriendCard({ friend, onPress, style }: FriendCardProps) {
-  const {
-    postReactions,
-    reactToPost,
-    friendComments,
-    addFriendComment,
-    savedPosts,
-    toggleSavePost,
-  } = useApp();
+  const { postReactions, reactToPost, friendComments, addFriendComment } = useApp();
   const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState('');
   const lastTap = useRef(0);
@@ -79,7 +70,6 @@ export function FriendCard({ friend, onPress, style }: FriendCardProps) {
   const shot = friend.tasks.filter((task) => task.done);
   const picked = postReactions[friend.id] ?? null;
   const comments = friendComments[friend.id] ?? [];
-  const saved = !!savedPosts[friend.id];
 
   const cells: CollageCell[] = shot.map((task) => ({
     key: task.label,
@@ -122,11 +112,6 @@ export function FriendCard({ friend, onPress, style }: FriendCardProps) {
       return;
     }
     lastTap.current = now;
-  };
-
-  const toggleSave = () => {
-    if (shot.length === 0) return;
-    toggleSavePost(friend.id, `${friend.name}'s Day ${friend.day}`, cells);
   };
 
   return (
@@ -181,94 +166,75 @@ export function FriendCard({ friend, onPress, style }: FriendCardProps) {
           />
         ) : null}
 
-        {/* The save button and the reaction toggle stack in one
-            right-aligned column; the bar fuses onto the toggle's left edge
-            as one capsule rather than floating as its own shape. */}
-        <View style={styles.cornerAnchor}>
-          {shot.length > 0 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={saved ? 'Remove from Pins' : 'Save to Pins'}
-              accessibilityState={{ selected: saved }}
-              onPress={toggleSave}
-              hitSlop={8}
-              style={({ pressed }) => [styles.reaction, pressed && styles.pressed]}
-            >
-              <Ionicons
-                name={saved ? 'bookmark' : 'bookmark-outline'}
-                size={18}
-                color={colors.inkSoft}
-              />
-            </Pressable>
+        {/* The reaction toggle, pinned to the photo's corner; the bar fuses
+            onto its left edge as one capsule rather than floating as its own
+            shape. */}
+        <View style={styles.reactionGroup}>
+          {mounted ? (
+            // The shadow is cast by this outer view and the slide clipped by
+            // the inner one, the same split the day tile uses: a view can't
+            // both clip its children and cast a shadow.
+            <View style={styles.reactionsBarShadow}>
+              <View style={styles.reactionsBarClip}>
+                <Animated.View
+                  pointerEvents={picking ? 'box-none' : 'none'}
+                  style={[
+                    styles.reactionsBarContent,
+                    {
+                      opacity: slide,
+                      transform: [
+                        {
+                          translateX: slide.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [REACTIONS_BAR_WIDTH, 0],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  {REACTIONS.map((emoji) => (
+                    <Pressable
+                      key={emoji}
+                      accessibilityRole="button"
+                      accessibilityLabel={`React ${emoji}`}
+                      accessibilityState={{ selected: picked === emoji }}
+                      onPress={() => {
+                        reactToPost(friend.id, emoji);
+                        setPicking(false);
+                      }}
+                      style={({ pressed }) => [
+                        styles.reactionItem,
+                        picked === emoji && styles.reactionItemPicked,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <RNText style={styles.reactionEmoji}>{emoji}</RNText>
+                    </Pressable>
+                  ))}
+                </Animated.View>
+              </View>
+            </View>
           ) : null}
 
-          <View style={styles.reactionGroup}>
-            {mounted ? (
-              // The shadow is cast by this outer view and the slide clipped
-              // by the inner one, the same split the day tile uses: a view
-              // can't both clip its children and cast a shadow.
-              <View style={styles.reactionsBarShadow}>
-                <View style={styles.reactionsBarClip}>
-                  <Animated.View
-                    pointerEvents={picking ? 'box-none' : 'none'}
-                    style={[
-                      styles.reactionsBarContent,
-                      {
-                        opacity: slide,
-                        transform: [
-                          {
-                            translateX: slide.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [REACTIONS_BAR_WIDTH, 0],
-                            }),
-                          },
-                        ],
-                      },
-                    ]}
-                  >
-                    {REACTIONS.map((emoji) => (
-                      <Pressable
-                        key={emoji}
-                        accessibilityRole="button"
-                        accessibilityLabel={`React ${emoji}`}
-                        accessibilityState={{ selected: picked === emoji }}
-                        onPress={() => {
-                          reactToPost(friend.id, emoji);
-                          setPicking(false);
-                        }}
-                        style={({ pressed }) => [
-                          styles.reactionItem,
-                          picked === emoji && styles.reactionItemPicked,
-                          pressed && styles.pressed,
-                        ]}
-                      >
-                        <RNText style={styles.reactionEmoji}>{emoji}</RNText>
-                      </Pressable>
-                    ))}
-                  </Animated.View>
-                </View>
-              </View>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={picked ? `Reacted ${picked}` : 'Open reactions'}
-              accessibilityState={{ expanded: picking }}
-              onPress={() => setPicking((open) => !open)}
-              hitSlop={8}
-              style={({ pressed }) => [
-                styles.reaction,
-                mounted && styles.reactionJoined,
-                pressed && styles.pressed,
-              ]}
-            >
-              {picked ? (
-                <RNText style={styles.reactionEmoji}>{picked}</RNText>
-              ) : (
-                <Ionicons name="happy-outline" size={18} color={colors.inkSoft} />
-              )}
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={picked ? `Reacted ${picked}` : 'Open reactions'}
+            accessibilityState={{ expanded: picking }}
+            onPress={() => setPicking((open) => !open)}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.reaction,
+              mounted && styles.reactionJoined,
+              pressed && styles.pressed,
+            ]}
+          >
+            {picked ? (
+              <RNText style={styles.reactionEmoji}>{picked}</RNText>
+            ) : (
+              <Ionicons name="happy-outline" size={18} color={colors.inkSoft} />
+            )}
+          </Pressable>
         </View>
       </View>
 
@@ -325,18 +291,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cornerAnchor: {
+  reactionGroup: {
     position: 'absolute',
     right: spacing.md,
     bottom: spacing.md,
-    flexDirection: 'column',
-    // Flush right rather than centred: the bar only widens the reaction row
-    // to its left, and the save circle above has to stay lined up with the
-    // row's fixed right edge, not drift as that row grows.
-    alignItems: 'flex-end',
-    gap: spacing.sm,
-  },
-  reactionGroup: {
     flexDirection: 'row',
     height: REACTION_SIZE,
     alignItems: 'center',
@@ -361,12 +319,10 @@ const styles = StyleSheet.create({
     color: colors.ink,
     padding: 0,
   },
-  // Shared by the save button and the reaction toggle, so the corner column
-  // reads as the same circle repeating rather than two different controls.
   // Solid rather than `surfaceOnPhoto`: that token's translucency blends with
-  // whatever photo sits behind it, so two instances over different parts of
-  // the mosaic can read as different shades — a flat fill stays identical
-  // wherever it lands, which matters once it's fused to the bar below.
+  // whatever photo sits behind it, and would shift shade over different parts
+  // of the mosaic — a flat fill stays identical wherever it lands, which
+  // matters once it's fused to the bar beside it.
   reaction: {
     width: REACTION_SIZE,
     height: REACTION_SIZE,
