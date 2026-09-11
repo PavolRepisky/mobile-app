@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type LayoutRectangle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertDialog } from '@/components/AlertDialog';
@@ -15,13 +15,13 @@ import { colors, screenPadding, shadows, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /**
- * The day opens on a plain grid of task prints — one tile per task, evenly
- * gapped, the same dashed-outline-and-camera-glyph tile `PhotoSlot` draws for
- * every task row elsewhere in the app — with an open task's tile inviting a
- * tap. That tap is the only way into the live camera grid, where every other
- * open task sits over the viewfinder as a frosted, labelled tile until it is
- * shot; closing the camera, or finishing the last task, drops back to the
- * calm view.
+ * The day opens on the calm mosaic block the calendar's own day cells cut
+ * theirs — photos merged edge to edge behind a hairline seam, the same cut
+ * the live camera grid's own tiles draw — with an open task's tile inviting
+ * a tap. That tap is the only way into the live camera grid, where every
+ * other open task sits over the viewfinder as a frosted, labelled tile until
+ * it is shot; closing the camera, or finishing the last task, drops back to
+ * the calm view.
  */
 
 /** Matches the corner action buttons elsewhere — Discover's add challenge,
@@ -50,6 +50,15 @@ export default function TodoScreen() {
   const [cameraDismissed, setCameraDismissed] = useState(true);
   useEffect(() => setCameraDismissed(true), [currentDay]);
   const showCamera = !allDone && !cameraDismissed;
+
+  /**
+   * The space the calm mosaic leaves for its grid once the heading above it
+   * has taken its own room. Only the calm view needs this — the live camera
+   * grid is full-bleed and has no ratio to work out.
+   */
+  const [gridBox, setGridBox] = useState<LayoutRectangle | null>(null);
+  const gridWidth = gridBox ? gridBox.width - screenPadding * 2 : 0;
+  const gridRatio = gridWidth > 0 && gridBox ? gridBox.height / gridWidth : 1;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
@@ -88,24 +97,32 @@ export default function TodoScreen() {
               </Text>
             </View>
 
-            {/* The calm record: every task its own print. Tapping a done tile
-                offers to undo it; tapping an open one (closed out of the
-                camera without finishing the day) drops straight back into
+            {/* The calm record: every task a tile in its own mosaic, the print
+                itself standing in for the tick a row used to carry. Tapping a
+                done tile offers to undo it; tapping an open one (closed out of
+                the camera without finishing the day) drops straight back into
                 the live grid. */}
-            <View style={styles.gridArea}>
-              <PhotoCollage
-                layout="grid"
-                style={styles.grid}
-                cells={rows.map((row) => ({
-                  key: row.task.id,
-                  label: row.task.label,
-                  photo: row.photo,
-                  seed: row.photoSeed,
-                  time: row.time,
-                  onPress: () =>
-                    row.done ? setDoneFor(row.task.id) : setCameraDismissed(false),
-                }))}
-              />
+            <View
+              style={styles.gridArea}
+              onLayout={(e) => setGridBox(e.nativeEvent.layout)}
+            >
+              {gridBox ? (
+                <PhotoCollage
+                  layout="mosaic"
+                  showLabels
+                  ratio={gridRatio}
+                  style={styles.grid}
+                  cells={rows.map((row) => ({
+                    key: row.task.id,
+                    label: row.task.label,
+                    photo: row.photo,
+                    seed: row.photoSeed,
+                    time: row.time,
+                    onPress: () =>
+                      row.done ? setDoneFor(row.task.id) : setCameraDismissed(false),
+                  }))}
+                />
+              ) : null}
             </View>
           </Screen>
 
@@ -219,15 +236,18 @@ const styles = StyleSheet.create({
   },
   gridArea: {
     flex: 1,
-    // Centred rather than pinned to the top: a plain grid this short has no
-    // reason to claim the full height between the heading and the tab bar.
-    justifyContent: 'center',
+    // Clear of the heading above it, and of the floating tab bar below —
+    // both margins shrink `gridArea`'s own measured box, which the ratio
+    // handed to the mosaic is worked out from, so the block itself ends up
+    // that much short of full-bleed on each edge rather than crowding them.
     marginTop: spacing.lg,
     marginBottom: spacing.lg,
   },
   grid: {
     // The tile hangs off the page's own gutter, the same one every other
-    // screen hangs off.
+    // screen hangs off. Subtracted by hand from `gridArea`'s own measured
+    // width to work out the ratio the block is asked to fill — the two have
+    // to agree on the same inset.
     paddingHorizontal: screenPadding,
   },
 });

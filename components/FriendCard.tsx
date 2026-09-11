@@ -147,7 +147,7 @@ export function FriendCard({ friend, onPress, style }: FriendCardProps) {
           accessibilityState={{ expanded: picking }}
           onPress={tapPhoto}
         >
-          <PhotoCollage layout="grid" cells={cells} />
+          <PhotoCollage layout="mosaic" showLabels radius={radii.sm} cells={cells} />
         </Pressable>
 
         {mounted ? (
