@@ -264,7 +264,7 @@ edge) · `radius`.
 **`FriendCard`**, **`RecipeCard`**, **`ReviewCard`** take their domain object
 plus `onPress`. **`ChallengeDetail`** is the full editor: task list with
 drag-reorder (`onReorder`), rename, delete, and `onDraggingChange` so the host
-screen can lock its scroll. **`ChallengePicker`** has `popular`/`custom` tabs.
+screen can lock its scroll.
 
 **`Avatar`** (`source` · `size`) · **`DateRange`** (`from` · `to` · `variant`) ·
 **`GlassSurface`** (`radius` · `shadow`) · **`Placeholder`** /

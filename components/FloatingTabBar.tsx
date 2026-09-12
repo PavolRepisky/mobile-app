@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { forwardRef } from 'react';
 import {
   Pressable,
@@ -13,7 +13,7 @@ import { colors, radii, shadows, tabBar, tabBarBottom, type } from '@/constants/
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
-export type TabIcon = 'discover' | 'friends' | 'todo' | 'calendar' | 'profile';
+export type TabIcon = 'discover' | 'community' | 'todo' | 'calendar' | 'profile';
 
 /** The filled centre tab's disc. Sized to sit inside the bar with air around it. */
 const FILLED_SIZE = 52;
@@ -27,7 +27,7 @@ function Glyph({
   active: boolean;
   color?: string;
 }) {
-  const size = 24;
+  const size = 27;
 
   switch (icon) {
     // Challenges you have not joined yet: the tab is a bearing to take, not a
@@ -40,7 +40,7 @@ function Glyph({
           color={color}
         />
       );
-    case 'friends':
+    case 'community':
       return (
         <Ionicons
           name={active ? 'people' : 'people-outline'}
@@ -50,8 +50,8 @@ function Glyph({
       );
     case 'todo':
       return (
-        <MaterialCommunityIcons
-          name="format-list-checks"
+        <Ionicons
+          name={active ? 'camera' : 'camera-outline'}
           size={size + 2}
           color={color}
         />
@@ -128,14 +128,29 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
  * beneath it, so it is the liquid-glass lens rather than a tinted fill — the
  * page melts through it as it passes.
  */
-export const FloatingTabBar = forwardRef<RNView, { children?: React.ReactNode }>(
-  function FloatingTabBar({ children }, ref) {
+export interface FloatingTabBarProps {
+  children?: React.ReactNode;
+  /**
+   * Drops the bar out rather than unmounting it — a screen wanting the tabs
+   * gone (the to-do tab's full-bleed camera grid) still needs `TabTrigger`
+   * routing to keep working underneath.
+   */
+  hidden?: boolean;
+}
+
+export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
+  function FloatingTabBar({ children, hidden }, ref) {
     const insets = useSafeAreaInsets();
 
     return (
       <View
         ref={ref}
-        style={[styles.bar, { bottom: tabBarBottom(insets.bottom) }]}
+        pointerEvents={hidden ? 'none' : 'auto'}
+        style={[
+          styles.bar,
+          { bottom: tabBarBottom(insets.bottom) },
+          hidden && styles.barHidden,
+        ]}
       >
         {/* The lens takes its height from the row inside it, so the bar's own
             height lives on that row rather than on the surface. */}
@@ -154,6 +169,9 @@ const styles = StyleSheet.create({
     right: tabBar.horizontalInset,
     borderRadius: radii.pill,
     ...shadows.floating,
+  },
+  barHidden: {
+    opacity: 0,
   },
   lens: {
     borderRadius: radii.pill,

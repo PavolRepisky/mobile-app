@@ -14,7 +14,9 @@ export interface ProfileStat {
   /** Distinguishes the columns; also what a tap handler is keyed on. */
   key: string;
   icon: keyof typeof Ionicons.glyphMap;
-  /** Defaults to `inkMuted` — set for a stat whose glyph already carries a
+  /** Defaults to `ink` — the same weight as the numeral it sits over, so the
+   * glyph reads as part of one solid stat rather than a greyed-out, disabled
+   * decoration next to it. Set for a stat whose glyph already carries a
    * colour elsewhere in the app (the gold trophy, the red heart). */
   iconColor?: string;
   value: number | string;
@@ -61,13 +63,18 @@ export function ProfileStats({ stats, style }: ProfileStatsProps) {
           <Ionicons
             name={stat.icon}
             size={iconSize}
-            color={stat.iconColor ?? colors.inkMuted}
+            color={stat.iconColor ?? colors.ink}
           />
           <Text variant="sectionTitle" style={styles.value}>
             {stat.value}
           </Text>
           <View style={styles.labelRow}>
-            <Text variant="caption" color={colors.inkMuted}>
+            <Text
+              variant="caption"
+              color={colors.inkMuted}
+              center
+              style={styles.label}
+            >
               {stat.label}
             </Text>
             {stat.onPress ? (
@@ -107,6 +114,14 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Stretched rather than left to hug its content: a two-word label like
+    // "Completed Challenges" needs the column's full width to wrap onto a
+    // second line instead of running past the divider.
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  label: {
+    flexShrink: 1,
   },
   chevron: {
     marginLeft: 1,

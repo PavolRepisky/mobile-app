@@ -40,6 +40,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.divider,
     backgroundColor: colors.surfaceSunken,
     paddingHorizontal: spacing.lg,
   },

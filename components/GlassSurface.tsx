@@ -6,9 +6,11 @@ import { absoluteFill, glass, radii, shadows } from '@/constants/theme';
 
 /**
  * Android had no cheap backdrop blur before API 31 (Android 12). Below that the
- * BlurView renders as a hole, so those devices get a flat wash instead.
+ * BlurView renders as a hole, so those devices get a flat wash instead. Exported
+ * for any caller reaching for a bare `BlurView` directly rather than through
+ * this component — the to-do grid's camera cells, for one.
  */
-const CAN_BLUR = Platform.OS !== 'android' || Number(Platform.Version) >= 31;
+export const CAN_BLUR = Platform.OS !== 'android' || Number(Platform.Version) >= 31;
 
 export interface GlassSurfaceProps {
   radius?: number;

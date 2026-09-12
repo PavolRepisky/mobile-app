@@ -3,6 +3,7 @@ import type { ImageSourcePropType } from 'react-native';
 import type { AvatarSource } from '@/components/Avatar';
 import type { PhotoSource } from '@/components/PhotoStrip';
 import type { Review } from '@/components/ReviewCard';
+import { CHALLENGES } from './challenges';
 
 // ---------------------------------------------------------------------------
 // Reviews shown under every challenge detail
@@ -48,6 +49,9 @@ export const REVIEWS: readonly Review[] = [
 export interface Friend {
   id: string;
   name: string;
+  /** Shown under their name on their profile, the way `profile.handle` is
+   * shown under yours. */
+  handle: string;
   /** Bundled profile photo, or a seed for the drawn stand-in. */
   avatar: AvatarSource;
   day: number;
@@ -55,10 +59,14 @@ export interface Friend {
   /**
    * How long ago today's post went up — same static-string convention as
    * `DiscoverSection.metaTime`, since there is no backend clock to read one
-   * from. Only ever shown on the Friends tab, so the feed authors — who never
-   * appear there — leave it unset.
+   * from.
    */
   postedAgo?: string;
+  /** The three stats their own profile shows under its bio — the same set
+   * your own Profile screen reads off `useApp()` for the signed-in account. */
+  friendCount: number;
+  trophies: number;
+  livesLeft: number;
   tasks: readonly {
     label: string;
     done: boolean;
@@ -70,66 +78,83 @@ export interface Friend {
   }[];
 }
 
+/**
+ * The checklist everyone in a challenge is working through — read from the
+ * seed challenge itself (`useAppState`'s own `SEED_CHALLENGE`, `CHALLENGES[0]`)
+ * rather than copied out by hand, so a friend's or member's grid always has
+ * exactly as many cells as the to-do tab's own, whatever that challenge's
+ * task list happens to be.
+ */
+const CHALLENGE_TASKS = CHALLENGES[0].tasks.map((task) => task.label);
+
 export const FRIENDS: readonly Friend[] = [
   {
     id: 'lily',
     name: 'Lily',
+    handle: '@lily.days',
     avatar: require('../assets/friends/lily.jpg'),
     day: 3,
     bio: null,
     postedAgo: '15h ago',
+    friendCount: 18,
+    trophies: 2,
+    livesLeft: 3,
     tasks: [
       {
-        label: 'Follow a strict diet (no cheat meals, no alcohol)',
+        label: CHALLENGE_TASKS[0],
         done: true,
         time: '2:14 PM',
         // Already bundled for the home screen's own "eat clean" stand-in.
         photo: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
       },
       {
-        label: 'Drink water',
+        label: CHALLENGE_TASKS[1],
         done: true,
         time: '4:30 PM',
         // Already bundled for the water task elsewhere in the app's history.
         photo: require('../assets/challenges/medium/infused-water.jpg'),
       },
-      { label: 'Do two 45-minute workouts, one must be outside', done: false },
-      { label: 'Read 10 pages of a non-fiction book', done: false },
+      { label: CHALLENGE_TASKS[2], done: false },
+      { label: CHALLENGE_TASKS[3], done: false },
+      { label: CHALLENGE_TASKS[4], done: false },
     ],
   },
   {
     id: 'zoe',
     name: 'Zoe',
+    handle: '@zoegoesfor',
     // Not used as an avatar anywhere else in the app.
     avatar: require('../assets/ambassadors/amb-2.jpg'),
     day: 12,
     bio: null,
     postedAgo: '3h ago',
+    friendCount: 24,
+    trophies: 4,
+    livesLeft: 2,
     tasks: [
       {
-        label: 'Follow a strict diet (no cheat meals, no alcohol)',
+        label: CHALLENGE_TASKS[0],
         done: true,
         time: '7:45 AM',
         // Already bundled for the wall's own "what I eat" set.
         photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
       },
-      { label: 'Drink water', done: false },
+      { label: CHALLENGE_TASKS[1], done: false },
+      { label: CHALLENGE_TASKS[2], done: false },
       {
-        label: 'Do two 45-minute workouts, one must be outside',
+        label: CHALLENGE_TASKS[3],
         done: true,
         time: '6:10 PM',
         // Already bundled for the medium challenge's own strip.
         photo: require('../assets/challenges/medium/outdoor-run.jpg'),
       },
-      { label: 'Read 10 pages of a non-fiction book', done: false },
+      { label: CHALLENGE_TASKS[4], done: false },
     ],
   },
 ];
 
-/** The checklist everyone in a challenge is working through. */
-const CHALLENGE_TASKS = FRIENDS[0].tasks.map((task) => task.label);
-
-/** Builds a person's day from which of the four tasks they have ticked off. */
+/** Builds a person's day from which of the challenge's own tasks they have
+ * ticked off, in the same order `CHALLENGE_TASKS` lists them. */
 const tasksDone = (times: readonly (string | null)[]) =>
   CHALLENGE_TASKS.map((label, i) => ({
     label,
@@ -139,50 +164,76 @@ const tasksDone = (times: readonly (string | null)[]) =>
 
 /**
  * The people posting in the challenge feeds. Same shape as a friend — tapping
- * an avatar in a feed opens the profile screen the Friends tab opens — but
- * kept apart from FRIENDS, since posting in a challenge you are both in does
- * not make someone your friend.
+ * an avatar in a feed opens the profile screen the Friends tab opens, and the
+ * Community tab's own Members feed is just these posts instead of FRIENDS' —
+ * but kept apart from FRIENDS, since posting in a challenge you are both in
+ * does not make someone your friend.
  */
 export const FEED_AUTHORS: readonly Friend[] = [
   {
     id: 'mia',
     name: 'Mia',
+    handle: '@mia.moves',
     avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
     day: 12,
     bio: 'purple lights and 5am alarms',
-    tasks: tasksDone(['7:10 AM', '11:02 AM', '6:40 PM', null]),
+    postedAgo: '2h ago',
+    friendCount: 31,
+    trophies: 6,
+    livesLeft: 3,
+    tasks: tasksDone(['7:10 AM', '11:02 AM', '6:40 PM', null, '9:30 PM']),
   },
   {
     id: 'sofia',
     name: 'Sofia',
+    handle: '@sofia.sleeps',
     avatar: require('../assets/feed/author-hair-flip.jpg'),
     day: 28,
     bio: 'day 28 and finally sleeping properly',
-    tasks: tasksDone(['9:15 AM', '1:20 PM', null, '10:05 PM']),
+    postedAgo: '6h ago',
+    friendCount: 40,
+    trophies: 9,
+    livesLeft: 1,
+    tasks: tasksDone(['9:15 AM', '1:20 PM', null, '10:05 PM', null]),
   },
   {
     id: 'elena',
     name: 'Elena',
+    handle: '@elena_drives',
     avatar: require('../assets/feed/author-car-night.jpg'),
     day: 41,
     bio: 'late drives, early gym',
-    tasks: tasksDone(['6:02 AM', '8:45 AM', '7:30 PM', '9:50 PM']),
+    postedAgo: '20m ago',
+    friendCount: 27,
+    trophies: 11,
+    livesLeft: 3,
+    tasks: tasksDone(['6:02 AM', '8:45 AM', '7:30 PM', '9:50 PM', null]),
   },
   {
     id: 'nora',
     name: 'Nora',
+    handle: '@norainthehood',
     avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
     day: 7,
     bio: 'same hoodie in every photo, sorry',
-    tasks: tasksDone([null, '3:12 PM', null, null]),
+    postedAgo: '1d ago',
+    friendCount: 15,
+    trophies: 1,
+    livesLeft: 2,
+    tasks: tasksDone([null, '3:12 PM', null, null, null]),
   },
   {
     id: 'camila',
     name: 'Camila',
+    handle: '@camilaglow',
     avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
     day: 55,
     bio: 'started for the glow, stayed for the walks',
-    tasks: tasksDone(['8:30 AM', '12:00 PM', '5:15 PM', null]),
+    postedAgo: '9h ago',
+    friendCount: 52,
+    trophies: 14,
+    livesLeft: 3,
+    tasks: tasksDone(['8:30 AM', '12:00 PM', '5:15 PM', null, '9:00 PM']),
   },
 ];
 
@@ -200,12 +251,15 @@ export interface DiscoverSection {
    * this plus the matching `Challenge.defaultDays` — never stored twice.
    */
   startDate: string;
+  /** Who started this round. An id into `PEOPLE`, so the preview's "Created
+   * by" row opens the same profile screen the Friends tab does. */
+  creatorId: string;
 }
 
 export const DISCOVER: readonly DiscoverSection[] = [
   {
     id: 'her75',
-    title: 'Her 75 Challenge',
+    title: 'Get Fit for Summer',
     photos: [
       require('../assets/challenges/her75/gym-floor-selfie.jpg'),
       require('../assets/challenges/her75/grocery-cart.jpg'),
@@ -214,10 +268,11 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 226754,
     startDate: '2026-06-01',
+    creatorId: 'mia',
   },
   {
     id: 'hard',
-    title: '75 Day Hard',
+    title: 'No Excuses Challenge',
     photos: [
       require('../assets/challenges/hard/mirror-selfie.jpg'),
       require('../assets/challenges/hard/dumbbells-overhead.jpg'),
@@ -226,10 +281,11 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 118402,
     startDate: '2026-07-14',
+    creatorId: 'elena',
   },
   {
     id: 'medium',
-    title: '75 Medium',
+    title: 'Balanced Reset',
     photos: [
       require('../assets/challenges/medium/outdoor-run.jpg'),
       require('../assets/challenges/medium/infused-water.jpg'),
@@ -238,10 +294,11 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 64810,
     startDate: '2026-08-01',
+    creatorId: 'sofia',
   },
   {
     id: 'soft',
-    title: '75 Soft',
+    title: 'Fresh Start',
     photos: [
       require('../assets/challenges/soft/early-alarm.jpg'),
       require('../assets/challenges/soft/sunset-walk.jpg'),
@@ -250,6 +307,7 @@ export const DISCOVER: readonly DiscoverSection[] = [
     ],
     members: 91233,
     startDate: '2026-08-20',
+    creatorId: 'camila',
   },
 ];
 

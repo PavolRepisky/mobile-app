@@ -1,52 +1,60 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  View,
-  type LayoutRectangle,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View, type LayoutRectangle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertDialog } from '@/components/AlertDialog';
-import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
-import { ProfileLayout } from '@/components/ProfileLayout';
+import { profileActionHeight, profileActionTop } from '@/components/ProfileLayout';
+import { Screen, topPadding } from '@/components/Screen';
+import { TaskCameraGrid } from '@/components/TaskCameraGrid';
 import { Text } from '@/components/Text';
-import { colors, screenPadding, spacing } from '@/constants/theme';
+import { colors, screenPadding, shadows, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /**
- * Experiment: the day's tasks as the same mosaic block the calendar's own day
- * cells cut theirs — photos merged edge to edge behind a hairline seam, no
- * frames and no dashes — except every task gets a tile, done or not, and each
- * one carries its own label rather than an accessibility string. An
- * unphotographed tile is a flat, quiet fill; there is no separate list below
- * it any more, so the grid stands in for the page rather than sitting on it,
- * and is sized to fill almost all of it.
+ * The day opens on the calm mosaic block the calendar's own day cells cut
+ * theirs — photos merged edge to edge behind a hairline seam, the same cut
+ * the live camera grid's own tiles draw — with an open task's tile inviting
+ * a tap. That tap is the only way into the live camera grid, where every
+ * other open task sits over the viewfinder as a frosted, labelled tile until
+ * it is shot; closing the camera, or finishing the last task, drops back to
+ * the calm view.
  */
 
-/** Diameter of a progress dot beside the "done today" line. */
-const DOT = 12;
-/** Ring weight on a dot still waiting on its task. */
-const DOT_RING = 2;
+/** Matches the corner action buttons elsewhere — Discover's add challenge,
+ * the create-challenge screen's back/save. */
+const EDIT_SIZE = 46;
 
 export default function TodoScreen() {
   const router = useRouter();
-  const { currentDay, totalDays, undoTask } = useApp();
+  const insets = useSafeAreaInsets();
+  const { currentDay, undoTask, completeTaskWithPhoto } = useApp();
 
   // The page is today and nothing else: with the tick scrubber gone there is
   // no way to park on another day, so the grid reads off the current one.
   const rows = useDayProgress(currentDay);
   const done = rows.filter((row) => row.done).length;
+  const allDone = rows.length > 0 && done === rows.length;
 
   /**
-   * The space the page actually leaves for the grid, once the heading above
-   * it has taken its own room. The mosaic block is drawn square by default;
-   * handing it this box's own ratio (height ÷ width) instead is what lets it
-   * stand as tall as the page rather than only as tall as it is wide.
+   * The camera is opt-in: the tab always opens on the calm view, and this
+   * only turns false while the live grid is up, from tapping an open tile.
+   * Closing it — there's nowhere else on the tab to go — drops back to the
+   * calm view the same way finishing the last task already does on its own.
+   * Reset whenever the day itself changes, so paging to a new day never
+   * carries the previous one's camera state with it.
+   */
+  const [cameraDismissed, setCameraDismissed] = useState(true);
+  useEffect(() => setCameraDismissed(true), [currentDay]);
+  const showCamera = !allDone && !cameraDismissed;
+
+  /**
+   * The space the calm mosaic leaves for its grid once the heading above it
+   * has taken its own room. Only the calm view needs this — the live camera
+   * grid is full-bleed and has no ratio to work out.
    */
   const [gridBox, setGridBox] = useState<LayoutRectangle | null>(null);
   const gridWidth = gridBox ? gridBox.width - screenPadding * 2 : 0;
@@ -54,130 +62,83 @@ export default function TodoScreen() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
-  /** The done task whose photo was tapped, waiting on retake-or-undo. */
+  const [endOpen, setEndOpen] = useState(false);
+  /** The done task whose photo was tapped, waiting on undo-or-cancel. */
   const [doneFor, setDoneFor] = useState<string | null>(null);
 
-  /**
-   * Held until the dialog has actually gone: a retake pushes the camera, and
-   * starting that while the dialog is still dismissing is what drops it on iOS.
-   */
-  const pending = useRef<(() => void) | null>(null);
-  const runPending = () => {
-    const next = pending.current;
-    pending.current = null;
-    next?.();
-  };
-
-  /**
-   * The one way a task is ever ticked off. There is no library route and no
-   * source dialog: the proof has to be photographed on the spot, so the photo
-   * slot leads straight to the viewfinder.
-   */
-  const shoot = (taskId: string) => {
-    router.push({
-      pathname: '/photo/camera',
-      params: { taskId, day: String(currentDay) },
-    });
-  };
-
-  /**
-   * What pressing a slot does, wherever it is pressed from. An empty one has
-   * a single obvious meaning, so it opens the camera outright; a filled one
-   * could mean either of two things, so it asks which.
-   */
-  const pressSlot = (row: (typeof rows)[number]) => () =>
-    row.done ? setDoneFor(row.task.id) : shoot(row.task.id);
+  // Lines the title up on the same row every other tab root's corner button
+  // sits on, the way Discover's and Calendar's own titles do.
+  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
+  const titleOffset = headerTop - topPadding(insets.top);
 
   return (
     <>
-      {/* No identity: the avatar belongs on the Profile tab, and this screen
-          leads with the day itself. */}
-      <ProfileLayout
-        tabBar
-        padded={false}
-        // The grid stands in for the page, so it takes whatever height the
-        // heading above it leaves rather than sitting at its own.
-        fill
-        leading={
-          // The day is the page's title, and tapping it opens that day's
-          // story — the way tapping the ring used to.
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Day ${currentDay} of ${totalDays}. Opens this day's story.`}
-            onPress={() =>
-              router.push({
-                pathname: '/story',
-                params: { day: String(currentDay) },
-              })
-            }
-            style={({ pressed }) => (pressed ? styles.pressed : undefined)}
-          >
-            {/* Where today stands in the challenge, said once and set big —
-                the number used to be a plain Quicksand label with the same
-                fact split off into a second line of "days left"; folded into
-                one Playfair line it reads as the day's real headline instead
-                of a caption. */}
-            <Headline size="headlineSm" align="left">
-              {`Day ${currentDay} of ${totalDays}`}
-            </Headline>
-            {/* What's left of today: the count in words, then the same thing
-                again as a dot per task, filled in as each is photographed. */}
-            <View style={styles.progressRow}>
-              <Text variant="label" color={colors.inkMuted}>
-                {done === rows.length ? 'All done today' : `${done} done today`}
+      {showCamera ? (
+        // Full-bleed and bare, the way `/photo/camera` already is — no day
+        // heading, no pencil menu, no tab bar. Restart/End/Change Challenge
+        // stay reachable from the calm view's pencil below, not from here.
+        <TaskCameraGrid
+          day={currentDay}
+          rows={rows}
+          onCapture={completeTaskWithPhoto}
+          onUndo={undoTask}
+          onClose={() => setCameraDismissed(true)}
+        />
+      ) : (
+        // Plain, centred title — the same header Discover and Calendar use —
+        // rather than an identity of its own. Wrapped unpadded, the way those
+        // two are, so the pencil sits from the true screen edge instead of
+        // doubling up on the page's own gutter.
+        <View style={styles.screenRoot}>
+          <Screen padded={false} tabBar>
+            <View style={[styles.titleBand, { marginTop: titleOffset }]}>
+              <Text variant="sectionTitle" center>
+                ToDo
               </Text>
-              <Text variant="label" color={colors.inkMuted}>
-                ·
-              </Text>
-              <View style={styles.dots}>
-                {rows.map((row) => (
-                  <View
-                    key={row.task.id}
-                    style={[styles.dot, row.done && styles.dotDone]}
-                  />
-                ))}
-              </View>
             </View>
-          </Pressable>
-        }
-        action={
+
+            {/* The calm record: every task a tile in its own mosaic, the print
+                itself standing in for the tick a row used to carry. Tapping a
+                done tile offers to undo it; tapping an open one (closed out of
+                the camera without finishing the day) drops straight back into
+                the live grid. */}
+            <View
+              style={styles.gridArea}
+              onLayout={(e) => setGridBox(e.nativeEvent.layout)}
+            >
+              {gridBox ? (
+                <PhotoCollage
+                  layout="mosaic"
+                  showLabels
+                  ratio={gridRatio}
+                  style={styles.grid}
+                  cells={rows.map((row) => ({
+                    key: row.task.id,
+                    label: row.task.label,
+                    photo: row.photo,
+                    seed: row.photoSeed,
+                    time: row.time,
+                    onPress: () =>
+                      row.done ? setDoneFor(row.task.id) : setCameraDismissed(false),
+                  }))}
+                />
+              ) : null}
+            </View>
+          </Screen>
+
           <IconButton
             name="pencil"
-            iconSize={21}
+            size={EDIT_SIZE}
+            iconSize={20}
+            background={colors.ink}
+            color={colors.inkInverse}
+            shadow={false}
             onPress={() => setMenuOpen(true)}
             accessibilityLabel="Challenge options"
+            style={[styles.corner, { top: headerTop }, shadows.floating]}
           />
-        }
-      >
-        {/* Experiment: no separate list — every task is a tile in the day's
-            own mosaic, the label set inside it rather than beside it, a
-            camera glyph in the ones still waiting to say a tap shoots the
-            photo that finishes them. A photographed tile shows the print
-            itself and asks retake-or-undo the way the row's filled circle
-            used to — there is no tick on the corner any more, since a task's
-            place in the mosaic already says it is done. */}
-        <View
-          style={styles.gridArea}
-          onLayout={(e) => setGridBox(e.nativeEvent.layout)}
-        >
-          {gridBox ? (
-            <PhotoCollage
-              layout="mosaic"
-              showLabels
-              ratio={gridRatio}
-              style={styles.grid}
-              cells={rows.map((row) => ({
-                key: row.task.id,
-                label: row.task.label,
-                photo: row.photo,
-                seed: row.photoSeed,
-                time: row.time,
-                onPress: pressSlot(row),
-              }))}
-            />
-          ) : null}
         </View>
-      </ProfileLayout>
+      )}
 
       <PopoverMenu
         visible={menuOpen}
@@ -189,30 +150,26 @@ export default function TodoScreen() {
             onPress: () => setRestartOpen(true),
           },
           {
+            label: 'End Challenge',
+            onPress: () => setEndOpen(true),
+          },
+          {
             label: 'Change Challenge',
-            onPress: () => router.push('/challenge/select'),
+            // The in-app select/custom-build screen is gone — browsing and
+            // joining a challenge now happens the one way Discover already
+            // does it for everyone else.
+            onPress: () => router.push('/discover'),
           },
         ]}
       />
 
       <AlertDialog
         visible={doneFor !== null}
-        title="Task Done"
-        message="Take this one again, or undo it — undoing removes the photo too."
+        title="Undo Task"
+        message="This removes today's photo too — you can shoot it again from the grid afterwards."
         onDismiss={() => setDoneFor(null)}
-        onDismissed={runPending}
         actions={[
-          {
-            label: 'Retake Photo',
-            onPress: () => {
-              const taskId = doneFor;
-              if (taskId) pending.current = () => shoot(taskId);
-              setDoneFor(null);
-              // A Modal reports its dismissal on iOS only; everywhere else
-              // there is nothing to wait for, so the push runs on the spot.
-              if (Platform.OS !== 'ios') runPending();
-            },
-          },
+          { label: 'Cancel', onPress: () => setDoneFor(null) },
           {
             label: 'Undo Task',
             destructive: true,
@@ -221,7 +178,6 @@ export default function TodoScreen() {
               setDoneFor(null);
             },
           },
-          { label: 'Cancel', onPress: () => setDoneFor(null) },
         ]}
       />
 
@@ -242,43 +198,50 @@ export default function TodoScreen() {
           },
         ]}
       />
+
+      <AlertDialog
+        visible={endOpen}
+        title="End Challenge"
+        message="Are you sure you want to end this challenge? Your progress will be lost."
+        onDismiss={() => setEndOpen(false)}
+        actions={[
+          { label: 'Cancel', onPress: () => setEndOpen(false) },
+          {
+            label: 'End Challenge',
+            destructive: true,
+            // Same stub as Restart above: confirming only closes the dialog
+            // until there is somewhere for ending a challenge to actually lead.
+            onPress: () => setEndOpen(false),
+          },
+        ]}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.75,
+  // Absolute overlays (the corner button) need a positioned parent, otherwise
+  // their offsets resolve against the screen's own children instead of it.
+  screenRoot: {
+    flex: 1,
   },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+  titleBand: {
+    minHeight: profileActionHeight,
+    justifyContent: 'center',
+    paddingHorizontal: screenPadding,
   },
-  dots: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  // A hollow ring rather than a flat grey disc — the same "empty outline,
-  // ink fill" the check circle used to draw on the row, so a pending dot
-  // reads as a place waiting to be filled rather than a smaller, greyer dot.
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    borderWidth: DOT_RING,
-    borderColor: colors.field,
-  },
-  dotDone: {
-    borderColor: colors.ink,
-    backgroundColor: colors.ink,
+  corner: {
+    position: 'absolute',
+    right: screenPadding,
   },
   gridArea: {
     flex: 1,
-    // Clear of the heading above it.
-    marginTop: spacing['2xl'],
+    // Clear of the heading above it, and of the floating tab bar below —
+    // both margins shrink `gridArea`'s own measured box, which the ratio
+    // handed to the mosaic is worked out from, so the block itself ends up
+    // that much short of full-bleed on each edge rather than crowding them.
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
   },
   grid: {
     // The tile hangs off the page's own gutter, the same one every other

@@ -38,6 +38,10 @@ export interface AlertDialogProps {
     onChangeText: (next: string) => void;
     placeholder?: string;
     autoFocus?: boolean;
+    /** A taller, top-aligned field for a sentence or two — a bio, not a name. */
+    multiline?: boolean;
+    /** Shown as a counter under the field when `multiline` is set. */
+    maxLength?: number;
   };
 }
 
@@ -99,14 +103,28 @@ export function AlertDialog({
                 ) : null}
 
                 {input ? (
-                  <TextInput
-                    value={input.value}
-                    onChangeText={input.onChangeText}
-                    placeholder={input.placeholder}
-                    placeholderTextColor={colors.inkMuted}
-                    autoFocus={input.autoFocus}
-                    style={styles.input}
-                  />
+                  <>
+                    <TextInput
+                      value={input.value}
+                      onChangeText={input.onChangeText}
+                      placeholder={input.placeholder}
+                      placeholderTextColor={colors.inkMuted}
+                      autoFocus={input.autoFocus}
+                      multiline={input.multiline}
+                      maxLength={input.maxLength}
+                      style={[styles.input, input.multiline && styles.inputMultiline]}
+                    />
+
+                    {input.multiline && input.maxLength ? (
+                      <Text
+                        variant="label"
+                        color={colors.inkMuted}
+                        style={styles.counter}
+                      >
+                        {input.value.length}/{input.maxLength}
+                      </Text>
+                    ) : null}
+                  </>
                 ) : null}
 
                 <View
@@ -186,8 +204,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     fontFamily: fonts.body,
     fontSize: 16,
+    lineHeight: 22,
     letterSpacing: bodyTracking,
     color: colors.ink,
+  },
+  // A pill reads as a single line; a paragraph needs a box it can wrap
+  // inside, top-aligned the way a sentence starts rather than centred like a
+  // one-line field.
+  inputMultiline: {
+    height: 140,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.lg,
+    textAlignVertical: 'top',
+  },
+  counter: {
+    marginTop: spacing.sm,
+    textAlign: 'right',
   },
   actions: {
     flexDirection: 'row',

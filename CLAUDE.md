@@ -93,9 +93,8 @@ pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
 `Polaroid` one instant print · `PhotoCollage` a pile of them ·
 `StickerText` die-cut display word · `PhotoStrip` ·
 `WallSection` · `FriendCard` · `ReviewCard` · `ChallengeDetail`
-· `ChallengePicker` · `Avatar` · `DateRange` · `GlassSurface` ·
-`Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar` ·
-`TrophyCard` one finished challenge, flat: trophy, name, dates.
+· `Avatar` · `DateRange` · `GlassSurface` ·
+`Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 
 ## Conventions
 

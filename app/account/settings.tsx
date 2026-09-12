@@ -1,30 +1,38 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertDialog } from '@/components/AlertDialog';
-import { ChallengeLengthSheet } from '@/components/ChallengeLengthSheet';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { ScreenScroll } from '@/components/Screen';
+import { IconButton } from '@/components/IconButton';
+import { profileActionTop } from '@/components/ProfileLayout';
+import { ScreenScroll, topPadding } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { colors, fonts, radii, screenPadding, shadows, spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
+
+/** Matches the back button every other pushed screen uses. */
+const BACK_SIZE = 46;
+
+const BIO_MAX = 120;
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const {
-    profile,
-    totalDays,
-    paused,
-    setPaused,
-    setName,
-    resetAll,
-  } = useApp();
+  const insets = useSafeAreaInsets();
+  const { profile, setName, setBio, resetAll } = useApp();
+
+  /**
+   * The shared line the title and the back button both sit on — the
+   * challenge preview's own header exactly.
+   */
+  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
+  const titleOffset = headerTop - topPadding(insets.top);
 
   const [nameOpen, setNameOpen] = useState(false);
-  const [lengthOpen, setLengthOpen] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
+  const [bioOpen, setBioOpen] = useState(false);
+  const [draftBio, setDraftBio] = useState(profile.bio ?? '');
   // Both account rows are one tap from wiping everything, so each one asks
   // first. Separate flags rather than one union: the dialog fades out, and a
   // shared value would swap the copy mid-animation.
@@ -36,7 +44,14 @@ export default function SettingsScreen() {
     // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
       <ScreenScroll tone="alt" tabBar>
-        <ScreenHeader plainTitle="Settings" />
+        {/* A band the same height as the back button, dropped to the
+            button's own line — centring the text inside it is what lines the
+            two up, rather than the two happening to agree. */}
+        <View style={[styles.titleBand, { marginTop: titleOffset }]}>
+          <Text variant="sectionTitle" center>
+            Settings
+          </Text>
+        </View>
 
         <Group title="Profile">
           <Row
@@ -50,28 +65,12 @@ export default function SettingsScreen() {
           <Row
             label="Bio"
             value={profile.bio ?? 'Add a bio'}
-            onPress={() => router.push('/account/bio')}
+            onPress={() => {
+              setDraftBio(profile.bio ?? '');
+              setBioOpen(true);
+            }}
             last
           />
-        </Group>
-
-        <Group title="Challenge">
-          <Row
-            label="Duration"
-            value={`${totalDays} days`}
-            onPress={() => setLengthOpen(true)}
-          />
-          <View style={styles.row}>
-            <Text variant="cardTitle" style={styles.rowLabel}>
-              Pause challenge
-            </Text>
-            <Switch
-              value={paused}
-              onValueChange={setPaused}
-              trackColor={{ false: colors.field, true: colors.ink }}
-              thumbColor={colors.surface}
-            />
-          </View>
         </Group>
 
         <Group title="Legal">
@@ -96,9 +95,18 @@ export default function SettingsScreen() {
         </Group>
       </ScreenScroll>
 
-      <ChallengeLengthSheet
-        visible={lengthOpen}
-        onDismiss={() => setLengthOpen(false)}
+      {/* The challenge preview's own back button: solid ink, pinned to the
+          display edge rather than the scroll content. */}
+      <IconButton
+        name="chevron-back"
+        size={BACK_SIZE}
+        iconSize={20}
+        background={colors.ink}
+        color={colors.inkInverse}
+        shadow={false}
+        onPress={() => router.back()}
+        accessibilityLabel="Go back"
+        style={[styles.back, { top: headerTop }, shadows.floating]}
       />
 
       <AlertDialog
@@ -118,6 +126,30 @@ export default function SettingsScreen() {
             onPress: () => {
               if (draftName.trim()) setName(draftName.trim());
               setNameOpen(false);
+            },
+          },
+        ]}
+      />
+
+      <AlertDialog
+        visible={bioOpen}
+        title="Update Bio"
+        message="Tell friends a little about yourself"
+        onDismiss={() => setBioOpen(false)}
+        input={{
+          value: draftBio,
+          onChangeText: (next) => setDraftBio(next.slice(0, BIO_MAX)),
+          autoFocus: true,
+          multiline: true,
+          maxLength: BIO_MAX,
+        }}
+        actions={[
+          { label: 'Cancel', onPress: () => setBioOpen(false) },
+          {
+            label: 'Update',
+            onPress: () => {
+              setBio(draftBio.trim() ? draftBio.trim() : null);
+              setBioOpen(false);
             },
           },
         ]}
@@ -230,6 +262,15 @@ function Row({
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
+  },
+  titleBand: {
+    minHeight: BACK_SIZE,
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  back: {
+    position: 'absolute',
+    left: screenPadding,
   },
   group: {
     marginBottom: spacing['2xl'],

@@ -1,77 +1,50 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { EmptyState } from '@/components/EmptyState';
-import { Headline } from '@/components/Headline';
 import { IconButton } from '@/components/IconButton';
-import { PhotoCollage } from '@/components/PhotoCollage';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
-import { PhotoSlot } from '@/components/PhotoSlot';
 import { PhotoStrip } from '@/components/PhotoStrip';
 import { ProfileStats } from '@/components/ProfileStats';
 import { ringInnerSize } from '@/components/DayRing';
-import {
-  profileActionHeight,
-  profileActionTop,
-  profileAvatarSize,
-} from '@/components/ProfileLayout';
-import { ScreenScroll } from '@/components/Screen';
+import { profileActionTop, profileAvatarSize } from '@/components/ProfileLayout';
+import { ScreenScroll, topPadding } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import {
-  colors,
-  fonts,
-  screenPadding,
-  shadows,
-  spacing,
-} from '@/constants/theme';
-import { challengePhotos, FRIENDS } from '@/data/content';
+import { colors, fonts, screenPadding, shadows, spacing } from '@/constants/theme';
+import { challengeStrip, FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
+
+/** Matches the settings corner button's own size. */
+const ADD_SIZE = 46;
 
 /** No ring here, so the circle is the To-do ring's inner disc, not its outer. */
 const avatarSize = ringInnerSize(profileAvatarSize);
 
-/**
- * The pin grid: three across the page. Square, not the portrait wall-tile
- * shape hand-picked pins used to keep — a saved post is a day's mosaic, the
- * same square cut the calendar's day cells and a friend's card use, and a
- * hand-picked pin sits happily cropped into the same square beside them.
- */
-const pinColumns = 3;
-const pinAspect = 1;
-const pinGap = spacing.md;
-
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     profile,
     challenge,
     currentDay,
     totalDays,
     setAvatarPhoto,
-    wall,
     trophies,
     livesLeft,
+    livesTotal,
   } = useApp();
 
-  // Every pin from every collection, in the order the collections are held.
-  // The grouping still exists in state — a friend's wall reads it — it just
-  // has nothing to say on your own page. The only way in now is saving a
-  // friend's post, so there is nothing here to seed the grid by hand.
-  const pins = wall.flatMap((board) => board.pins);
-
-  const { width: windowWidth } = useWindowDimensions();
-  const pinWidth = Math.floor(
-    (windowWidth - screenPadding * 2 - pinGap * (pinColumns - 1)) / pinColumns,
-  );
-  const pinHeight = Math.round(pinWidth / pinAspect);
+  /**
+   * The shared line the title and the corner button both sit on: normally the
+   * button's own fixed offset, but on a deep safe-area inset (Dynamic Island,
+   * a tall notch) the scroll's own top padding can run past it — in which
+   * case the button drops to meet the content instead of the title
+   * disappearing under a fixed corner. Discover's own header exactly.
+   */
+  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
+  const titleOffset = headerTop - topPadding(insets.top);
 
   // The circle goes straight to the library sheet — no source dialog in
   // between, since picking is the only thing the tap can mean.
@@ -84,9 +57,14 @@ export default function ProfileScreen() {
       {/* The Profile tab breaks from the warm app shell and sits on white,
           the way the reference screen does. */}
       <ScreenScroll tabBar tone="plain">
-        {/* The buttons themselves float above the scroll view, on the same
-            line as the To-do pencil; this only holds their space. */}
-        <View style={styles.topBarSpacer} />
+        {/* A band the same height as the corner button, dropped to the
+            button's own line — centring the text inside it is what lines the
+            two up, rather than the two happening to agree. */}
+        <View style={[styles.titleBand, { marginTop: titleOffset }]}>
+          <Text variant="sectionTitle" center>
+            Profile
+          </Text>
+        </View>
 
         <View style={styles.identity}>
           <View>
@@ -128,143 +106,93 @@ export default function ProfileScreen() {
           <Text variant="sectionTitle" style={styles.name}>
             {profile.name}
           </Text>
-          {/* The same ghost grey the inactive segmented tab uses. */}
-          <Text variant="bodyBold" color={colors.inkGhost}>
+          <Text variant="bodyBold" color={colors.inkMuted}>
             {profile.handle}
           </Text>
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/account/bio')}
-            style={styles.bioRow}
-          >
-            <Text variant="bodyBold" color={colors.inkMuted}>
-              {profile.bio ?? 'Add a bio'}
-            </Text>
-            <Ionicons
-              name="pencil"
-              size={15}
-              color={colors.inkMuted}
-              style={styles.bioPencil}
-            />
-          </Pressable>
+          {/* Read-only here: editing the bio is Settings' job now, not a tap
+              on the profile page itself. */}
+          <Text variant="bodyBold" color={colors.inkMuted} style={styles.bio}>
+            {profile.bio ?? 'No bio yet'}
+          </Text>
 
           {/* Part of the identity block: what the account has to show for
-              itself belongs with the name, above the page's sections. */}
+              itself belongs with the name, above the page's sections. No
+              colour-per-icon either — every glyph here reads as ink, the same
+              weight as the numeral it sits over. */}
           <ProfileStats
             stats={[
               {
                 key: 'friends',
                 icon: 'people',
-                iconColor: colors.sky,
                 value: FRIENDS.length,
                 label: 'Friends',
-                onPress: () => router.push('/friends'),
               },
               {
                 key: 'trophies',
                 icon: 'trophy',
-                iconColor: colors.gold,
                 value: trophies,
-                label: 'Trophies',
-                onPress: () => router.push('/trophies'),
+                label: 'Completed\nChallenges',
               },
               {
                 key: 'lives',
                 icon: 'heart',
-                iconColor: colors.destructive,
-                value: livesLeft,
-                label: livesLeft === 1 ? 'Life' : 'Lives',
+                value: `${livesLeft}/${livesTotal}`,
+                label: 'Lives',
               },
             ]}
             style={styles.stats}
           />
         </View>
 
-        {/* The challenge's own name carries the section — the same weight a
-            Discover row gives its title — with the day count under it in the
-            same words the To-do home uses for it, so the two never disagree. */}
-        <Headline size="headlineSm" align="left" style={styles.challengeTitle}>
-          {challenge.name}
-        </Headline>
-        <Text variant="bodyBold" color={colors.inkMuted} style={styles.challengeDay}>
-          Day {currentDay} of {totalDays}
+        <Text variant="sectionTitle" style={styles.challengeSectionTitle}>
+          Current challenge
         </Text>
 
-        {/* The same four tiles, at the same size, as the challenge's row on
-            Discover — one challenge, one picture of it. No badge on top: the
-            title above already says you're in it. */}
-        <PhotoStrip
-          photos={challengePhotos(challenge.id) ?? challenge.photoSeeds}
-          height={167}
-          style={styles.joinedStrip}
-        />
+        {/* Discover's own row, reused: same title, same flat strip — but
+            where that row leads with a member count, this one leads with the
+            one fact that actually matters here: where you stand in your own
+            challenge. Set as the strip's own floating badge rather than a
+            caption line, so the day you're on carries the same weight the
+            photos do instead of reading as a footnote under the title. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
+          onPress={() =>
+            router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })
+          }
+          style={styles.challengeCard}
+        >
+          <Text variant="sectionTitleXs" style={styles.challengeCardTitle}>
+            {challenge.name}
+          </Text>
 
-        <Text variant="sectionTitle" style={styles.pinsTitle}>
-          Pins
-        </Text>
-
-        {pins.length === 0 ? (
-          <EmptyState
-            icon="bookmark-outline"
-            title="No pins yet"
-            hint="Save a friend's post to pin it here."
+          <PhotoStrip
+            photos={challenge.photos ?? challengeStrip(challenge.id)}
+            height={167}
+            badge={`Day ${currentDay} of ${totalDays}`}
+            badgePosition="bottom"
+            badgeIcon="calendar"
+            layout="flat"
+            style={styles.joinedStrip}
           />
-        ) : (
-          <View style={styles.pinGrid}>
-            {pins.map((pin) =>
-              pin.cells ? (
-                <Pressable
-                  key={pin.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={pin.title}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/wall/[id]',
-                      params: { id: pin.id },
-                    })
-                  }
-                  style={({ pressed }) => [
-                    { width: pinWidth, height: pinHeight },
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <PhotoCollage layout="mosaic" cells={pin.cells} />
-                </Pressable>
-              ) : (
-                <PhotoSlot
-                  key={pin.id}
-                  photo={pin.photo}
-                  seed={pin.id}
-                  width={pinWidth}
-                  height={pinHeight}
-                  shadow={false}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/wall/[id]',
-                      params: { id: pin.id },
-                    })
-                  }
-                />
-              ),
-            )}
-          </View>
-        )}
+        </Pressable>
       </ScreenScroll>
 
-      <View style={styles.topBar}>
-        <View style={styles.spacer} />
-        {/* The To-do pencil's button exactly: the default glass lens at the
-            default size, glyph set to 21. The two sit on the same line as
-            each other across the two screens, so they should not be two
-            different kinds of button. */}
-        <IconButton
-          name="settings-outline"
-          iconSize={21}
-          onPress={() => router.push('/account/settings')}
-          accessibilityLabel="Settings"
-        />
-      </View>
+      {/* Discover's own "+" button exactly: solid ink rather than the glass
+          lens, so the one action that opens a whole new screen reads as a
+          control rather than another surface floating over the page. */}
+      <IconButton
+        name="settings-outline"
+        size={ADD_SIZE}
+        iconSize={20}
+        background={colors.ink}
+        color={colors.inkInverse}
+        shadow={false}
+        onPress={() => router.push('/account/settings')}
+        accessibilityLabel="Settings"
+        style={[styles.corner, { top: headerTop }, shadows.floating]}
+      />
 
       <PhotoLibrarySheet
         visible={libraryOpen}
@@ -279,22 +207,14 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  topBarSpacer: {
-    height: 56,
+  titleBand: {
+    minHeight: ADD_SIZE,
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
   },
-  // Pinned to the same line as the To-do home's corner button, measured from
-  // the screen edge rather than from the scroll content.
-  topBar: {
+  corner: {
     position: 'absolute',
-    top: profileActionTop,
-    left: screenPadding,
     right: screenPadding,
-    height: profileActionHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  spacer: {
-    flex: 1,
   },
   identity: {
     alignItems: 'center',
@@ -330,13 +250,8 @@ const styles = StyleSheet.create({
   name: {
     marginTop: spacing.lg,
   },
-  bioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  bio: {
     marginTop: 2,
-  },
-  bioPencil: {
-    marginLeft: spacing.sm,
   },
   // Runs the full page width so the two hairlines land on the thirds, and sits
   // closer to the bio above than to the first section heading below: it
@@ -345,23 +260,21 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginTop: spacing.xl,
   },
-  challengeTitle: {
-    marginTop: spacing['3xl'],
-  },
-  challengeDay: {
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  pinsTitle: {
+  challengeSectionTitle: {
     marginTop: spacing['3xl'],
     marginBottom: spacing.lg,
   },
-  // The tile widths are worked out from this same gap, so three land on a row
-  // with the page's own margins either side and nothing left over.
-  pinGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: pinGap,
+  // Bleeds to the page edge and back in, the same trick Discover's own row
+  // uses to give its Pressable a full-width hit target without widening the
+  // photo strip past the page gutter.
+  challengeCard: {
+    marginHorizontal: -spacing.xl,
+    paddingHorizontal: spacing.xl,
+  },
+  // Set close above the strip, matching Discover's own card title — the day
+  // badge floats off the strip's bottom edge now, clear of the title.
+  challengeCardTitle: {
+    marginBottom: spacing.xs,
   },
   // The strip runs wider than the page gutter on either side, as it does on
   // Discover.

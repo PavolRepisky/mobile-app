@@ -109,6 +109,13 @@ interface AppState {
   startDate: Date;
   totalDays: number;
   paused: boolean;
+  /**
+   * The floating tab bar is drawn once, at the `(tabs)` layout, so a screen
+   * wanting it gone — the to-do tab's live camera grid, full-bleed like the
+   * avatar camera route — has no view of its own to hide it on. This is that
+   * switch.
+   */
+  tabBarHidden: boolean;
 
   progress: Progress;
   /** The emoji left on a feed post, by post id — also used for a friend's
@@ -162,6 +169,7 @@ interface AppActions {
   setTotalDays: (days: number) => void;
   setPaused: (paused: boolean) => void;
   restartChallenge: () => void;
+  setTabBarHidden: (hidden: boolean) => void;
 
   toggleTask: (taskId: string, day?: number) => void;
   setTaskPhoto: (taskId: string, photo: TaskPhoto | null, day?: number) => void;
@@ -255,16 +263,6 @@ const seedWall = (): WallBoard[] => [
 const SEED_CHALLENGE = CHALLENGES[0];
 
 /**
- * Real shots standing in for the proof photos on the current day, keyed by
- * task id. Everything before day 5 keeps the drawn placeholders — these are
- * the two the home screen actually shows.
- */
-const SEED_PHOTOS: Readonly<Record<string, TaskPhoto>> = {
-  h1: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
-  h2: require('../assets/tasks/timed-water-bottle-walk.jpg'),
-};
-
-/**
  * The history behind today, day -> task id -> shot. Photos already bundled for
  * the wall, the feed and the challenge tiles are reused here rather than
  * shipping a second copy of the same kind of picture: what each one shows
@@ -323,20 +321,9 @@ function seedProgress(tasks: readonly ChallengeTask[]): Progress {
     });
   }
 
-  // Today: first two ticked, the rest still open — matches the home screenshot.
-  progress[SEED_DAY] = {};
-  tasks.forEach((t, i) => {
-    // A bundled shot wins over the drawn stand-in, the same way a photo the
-    // user picks does: the seed is what fills the slot until there is a real
-    // picture for it.
-    const photo = SEED_PHOTOS[t.id] ?? null;
-    progress[SEED_DAY][t.id] = {
-      done: i < 2,
-      time: i < 2 ? '7:19am' : undefined,
-      photo,
-      photoSeed: !photo && i < 2 ? `day${SEED_DAY}-${t.id}` : null,
-    };
-  });
+  // Today is left with nothing seeded: `useDayProgress` already defaults a
+  // day with no entry to every task open, so the live camera grid greets a
+  // fresh launch with a clean slate rather than someone else's shots.
 
   return progress;
 }
@@ -358,7 +345,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     handle: '@julia_575',
     bio: null,
     avatarSeed: null,
-    avatar: null,
+    // Face-forward and not used as anyone else's avatar, so the crop reads
+    // as "you" without colliding with a friend's or an author's photo.
+    avatar: require('../assets/ambassadors/amb-3.jpg'),
   });
 
   // Set once and never written again: you only ever download the app the once,
@@ -377,6 +366,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [totalDays, setTotalDays] = useState(SEED_CHALLENGE.defaultDays);
   const [paused, setPaused] = useState(false);
+  const [tabBarHidden, setTabBarHidden] = useState(false);
   // Every collection the wall offers starts named but empty; the reference
   // wall is a set of headings waiting to be filled, not a seeded gallery.
   const [wall, setWall] = useState<WallBoard[]>(seedWall);
@@ -772,7 +762,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       handle: '@julia_575',
       bio: null,
       avatarSeed: null,
-      avatar: null,
+      // Face-forward and not used as anyone else's avatar, so the crop
+      // reads as "you" without colliding with a friend's or an author's photo.
+      avatar: require('../assets/ambassadors/amb-3.jpg'),
     });
     setWall(seedWall());
     setPinDraft(null);
@@ -789,6 +781,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       startDate,
       totalDays,
       paused,
+      tabBarHidden,
       progress,
       postReactions,
       friendComments,
@@ -819,6 +812,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTotalDays,
       setPaused,
       restartChallenge,
+      setTabBarHidden,
       toggleTask,
       setTaskPhoto,
       completeTaskWithPhoto,
@@ -836,11 +830,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       profile, installedAt, challenge, tasks, startDate, totalDays,
-      paused, progress, postReactions, friendComments, savedPosts, inviteCode, trophies,
+      paused, tabBarHidden, progress, postReactions, friendComments, savedPosts, inviteCode, trophies,
       currentDay, endDate, missedDays, livesLeft, wall, pinDraft, customChallenges,
       setName, setBio, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
-      toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
+      setTabBarHidden, toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
       reactToPost, addFriendComment, toggleSavePost, resetAll,
       renameWallBoard, startPinDraft, setPinDraftPhoto, clearPinDraft,
       addWallPin, updateWallPin,

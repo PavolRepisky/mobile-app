@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from 'react-native';
+
 export interface ChallengeTask {
   id: string;
   label: string;
@@ -14,8 +16,16 @@ export interface Challenge {
   name: string;
   /** Bottom-left stamp on the sticker card. */
   stamp: string;
+  /** One or two sentences: what the challenge is and who it's for. */
+  description: string;
   joined: number;
   photoSeeds: readonly string[];
+  /**
+   * Real photos a user picked while creating their own challenge, standing in
+   * for `photoSeeds` wherever a challenge's strip is drawn. The presets never
+   * set this — they only ever have seeds.
+   */
+  photos?: readonly ImageSourcePropType[];
   tasks: readonly ChallengeTask[];
   defaultDays: number;
 }
@@ -25,8 +35,10 @@ const task = (id: string, label: string): ChallengeTask => ({ id, label });
 export const CHALLENGES: readonly Challenge[] = [
   {
     id: 'her75',
-    name: 'Her 75 Challenge',
+    name: 'Get Fit for Summer',
     stamp: 'Her 75 Challenge',
+    description:
+      'A friendlier 75-day reset: clean eating, daily movement, and no alcohol — built for getting summer-ready without burning out.',
     joined: 20000,
     photoSeeds: ['her75-a', 'her75-b', 'her75-c', 'her75-d'],
     defaultDays: 75,
@@ -40,8 +52,10 @@ export const CHALLENGES: readonly Challenge[] = [
   },
   {
     id: 'hard',
-    name: '75 Day Hard',
+    name: 'No Excuses Challenge',
     stamp: '75 Hard',
+    description:
+      '75 days, zero cheat days. Two workouts, a strict diet, and a daily progress photo — the original mental-toughness challenge.',
     joined: 10000,
     photoSeeds: ['hard-a', 'hard-b', 'hard-c', 'hard-d'],
     defaultDays: 75,
@@ -55,8 +69,10 @@ export const CHALLENGES: readonly Challenge[] = [
   },
   {
     id: 'medium',
-    name: '75 Medium',
+    name: 'Balanced Reset',
     stamp: '75 Medium',
+    description:
+      '75 days of steady, sustainable habits: one flexible meal a week, daily movement, and a nightly read.',
     joined: 5000,
     photoSeeds: ['med-a', 'med-b', 'med-c', 'med-d'],
     defaultDays: 75,
@@ -70,8 +86,10 @@ export const CHALLENGES: readonly Challenge[] = [
   },
   {
     id: 'soft',
-    name: '75 Soft',
+    name: 'Fresh Start',
     stamp: '75 Soft',
+    description:
+      'A gentler 75 days: clean eating with a little room to breathe, daily walks, and time to unwind with a podcast.',
     joined: 7500,
     photoSeeds: ['soft-a', 'soft-b', 'soft-c', 'soft-d'],
     defaultDays: 75,
@@ -88,6 +106,7 @@ export const CUSTOM_CHALLENGE: Challenge = {
   id: 'custom',
   name: 'Custom Challenge',
   stamp: 'Custom',
+  description: 'Build your own 75-day challenge — pick the daily tasks that matter to you.',
   joined: 0,
   photoSeeds: ['custom-a', 'custom-b', 'custom-c', 'custom-d'],
   defaultDays: 75,
