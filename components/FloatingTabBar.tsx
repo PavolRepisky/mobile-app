@@ -9,9 +9,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadows, tabBar, tabBarBottom, type } from '@/constants/theme';
+import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
-import { Text } from './Text';
 
 export type TabIcon = 'discover' | 'community' | 'todo' | 'calendar' | 'profile';
 
@@ -111,12 +110,7 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
             <Glyph icon={icon} active color={colors.inkInverse} />
           </View>
         ) : (
-          <>
-            <Glyph icon={icon} active={!!isFocused} />
-            <Text variant="tab" style={styles.tabLabel}>
-              {label}
-            </Text>
-          </>
+          <Glyph icon={icon} active={!!isFocused} />
         )}
       </Pressable>
     );
@@ -188,14 +182,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
   },
   tabActive: {
     backgroundColor: colors.divider,
-  },
-  tabLabel: {
-    ...type.tab,
-    color: colors.ink,
   },
   disc: {
     width: FILLED_SIZE,
