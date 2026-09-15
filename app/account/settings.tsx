@@ -2,37 +2,46 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertDialog } from '@/components/AlertDialog';
-import { IconButton } from '@/components/IconButton';
-import { profileActionTop } from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, fonts, radii, screenPadding, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, radii, spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 
-/** Matches the back button every other pushed screen uses. */
-const BACK_SIZE = 46;
+/** The profile screen's own settings glyph, sized on its own rather than a
+ * circular button. */
+const backIconSize = 26;
+/** The outline glyph has no bold cut of its own — stacking a second copy a
+ * hair off the first thickens the stroke without switching to the filled
+ * icon. Matches the profile screen's settings glyph exactly. */
+const backBoldOffset = 0.6;
 
 const BIO_MAX = 120;
 
+type SocialPlatform = 'instagram' | 'tiktok' | 'x';
+
+const SOCIAL_META: readonly { platform: SocialPlatform; label: string }[] = [
+  { platform: 'instagram', label: 'Instagram' },
+  { platform: 'tiktok', label: 'TikTok' },
+  { platform: 'x', label: 'X' },
+];
+
 export default function SettingsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { profile, setName, setBio, resetAll } = useApp();
-
-  /**
-   * The shared line the title and the back button both sit on — the
-   * challenge preview's own header exactly.
-   */
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
+  const { profile, setName, setBio, setHandle, setSocial, resetAll } = useApp();
 
   const [nameOpen, setNameOpen] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
+  const [handleOpen, setHandleOpen] = useState(false);
+  const [draftHandle, setDraftHandle] = useState(profile.handle);
   const [bioOpen, setBioOpen] = useState(false);
   const [draftBio, setDraftBio] = useState(profile.bio ?? '');
+  // One dialog reused for all three platforms rather than three near-copies
+  // of it — which platform is open is the only thing that changes between
+  // them.
+  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform | null>(null);
+  const [draftSocial, setDraftSocial] = useState('');
   // Both account rows are one tap from wiping everything, so each one asks
   // first. Separate flags rather than one union: the dialog fades out, and a
   // shared value would swap the copy mid-animation.
@@ -40,17 +49,35 @@ export default function SettingsScreen() {
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   return (
-    // Absolute overlays need a positioned parent, otherwise their offsets
-    // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
       <ScreenScroll tone="alt" tabBar>
-        {/* A band the same height as the back button, dropped to the
-            button's own line — centring the text inside it is what lines the
-            two up, rather than the two happening to agree. */}
-        <View style={[styles.titleBand, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
+        {/* The profile screen's own header row exactly: a spacer balancing
+            the leading glyph so the title centres on the page, rather than
+            a fixed band with a button floating over the scroll content. */}
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => router.back()}
+            hitSlop={spacing.md}
+            style={({ pressed }) => pressed && styles.iconPressed}
+          >
+            <View style={styles.backIconStack}>
+              <Ionicons name="chevron-back" size={backIconSize} color={colors.ink} />
+              <Ionicons
+                name="chevron-back"
+                size={backIconSize}
+                color={colors.ink}
+                style={styles.backIconOverlay}
+              />
+            </View>
+          </Pressable>
+
+          <Text variant="sectionTitle" center style={styles.headerTitle}>
             Settings
           </Text>
+
+          <View style={styles.headerSpacer} />
         </View>
 
         <Group title="Profile">
@@ -63,6 +90,14 @@ export default function SettingsScreen() {
             }}
           />
           <Row
+            label="Username"
+            value={profile.handle}
+            onPress={() => {
+              setDraftHandle(profile.handle);
+              setHandleOpen(true);
+            }}
+          />
+          <Row
             label="Bio"
             value={profile.bio ?? 'Add a bio'}
             onPress={() => {
@@ -71,6 +106,21 @@ export default function SettingsScreen() {
             }}
             last
           />
+        </Group>
+
+        <Group title="Socials">
+          {SOCIAL_META.map((meta, index) => (
+            <Row
+              key={meta.platform}
+              label={meta.label}
+              value={profile.socials[meta.platform] ?? 'Add'}
+              onPress={() => {
+                setDraftSocial(profile.socials[meta.platform] ?? '');
+                setSocialPlatform(meta.platform);
+              }}
+              last={index === SOCIAL_META.length - 1}
+            />
+          ))}
         </Group>
 
         <Group title="Legal">
@@ -95,20 +145,6 @@ export default function SettingsScreen() {
         </Group>
       </ScreenScroll>
 
-      {/* The challenge preview's own back button: solid ink, pinned to the
-          display edge rather than the scroll content. */}
-      <IconButton
-        name="chevron-back"
-        size={BACK_SIZE}
-        iconSize={20}
-        background={colors.ink}
-        color={colors.inkInverse}
-        shadow={false}
-        onPress={() => router.back()}
-        accessibilityLabel="Go back"
-        style={[styles.back, { top: headerTop }, shadows.floating]}
-      />
-
       <AlertDialog
         visible={nameOpen}
         title="Update Username"
@@ -132,13 +168,41 @@ export default function SettingsScreen() {
       />
 
       <AlertDialog
+        visible={handleOpen}
+        title="Update Username"
+        message="Enter your new username"
+        onDismiss={() => setHandleOpen(false)}
+        input={{
+          value: draftHandle,
+          onChangeText: setDraftHandle,
+          autoFocus: true,
+        }}
+        actions={[
+          { label: 'Cancel', onPress: () => setHandleOpen(false) },
+          {
+            label: 'Update',
+            onPress: () => {
+              const next = draftHandle.trim();
+              if (next) setHandle(next.startsWith('@') ? next : `@${next}`);
+              setHandleOpen(false);
+            },
+          },
+        ]}
+      />
+
+      <AlertDialog
         visible={bioOpen}
         title="Update Bio"
         message="Tell friends a little about yourself"
         onDismiss={() => setBioOpen(false)}
         input={{
           value: draftBio,
-          onChangeText: (next) => setDraftBio(next.slice(0, BIO_MAX)),
+          // A bio is a line or two, not a page: a run of line breaks (typed
+          // or pasted in) would stretch the identity block on the profile
+          // page well past the avatar next to it, so breaks collapse to a
+          // space as they're typed rather than surviving to render.
+          onChangeText: (next) =>
+            setDraftBio(next.replace(/\s*\n+\s*/g, ' ').slice(0, BIO_MAX)),
           autoFocus: true,
           multiline: true,
           maxLength: BIO_MAX,
@@ -150,6 +214,31 @@ export default function SettingsScreen() {
             onPress: () => {
               setBio(draftBio.trim() ? draftBio.trim() : null);
               setBioOpen(false);
+            },
+          },
+        ]}
+      />
+
+      <AlertDialog
+        visible={socialPlatform !== null}
+        title={`Update ${SOCIAL_META.find((m) => m.platform === socialPlatform)?.label ?? ''}`}
+        message="Enter your username"
+        onDismiss={() => setSocialPlatform(null)}
+        input={{
+          value: draftSocial,
+          onChangeText: setDraftSocial,
+          autoFocus: true,
+        }}
+        actions={[
+          { label: 'Cancel', onPress: () => setSocialPlatform(null) },
+          {
+            label: 'Update',
+            onPress: () => {
+              if (socialPlatform) {
+                const next = draftSocial.trim().replace(/^@/, '');
+                setSocial(socialPlatform, next ? next : null);
+              }
+              setSocialPlatform(null);
             },
           },
         ]}
@@ -263,14 +352,30 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  titleBand: {
-    minHeight: BACK_SIZE,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  back: {
+  headerTitle: {
+    flex: 1,
+  },
+  backIconStack: {
+    width: backIconSize + backBoldOffset,
+    height: backIconSize + backBoldOffset,
+  },
+  backIconOverlay: {
     position: 'absolute',
-    left: screenPadding,
+    left: backBoldOffset,
+    top: backBoldOffset,
+  },
+  // Balances the leading glyph, so the flexed title between them centres on
+  // the page instead of on the leftover space.
+  headerSpacer: {
+    width: backIconSize + backBoldOffset,
+  },
+  iconPressed: {
+    opacity: 0.85,
   },
   group: {
     marginBottom: spacing['2xl'],

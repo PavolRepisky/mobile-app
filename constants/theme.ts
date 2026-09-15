@@ -340,6 +340,16 @@ export const type = {
     lineHeight: 14,
     letterSpacing: bodyTracking,
   },
+  /** A step up from `micro` — the interaction counts on the profile grid's
+   * own post tiles, which need to hold their own printed straight onto a
+   * photo rather than fade into it. The heaviest cut Quicksand has: anything
+   * lighter washes out again against a busy photo at this size. */
+  microBold: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    lineHeight: 16,
+    letterSpacing: bodyTracking,
+  },
   /**
    * The uppercase stamp closing the day card — the challenge name and the
    * handle under its rule. Letterspaced open rather than set at the body

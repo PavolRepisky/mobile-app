@@ -50,7 +50,10 @@ const DOUBLE_TAP_MS = 280;
  */
 export const dayPillHeight = 35;
 
-const RING_WIDTH = 3.5;
+/** Exported so a screen drawing this same gradient ring around its own badge
+ * (rather than the "Day N" pill below) can still size its inset to match. */
+export const ringWidth = 3.5;
+const RING_WIDTH = ringWidth;
 /** No gap: the photo runs right up under the band, so the page colour never
  * shows as a pale circle between the two. */
 const RING_GAP = 0;

@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 
 import { bodyTracking, colors, fonts, radii, shadows, spacing } from '@/constants/theme';
-import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
 export interface AlertAction {
@@ -47,9 +46,9 @@ export interface AlertDialogProps {
 
 /**
  * The iOS-style centred dialog used by "Today's Photo", "Restart Challenge"
- * and "Update Username": title, message, optional field, then pills. The panel
- * is the same liquid-glass lens the tab bar is built from, so the screen it
- * interrupts stays legible, blurred, underneath it.
+ * and "Update Username": title, message, optional field, then pills. The
+ * panel is a plain white card rather than the tab bar's liquid glass — an
+ * alert reads a decision, not a surface floating over a photo.
  *
  * Two actions sit side by side; a third will not read as a pair, so past that
  * the pills stack full-width the way iOS does with its own alerts.
@@ -83,82 +82,78 @@ export function AlertDialog({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.centre}
         >
-          {/* The lens clips its children, and on iOS a view cannot both clip
-              and cast a shadow, so the drop lives out here. */}
           <View style={[styles.panel, shadows.floating]}>
-            <GlassSurface radius={radii.xl} shadow={false}>
-              <View style={styles.dialog}>
-                <Text variant="cardTitle" style={styles.title}>
-                  {title}
-                </Text>
+            <View style={styles.dialog}>
+              <Text variant="cardTitle" style={styles.title}>
+                {title}
+              </Text>
 
-                {message ? (
-                  <Text
-                    variant="body"
-                    color={colors.inkSoft}
-                    style={styles.message}
-                  >
-                    {message}
-                  </Text>
-                ) : null}
-
-                {input ? (
-                  <>
-                    <TextInput
-                      value={input.value}
-                      onChangeText={input.onChangeText}
-                      placeholder={input.placeholder}
-                      placeholderTextColor={colors.inkMuted}
-                      autoFocus={input.autoFocus}
-                      multiline={input.multiline}
-                      maxLength={input.maxLength}
-                      style={[styles.input, input.multiline && styles.inputMultiline]}
-                    />
-
-                    {input.multiline && input.maxLength ? (
-                      <Text
-                        variant="label"
-                        color={colors.inkMuted}
-                        style={styles.counter}
-                      >
-                        {input.value.length}/{input.maxLength}
-                      </Text>
-                    ) : null}
-                  </>
-                ) : null}
-
-                <View
-                  style={[
-                    styles.actions,
-                    actions.length > 2 && styles.actionsStacked,
-                  ]}
+              {message ? (
+                <Text
+                  variant="body"
+                  color={colors.inkSoft}
+                  style={styles.message}
                 >
-                  {actions.map((action) => (
-                    <Pressable
-                      key={action.label}
-                      accessibilityRole="button"
-                      onPress={action.onPress}
-                      style={({ pressed }) => [
-                        styles.action,
-                        actions.length > 2
-                          ? styles.actionStacked
-                          : styles.actionRow,
-                        pressed && styles.pressed,
-                      ]}
+                  {message}
+                </Text>
+              ) : null}
+
+              {input ? (
+                <>
+                  <TextInput
+                    value={input.value}
+                    onChangeText={input.onChangeText}
+                    placeholder={input.placeholder}
+                    placeholderTextColor={colors.inkMuted}
+                    autoFocus={input.autoFocus}
+                    multiline={input.multiline}
+                    maxLength={input.maxLength}
+                    style={[styles.input, input.multiline && styles.inputMultiline]}
+                  />
+
+                  {input.multiline && input.maxLength ? (
+                    <Text
+                      variant="label"
+                      color={colors.inkMuted}
+                      style={styles.counter}
                     >
-                      <Text
-                        variant="button"
-                        color={
-                          action.destructive ? colors.destructive : colors.ink
-                        }
-                      >
-                        {action.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                      {input.value.length}/{input.maxLength}
+                    </Text>
+                  ) : null}
+                </>
+              ) : null}
+
+              <View
+                style={[
+                  styles.actions,
+                  actions.length > 2 && styles.actionsStacked,
+                ]}
+              >
+                {actions.map((action) => (
+                  <Pressable
+                    key={action.label}
+                    accessibilityRole="button"
+                    onPress={action.onPress}
+                    style={({ pressed }) => [
+                      styles.action,
+                      actions.length > 2
+                        ? styles.actionStacked
+                        : styles.actionRow,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text
+                      variant="button"
+                      color={
+                        action.destructive ? colors.destructive : colors.ink
+                      }
+                    >
+                      {action.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-            </GlassSurface>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -178,8 +173,8 @@ const styles = StyleSheet.create({
   },
   panel: {
     borderRadius: radii.xl,
-    // Left unfilled: a background here would sit behind the lens, and the
-    // blur would sample it instead of the screen the dialog is covering.
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
   },
   dialog: {
     padding: spacing['2xl'],

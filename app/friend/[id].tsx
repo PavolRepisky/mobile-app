@@ -100,7 +100,7 @@ export default function FriendProfileScreen() {
                 key: 'lives',
                 icon: 'heart',
                 value: `${friend.livesLeft}/${LIVES_TOTAL}`,
-                label: 'Lives',
+                label: 'Misses left',
               },
             ]}
             style={styles.stats}

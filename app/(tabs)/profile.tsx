@@ -1,120 +1,272 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { IconButton } from '@/components/IconButton';
+import { EmptyState } from '@/components/EmptyState';
+import { MosaicArrangement } from '@/components/PhotoCollage';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
-import { PhotoStrip } from '@/components/PhotoStrip';
+import { Placeholder } from '@/components/Placeholder';
 import { ProfileStats } from '@/components/ProfileStats';
-import { ringInnerSize } from '@/components/DayRing';
-import { profileActionTop, profileAvatarSize } from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { profileAvatarSize } from '@/components/ProfileLayout';
+import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, fonts, screenPadding, shadows, spacing } from '@/constants/theme';
-import { challengeStrip, FRIENDS } from '@/data/content';
+import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
-/** Matches the settings corner button's own size. */
-const ADD_SIZE = 46;
+/** Kept out of the stylesheet because it is handed to `Image` as often as to
+ * a `View`, and the two disagree about what a style is allowed to say —
+ * the calendar's own day-cell mosaic does the same. */
+const DAY_CELL_PIECE = { flex: 1 } as const;
+/** No cut between a day's own photos — unlike the calendar's own mosaic,
+ * the gap here belongs between whole day tiles, not the prints inside one. */
+const DAY_CELL_SEAM = 0;
+/** A hint of rounding on each post tile — smaller than the `sm` token, which
+ * reads too soft against the tight edge-to-edge grid. */
+const POST_TILE_RADIUS = 5;
+/** Width over height for a post tile — a touch taller than square, rather
+ * than the flat 1:1 an Instagram grid usually cuts its own tiles to. */
+const POST_TILE_RATIO = 0.85;
 
-/** No ring here, so the circle is the To-do ring's inner disc, not its outer. */
-const avatarSize = ringInnerSize(profileAvatarSize);
+/** Stable per key rather than random, so a tile's fake numbers don't reshuffle
+ * on every render — the same trick `PhotoCollage`'s own pile hash uses. */
+function fakeCount(key: string, min: number, max: number): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return min + (Math.abs(h) % (max - min + 1));
+}
+
+/** A bare glyph, sized on its own rather than the circular IconButton's. */
+const settingsIconSize = 26;
+/** The outline glyph has no bold cut of its own — stacking a second copy a
+ * hair off the first thickens the stroke without switching to the filled
+ * icon. */
+const settingsBoldOffset = 0.6;
+
+/** Same hero circle the to-do ring and a friend's profile share — this is
+ * the one place on the app's own profile that gets to be that big. */
+const avatarSize = profileAvatarSize;
+
+/** The streak badge laps the ring's corner the way Instagram's own "+"
+ * does — sized to that overlap, not to the type scale. */
+const streakBadgeHeight = 30;
+const streakBadgeOverlap = -4;
+const streakBadgeRingWidth = 2;
+const streakIconSize = 14;
+
+/** Boxed rather than bare — each linked account gets its own small raised
+ * chip, the way the reference groups them, instead of a row of loose glyphs. */
+const socialIconSize = 16;
+const socialIconBoxSize = 34;
+const socialIconBoxBorderWidth = 1.5;
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const {
     profile,
-    challenge,
     currentDay,
-    totalDays,
     setAvatarPhoto,
     trophies,
     livesLeft,
     livesTotal,
+    tasks,
+    progress,
   } = useApp();
-
-  /**
-   * The shared line the title and the corner button both sit on: normally the
-   * button's own fixed offset, but on a deep safe-area inset (Dynamic Island,
-   * a tall notch) the scroll's own top padding can run past it — in which
-   * case the button drops to meet the content instead of the title
-   * disappearing under a fixed corner. Discover's own header exactly.
-   */
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
 
   // The circle goes straight to the library sheet — no source dialog in
   // between, since picking is the only thing the tap can mean.
   const [libraryOpen, setLibraryOpen] = useState(false);
 
+  // A platform with no handle just drops out of the row instead of
+  // rendering greyed-out — the row is a fact about the account, not a form.
+  const socialLinks = [
+    profile.socials.instagram
+      ? {
+          key: 'instagram',
+          icon: 'logo-instagram' as const,
+          url: `https://instagram.com/${profile.socials.instagram}`,
+        }
+      : null,
+    profile.socials.tiktok
+      ? {
+          key: 'tiktok',
+          icon: 'logo-tiktok' as const,
+          url: `https://tiktok.com/@${profile.socials.tiktok}`,
+        }
+      : null,
+    profile.socials.x
+      ? {
+          key: 'x',
+          icon: 'logo-x' as const,
+          url: `https://x.com/${profile.socials.x}`,
+        }
+      : null,
+  ].filter((link): link is NonNullable<typeof link> => link !== null);
+
+  // Every day with at least one real photo, most recent first — each one
+  // cut into the same merged mosaic the to-do tab and a friend's own day
+  // use, rather than a single cover shot standing in for the rest. Only
+  // the tasks that actually got a photo take a slice of the cell: a day
+  // with three of five shot reads as three prints, not three prints and
+  // two grey gaps. A day with nothing real yet — today, most often — is
+  // left out of the grid entirely rather than faked in with drawn
+  // stand-ins.
+  const posts = Array.from({ length: currentDay }, (_, i) => currentDay - i)
+    .map((day) => {
+      const rows = tasks
+        .map((task) => {
+          const entry = progress[day]?.[task.id];
+          return entry?.photo || entry?.photoSeed
+            ? { key: task.id, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }
+            : null;
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null);
+
+      return {
+        key: `day-${day}`,
+        day,
+        rows,
+        likes: fakeCount(`day-${day}`, 40, 220),
+        comments: fakeCount(`day-${day}-c`, 1, 12),
+      };
+    })
+    .filter((post) => post.rows.length > 0);
+
   return (
-    // Absolute overlays need a positioned parent, otherwise their offsets
-    // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
       {/* The Profile tab breaks from the warm app shell and sits on white,
           the way the reference screen does. */}
       <ScreenScroll tabBar tone="plain">
-        {/* A band the same height as the corner button, dropped to the
-            button's own line — centring the text inside it is what lines the
-            two up, rather than the two happening to agree. */}
-        <View style={[styles.titleBand, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
-            Profile
+        {/* A slim header band of its own above the identity, the way a
+            profile with a back/notifications row keeps those clear of the
+            avatar rather than floating over it. A spacer matching the
+            settings glyph's own width balances the row so the title centres
+            on the page rather than on the space the icon leaves free. */}
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add friend"
+            onPress={() => router.push('/invite')}
+            hitSlop={spacing.md}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <View style={styles.headerIconStack}>
+              <Ionicons name="person-add-outline" size={settingsIconSize} color={colors.ink} />
+              <Ionicons
+                name="person-add-outline"
+                size={settingsIconSize}
+                color={colors.ink}
+                style={styles.headerIconOverlay}
+              />
+            </View>
+          </Pressable>
+
+          <Text variant="sectionTitle" center style={styles.headerTitle}>
+            My Profile
           </Text>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            onPress={() => router.push('/account/settings')}
+            hitSlop={spacing.md}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <View style={styles.headerIconStack}>
+              <Ionicons name="settings-outline" size={settingsIconSize} color={colors.ink} />
+              <Ionicons
+                name="settings-outline"
+                size={settingsIconSize}
+                color={colors.ink}
+                style={styles.headerIconOverlay}
+              />
+            </View>
+          </Pressable>
         </View>
 
         <View style={styles.identity}>
-          <View>
-            {/* The To-do circle without its ring, so the photo itself comes
-                out the size it does there. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                profile.avatar || profile.avatarSeed
-                  ? 'Change profile photo'
-                  : 'Add profile photo'
-              }
-              onPress={() => setLibraryOpen(true)}
-              style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
-            >
-              <Avatar
-                source={profile.avatar ?? profile.avatarSeed}
-                size={avatarSize}
-              />
-            </Pressable>
-            {!profile.avatar && !profile.avatarSeed ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setLibraryOpen(true)}
-                style={styles.addPhoto}
-              >
-                <Text
-                  variant="label"
-                  color={colors.inkMuted}
-                  center
-                  style={styles.addPhotoText}
+          <View style={styles.headerRow}>
+            <View>
+              {/* A plain circle rather than the Instagram-style gradient
+                  ring — the disc behind it is the avatar's own shape, so
+                  the shadow still has something solid to cast from. */}
+              <View style={[styles.avatarShadow, shadows.hard]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    profile.avatar || profile.avatarSeed
+                      ? 'Change profile photo'
+                      : 'Add profile photo'
+                  }
+                  onPress={() => setLibraryOpen(true)}
+                  style={({ pressed }) => pressed && styles.pressed}
                 >
-                  Add{'\n'}photo
+                  <Avatar
+                    source={profile.avatar ?? profile.avatarSeed}
+                    size={avatarSize}
+                  />
+                </Pressable>
+              </View>
+
+              {/* The day-streak badge, lapping the avatar's own corner the
+                  way Instagram's story "+" does. */}
+              <View style={[styles.streakBadge, shadows.hard]}>
+                <Ionicons name="calendar" size={streakIconSize} color={colors.inkInverse} />
+                <Text variant="micro" color={colors.inkInverse}>
+                  {currentDay}
                 </Text>
-              </Pressable>
-            ) : null}
+              </View>
+            </View>
+
+            {/* Vertically centred next to the photo (the row's own
+                alignItems does that), but the lines inside stay left-set —
+                a name reads as a name, not a caption under a poster. */}
+            <View style={styles.identityText}>
+              <Text variant="sectionTitle">{profile.name}</Text>
+              <Text variant="bodyBold" color={colors.inkMuted}>
+                {profile.handle}
+              </Text>
+
+              {/* Read-only here: editing the bio is Settings' job now, not a
+                  tap on the profile page itself. */}
+              <Text
+                variant="bodyBold"
+                color={colors.inkMuted}
+                style={styles.bio}
+              >
+                {profile.bio ?? 'No bio yet'}
+              </Text>
+
+              {/* Linked accounts, under the bio rather than under the photo
+                  — a fact about the account, so it sits with the rest of
+                  the account's facts. */}
+              {socialLinks.length ? (
+                <View style={styles.socialsRow}>
+                  {socialLinks.map((link) => (
+                    <Pressable
+                      key={link.key}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${link.key}`}
+                      onPress={() => Linking.openURL(link.url)}
+                      style={({ pressed }) => [
+                        styles.socialIconBox,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Ionicons
+                        name={link.icon}
+                        size={socialIconSize}
+                        color={colors.inkMuted}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </View>
-
-          <Text variant="sectionTitle" style={styles.name}>
-            {profile.name}
-          </Text>
-          <Text variant="bodyBold" color={colors.inkMuted}>
-            {profile.handle}
-          </Text>
-
-          {/* Read-only here: editing the bio is Settings' job now, not a tap
-              on the profile page itself. */}
-          <Text variant="bodyBold" color={colors.inkMuted} style={styles.bio}>
-            {profile.bio ?? 'No bio yet'}
-          </Text>
 
           {/* Part of the identity block: what the account has to show for
               itself belongs with the name, above the page's sections. No
@@ -132,67 +284,102 @@ export default function ProfileScreen() {
                 key: 'trophies',
                 icon: 'trophy',
                 value: trophies,
-                label: 'Completed\nChallenges',
+                label: 'Completed',
               },
               {
                 key: 'lives',
                 icon: 'heart',
                 value: `${livesLeft}/${livesTotal}`,
-                label: 'Lives',
+                label: 'Misses left',
+                info: "Miss a day's tasks and it costs one of these. Run out, and your challenge restarts from day 1.",
               },
             ]}
+            showIcons={false}
             style={styles.stats}
           />
         </View>
 
-        <Text variant="sectionTitle" style={styles.challengeSectionTitle}>
-          Current challenge
-        </Text>
+        {/* No card — the divider and the grid sit straight on the page,
+            the way the reference does. */}
+        <View style={styles.gridSection}>
+          <View style={styles.divider} />
 
-        {/* Discover's own row, reused: same title, same flat strip — but
-            where that row leads with a member count, this one leads with the
-            one fact that actually matters here: where you stand in your own
-            challenge. Set as the strip's own floating badge rather than a
-            caption line, so the day you're on carries the same weight the
-            photos do instead of reading as a footnote under the title. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
-          onPress={() =>
-            router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })
-          }
-          style={styles.challengeCard}
-        >
-          <Text variant="sectionTitleXs" style={styles.challengeCardTitle}>
-            {challenge.name}
-          </Text>
+          {/* Every day so far, cut into the same merged mosaic the to-do
+              tab and a friend's own day use — a day here reads exactly as
+              it does everywhere else in the app. Likes and comments sit on
+              the photo itself, washed in behind them the way the calendar's
+              own day cell prints a label straight onto a photo. */}
+          {posts.length === 0 ? (
+            <EmptyState
+              icon="camera-outline"
+              title="No posts yet"
+              hint="Photograph a task to see your first day here."
+            />
+          ) : (
+            <View style={styles.postGrid}>
+              {posts.map((post) => (
+                <View key={post.key} style={styles.postCellWrap}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Day ${post.day}, ${post.likes} likes, ${post.comments} comments`}
+                    onPress={() =>
+                      router.push({ pathname: '/day/[day]', params: { day: String(post.day) } })
+                    }
+                    style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
+                  >
+                    <MosaicArrangement
+                      cells={post.rows}
+                      seam={DAY_CELL_SEAM}
+                      renderCell={(row) =>
+                        row.photo ? (
+                          <Image
+                            key={row.key}
+                            source={row.photo}
+                            style={DAY_CELL_PIECE}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <Placeholder
+                            key={row.key}
+                            seed={row.seed ?? undefined}
+                            radius={0}
+                            style={DAY_CELL_PIECE}
+                          />
+                        )
+                      }
+                    />
 
-          <PhotoStrip
-            photos={challenge.photos ?? challengeStrip(challenge.id)}
-            height={167}
-            badge={`Day ${currentDay} of ${totalDays}`}
-            badgePosition="bottom"
-            badgeIcon="calendar"
-            layout="flat"
-            style={styles.joinedStrip}
-          />
-        </Pressable>
+                    <View style={styles.postMeta}>
+                      <View style={styles.postMetaItem}>
+                        <Ionicons name="heart-outline" size={14} color={colors.inkInverse} />
+                        <Text
+                          variant="microBold"
+                          color={colors.inkInverse}
+                          numberOfLines={1}
+                          style={styles.postMetaCount}
+                        >
+                          {post.likes}
+                        </Text>
+                      </View>
+                      <View style={styles.postMetaItem}>
+                        <Ionicons name="chatbubble-outline" size={13} color={colors.inkInverse} />
+                        <Text
+                          variant="microBold"
+                          color={colors.inkInverse}
+                          numberOfLines={1}
+                          style={styles.postMetaCount}
+                        >
+                          {post.comments}
+                        </Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </ScreenScroll>
-
-      {/* Discover's own "+" button exactly: solid ink rather than the glass
-          lens, so the one action that opens a whole new screen reads as a
-          control rather than another surface floating over the page. */}
-      <IconButton
-        name="settings-outline"
-        size={ADD_SIZE}
-        iconSize={20}
-        background={colors.ink}
-        color={colors.inkInverse}
-        shadow={false}
-        onPress={() => router.push('/account/settings')}
-        accessibilityLabel="Settings"
-        style={[styles.corner, { top: headerTop }, shadows.floating]}
-      />
 
       <PhotoLibrarySheet
         visible={libraryOpen}
@@ -207,48 +394,74 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  titleBand: {
-    minHeight: ADD_SIZE,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  corner: {
-    position: 'absolute',
-    right: screenPadding,
+  headerTitle: {
+    flex: 1,
   },
   identity: {
-    alignItems: 'center',
     marginTop: spacing.xs,
+  },
+  headerIconStack: {
+    width: settingsIconSize + settingsBoldOffset,
+    height: settingsIconSize + settingsBoldOffset,
+  },
+  headerIconOverlay: {
+    position: 'absolute',
+    left: settingsBoldOffset,
+    top: settingsBoldOffset,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   pressed: {
     opacity: 0.85,
   },
-  avatar: {
+  avatarShadow: {
     width: avatarSize,
     height: avatarSize,
     borderRadius: avatarSize / 2,
     backgroundColor: colors.backgroundPlain,
-    ...shadows.hard,
   },
-  // No bold cut at label size in the scale, so the weight is set here.
-  addPhotoText: {
-    fontFamily: fonts.bodyBold,
-  },
-  addPhoto: {
+  streakBadge: {
     position: 'absolute',
-    right: -24,
-    top: -4,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    // The corner that tucks against the avatar is drawn tighter than the
-    // three that sit free of it.
-    borderBottomLeftRadius: 8,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 3,
-    ...shadows.card,
+    bottom: streakBadgeOverlap,
+    right: streakBadgeOverlap,
+    height: streakBadgeHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
+    // A ring the page's own white so the badge reads as sitting on top of the
+    // avatar rather than merging into its edge.
+    borderWidth: streakBadgeRingWidth,
+    borderColor: colors.backgroundPlain,
   },
-  name: {
-    marginTop: spacing.lg,
+  socialsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  socialIconBox: {
+    width: socialIconBoxSize,
+    height: socialIconBoxSize,
+    borderRadius: radii.sm,
+    borderWidth: socialIconBoxBorderWidth,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // The name block fills what the row leaves past the ring.
+  identityText: {
+    flex: 1,
+    marginLeft: spacing.xl,
   },
   bio: {
     marginTop: 2,
@@ -260,25 +473,57 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginTop: spacing.xl,
   },
-  challengeSectionTitle: {
-    marginTop: spacing['3xl'],
+  gridSection: {
+    marginTop: spacing.xl,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.divider,
     marginBottom: spacing.lg,
   },
-  // Bleeds to the page edge and back in, the same trick Discover's own row
-  // uses to give its Pressable a full-width hit target without widening the
-  // photo strip past the page gutter.
-  challengeCard: {
-    marginHorizontal: -spacing.xl,
-    paddingHorizontal: spacing.xl,
+  // Edge to edge — the reference's own photo grid runs the full page width,
+  // no gutter either side — the gap lives between tiles (on `postCellWrap`
+  // below), not inside one.
+  postGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
-  // Set close above the strip, matching Discover's own card title — the day
-  // badge floats off the strip's bottom edge now, clear of the title.
-  challengeCardTitle: {
-    marginBottom: spacing.xs,
+  postCellWrap: {
+    width: '33.333%',
+    padding: 1,
   },
-  // The strip runs wider than the page gutter on either side, as it does on
-  // Discover.
-  joinedStrip: {
-    marginHorizontal: -spacing.sm,
+  postTile: {
+    aspectRatio: POST_TILE_RATIO,
+    borderRadius: POST_TILE_RADIUS,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSunken,
+  },
+  // Both counts grouped on the left rather than split to the tile's two
+  // edges — a caption reads as one line, not a row with a gap torn in it.
+  // Capped to a fraction of the tile's own width instead of just inset from
+  // the right: an inset alone still lets the row's content decide its own
+  // width, and a native build's own cut of the bold face can measure wider
+  // per digit than the web preview does — this caps the row itself, with
+  // its own clip, so no digit can ever reach the tile's true edge.
+  postMeta: {
+    position: 'absolute',
+    left: spacing.xs,
+    bottom: spacing.xs,
+    maxWidth: '70%',
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  postMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: 3,
+  },
+  // A hard ceiling on the numeral itself — three digits is the most this
+  // count is ever seeded with, so this is generous rather than tight.
+  postMetaCount: {
+    maxWidth: 32,
   },
 });
