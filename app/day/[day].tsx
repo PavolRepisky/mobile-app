@@ -1,24 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Placeholder } from '@/components/Placeholder';
-import { ScreenScroll } from '@/components/Screen';
+import { topPadding } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { colors, radii, screenPadding, spacing } from '@/constants/theme';
-import { useApp, useDayProgress } from '@/hooks/useAppState';
+import { useApp, useDayProgress, usePostedDays } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';
 
 /** Kept out of the stylesheet for the same reason the profile grid's own
@@ -38,6 +40,11 @@ const CAROUSEL_RATIO = 0.8;
  * own like button is just the one glyph, on or off. */
 const LIKE_EMOJI = '❤️';
 
+/** Matches the back chevron's own drawn size — used to reserve exactly its
+ * footprint at the top of the feed, since the button itself floats above the
+ * scroll rather than sitting in its flow. */
+const BACK_ICON_SIZE = 26.6;
+
 /** Stable per key rather than random, so the like count doesn't reshuffle
  * on every render — the same trick the profile grid's own fake counts use. */
 function fakeCount(key: string, min: number, max: number): number {
@@ -47,9 +54,11 @@ function fakeCount(key: string, min: number, max: number): number {
 }
 
 /**
- * A single day of your own challenge, opened the way an Instagram post does
- * rather than a story — a swipeable carousel you page through at your own
- * speed, not a timer that advances for you, with the same identity row and
+ * Your own days, opened the way an Instagram post does rather than a story —
+ * landing on the tile that was tapped, but free from there to scroll up or
+ * down through the post before or after it, one continuous feed the same
+ * way the Community tab scrolls through its own. Each post carries a
+ * swipeable photo carousel of its own and the same identity row and
  * like/comment strip a real post carries. The comment thread itself lives in
  * the same `CommentsSheet` a friend's own post opens, behind the comment
  * icon rather than stacked under the caption.
@@ -61,9 +70,135 @@ function fakeCount(key: string, min: number, max: number): number {
  */
 export default function DayPostScreen() {
   const { day: dayParam } = useLocalSearchParams<{ day: string }>();
-  const day = Number(dayParam) || 1;
+  const openedDay = Number(dayParam) || 1;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
+  const postedDays = usePostedDays();
+  // A day reached by a link rather than a tap on the grid — nothing
+  // photographed yet, say — has no neighbours in the feed to scroll onto, so
+  // it shows just itself.
+  const days = postedDays.includes(openedDay) ? postedDays : [openedDay];
+
+  const headerTop = topPadding(insets.top);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const itemRefs = useRef(new Map<number, View>());
+  // A manual scroll means the reader has taken over — the settle-and-jump
+  // below must stop correcting the position out from under them.
+  const userScrolledRef = useRef(false);
+
+  useEffect(() => {
+    userScrolledRef.current = false;
+    if (days[0] === openedDay) return;
+
+    // The tapped day's own position isn't known until its box (and every
+    // box above it) has actually laid out — which a single layout event
+    // isn't reliably the end of once photos start sizing themselves in. A
+    // few animation frames of re-measuring settles on the right offset
+    // without waiting on any one event to be the final word.
+    let cancelled = false;
+    let frame = 0;
+
+    const attempt = () => {
+      if (cancelled || userScrolledRef.current) return;
+      const target = itemRefs.current.get(openedDay);
+      const scroller = scrollRef.current;
+      if (target && scroller) {
+        target.measureLayout(
+          scroller as unknown as React.ComponentRef<typeof View>,
+          (_x, y) => {
+            if (!cancelled && !userScrolledRef.current) {
+              scroller.scrollTo({ y, animated: false });
+            }
+          },
+          () => {},
+        );
+      }
+      frame += 1;
+      if (frame < 6) requestAnimationFrame(attempt);
+    };
+
+    const raf = requestAnimationFrame(attempt);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [openedDay, days]);
+
+  return (
+    <View style={styles.root}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => {
+          userScrolledRef.current = true;
+        }}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: headerTop, paddingBottom: insets.bottom + spacing.xl },
+        ]}
+      >
+        {/* The feed's own title, sharing the back chevron's line the way
+            every other pushed screen's title band does — not "Day N", which
+            belongs to the post below it, but what this whole scroll is. */}
+        <View style={styles.titleBand}>
+          <Text variant="sectionTitle" center>
+            My Posts
+          </Text>
+        </View>
+
+        {days.map((day) => (
+          <View
+            key={day}
+            ref={(r) => {
+              if (r) itemRefs.current.set(day, r);
+              else itemRefs.current.delete(day);
+            }}
+            style={styles.post}
+          >
+            <DayPost day={day} />
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* Floats over the feed rather than living inside one post, so
+          scrolling between days never moves it — the title band above
+          scrolls with the content, exactly the way the Community tab's own
+          header does. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        onPress={() => router.back()}
+        hitSlop={spacing.md}
+        style={({ pressed }) => [
+          styles.back,
+          { top: headerTop },
+          pressed && styles.pressed,
+        ]}
+      >
+        <View style={styles.backIconStack}>
+          <Ionicons name="chevron-back" size={26} color={colors.ink} />
+          <Ionicons
+            name="chevron-back"
+            size={26}
+            color={colors.ink}
+            style={styles.backIconOverlay}
+          />
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * One day — the original single-day post viewer's own content, unchanged,
+ * just one entry in a continuous feed of them rather than the whole screen
+ * on its own.
+ */
+function DayPost({ day }: { day: number }) {
+  const router = useRouter();
   const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
     useApp();
   const rows = useDayProgress(day);
@@ -131,28 +266,7 @@ export default function DayPostScreen() {
   };
 
   return (
-    <ScreenScroll tone="plain" padded={false}>
-      {/* A bare chevron rather than a titled header band — the post below
-          carries its own identity row, the way a feed post does; a page
-          title over it would just repeat "Day N" a second time. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        onPress={() => router.back()}
-        hitSlop={spacing.md}
-        style={({ pressed }) => [styles.back, pressed && styles.pressed]}
-      >
-        <View style={styles.backIconStack}>
-          <Ionicons name="chevron-back" size={26} color={colors.ink} />
-          <Ionicons
-            name="chevron-back"
-            size={26}
-            color={colors.ink}
-            style={styles.backIconOverlay}
-          />
-        </View>
-      </Pressable>
-
+    <View>
       {/* The post's own header — avatar, name, the day it went up — sits on
           the post itself rather than in the screen's chrome. */}
       <View style={styles.identity}>
@@ -322,15 +436,39 @@ export default function DayPostScreen() {
         onSubmit={submit}
         composerAvatar={profile.avatar ?? profile.avatarSeed}
       />
-    </ScreenScroll>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.backgroundPlain,
+  },
+  // Without an explicit bound here the ScrollView has no viewport of its
+  // own to scroll within — it just renders its content at full length and
+  // whatever falls past the screen edge is gone, not scrolled to.
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+  },
+  // Shares the back chevron's own line — same trick a pushed screen's title
+  // band always uses to line a centred title up with the button beside it.
+  titleBand: {
+    minHeight: BACK_ICON_SIZE,
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  // One post's clearance from the next — a feed post's own quiet break, the
+  // same role the Community list's own `gap` plays between `FriendCard`s.
+  post: {
+    marginBottom: spacing['3xl'],
+  },
   back: {
-    marginLeft: screenPadding,
-    marginBottom: spacing.sm,
-    alignSelf: 'flex-start',
+    position: 'absolute',
+    left: screenPadding,
   },
   backIconStack: {
     width: 26.6,

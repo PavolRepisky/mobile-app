@@ -931,3 +931,21 @@ export function useDayProgress(day: number) {
     }));
   }, [progress, day, tasks]);
 }
+
+/** Every day so far with at least one photographed task, most recent first —
+ * the profile grid and the day pager both read this same order, so paging
+ * through an opened post lands on exactly the next tile down the grid. */
+export function usePostedDays(): number[] {
+  const { currentDay, tasks, progress } = useApp();
+  return useMemo(() => {
+    const days: number[] = [];
+    for (let day = currentDay; day >= 1; day -= 1) {
+      const posted = tasks.some((task) => {
+        const entry = progress[day]?.[task.id];
+        return entry?.photo || entry?.photoSeed;
+      });
+      if (posted) days.push(day);
+    }
+    return days;
+  }, [currentDay, tasks, progress]);
+}

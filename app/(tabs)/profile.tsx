@@ -15,7 +15,7 @@ import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { FRIENDS } from '@/data/content';
-import { useApp } from '@/hooks/useAppState';
+import { useApp, usePostedDays } from '@/hooks/useAppState';
 
 /** Kept out of the stylesheet because it is handed to `Image` as often as to
  * a `View`, and the two disagree about what a style is allowed to say —
@@ -80,6 +80,10 @@ export default function ProfileScreen() {
   // between, since picking is the only thing the tap can mean.
   const [libraryOpen, setLibraryOpen] = useState(false);
 
+  // Same order the day pager pages through — opening a tile and paging down
+  // must land on the next tile in this exact sequence.
+  const postedDays = usePostedDays();
+
   // A platform with no handle just drops out of the row instead of
   // rendering greyed-out — the row is a fact about the account, not a form.
   const socialLinks = [
@@ -114,26 +118,24 @@ export default function ProfileScreen() {
   // two grey gaps. A day with nothing real yet — today, most often — is
   // left out of the grid entirely rather than faked in with drawn
   // stand-ins.
-  const posts = Array.from({ length: currentDay }, (_, i) => currentDay - i)
-    .map((day) => {
-      const rows = tasks
-        .map((task) => {
-          const entry = progress[day]?.[task.id];
-          return entry?.photo || entry?.photoSeed
-            ? { key: task.id, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }
-            : null;
-        })
-        .filter((row): row is NonNullable<typeof row> => row !== null);
+  const posts = postedDays.map((day) => {
+    const rows = tasks
+      .map((task) => {
+        const entry = progress[day]?.[task.id];
+        return entry?.photo || entry?.photoSeed
+          ? { key: task.id, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }
+          : null;
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
 
-      return {
-        key: `day-${day}`,
-        day,
-        rows,
-        likes: fakeCount(`day-${day}`, 40, 220),
-        comments: fakeCount(`day-${day}-c`, 1, 12),
-      };
-    })
-    .filter((post) => post.rows.length > 0);
+    return {
+      key: `day-${day}`,
+      day,
+      rows,
+      likes: fakeCount(`day-${day}`, 40, 220),
+      comments: fakeCount(`day-${day}-c`, 1, 12),
+    };
+  });
 
   return (
     <View style={styles.screenRoot}>
