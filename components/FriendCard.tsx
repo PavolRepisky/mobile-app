@@ -1,266 +1,341 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
-  Animated,
-  Easing,
+  FlatList,
   Pressable,
   StyleSheet,
-  Text as RNText,
-  TextInput,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, bodyTracking, colors, fonts, radii, shadows, spacing } from '@/constants/theme';
-import { REACTIONS, type Friend } from '@/data/content';
+import { colors, radii, screenPadding, spacing } from '@/constants/theme';
+import { type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
+import { countComments, mergeCommentThread } from '@/lib/comments';
 import { Avatar } from './Avatar';
-import { PhotoCollage, type CollageCell } from './PhotoCollage';
+import { CommentsSheet } from './CommentsSheet';
+import { LockedOverlay } from './LockedOverlay';
+import { MosaicArrangement, type CollageCell } from './PhotoCollage';
+import { Placeholder } from './Placeholder';
 import { Text } from './Text';
+
+/** Square, unlike the post-detail screen's own taller carousel — this is one
+ * of many posts stacked in a feed, so it keeps the block the static grid it
+ * replaces already had, rather than growing each post to a full-page photo. */
+const CAROUSEL_RATIO = 1;
+
+/** Handed to `Image`/`View` as often as to the arrangement itself, so it's
+ * kept out of the stylesheet the way the post-detail screen's own copy is. */
+const GRID_CELL_PIECE = { flex: 1 } as const;
+
+/**
+ * Applied to the photo itself while locked — `LockedOverlay`'s own wash and
+ * `BlurView` sit on top of the whole block, but `BlurView` has no real
+ * backdrop blur on web and on Android short of the experimental method.
+ * `Image`'s own `blurRadius` blurs the pixels directly, so the shot reads
+ * as genuinely soft-focus everywhere, not just wherever the platform's
+ * compositor happens to support a blurred backdrop.
+ */
+const LOCK_BLUR_RADIUS = 60;
 
 export interface FriendCardProps {
   friend: Friend;
   onPress?: () => void;
+  /** Blurs the photo behind a lock — the Community feed before the account
+   * has proven today with its own photographed task. Everything else on the
+   * post (identity, actions, caption) stays plain and tappable. */
+  locked?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
+/** Stable per key rather than random, so a fake count doesn't reshuffle on
+ * every render — the same trick the post-detail screen's own copy uses. */
+function fakeCount(key: string, min: number, max: number): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return min + (Math.abs(h) % (max - min + 1));
+}
+
+/** The one reaction this card's heart toggles — matches the post-detail
+ * screen's own single like, not a picker of the app's full emoji set. */
+const LIKE_EMOJI = '❤️';
+
 /**
- * A friend's day as one flat post — avatar, name and how long ago it went up
- * underneath, then the photo itself: the same live grid the to-do tab cuts
- * their day into, done tasks and empty slots alike, not just a curated pick
- * of what they've finished. No card, no tilt, no shadow: it sits directly on
- * the page the way a feed post does, not something dropped on top of it.
+ * A friend's day as one flat post — avatar, name and the post-detail screen's
+ * own subtitle (the challenge, linked, then "Day N" — no relative timestamp)
+ * leading, then the same edge-to-edge photo mosaic the post-detail screen's
+ * own grid slide cuts, just their shot tasks and nothing standing in for the
+ * rest, and a like/comment action row. The comments themselves are never on
+ * the card — Instagram's own thread lives behind the comment icon, in the
+ * sheet that slides up over it, not stacked under the caption.
  *
  * Only the avatar and the name lead to their profile — the photo itself is
- * for reacting to, not tapping through. A tap on the corner icon, or a double
- * tap anywhere on the grid, slides a reaction bar out from under the toggle —
- * right to left, fused to it as one capsule rather than a separate shape;
- * tapping anywhere else on the photo dismisses it without picking one.
- * A comment field sits under the photo, the one place this app lets you talk
- * back to somebody else's day.
+ * just the post's own image, not a control.
  */
-
-/** How close two taps have to fall to count as one double tap — the same
- * window the "Day N" pill's back-to-today gesture uses. */
-const DOUBLE_TAP_MS = 280;
-
-/** How long the reaction row takes to grow in or shrink away — the same
- * duration the bottom sheet slides on. */
-const SLIDE_MS = 220;
-const easingFor = (open: boolean) =>
-  open ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic);
-
-/** Size of the reaction toggle's circle. */
-const REACTION_SIZE = 42;
-
-/** Width of one emoji's tap target inside the shared reaction bar. */
-const REACTION_ITEM = 44;
-
-/** How far the bar travels as it slides in — its own full width, so it reads
- * as sliding out from under the toggle rather than fading in place. */
-const REACTIONS_BAR_WIDTH = REACTIONS.length * REACTION_ITEM;
-
-export function FriendCard({ friend, onPress, style }: FriendCardProps) {
-  const { postReactions, reactToPost, friendComments, addFriendComment } = useApp();
-  const [picking, setPicking] = useState(false);
+export function FriendCard({ friend, onPress, locked, style }: FriendCardProps) {
+  const router = useRouter();
+  const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
+    useApp();
   const [draft, setDraft] = useState('');
-  const lastTap = useRef(0);
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
-  const picked = postReactions[friend.id] ?? null;
-  const comments = friendComments[friend.id] ?? [];
+  const liked = (postReactions[friend.id] ?? null) === LIKE_EMOJI;
+  const likeCount = fakeCount(friend.id, 40, 220) + (liked ? 1 : 0);
 
-  // Every task, not just the ones they've shot — the same set of cells the
-  // to-do tab's own grid renders for the signed-in account, so an unfinished
-  // task shows up as an empty slot rather than being left out of the post.
-  const cells: CollageCell[] = friend.tasks.map((task) => ({
-    key: task.label,
-    label: task.label,
-    photo: task.photo,
-    seed: task.photoSeed,
-    time: task.time,
+  const comments = mergeCommentThread(
+    friend.comments ?? [],
+    friendComments[friend.id] ?? [],
+    profile.avatar ?? profile.avatarSeed,
+  );
+  // Replies count toward the total at every depth — the icon reports the
+  // size of the whole thread, not just its top row.
+  const commentCount = countComments(comments);
+
+  // Only the tasks they've actually shot — a post is the photos themselves,
+  // the way the post-detail screen's own grid is, not a checklist with gaps
+  // standing in for what's left.
+  const cells: CollageCell[] = friend.tasks
+    .filter((task) => task.photo || task.photoSeed)
+    .map((task) => ({
+      key: task.label,
+      photo: task.photo,
+      seed: task.photoSeed,
+    }));
+
+  const doneLabels = friend.tasks.filter((task) => task.done).map((task) => task.label);
+
+  // With more than one photo, the carousel opens on the merged grid the
+  // static card used to show outright — the post still reads as that tile
+  // before it reads as any one photo in it. One photo has no grid that isn't
+  // the photo itself, so it opens straight there instead.
+  const photoSlides = cells.map((cell) => ({
+    key: cell.key,
+    kind: 'photo' as const,
+    photo: cell.photo ?? null,
+    seed: cell.seed ?? cell.key,
   }));
+  const slides =
+    photoSlides.length > 1
+      ? [
+          {
+            key: 'grid',
+            kind: 'grid' as const,
+            rows: photoSlides.map((s) => ({ key: s.key, photo: s.photo, seed: s.seed })),
+          },
+          ...photoSlides,
+        ]
+      : photoSlides;
 
-  // Kept mounted for the length of the exit animation, so the row shrinks
-  // back into the photo instead of vanishing the moment it closes.
-  const [mounted, setMounted] = useState(false);
-  const slide = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (picking) setMounted(true);
-    const animation = Animated.timing(slide, {
-      toValue: picking ? 1 : 0,
-      duration: SLIDE_MS,
-      easing: easingFor(picking),
-      useNativeDriver: true,
-    });
-    animation.start(({ finished }) => {
-      if (finished && !picking) setMounted(false);
-    });
-    return () => animation.stop();
-  }, [picking, slide]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [carouselWidth, setCarouselWidth] = useState(0);
+  const carouselHeight = carouselWidth ? Math.round(carouselWidth / CAROUSEL_RATIO) : 0;
 
-  const submit = () => {
-    if (!draft.trim()) return;
-    addFriendComment(friend.id, draft);
-    setDraft('');
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!carouselWidth) return;
+    const next = Math.round(e.nativeEvent.contentOffset.x / carouselWidth);
+    if (next !== activeIndex) setActiveIndex(next);
   };
 
-  /** A single tap on the grid does nothing — only a second one, close behind
-   * the first, opens the reaction row, the same as tapping its icon. */
-  const tapPhoto = () => {
-    const now = Date.now();
-    if (now - lastTap.current < DOUBLE_TAP_MS) {
-      lastTap.current = 0;
-      setPicking((open) => !open);
-      return;
-    }
-    lastTap.current = now;
+  const submit = (parentId: string | null) => {
+    if (!draft.trim()) return;
+    addFriendComment(friend.id, draft.trim(), parentId);
+    setDraft('');
   };
 
   return (
     <View style={style}>
-      <Pressable
-        accessibilityRole={onPress ? 'button' : undefined}
-        accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
-        onPress={onPress}
-        style={styles.identity}
-      >
-        <Avatar source={friend.avatar} size={40} />
-        <View style={styles.identityText}>
-          <Text variant="bodyBold">{friend.name}</Text>
-          {friend.postedAgo ? (
-            <Text variant="caption" color={colors.inkMuted}>
-              {friend.postedAgo}
-            </Text>
-          ) : null}
-        </View>
-      </Pressable>
-
-      {/* A plain View, not a Pressable: the reaction button and the row it
-          opens both sit inside it too, and a button cannot itself contain a
-          button. */}
-      <View style={styles.photoWrap}>
+      {/* Avatar and name lead to the profile; the subtitle's own challenge
+          link leads somewhere else entirely — two separate tap targets, so
+          neither is a Pressable nested inside the other. */}
+      <View style={styles.identity}>
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="React"
-          accessibilityHint="Double tap to react"
-          accessibilityState={{ expanded: picking }}
-          onPress={tapPhoto}
+          accessibilityRole={onPress ? 'button' : undefined}
+          accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
+          onPress={onPress}
         >
-          <PhotoCollage layout="mosaic" showLabels radius={radii.sm} cells={cells} />
+          <Avatar source={friend.avatar} size={32} />
         </Pressable>
-
-        {mounted ? (
-          // Covers the photo so a tap anywhere outside the bar itself — on
-          // the picture, not on one of the emoji — closes it again without
-          // picking anything.
-          <Pressable
-            style={absoluteFill}
-            accessibilityLabel="Dismiss reactions"
-            onPress={() => setPicking(false)}
-          />
-        ) : null}
-
-        {/* The reaction toggle, pinned to the photo's corner; the bar fuses
-            onto its left edge as one capsule rather than floating as its own
-            shape. */}
-        <View style={styles.reactionGroup}>
-          {mounted ? (
-            // The shadow is cast by this outer view and the slide clipped by
-            // the inner one, the same split the day tile uses: a view can't
-            // both clip its children and cast a shadow.
-            <View style={styles.reactionsBarShadow}>
-              <View style={styles.reactionsBarClip}>
-                <Animated.View
-                  pointerEvents={picking ? 'box-none' : 'none'}
-                  style={[
-                    styles.reactionsBarContent,
-                    {
-                      opacity: slide,
-                      transform: [
-                        {
-                          translateX: slide.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [REACTIONS_BAR_WIDTH, 0],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  {REACTIONS.map((emoji) => (
-                    <Pressable
-                      key={emoji}
-                      accessibilityRole="button"
-                      accessibilityLabel={`React ${emoji}`}
-                      accessibilityState={{ selected: picked === emoji }}
-                      onPress={() => {
-                        reactToPost(friend.id, emoji);
-                        setPicking(false);
-                      }}
-                      style={({ pressed }) => [
-                        styles.reactionItem,
-                        picked === emoji && styles.reactionItemPicked,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <RNText style={styles.reactionEmoji}>{emoji}</RNText>
-                    </Pressable>
-                  ))}
-                </Animated.View>
-              </View>
-            </View>
-          ) : null}
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={picked ? `Reacted ${picked}` : 'Open reactions'}
-            accessibilityState={{ expanded: picking }}
-            onPress={() => setPicking((open) => !open)}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.reaction,
-              mounted && styles.reactionJoined,
-              pressed && styles.pressed,
-            ]}
+        <View style={styles.identityText}>
+          <Text
+            variant="bodyBold"
+            accessibilityRole={onPress ? 'button' : undefined}
+            accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
+            onPress={onPress}
           >
-            {picked ? (
-              <RNText style={styles.reactionEmoji}>{picked}</RNText>
-            ) : (
-              <Ionicons name="happy-outline" size={18} color={colors.inkSoft} />
-            )}
-          </Pressable>
+            {friend.name}
+          </Text>
+          <View style={styles.subtitleRow}>
+            <Text
+              variant="labelBold"
+              color={colors.inkMuted}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${challenge.name}`}
+              onPress={() =>
+                router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })
+              }
+              style={styles.challengeLink}
+            >
+              {challenge.name}
+            </Text>
+            <View style={styles.subtitleDot} />
+            <Text variant="labelBold" color={colors.inkMuted}>
+              Day {friend.day}
+            </Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.commentField}>
-        <Ionicons
-          name="chatbubble"
-          size={16}
-          color={colors.inkMuted}
-          style={styles.commentIcon}
-        />
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Add a comment..."
-          placeholderTextColor={colors.inkMuted}
-          returnKeyType="send"
-          onSubmitEditing={submit}
-          style={styles.commentInput}
-        />
-      </View>
+      {slides.length ? (
+        // The bleed and the top gap both sit outside the lock, on this
+        // wrapper — a bled child clips back to the unbled width the moment
+        // an ancestor sets `overflow: hidden`, which `LockedOverlay` does
+        // while locked, and the gap read as blurred blank space stacked
+        // inside it, close enough to touch the subtitle above.
+        <View style={styles.photoOuter}>
+          <LockedOverlay
+            locked={!!locked}
+            radius={0}
+            title="Take a photo to unlock"
+            hint="Finish one task with a photo and the feed opens up."
+            onPress={() => router.push('/(tabs)/todo')}
+          >
+            <View
+              style={carouselHeight ? { height: carouselHeight } : null}
+              onLayout={(e) => setCarouselWidth(e.nativeEvent.layout.width)}
+            >
+              {carouselHeight > 0 ? (
+                <>
+                  <FlatList
+                    style={{ height: carouselHeight }}
+                    data={slides}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(s) => s.key}
+                    onScroll={onScroll}
+                    scrollEventThrottle={16}
+                    getItemLayout={(_, index) => ({
+                      length: carouselWidth,
+                      offset: carouselWidth * index,
+                      index,
+                    })}
+                    renderItem={({ item }) => {
+                      const slideSize = { width: carouselWidth, height: carouselHeight };
+                      if (item.kind === 'grid') {
+                        return (
+                          <View style={slideSize}>
+                            <MosaicArrangement
+                              cells={item.rows}
+                              seam={0}
+                              renderCell={(row) =>
+                                row.photo ? (
+                                  <Image
+                                    key={row.key}
+                                    source={row.photo}
+                                    style={GRID_CELL_PIECE}
+                                    contentFit="cover"
+                                    blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
+                                  />
+                                ) : (
+                                  <Placeholder
+                                    key={row.key}
+                                    seed={row.seed ?? undefined}
+                                    radius={0}
+                                    style={GRID_CELL_PIECE}
+                                  />
+                                )
+                              }
+                            />
+                          </View>
+                        );
+                      }
+                      return item.photo ? (
+                        <Image
+                          source={item.photo}
+                          style={slideSize}
+                          contentFit="cover"
+                          blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
+                        />
+                      ) : (
+                        <Placeholder seed={item.seed} radius={0} style={slideSize} />
+                      );
+                    }}
+                  />
 
-      {comments.length > 0 ? (
-        <View style={styles.comments}>
-          {comments.map((comment, i) => (
-            <Text key={i} variant="body" color={colors.inkSlate} style={styles.comment}>
-              <Text variant="bodyBold">You </Text>
-              {comment}
-            </Text>
-          ))}
+                  {/* Instagram's own multi-photo tell, the post-detail
+                      screen's own dots: small marks riding the bottom edge
+                      of the image itself, not a row under it. */}
+                  {slides.length > 1 ? (
+                    <View style={styles.dots}>
+                      {slides.map((slide, i) => (
+                        <View
+                          key={slide.key}
+                          style={[styles.dot, i === activeIndex && styles.dotActive]}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
+            </View>
+          </LockedOverlay>
         </View>
       ) : null}
+
+      <View style={styles.actions}>
+        <View style={styles.actionGroup}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={liked ? 'Unlike' : 'Like'}
+            accessibilityState={{ selected: liked }}
+            onPress={() => reactToPost(friend.id, LIKE_EMOJI)}
+            hitSlop={spacing.sm}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Ionicons
+              name={liked ? 'heart' : 'heart-outline'}
+              size={26}
+              color={liked ? colors.destructive : colors.ink}
+            />
+          </Pressable>
+          <Text variant="bodyBold">{likeCount}</Text>
+        </View>
+
+        <View style={styles.actionGroup}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View comments"
+            onPress={() => setCommentsOpen(true)}
+            hitSlop={spacing.sm}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Ionicons name="chatbubble-outline" size={24} color={colors.ink} />
+          </Pressable>
+          <Text variant="bodyBold">{commentCount}</Text>
+        </View>
+      </View>
+
+      {doneLabels.length ? (
+        <Text variant="body" color={colors.inkSlate} style={styles.caption}>
+          <Text variant="bodyBold">{friend.handle} </Text>
+          {doneLabels.join(' · ')}
+        </Text>
+      ) : null}
+
+      <CommentsSheet
+        visible={commentsOpen}
+        onDismiss={() => setCommentsOpen(false)}
+        comments={comments}
+        draft={draft}
+        onChangeDraft={setDraft}
+        onSubmit={submit}
+        composerAvatar={profile.avatar ?? profile.avatarSeed}
+      />
     </View>
   );
 }
@@ -270,110 +345,69 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // Centred against the avatar as one two-line block, rather than the name
-  // alone: the time hangs right under it with no space of its own to speak of.
   identityText: {
-    marginLeft: spacing.md,
-    justifyContent: 'center',
+    marginLeft: spacing.sm,
   },
-  photoWrap: {
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  challengeLink: {
+    textDecorationLine: 'underline',
+  },
+  // A drawn dot rather than a "·" glyph — the post-detail screen's own
+  // separator, so its size and either gap is its own to set, not whatever a
+  // character happens to render at.
+  subtitleDot: {
+    width: 3,
+    height: 3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.inkMuted,
+  },
+  // The gap before the photo and the full-bleed width both live here, kept
+  // outside `LockedOverlay`: bled *inside* it, the overlay's own
+  // `overflow: hidden` would clip the bleed straight back to this view's
+  // unbled width the moment it locks, and the top gap would read as blurred
+  // blank space reaching up to the subtitle instead of clear air above it.
+  photoOuter: {
     marginTop: spacing.md,
+    marginHorizontal: -screenPadding,
   },
-  reactionGroup: {
+  dots: {
     position: 'absolute',
-    right: spacing.md,
+    left: 0,
+    right: 0,
     bottom: spacing.md,
     flexDirection: 'row',
-    height: REACTION_SIZE,
-    alignItems: 'center',
-  },
-  commentField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 44,
-    marginTop: spacing.xs,
-    borderRadius: radii.pill,
-    backgroundColor: 'transparent',
-    paddingHorizontal: spacing.lg,
-  },
-  commentIcon: {
-    marginRight: spacing.sm,
-  },
-  commentInput: {
-    flex: 1,
-    fontFamily: fonts.body,
-    fontSize: 15,
-    letterSpacing: bodyTracking,
-    color: colors.ink,
-    padding: 0,
-  },
-  // Solid rather than `surfaceOnPhoto`: that token's translucency blends with
-  // whatever photo sits behind it, and would shift shade over different parts
-  // of the mosaic — a flat fill stays identical wherever it lands, which
-  // matters once it's fused to the bar beside it.
-  reaction: {
-    width: REACTION_SIZE,
-    height: REACTION_SIZE,
-    borderRadius: REACTION_SIZE / 2,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.soft,
+    gap: 5,
   },
-  // While the bar is out, the toggle's near corners flatten to butt against
-  // it — one capsule, not a circle sitting next to a separate pill.
-  reactionJoined: {
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.onMediaTrack,
   },
-  // Casts the capsule's shadow; the radius here only has to match the clip
-  // beneath it enough for the shadow's outline to follow the same curve.
-  reactionsBarShadow: {
-    borderTopLeftRadius: radii.pill,
-    borderBottomLeftRadius: radii.pill,
-    ...shadows.soft,
-  },
-  // Clips the sliding content to the bar's own shape: rounded where it meets
-  // the open air, flat where it butts against the toggle beside it.
-  reactionsBarClip: {
-    width: REACTIONS_BAR_WIDTH,
-    height: REACTION_SIZE,
-    overflow: 'hidden',
-    borderTopLeftRadius: radii.pill,
-    borderBottomLeftRadius: radii.pill,
+  dotActive: {
     backgroundColor: colors.surface,
   },
-  reactionsBarContent: {
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    // Explicit, not '100%': its parent's height comes from this child (see
-    // reactionsBarClip), so a percentage here has nothing to resolve against
-    // and the row collapses to the text's line height, leaving it pinned to
-    // the top of the pill instead of centred against the toggle beside it.
-    height: REACTION_SIZE,
-  },
-  reactionItem: {
-    width: REACTION_ITEM,
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reactionItemPicked: {
-    borderRadius: radii.pill,
-    backgroundColor: colors.divider,
-  },
-  reactionEmoji: {
-    fontSize: 18,
-  },
-  comments: {
+    gap: spacing.md,
     marginTop: spacing.md,
+  },
+  actionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xs,
   },
-  comment: {
-    fontSize: 15,
+  caption: {
+    marginTop: spacing.sm,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.7,
   },
 });
 

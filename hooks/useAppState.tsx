@@ -87,6 +87,18 @@ export interface WallBoard {
   pins: WallPin[];
 }
 
+/**
+ * The signed-in account's own reply on a friend's post. `parentId` nests it
+ * one level under a seeded or own top-level comment, the way Instagram's own
+ * threads never go past a single level — a reply to a reply still hangs off
+ * the top-level comment, not off the reply itself.
+ */
+export interface FriendComment {
+  id: string;
+  text: string;
+  parentId: string | null;
+}
+
 interface AppState {
   profile: Profile;
 
@@ -128,9 +140,10 @@ interface AppState {
   /** The emoji left on a feed post, by post id — also used for a friend's
    * post on the Friends tab, keyed by their friend id. */
   postReactions: Record<string, string>;
-  /** Comments left on a friend's post, by friend id, oldest first. There is
-   * no one else to have posted them: this is a single-player app. */
-  friendComments: Record<string, string[]>;
+  /** Comments the signed-in account has left on a friend's post, by friend
+   * id, oldest first — the seeded ones already on a post live in `Friend`
+   * itself, not here. */
+  friendComments: Record<string, FriendComment[]>;
   /** A friend's day, saved to your Pins — friend id to the pin it made. */
   savedPosts: Record<string, string>;
   inviteCode: string;
@@ -148,6 +161,15 @@ interface AppState {
   livesTotal: number;
   /** What is left of that allowance, floored at zero. */
   livesLeft: number;
+
+  /**
+   * True once *today* has a task finished with an actual photo attached —
+   * not just ticked, not standing behind a seeded placeholder, and not an
+   * older day's streak carrying today. Gates the Community feed: a day
+   * nobody has proven yet has no post of its own to read anyone else's
+   * against, and yesterday's photo doesn't stand in for today's.
+   */
+  hasPhotographedTask: boolean;
 }
 
 interface AppActions {
@@ -206,8 +228,13 @@ interface AppActions {
 
   /** Tapping the emoji already on a post takes it back off. */
   reactToPost: (postId: string, emoji: string) => void;
-  /** Appends a comment to a friend's post. Blank text is a no-op. */
-  addFriendComment: (friendId: string, text: string) => void;
+  /** Appends a comment to a friend's post — a reply to `parentId` if given,
+   * a fresh top-level comment otherwise. Blank text is a no-op. */
+  addFriendComment: (
+    friendId: string,
+    text: string,
+    parentId?: string | null,
+  ) => void;
   /** Pins a friend's day grid to your Pins, or takes it back off if it is
    * already there. */
   toggleSavePost: (
@@ -394,7 +421,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         FEED_POSTS.filter((p) => p.reaction).map((p) => [p.id, p.reaction!]),
       ),
   );
-  const [friendComments, setFriendComments] = useState<Record<string, string[]>>({});
+  const [friendComments, setFriendComments] = useState<Record<string, FriendComment[]>>({});
   const [savedPosts, setSavedPosts] = useState<Record<string, string>>({});
   const [inviteCode] = useState(makeInviteCode);
   // Challenges the seeded account has already finished — see data/trophies.
@@ -434,6 +461,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Floored rather than left negative: past the allowance the challenge is
   // lost, and how far past says nothing more than that.
   const livesLeft = Math.max(0, LIVES_PER_CHALLENGE - missedDays);
+
+  // Today only, not the challenge's whole history — the gate this feeds
+  // asks what today has proven, so an old streak can't stand in for a photo
+  // that still hasn't been taken since.
+  const hasPhotographedTask = useMemo(
+    () => Object.values(progress[currentDay] ?? {}).some((entry) => entry.done && entry.photo),
+    [progress, currentDay],
+  );
 
   // -- actions ---------------------------------------------------------------
 
@@ -734,14 +769,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const addFriendComment = useCallback((friendId: string, text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setFriendComments((map) => ({
-      ...map,
-      [friendId]: [...(map[friendId] ?? []), trimmed],
-    }));
-  }, []);
+  const addFriendComment = useCallback(
+    (friendId: string, text: string, parentId: string | null = null) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      const entry: FriendComment = {
+        // No backend to hand out ids, so one is drawn from the clock and a
+        // few random characters — unique enough for a single running session.
+        id: `${friendId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        text: trimmed,
+        parentId,
+      };
+      setFriendComments((map) => ({
+        ...map,
+        [friendId]: [...(map[friendId] ?? []), entry],
+      }));
+    },
+    [],
+  );
 
   const toggleSavePost = useCallback(
     (friendId: string, title: string, cells: readonly CollageCell[]) => {
@@ -815,6 +860,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       missedDays,
       livesTotal: LIVES_PER_CHALLENGE,
       livesLeft,
+      hasPhotographedTask,
       wall,
       pinDraft,
       customChallenges,
@@ -855,7 +901,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       profile, installedAt, challenge, tasks, startDate, totalDays,
       paused, tabBarHidden, progress, postReactions, friendComments, savedPosts, inviteCode, trophies,
-      currentDay, endDate, missedDays, livesLeft, wall, pinDraft, customChallenges,
+      currentDay, endDate, missedDays, livesLeft, hasPhotographedTask, wall, pinDraft, customChallenges,
       setName, setBio, setHandle, setSocial, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
       setTabBarHidden, toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,

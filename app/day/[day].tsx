@@ -1,25 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
   StyleSheet,
-  TextInput,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  type TextInput as RNTextInput,
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { CommentsSheet } from '@/components/CommentsSheet';
 import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Placeholder } from '@/components/Placeholder';
 import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { bodyTracking, colors, fonts, radii, screenPadding, spacing } from '@/constants/theme';
+import { colors, radii, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
+import { countComments, mergeCommentThread } from '@/lib/comments';
 
 /** Kept out of the stylesheet for the same reason the profile grid's own
  * copy is — handed to `Image` as often as to a `View`. */
@@ -49,8 +49,10 @@ function fakeCount(key: string, min: number, max: number): number {
 /**
  * A single day of your own challenge, opened the way an Instagram post does
  * rather than a story — a swipeable carousel you page through at your own
- * speed, not a timer that advances for you, with the same identity row,
- * like/comment/share strip, caption and comment thread a real post carries.
+ * speed, not a timer that advances for you, with the same identity row and
+ * like/comment strip a real post carries. The comment thread itself lives in
+ * the same `CommentsSheet` a friend's own post opens, behind the comment
+ * icon rather than stacked under the caption.
  *
  * `postReactions` / `friendComments` are keyed by whatever id a post hangs
  * its reaction or comment on — a friend's day used their id, this reuses the
@@ -65,7 +67,6 @@ export default function DayPostScreen() {
   const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
     useApp();
   const rows = useDayProgress(day);
-  const commentInput = useRef<RNTextInput>(null);
 
   // The photos that actually exist for the day, each its own full-bleed
   // slide — same set the profile tile's own mosaic is cut from.
@@ -105,13 +106,17 @@ export default function DayPostScreen() {
 
   const postId = `day-${day}`;
   const liked = (postReactions[postId] ?? null) === LIKE_EMOJI;
-  const comments = friendComments[postId] ?? [];
+  // No seeded thread of its own — this is the account's own day, so
+  // whatever's said on it is only ever the account's own replies.
+  const comments = mergeCommentThread([], friendComments[postId] ?? [], profile.avatar ?? profile.avatarSeed);
+  const commentCount = countComments(comments);
   const likeCount = fakeCount(postId, 40, 220) + (liked ? 1 : 0);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [carouselWidth, setCarouselWidth] = useState(0);
   const carouselHeight = carouselWidth ? Math.round(carouselWidth / CAROUSEL_RATIO) : 0;
   const [draft, setDraft] = useState('');
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!carouselWidth) return;
@@ -119,9 +124,9 @@ export default function DayPostScreen() {
     if (next !== activeIndex) setActiveIndex(next);
   };
 
-  const submit = () => {
+  const submit = (parentId: string | null) => {
     if (!draft.trim()) return;
-    addFriendComment(postId, draft.trim());
+    addFriendComment(postId, draft.trim(), parentId);
     setDraft('');
   };
 
@@ -289,14 +294,14 @@ export default function DayPostScreen() {
           <View style={styles.actionGroup}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Comment"
-              onPress={() => commentInput.current?.focus()}
+              accessibilityLabel="View comments"
+              onPress={() => setCommentsOpen(true)}
               hitSlop={spacing.sm}
               style={({ pressed }) => pressed && styles.pressed}
             >
               <Ionicons name="chatbubble-outline" size={24} color={colors.ink} />
             </Pressable>
-            <Text variant="bodyBold">{comments.length}</Text>
+            <Text variant="bodyBold">{commentCount}</Text>
           </View>
         </View>
 
@@ -306,43 +311,17 @@ export default function DayPostScreen() {
             {photoSlides.map((s) => s.label).join(' · ')}
           </Text>
         ) : null}
-
-        {comments.length > 0 ? (
-          <Pressable accessibilityRole="button" style={styles.viewComments}>
-            <Text variant="bodyBold" color={colors.inkMuted}>
-              View all {comments.length} comment{comments.length > 1 ? 's' : ''}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {comments.map((comment, i) => (
-          <Text key={i} variant="body" color={colors.inkSlate} style={styles.comment}>
-            <Text variant="bodyBold">You </Text>
-            {comment}
-          </Text>
-        ))}
-
-        <View style={styles.commentField}>
-          <Avatar source={profile.avatar ?? profile.avatarSeed} size={24} />
-          <TextInput
-            ref={commentInput}
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Add a comment..."
-            placeholderTextColor={colors.inkMuted}
-            returnKeyType="send"
-            onSubmitEditing={submit}
-            style={styles.commentInput}
-          />
-          {draft.trim() ? (
-            <Pressable accessibilityRole="button" onPress={submit} hitSlop={spacing.sm}>
-              <Text variant="bodyBold" color={colors.inkSlate}>
-                Post
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
       </View>
+
+      <CommentsSheet
+        visible={commentsOpen}
+        onDismiss={() => setCommentsOpen(false)}
+        comments={comments}
+        draft={draft}
+        onChangeDraft={setDraft}
+        onSubmit={submit}
+        composerAvatar={profile.avatar ?? profile.avatarSeed}
+      />
     </ScreenScroll>
   );
 }
@@ -433,28 +412,5 @@ const styles = StyleSheet.create({
   },
   caption: {
     marginTop: spacing.sm,
-  },
-  viewComments: {
-    marginTop: spacing.sm,
-  },
-  comment: {
-    marginTop: spacing.xs,
-  },
-  commentField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    height: 48,
-    marginTop: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
-  },
-  commentInput: {
-    flex: 1,
-    fontFamily: fonts.body,
-    fontSize: 15,
-    letterSpacing: bodyTracking,
-    color: colors.ink,
-    padding: 0,
   },
 });

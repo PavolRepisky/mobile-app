@@ -1,6 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
 import type { AvatarSource } from '@/components/Avatar';
+import type { CommentEntry } from '@/components/CommentsSheet';
 import type { PhotoSource } from '@/components/PhotoStrip';
 import type { Review } from '@/components/ReviewCard';
 import { CHALLENGES } from './challenges';
@@ -76,6 +77,14 @@ export interface Friend {
     /** Stand-in seed, used whenever a done task has no bundled photo yet. */
     photoSeed?: string;
   }[];
+  /**
+   * Other people already talking under this post — everyone here is someone
+   * else in `PEOPLE`, the same closed roster the feed itself draws from,
+   * rather than a stranger with no profile to open. `useAppState`'s own
+   * `friendComments` appends the signed-in account's replies after these
+   * rather than replacing them.
+   */
+  comments?: readonly CommentEntry[];
 }
 
 /**
@@ -118,6 +127,28 @@ export const FRIENDS: readonly Friend[] = [
       { label: CHALLENGE_TASKS[3], done: false },
       { label: CHALLENGE_TASKS[4], done: false },
     ],
+    comments: [
+      {
+        id: 'lily-c1',
+        author: 'Zoe',
+        avatar: require('../assets/ambassadors/amb-2.jpg'),
+        text: 'the iced coffee out here doing NUMBERS ☕️',
+        replies: [
+          {
+            id: 'lily-c1-r1',
+            author: 'Lily',
+            avatar: require('../assets/friends/lily.jpg'),
+            text: 'right?? had to go back for a second one',
+          },
+        ],
+      },
+      {
+        id: 'lily-c2',
+        author: 'Mia',
+        avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
+        text: 'day 3 and already thriving, love this for you',
+      },
+    ],
   },
   {
     id: 'zoe',
@@ -150,17 +181,42 @@ export const FRIENDS: readonly Friend[] = [
       },
       { label: CHALLENGE_TASKS[4], done: false },
     ],
+    comments: [
+      {
+        id: 'zoe-c1',
+        author: 'Lily',
+        avatar: require('../assets/friends/lily.jpg'),
+        text: 'that run photo is gorgeous, where is this',
+      },
+      {
+        id: 'zoe-c2',
+        author: 'Camila',
+        avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
+        text: 'day 12 energy is unmatched 🔥',
+      },
+    ],
   },
 ];
 
-/** Builds a person's day from which of the challenge's own tasks they have
- * ticked off, in the same order `CHALLENGE_TASKS` lists them. */
-const tasksDone = (times: readonly (string | null)[]) =>
-  CHALLENGE_TASKS.map((label, i) => ({
-    label,
-    done: !!times[i],
-    ...(times[i] ? { time: times[i]! } : null),
-  }));
+/**
+ * Builds a person's day from which of the challenge's own tasks they have
+ * ticked off, in the same order `CHALLENGE_TASKS` lists them. A done entry
+ * carries a bundled photo of its own — a member's real proof shot isn't part
+ * of the app's asset set, so an existing lifestyle photo from elsewhere in
+ * the app stands in for it, the same way a friend's own task photo is
+ * bundled, rather than falling back to a drawn placeholder.
+ */
+const tasksDone = (
+  entries: readonly ({ time: string; photo: ImageSourcePropType } | null)[],
+) =>
+  CHALLENGE_TASKS.map((label, i) => {
+    const entry = entries[i];
+    return {
+      label,
+      done: !!entry,
+      ...(entry ? { time: entry.time, photo: entry.photo } : null),
+    };
+  });
 
 /**
  * The people posting in the challenge feeds. Same shape as a friend — tapping
@@ -181,7 +237,35 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 31,
     trophies: 6,
     livesLeft: 3,
-    tasks: tasksDone(['7:10 AM', '11:02 AM', '6:40 PM', null, '9:30 PM']),
+    tasks: tasksDone([
+      { time: '7:10 AM', photo: require('../assets/feed/posts/orange-chicken-fried-rice.jpg') },
+      { time: '11:02 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
+      { time: '6:40 PM', photo: require('../assets/feed/posts/canal-dog-walk.jpg') },
+      null,
+      { time: '9:30 PM', photo: require('../assets/feed/posts/studying-in-bed.jpg') },
+    ]),
+    comments: [
+      {
+        id: 'mia-c1',
+        author: 'Sofia',
+        avatar: require('../assets/feed/author-hair-flip.jpg'),
+        text: 'the purple lighting is so good, what bulb is that',
+        replies: [
+          {
+            id: 'mia-c1-r1',
+            author: 'Mia',
+            avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
+            text: '@Sofia a cheap LED strip, link is in my bio',
+          },
+        ],
+      },
+      {
+        id: 'mia-c2',
+        author: 'Elena',
+        avatar: require('../assets/feed/author-car-night.jpg'),
+        text: 'day 12 and still consistent, respect',
+      },
+    ],
   },
   {
     id: 'sofia',
@@ -194,7 +278,21 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 40,
     trophies: 9,
     livesLeft: 1,
-    tasks: tasksDone(['9:15 AM', '1:20 PM', null, '10:05 PM', null]),
+    tasks: tasksDone([
+      { time: '9:15 AM', photo: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg') },
+      { time: '1:20 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
+      null,
+      { time: '10:05 PM', photo: require('../assets/wall/workouts/gym-plank.jpg') },
+      null,
+    ]),
+    comments: [
+      {
+        id: 'sofia-c1',
+        author: 'Nora',
+        avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
+        text: 'finally sleeping properly is the real win here',
+      },
+    ],
   },
   {
     id: 'elena',
@@ -207,7 +305,35 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 27,
     trophies: 11,
     livesLeft: 3,
-    tasks: tasksDone(['6:02 AM', '8:45 AM', '7:30 PM', '9:50 PM', null]),
+    tasks: tasksDone([
+      { time: '6:02 AM', photo: require('../assets/wall/eat/salmon-rice-asparagus.jpg') },
+      { time: '8:45 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
+      { time: '7:30 PM', photo: require('../assets/feed/posts/mountain-hike.jpg') },
+      { time: '9:50 PM', photo: require('../assets/challenges/hard/dumbbells-overhead.jpg') },
+      null,
+    ]),
+    comments: [
+      {
+        id: 'elena-c1',
+        author: 'Camila',
+        avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
+        text: 'late drives, early gym is such a mood',
+      },
+      {
+        id: 'elena-c2',
+        author: 'Mia',
+        avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
+        text: 'day 41?? teach me your ways',
+        replies: [
+          {
+            id: 'elena-c2-r1',
+            author: 'Elena',
+            avatar: require('../assets/feed/author-car-night.jpg'),
+            text: '@Mia consistency and way too much coffee',
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'nora',
@@ -220,7 +346,21 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 15,
     trophies: 1,
     livesLeft: 2,
-    tasks: tasksDone([null, '3:12 PM', null, null, null]),
+    tasks: tasksDone([
+      null,
+      { time: '3:12 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
+      null,
+      null,
+      null,
+    ]),
+    comments: [
+      {
+        id: 'nora-c1',
+        author: 'Elena',
+        avatar: require('../assets/feed/author-car-night.jpg'),
+        text: 'the hoodie is doing its job, no notes',
+      },
+    ],
   },
   {
     id: 'camila',
@@ -233,7 +373,27 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 52,
     trophies: 14,
     livesLeft: 3,
-    tasks: tasksDone(['8:30 AM', '12:00 PM', '5:15 PM', null, '9:00 PM']),
+    tasks: tasksDone([
+      { time: '8:30 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
+      { time: '12:00 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
+      { time: '5:15 PM', photo: require('../assets/feed/posts/golden-retriever-garden.jpg') },
+      null,
+      { time: '9:00 PM', photo: require('../assets/challenges/medium/book-in-bed.jpg') },
+    ]),
+    comments: [
+      {
+        id: 'camila-c1',
+        author: 'Nora',
+        avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
+        text: 'day 55!! that walk photo is so pretty',
+      },
+      {
+        id: 'camila-c2',
+        author: 'Sofia',
+        avatar: require('../assets/feed/author-hair-flip.jpg'),
+        text: 'the glow is definitely showing',
+      },
+    ],
   },
 ];
 

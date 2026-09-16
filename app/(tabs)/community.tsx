@@ -1,19 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/FriendCard';
-import { IconButton } from '@/components/IconButton';
-import { profileActionTop } from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { ScreenScroll } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { colors, screenPadding, shadows, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { FEED_AUTHORS, FRIENDS } from '@/data/content';
-
-/** Matches every other tab root's own corner button. */
-const ADD_SIZE = 46;
+import { useApp } from '@/hooks/useAppState';
 
 type Tab = 'friends' | 'members';
 
@@ -21,20 +16,20 @@ type Tab = 'friends' | 'members';
  * The people you're doing it with: your own friends' days in one feed, and
  * everyone else posting in the same challenge in the same feed shape under
  * Members — the same `FriendCard` post, just posted by people you haven't
- * added rather than people you have. The header matches every other tab
- * root's own — centred title, a black "+" pinned top-right — rather than the
- * page carrying its own floating button.
+ * added rather than people you have. The header is Profile's own — same row,
+ * same centred title — with no icons either side of it: there's nothing here
+ * for a corner button to do.
+ *
+ * Every post's photo sits behind `FriendCard`'s own lock until the account
+ * has proven today with one photographed task of its own — reading everyone
+ * else's day is a thing you earn by starting yours, not a free scroll before
+ * you've done anything. The identity row, actions and caption stay plain
+ * underneath it either way.
  */
 export default function CommunityScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const { hasPhotographedTask } = useApp();
   const [tab, setTab] = useState<Tab>('friends');
-
-  // The shared line the title and the corner button both sit on: normally
-  // the button's own fixed offset, but on a deep safe-area inset the scroll's
-  // own top padding can run past it. Discover's and Profile's own header.
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
 
   const openProfile = (id: string) =>
     router.push({ pathname: '/friend/[id]', params: { id } });
@@ -42,70 +37,52 @@ export default function CommunityScreen() {
   const posts = tab === 'friends' ? FRIENDS : FEED_AUTHORS;
 
   return (
-    // Absolute overlays need a positioned parent, otherwise their offsets
-    // resolve against the scroll content instead of the screen.
-    <View style={styles.screenRoot}>
-      <ScreenScroll tabBar>
-        <View style={[styles.titleBand, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
-            Community
-          </Text>
-        </View>
+    <ScreenScroll tabBar>
+      <View style={styles.header}>
+        <Text variant="sectionTitle" center style={styles.headerTitle}>
+          Community
+        </Text>
+      </View>
 
-        <SegmentedTabs
-          options={[
-            { key: 'friends', label: 'Friends' },
-            { key: 'members', label: 'Members' },
-          ]}
-          value={tab}
-          onChange={setTab}
-          style={styles.tabs}
-        />
-
-        <View style={styles.sections}>
-          {posts.map((person) => (
-            <FriendCard
-              key={person.id}
-              friend={person}
-              onPress={() => openProfile(person.id)}
-              style={styles.friendCard}
-            />
-          ))}
-        </View>
-      </ScreenScroll>
-
-      {/* Pinned to the same line as every other tab root's corner button,
-          measured from the screen edge rather than from the scroll content. */}
-      <IconButton
-        name="add"
-        size={ADD_SIZE}
-        iconSize={20}
-        background={colors.ink}
-        color={colors.inkInverse}
-        shadow={false}
-        onPress={() => router.push('/invite')}
-        accessibilityLabel="Invite a friend"
-        style={[styles.corner, { top: headerTop }, shadows.floating]}
+      <SegmentedTabs
+        options={[
+          { key: 'friends', label: 'Friends' },
+          { key: 'members', label: 'Members' },
+        ]}
+        value={tab}
+        onChange={setTab}
+        align="left"
+        style={styles.tabs}
       />
-    </View>
+
+      <View style={styles.sections}>
+        {posts.map((person) => (
+          <FriendCard
+            key={person.id}
+            friend={person}
+            onPress={() => openProfile(person.id)}
+            locked={!hasPhotographedTask}
+            style={styles.friendCard}
+          />
+        ))}
+      </View>
+    </ScreenScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  screenRoot: {
+  // Profile tab's own header row, reused exactly: same spacing, same
+  // centred title. No icons either side — there's no corner action here.
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  headerTitle: {
     flex: 1,
   },
-  titleBand: {
-    minHeight: ADD_SIZE,
-    justifyContent: 'center',
-  },
   tabs: {
-    marginTop: spacing.xl,
     marginBottom: spacing['2xl'],
-  },
-  corner: {
-    position: 'absolute',
-    right: screenPadding,
   },
   sections: {
     gap: spacing['3xl'],

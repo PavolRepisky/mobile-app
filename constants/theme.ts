@@ -105,6 +105,13 @@ export const colors = {
    * can go and still carry white text over a sunlit shot.
    */
   scrimPhoto: 'rgba(0,0,0,0.34)',
+  /**
+   * A locked photo's own scrim — near-opaque rather than a reading wash, so
+   * the shot underneath is actually hidden rather than just dimmed. `ink`'s
+   * own tone rather than flat black, so it still reads as this app's own
+   * shadow and not a generic overlay.
+   */
+  scrimLock: 'rgba(20,20,20,0.88)',
 
   /**
    * Washes that sit *on* glass rather than on a background. They are black at a
@@ -262,6 +269,15 @@ export const type = {
   },
   cardTitle: {
     fontFamily: fonts.bodySemi,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /** `cardTitle`'s own size, stepped up to true Bold — a sheet heading that
+   * wants more weight than the ambient Semi carries without reading as a
+   * bigger title than it is. */
+  cardTitleBold: {
+    fontFamily: fonts.bodyBold,
     fontSize: 17,
     lineHeight: 22,
     letterSpacing: bodyTracking,

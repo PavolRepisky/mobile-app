@@ -84,6 +84,12 @@ export interface PhotoCollageProps {
    * page actually left over instead of taking the default shape.
    */
   ratio?: number;
+  /**
+   * `mosaic` only: overrides the seam between pieces. Defaults to the
+   * calendar day cell's own hairline; a caller matching the post-detail
+   * screen's edge-to-edge carousel grid wants no seam at all.
+   */
+  seam?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -560,6 +566,7 @@ function Mosaic({
   maxHeight,
   radius = radii.lg,
   ratio = MOSAIC_RATIO,
+  seam,
   showLabels,
   style,
 }: {
@@ -567,11 +574,13 @@ function Mosaic({
   maxHeight?: number;
   radius?: number;
   ratio?: number;
+  seam?: number;
   showLabels?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const [available, setAvailable] = useState(0);
   const width = maxHeight ? Math.min(available, maxHeight / ratio) : available;
+  const gap = seam ?? MOSAIC_SEAM;
 
   return (
     <View style={style}>
@@ -580,7 +589,11 @@ function Mosaic({
           <View
             style={[
               styles.mosaicBlock,
-              showLabels && styles.mosaicBlockDark,
+              // The dark frame's own border is the seam carried out to the
+              // block's outer edge, so a caller asking for no seam gets no
+              // border either — otherwise a bare line would ring a grid
+              // whose pieces themselves touch.
+              showLabels && [styles.mosaicBlockDark, { borderWidth: gap }],
               {
                 width,
                 height: width * ratio,
@@ -590,6 +603,7 @@ function Mosaic({
           >
             <MosaicArrangement
               cells={cells}
+              seam={gap}
               renderCell={(cell) => (
                 <MosaicTile key={cell.key} cell={cell} showLabels={showLabels} />
               )}
@@ -616,6 +630,7 @@ export function PhotoCollage({
   maxHeight,
   radius,
   ratio,
+  seam,
   showLabels,
   style,
 }: PhotoCollageProps) {
@@ -628,6 +643,7 @@ export function PhotoCollage({
         maxHeight={maxHeight}
         radius={radius}
         ratio={ratio}
+        seam={seam}
         showLabels={showLabels}
         style={style}
       />
@@ -727,7 +743,6 @@ const styles = StyleSheet.create({
   // one complete cut rather than internal seams floating with no border.
   mosaicBlockDark: {
     backgroundColor: colors.inkFaded,
-    borderWidth: MOSAIC_SEAM,
     borderColor: colors.inkFaded,
   },
   // Sits on the photo itself, rather than hung off a card's corner the way a

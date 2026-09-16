@@ -143,6 +143,14 @@ export interface BottomSheetProps {
   /** Sheet fills most of the screen and scrolls its contents. */
   tall?: boolean;
   padded?: boolean;
+  /**
+   * Room left past the keyboard/safe-area inset at the sheet's bottom edge,
+   * `tall` sheets excepted (they pad their own scroll content instead).
+   * Defaults to a roomy gap sized for a button or a field with air around
+   * it; a composer that should hug the edge instead — a comment field
+   * sitting right above the keyboard — passes a tighter one.
+   */
+  bottomGap?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -163,6 +171,7 @@ export function BottomSheet({
   handle = true,
   tall,
   padded = true,
+  bottomGap,
   style,
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
@@ -250,8 +259,8 @@ export function BottomSheet({
                 // goes at the same time: the home indicator is behind the
                 // keyboard, so clearing it would only reopen the gap.
                 paddingBottom: bottomInset
-                  ? bottomInset + spacing.lg
-                  : insets.bottom + spacing.xl,
+                  ? bottomInset + (bottomGap ?? spacing.lg)
+                  : insets.bottom + (bottomGap ?? spacing.xl),
               },
             style,
             { transform: [{ translateY }] },
