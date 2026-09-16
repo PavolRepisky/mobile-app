@@ -92,6 +92,13 @@ export default function RootLayout() {
                 animation: 'slide_from_bottom',
               }}
             />
+            {/* Opened from inside the friend sheet, so it has to cover the
+                whole screen the way that sheet does — the same rule
+                `wall/[id]` follows, and for the same reason. */}
+            <Stack.Screen
+              name="friend/post/[id]"
+              options={{ presentation: 'fullScreenModal' }}
+            />
             <Stack.Screen
               name="post/[id]"
               options={{

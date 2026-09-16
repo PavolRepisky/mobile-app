@@ -68,6 +68,14 @@ export interface Friend {
   friendCount: number;
   trophies: number;
   livesLeft: number;
+  /** Linked accounts shown as a row under their bio — same shape as
+   * `Profile['socials']`. A platform with no handle drops out of the row
+   * rather than rendering greyed-out. */
+  socials: {
+    instagram: string | null;
+    tiktok: string | null;
+    x: string | null;
+  };
   tasks: readonly {
     label: string;
     done: boolean;
@@ -85,6 +93,22 @@ export interface Friend {
    * rather than replacing them.
    */
   comments?: readonly CommentEntry[];
+  /**
+   * Earlier days, shown as extra tiles in their profile grid so it always
+   * has more than one post to browse — `day`/`tasks` above stay what the
+   * Community feed's own single card reads off. Not seeded with comments of
+   * their own: whatever's said on one is only ever what gets added live.
+   */
+  pastPosts?: readonly {
+    day: number;
+    tasks: readonly {
+      label: string;
+      done: boolean;
+      time?: string;
+      photo?: ImageSourcePropType;
+      photoSeed?: string;
+    }[];
+  }[];
 }
 
 /**
@@ -108,6 +132,7 @@ export const FRIENDS: readonly Friend[] = [
     friendCount: 18,
     trophies: 2,
     livesLeft: 3,
+    socials: { instagram: 'lily.days', tiktok: null, x: null },
     tasks: [
       {
         label: CHALLENGE_TASKS[0],
@@ -126,6 +151,25 @@ export const FRIENDS: readonly Friend[] = [
       { label: CHALLENGE_TASKS[2], done: false },
       { label: CHALLENGE_TASKS[3], done: false },
       { label: CHALLENGE_TASKS[4], done: false },
+    ],
+    pastPosts: [
+      {
+        day: 2,
+        tasks: [
+          {
+            label: CHALLENGE_TASKS[0],
+            done: true,
+            time: '1:05 PM',
+            photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
+          },
+          {
+            label: CHALLENGE_TASKS[3],
+            done: true,
+            time: '6:20 PM',
+            photo: require('../assets/challenges/medium/outdoor-run.jpg'),
+          },
+        ],
+      },
     ],
     comments: [
       {
@@ -162,6 +206,7 @@ export const FRIENDS: readonly Friend[] = [
     friendCount: 24,
     trophies: 4,
     livesLeft: 2,
+    socials: { instagram: null, tiktok: 'zoegoesfor', x: null },
     tasks: [
       {
         label: CHALLENGE_TASKS[0],
@@ -180,6 +225,25 @@ export const FRIENDS: readonly Friend[] = [
         photo: require('../assets/challenges/medium/outdoor-run.jpg'),
       },
       { label: CHALLENGE_TASKS[4], done: false },
+    ],
+    pastPosts: [
+      {
+        day: 11,
+        tasks: [
+          {
+            label: CHALLENGE_TASKS[0],
+            done: true,
+            time: '8:02 AM',
+            photo: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
+          },
+          {
+            label: CHALLENGE_TASKS[2],
+            done: true,
+            time: '9:40 PM',
+            photo: require('../assets/challenges/medium/book-in-bed.jpg'),
+          },
+        ],
+      },
     ],
     comments: [
       {
@@ -237,6 +301,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 31,
     trophies: 6,
     livesLeft: 3,
+    socials: { instagram: 'mia.moves', tiktok: 'mia.moves', x: null },
     tasks: tasksDone([
       { time: '7:10 AM', photo: require('../assets/feed/posts/orange-chicken-fried-rice.jpg') },
       { time: '11:02 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -244,6 +309,18 @@ export const FEED_AUTHORS: readonly Friend[] = [
       null,
       { time: '9:30 PM', photo: require('../assets/feed/posts/studying-in-bed.jpg') },
     ]),
+    pastPosts: [
+      {
+        day: 11,
+        tasks: tasksDone([
+          { time: '7:20 AM', photo: require('../assets/feed/posts/mountain-hike.jpg') },
+          null,
+          null,
+          null,
+          { time: '8:50 PM', photo: require('../assets/feed/posts/park-bench-reading.jpg') },
+        ]),
+      },
+    ],
     comments: [
       {
         id: 'mia-c1',
@@ -278,6 +355,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 40,
     trophies: 9,
     livesLeft: 1,
+    socials: { instagram: 'sofia.sleeps', tiktok: null, x: null },
     tasks: tasksDone([
       { time: '9:15 AM', photo: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg') },
       { time: '1:20 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -285,6 +363,21 @@ export const FEED_AUTHORS: readonly Friend[] = [
       { time: '10:05 PM', photo: require('../assets/wall/workouts/gym-plank.jpg') },
       null,
     ]),
+    pastPosts: [
+      {
+        day: 27,
+        tasks: tasksDone([
+          { time: '8:40 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
+          null,
+          {
+            time: '5:30 PM',
+            photo: require('../assets/feed/posts/golden-retriever-garden.jpg'),
+          },
+          null,
+          null,
+        ]),
+      },
+    ],
     comments: [
       {
         id: 'sofia-c1',
@@ -305,6 +398,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 27,
     trophies: 11,
     livesLeft: 3,
+    socials: { instagram: null, tiktok: null, x: 'elena_drives' },
     tasks: tasksDone([
       { time: '6:02 AM', photo: require('../assets/wall/eat/salmon-rice-asparagus.jpg') },
       { time: '8:45 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -312,6 +406,18 @@ export const FEED_AUTHORS: readonly Friend[] = [
       { time: '9:50 PM', photo: require('../assets/challenges/hard/dumbbells-overhead.jpg') },
       null,
     ]),
+    pastPosts: [
+      {
+        day: 40,
+        tasks: tasksDone([
+          { time: '6:15 AM', photo: require('../assets/feed/posts/post-workout-smoothie.jpg') },
+          null,
+          { time: '7:05 PM', photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg') },
+          null,
+          null,
+        ]),
+      },
+    ],
     comments: [
       {
         id: 'elena-c1',
@@ -346,6 +452,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 15,
     trophies: 1,
     livesLeft: 2,
+    socials: { instagram: 'norainthehood', tiktok: null, x: null },
     tasks: tasksDone([
       null,
       { time: '3:12 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -353,6 +460,21 @@ export const FEED_AUTHORS: readonly Friend[] = [
       null,
       null,
     ]),
+    pastPosts: [
+      {
+        day: 6,
+        tasks: tasksDone([
+          null,
+          { time: '4:45 PM', photo: require('../assets/feed/posts/canal-dog-walk.jpg') },
+          {
+            time: '8:00 PM',
+            photo: require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
+          },
+          null,
+          null,
+        ]),
+      },
+    ],
     comments: [
       {
         id: 'nora-c1',
@@ -373,6 +495,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 52,
     trophies: 14,
     livesLeft: 3,
+    socials: { instagram: 'camilaglow', tiktok: 'camilaglow', x: null },
     tasks: tasksDone([
       { time: '8:30 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
       { time: '12:00 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -380,6 +503,18 @@ export const FEED_AUTHORS: readonly Friend[] = [
       null,
       { time: '9:00 PM', photo: require('../assets/challenges/medium/book-in-bed.jpg') },
     ]),
+    pastPosts: [
+      {
+        day: 54,
+        tasks: tasksDone([
+          { time: '7:45 AM', photo: require('../assets/wall/workouts/home-mat-core.jpg') },
+          null,
+          null,
+          { time: '9:20 PM', photo: require('../assets/wall/skincare/skincare-shelf.jpg') },
+          null,
+        ]),
+      },
+    ],
     comments: [
       {
         id: 'camila-c1',

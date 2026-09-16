@@ -51,6 +51,19 @@ export interface FriendCardProps {
    * post (identity, actions, caption) stays plain and tappable. */
   locked?: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Renders one of the friend's earlier days instead of their current one —
+   * the profile's own post view reaches an exact day this way. `id` keys the
+   * like and the comment thread apart from the Community feed's own card for
+   * their current day, which always reads off `friend.id` and is left alone
+   * when this is unset. An earlier day has no seeded thread of its own —
+   * only what gets added live shows under it.
+   */
+  post?: {
+    id: string;
+    day: number;
+    tasks: Friend['tasks'];
+  };
 }
 
 /** Stable per key rather than random, so a fake count doesn't reshuffle on
@@ -77,19 +90,23 @@ const LIKE_EMOJI = '❤️';
  * Only the avatar and the name lead to their profile — the photo itself is
  * just the post's own image, not a control.
  */
-export function FriendCard({ friend, onPress, locked, style }: FriendCardProps) {
+export function FriendCard({ friend, onPress, locked, style, post }: FriendCardProps) {
   const router = useRouter();
   const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
     useApp();
   const [draft, setDraft] = useState('');
   const [commentsOpen, setCommentsOpen] = useState(false);
 
-  const liked = (postReactions[friend.id] ?? null) === LIKE_EMOJI;
-  const likeCount = fakeCount(friend.id, 40, 220) + (liked ? 1 : 0);
+  const postId = post?.id ?? friend.id;
+  const day = post?.day ?? friend.day;
+  const postTasks = post?.tasks ?? friend.tasks;
+
+  const liked = (postReactions[postId] ?? null) === LIKE_EMOJI;
+  const likeCount = fakeCount(postId, 40, 220) + (liked ? 1 : 0);
 
   const comments = mergeCommentThread(
-    friend.comments ?? [],
-    friendComments[friend.id] ?? [],
+    post ? [] : friend.comments ?? [],
+    friendComments[postId] ?? [],
     profile.avatar ?? profile.avatarSeed,
   );
   // Replies count toward the total at every depth — the icon reports the
@@ -99,7 +116,7 @@ export function FriendCard({ friend, onPress, locked, style }: FriendCardProps) 
   // Only the tasks they've actually shot — a post is the photos themselves,
   // the way the post-detail screen's own grid is, not a checklist with gaps
   // standing in for what's left.
-  const cells: CollageCell[] = friend.tasks
+  const cells: CollageCell[] = postTasks
     .filter((task) => task.photo || task.photoSeed)
     .map((task) => ({
       key: task.label,
@@ -107,7 +124,7 @@ export function FriendCard({ friend, onPress, locked, style }: FriendCardProps) 
       seed: task.photoSeed,
     }));
 
-  const doneLabels = friend.tasks.filter((task) => task.done).map((task) => task.label);
+  const doneLabels = postTasks.filter((task) => task.done).map((task) => task.label);
 
   // With more than one photo, the carousel opens on the merged grid the
   // static card used to show outright — the post still reads as that tile
@@ -143,7 +160,7 @@ export function FriendCard({ friend, onPress, locked, style }: FriendCardProps) 
 
   const submit = (parentId: string | null) => {
     if (!draft.trim()) return;
-    addFriendComment(friend.id, draft.trim(), parentId);
+    addFriendComment(postId, draft.trim(), parentId);
     setDraft('');
   };
 
@@ -184,7 +201,7 @@ export function FriendCard({ friend, onPress, locked, style }: FriendCardProps) 
             </Text>
             <View style={styles.subtitleDot} />
             <Text variant="labelBold" color={colors.inkMuted}>
-              Day {friend.day}
+              Day {day}
             </Text>
           </View>
         </View>
@@ -293,7 +310,7 @@ export function FriendCard({ friend, onPress, locked, style }: FriendCardProps) 
             accessibilityRole="button"
             accessibilityLabel={liked ? 'Unlike' : 'Like'}
             accessibilityState={{ selected: liked }}
-            onPress={() => reactToPost(friend.id, LIKE_EMOJI)}
+            onPress={() => reactToPost(postId, LIKE_EMOJI)}
             hitSlop={spacing.sm}
             style={({ pressed }) => pressed && styles.pressed}
           >
