@@ -74,17 +74,7 @@ export default function RootLayout() {
               name="story"
               options={{ animation: 'fade', presentation: 'fullScreenModal' }}
             />
-            <Stack.Screen
-              name="invite"
-              options={{
-                presentation: 'transparentModal',
-                animation: 'fade',
-                // Without this the stack's own opaque `contentStyle` paints
-                // over the tab behind, and the blurred backdrop has nothing
-                // left to show.
-                contentStyle: { backgroundColor: 'transparent' },
-              }}
-            />
+            <Stack.Screen name="add-friends" />
             <Stack.Screen
               name="friend/[id]"
               options={{

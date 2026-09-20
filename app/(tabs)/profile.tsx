@@ -151,7 +151,7 @@ export default function ProfileScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add friend"
-            onPress={() => router.push('/invite')}
+            onPress={() => router.push('/add-friends')}
             hitSlop={spacing.md}
             style={({ pressed }) => pressed && styles.pressed}
           >

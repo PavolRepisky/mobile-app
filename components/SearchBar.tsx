@@ -1,5 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { bodyTracking, colors, fonts, radii, spacing } from '@/constants/theme';
 
@@ -8,6 +15,9 @@ export interface SearchBarProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   style?: StyleProp<ViewStyle>;
+  /** A trailing glyph — Add Friends' own scan icon, so far. */
+  rightIcon?: keyof typeof Ionicons.glyphMap;
+  onRightIconPress?: () => void;
 }
 
 /**
@@ -17,7 +27,14 @@ export interface SearchBarProps {
  * exactly what `Text`'s variant system exists to avoid duplicating, but a
  * `TextInput` has no `children` for it to wrap.
  */
-export function SearchBar({ value, onChangeText, placeholder = 'Search', style }: SearchBarProps) {
+export function SearchBar({
+  value,
+  onChangeText,
+  placeholder = 'Search',
+  style,
+  rightIcon,
+  onRightIconPress,
+}: SearchBarProps) {
   return (
     <View style={[styles.root, style]}>
       <Ionicons name="search" size={19} color={colors.inkMuted} />
@@ -29,6 +46,19 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search', style }
         returnKeyType="search"
         style={styles.input}
       />
+      {rightIcon ? (
+        onRightIconPress ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRightIconPress}
+            hitSlop={spacing.sm}
+          >
+            <Ionicons name={rightIcon} size={19} color={colors.inkMuted} />
+          </Pressable>
+        ) : (
+          <Ionicons name={rightIcon} size={19} color={colors.inkMuted} />
+        )
+      ) : null}
     </View>
   );
 }

@@ -82,6 +82,13 @@ export const colors = {
    */
   destructive: '#E63950',
 
+  /**
+   * The rose accent on the Add Friends screen's "See all". Sampled off the
+   * reference screenshot rather than reused from `destructive`: that red
+   * reads as a warning, and nothing here is one.
+   */
+  accent: '#F04884',
+
   /** Disabled primary button fill / label. */
   disabled: '#EDEBE6',
   disabledInk: '#9C9C9C',
