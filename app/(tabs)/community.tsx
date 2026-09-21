@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { FriendCard } from '@/components/FriendCard';
@@ -7,7 +7,7 @@ import { ScreenScroll } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import { spacing } from '@/constants/theme';
-import { FEED_AUTHORS, FRIENDS } from '@/data/content';
+import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
 type Tab = 'friends' | 'members';
@@ -28,11 +28,44 @@ type Tab = 'friends' | 'members';
  */
 export default function CommunityScreen() {
   const router = useRouter();
-  const { hasPhotographedTask } = useApp();
+  const { hasPhotographedTask, profile, tasks, progress, currentDay, trophies, livesLeft } =
+    useApp();
   const [tab, setTab] = useState<Tab>('friends');
 
   const openProfile = (id: string) =>
     router.push({ pathname: '/friend/[id]', params: { id } });
+
+  // Your own day, in the same `Friend` shape a card already knows how to
+  // draw — pinned ahead of the feed once there's a real post to show numbers
+  // on. `day-${currentDay}` is the same key Profile's own grid tile already
+  // hashes its like count from, so the number here doesn't drift from the
+  // one already shown there. Unlocked and un-tappable on the identity row:
+  // it's your post, not a stranger's profile to open.
+  const myPost: Friend | null = useMemo(() => {
+    if (!hasPhotographedTask) return null;
+    return {
+      id: `day-${currentDay}`,
+      name: profile.name,
+      handle: profile.handle,
+      avatar: profile.avatar ?? profile.avatarSeed,
+      day: currentDay,
+      bio: profile.bio,
+      friendCount: FRIENDS.length,
+      trophies,
+      livesLeft,
+      socials: profile.socials,
+      tasks: tasks.map((task) => {
+        const entry = progress[currentDay]?.[task.id];
+        return {
+          label: task.label,
+          done: entry?.done ?? false,
+          time: entry?.time,
+          photo: entry?.photo ?? undefined,
+          photoSeed: entry?.photoSeed ?? undefined,
+        };
+      }),
+    };
+  }, [hasPhotographedTask, profile, tasks, progress, currentDay, trophies, livesLeft]);
 
   const posts = tab === 'friends' ? FRIENDS : FEED_AUTHORS;
 
@@ -56,6 +89,9 @@ export default function CommunityScreen() {
       />
 
       <View style={styles.sections}>
+        {myPost ? (
+          <FriendCard friend={myPost} locked={false} style={styles.friendCard} />
+        ) : null}
         {posts.map((person) => (
           <FriendCard
             key={person.id}
