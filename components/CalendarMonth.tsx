@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Pressable,
   StyleSheet,
@@ -9,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, gradients, radii, shadows, spacing } from '@/constants/theme';
+import { absoluteFill, colors, shadows, spacing } from '@/constants/theme';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';
 
@@ -17,7 +16,7 @@ import { Text } from './Text';
  * One month, drawn as a seven-column grid: the day's cover shot sits behind its
  * number, so a month reads as the film you shot that month rather than as a
  * table of dates. Days you have not lived through yet are numbers on their own,
- * and today wears the filled disc a calendar always puts on it.
+ * and today wears a blacked-out border instead.
  *
  * The month is the unit rather than the week because it is what people name a
  * stretch of time by. The heading is set in the functional face rather than in
@@ -39,26 +38,12 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
  */
 const CELL_ASPECT = 0.76;
 
-/** The disc under today's numeral. Sized off the numeral, not off the cell. */
-const TODAY_DISC = 32;
-
 /**
- * The band that marks today when it already has a photo on it — the same
- * story-ring gradient as the avatar on the To-do home, so "today" reads the
- * same way everywhere it shows up. A flat colour, even a bright one, could
- * still wash out against a photo close to it in hue; the gradient always has
- * some stretch of it that doesn't. Wider than a hairline so the flat
- * `field` band of a partial day doesn't disappear next to it.
+ * A day cell's own corner — tighter than the app's usual `radii.sm`, so a
+ * seven-across grid of them reads as squared-off contact prints rather than
+ * as rounded app tiles.
  */
-const TODAY_RING = 3.5;
-
-/**
- * The mosaic and its scrim sit inside today's ring, not under it, so their
- * corner has to tighten by the ring's width to stay concentric with the
- * tile's outer curve — the same radius on a smaller box would bow outward
- * and show a sliver of the page in each corner.
- */
-const TODAY_INNER_RADIUS = radii.sm - TODAY_RING;
+const CELL_RADIUS = 6;
 
 /** How many of a day's shots the cell tiles before it stops. */
 const MOSAIC_MAX = 4;
@@ -94,8 +79,6 @@ export interface CalendarDay {
   past?: boolean;
   /** Today, wherever in the challenge that falls. */
   today?: boolean;
-  /** Every task on this day has its photo. */
-  complete?: boolean;
   /** Read in place of the bare numeral. */
   label?: string;
   onPress?: () => void;
@@ -159,16 +142,9 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 }
 
 function DayCell({ date, day }: { date: number; day: CalendarDay }) {
-  const { shots, past, today, complete, onPress } = day;
+  const { shots, past, today, onPress } = day;
   const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
   const hasShot = tiles.length > 0;
-  // Same vocabulary as DayRing's avatar: `full` once every task has its
-  // photo, `partial` the moment today has any shot at all, so a day mid-way
-  // through reads as "started" the instant you take the first photo instead
-  // of staying indistinguishable from any other past day until it's done.
-  const ringKind: 'full' | 'partial' | 'none' =
-    today && complete ? 'full' : today && hasShot ? 'partial' : 'none';
-  const ring = ringKind !== 'none';
 
   // The photographs are the page; every bare numeral stays quiet under them. A
   // day that has been and gone with nothing on it is still a day you could have
@@ -181,15 +157,18 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
 
   // White reads on a photograph and vanishes on blank film, so the numeral
   // follows what is actually behind it rather than whether a shot exists.
+  // Today with nothing shot yet has no photo or disc behind it any more —
+  // just the cell's own black border — so it needs full ink to stand out
+  // rather than the plain, muted colour any other past day gets.
   const overPhoto = hasShot;
   const numeral = (
     <Text
       variant="bodyBold"
       color={
-        today
+        overPhoto
           ? colors.inkInverse
-          : overPhoto
-            ? colors.inkInverse
+          : today
+            ? colors.ink
             : numberColor
       }
     >
@@ -199,35 +178,18 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
 
   const content = (
     <>
-      <Mosaic tiles={tiles} date={date} ring={ring} />
+      <Mosaic tiles={tiles} date={date} today={today} />
       {/* The numeral is white on whatever the day happened to look like, so it
           needs a wash under it rather than trusting the photo to be dark. */}
-      <View style={[styles.scrim, ring && styles.scrimToday]} />
+      <View style={[styles.scrim, today && styles.scrimToday]} />
       {numeral}
     </>
   );
 
   const body = hasShot ? (
-    ringKind === 'full' ? (
-      <LinearGradient
-        colors={gradients.storyRing}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={styles.tileTodayRing}
-      >
-        <View style={styles.tileInnerToday}>{content}</View>
-      </LinearGradient>
-    ) : ringKind === 'partial' ? (
-      <View style={[styles.tileTodayRing, styles.tileTodayRingPartial]}>
-        <View style={styles.tileInnerToday}>{content}</View>
-      </View>
-    ) : (
-      <View style={styles.tile}>{content}</View>
-    )
+    <View style={[styles.tile, today && styles.tileToday]}>{content}</View>
   ) : (
-    <View style={styles.plain}>
-      {today ? <View style={styles.disc}>{numeral}</View> : numeral}
-    </View>
+    <View style={[styles.plain, today && styles.plainToday]}>{numeral}</View>
   );
 
   if (!onPress) return body;
@@ -253,11 +215,11 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
 function Mosaic({
   tiles,
   date,
-  ring,
+  today,
 }: {
   tiles: readonly DayShot[];
   date: number;
-  ring?: boolean;
+  today?: boolean;
 }) {
   const shot = (t: DayShot, i: number) =>
     t.photo ? (
@@ -266,7 +228,7 @@ function Mosaic({
       <Placeholder key={i} seed={t.seed ?? `day-${date}-${i}`} radius={0} style={PIECE} />
     );
 
-  const photoStyle = [styles.photo, ring && styles.photoToday];
+  const photoStyle = [styles.photo, today && styles.photoToday];
 
   if (tiles.length === 1) {
     return <View style={photoStyle}>{shot(tiles[0], 0)}</View>;
@@ -318,13 +280,15 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: spacing.md,
+    // Matches the horizontal gap the cell's own padding makes, so the grid
+    // reads as evenly spaced in both directions.
+    rowGap: spacing.xs,
   },
   cell: {
     width: `${100 / 7}%`,
     aspectRatio: CELL_ASPECT,
-    // A hair of air between neighbouring prints; the row gap does the rest.
-    paddingHorizontal: 2,
+    // A hair of air between neighbouring prints; the row gap matches it.
+    paddingHorizontal: spacing.xs / 2,
   },
   press: {
     flex: 1,
@@ -334,45 +298,38 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
-    borderRadius: radii.sm,
+    borderRadius: CELL_RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceSunken,
+    borderWidth: 1,
+    borderColor: colors.divider,
     // The corner is clipped on the layers themselves rather than with
     // `overflow: hidden` here, which would eat the shadow on iOS.
     ...shadows.soft,
   },
-  tileTodayRing: {
-    flex: 1,
-    borderRadius: radii.sm,
-    padding: TODAY_RING,
-    ...shadows.soft,
-  },
-  // Flat instead of the gradient, and a step darker than DayRing's own
-  // partial grey — this band sits right on a photo mosaic and needs the
-  // extra weight to still read as a ring rather than a shadow.
-  tileTodayRingPartial: {
-    backgroundColor: colors.fieldStrong,
-  },
-  tileInnerToday: {
-    flex: 1,
-    borderRadius: TODAY_INNER_RADIUS,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceSunken,
+  // Today wears the same blacked-out border a photo-less day gets — no
+  // separate ring treatment, so "today" reads the same whether or not it
+  // has a photo yet.
+  tileToday: {
+    borderWidth: 2,
+    borderColor: colors.ink,
   },
   photo: {
     ...absoluteFill,
-    borderRadius: radii.sm,
+    // Sits inside the tile's own 1px border, so its corner is tightened to
+    // match — the same radius as the border's outer curve would bow out
+    // past it and leave a flat sliver at each corner.
+    borderRadius: CELL_RADIUS - 1,
     // The corner is clipped here rather than on each piece: a mosaic's inner
     // tiles are square, and only the block they make takes the tile's radius.
     overflow: 'hidden',
     backgroundColor: colors.background,
   },
+  // Today's border is a step heavier, so the photo sits a step further in
+  // and needs its corner tightened again to stay concentric with it.
   photoToday: {
-    // Sits inside the ring, not under it — tighten to stay concentric with
-    // the tile's outer curve instead of leaving a gap in each corner.
-    borderRadius: TODAY_INNER_RADIUS,
+    borderRadius: CELL_RADIUS - 2,
   },
   mosaicColumn: {
     flexDirection: 'column',
@@ -385,28 +342,25 @@ const styles = StyleSheet.create({
   },
   scrim: {
     ...absoluteFill,
-    borderRadius: radii.sm,
+    borderRadius: CELL_RADIUS - 1,
     backgroundColor: colors.scrimPhoto,
   },
   scrimToday: {
-    borderRadius: TODAY_INNER_RADIUS,
+    borderRadius: CELL_RADIUS - 2,
   },
   plain: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: CELL_RADIUS,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
-  disc: {
-    // The disc is a marker sitting in the cell rather than a print filling it,
-    // so it takes its size from the numeral and centres in the space.
-    width: TODAY_DISC,
-    height: TODAY_DISC,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.pill,
-    // Same `fieldStrong` grey as the partial ring, so today reads as one
-    // colour whether it already has a photo or not.
-    backgroundColor: colors.fieldStrong,
+  // Today, before it has a photo, is marked by darkening the cell's own
+  // border rather than a separate disc behind the numeral.
+  plainToday: {
+    borderWidth: 2,
+    borderColor: colors.ink,
   },
 });
 

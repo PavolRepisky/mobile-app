@@ -80,9 +80,6 @@ export default function CalendarScreen() {
           shots,
           past: on <= today,
           today: on.getTime() === today.getTime(),
-          // The ring only crowns a day once every task on it has its photo —
-          // one shot out of several shouldn't read the same as a finished day.
-          complete: tasks.length > 0 && shots.length === tasks.length,
           label: shots.length
             ? `Day ${day}, ${shots.length} photo${shots.length > 1 ? 's' : ''}. Opens this day's story.`
             : `${MONTH_NAMES[month]} ${date}. Nothing photographed.`,
