@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   frame: {
     width: '100%',
     height: '70%',
-    borderRadius: radii.card,
+    borderRadius: radii.md,
     backgroundColor: colors.surfaceMuted,
     ...shadows.floating,
   },
