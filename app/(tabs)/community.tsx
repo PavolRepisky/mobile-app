@@ -40,12 +40,14 @@ export default function CommunityScreen() {
   // on. `day-${currentDay}` is the same key Profile's own grid tile already
   // hashes its like count from, so the number here doesn't drift from the
   // one already shown there. Unlocked and un-tappable on the identity row:
-  // it's your post, not a stranger's profile to open.
+  // it's your post, not a stranger's profile to open. The name reads "You"
+  // rather than your real name — that alone marks the card as yours, so it
+  // needs no separate badge.
   const myPost: Friend | null = useMemo(() => {
     if (!hasPhotographedTask) return null;
     return {
       id: `day-${currentDay}`,
-      name: profile.name,
+      name: 'You',
       handle: profile.handle,
       avatar: profile.avatar ?? profile.avatarSeed,
       day: currentDay,
@@ -77,13 +79,6 @@ export default function CommunityScreen() {
         </Text>
       </View>
 
-      {/* Your own day isn't a Friends or a Members post — it sits above the
-          segmented control so it reads once, whichever tab is open, rather
-          than as the lead item of whichever list happens to be showing. */}
-      {myPost ? (
-        <FriendCard friend={myPost} locked={false} own style={styles.ownPost} />
-      ) : null}
-
       <SegmentedTabs
         options={[
           { key: 'friends', label: 'Friends' },
@@ -96,6 +91,7 @@ export default function CommunityScreen() {
       />
 
       <View style={styles.sections}>
+        {myPost ? <FriendCard friend={myPost} locked={false} style={styles.friendCard} /> : null}
         {posts.map((person) => (
           <FriendCard
             key={person.id}
@@ -120,12 +116,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-  },
-  // Same rhythm as the tabs' own bottom margin below — one deliberate gap
-  // between each of the screen's three blocks (header, your post, the tabbed
-  // list), not the tighter gap the cards inside one list share.
-  ownPost: {
-    marginBottom: spacing['2xl'],
   },
   tabs: {
     marginBottom: spacing['2xl'],

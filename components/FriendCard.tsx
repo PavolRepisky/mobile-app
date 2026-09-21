@@ -21,7 +21,6 @@ import { Avatar } from './Avatar';
 import { CommentsSheet } from './CommentsSheet';
 import { LockedOverlay } from './LockedOverlay';
 import { MosaicArrangement, type CollageCell } from './PhotoCollage';
-import { Pill } from './Pill';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';
 
@@ -65,10 +64,6 @@ export interface FriendCardProps {
     day: number;
     tasks: Friend['tasks'];
   };
-  /** Marks this as the signed-in account's own post — the Community feed
-   * pins one ahead of the rest, and a card otherwise identical to a
-   * friend's needs its own "You" pill to still read as yours at a glance. */
-  own?: boolean;
 }
 
 /** Stable per key rather than random, so a fake count doesn't reshuffle on
@@ -95,7 +90,7 @@ const LIKE_EMOJI = '❤️';
  * Only the avatar and the name lead to their profile — the photo itself is
  * just the post's own image, not a control.
  */
-export function FriendCard({ friend, onPress, locked, style, post, own }: FriendCardProps) {
+export function FriendCard({ friend, onPress, locked, style, post }: FriendCardProps) {
   const router = useRouter();
   const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
     useApp();
@@ -183,17 +178,14 @@ export function FriendCard({ friend, onPress, locked, style, post, own }: Friend
           <Avatar source={friend.avatar} size={32} />
         </Pressable>
         <View style={styles.identityText}>
-          <View style={styles.nameRow}>
-            <Text
-              variant="bodyBold"
-              accessibilityRole={onPress ? 'button' : undefined}
-              accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
-              onPress={onPress}
-            >
-              {friend.name}
-            </Text>
-            {own ? <Pill label="You" tone="solid" size="sm" style={styles.ownPill} /> : null}
-          </View>
+          <Text
+            variant="bodyBold"
+            accessibilityRole={onPress ? 'button' : undefined}
+            accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
+            onPress={onPress}
+          >
+            {friend.name}
+          </Text>
           <View style={styles.subtitleRow}>
             <Text
               variant="labelBold"
@@ -372,17 +364,6 @@ const styles = StyleSheet.create({
   },
   identityText: {
     marginLeft: spacing.sm,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  // The "You" pill's own sm height runs taller than the name's line box —
-  // pulled back down so it sits centred on the name rather than stretching
-  // the row to its height.
-  ownPill: {
-    height: 20,
   },
   subtitleRow: {
     flexDirection: 'row',
