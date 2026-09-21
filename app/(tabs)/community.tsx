@@ -90,7 +90,7 @@ export default function CommunityScreen() {
 
       <View style={styles.sections}>
         {myPost ? (
-          <FriendCard friend={myPost} locked={false} style={styles.friendCard} />
+          <FriendCard friend={myPost} locked={false} own style={styles.friendCard} />
         ) : null}
         {posts.map((person) => (
           <FriendCard
