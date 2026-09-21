@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
 import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Placeholder } from '@/components/Placeholder';
+import { PhotoViewer } from '@/components/PhotoViewer';
 import { ProfileStats } from '@/components/ProfileStats';
 import { profileAvatarSize } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
@@ -64,6 +66,7 @@ export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { challenge } = useApp();
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
 
@@ -160,9 +163,15 @@ export default function FriendProfileScreen() {
         <View style={styles.identity}>
           <View style={styles.headerRow}>
             <View>
-              <View style={[styles.avatarShadow, shadows.hard]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View ${friend.name}'s profile photo`}
+                disabled={!friend.avatar}
+                onPress={() => setAvatarOpen(true)}
+                style={({ pressed }) => [styles.avatarShadow, shadows.hard, pressed && styles.pressed]}
+              >
                 <Avatar source={friend.avatar} size={avatarSize} />
-              </View>
+              </Pressable>
 
               {/* The day-streak badge, lapping the avatar's own corner —
                   their own day count, the way yours shows on your own
@@ -308,6 +317,12 @@ export default function FriendProfileScreen() {
           )}
         </View>
       </ScreenScroll>
+
+      <PhotoViewer
+        photos={friend.avatar ? [friend.avatar] : []}
+        index={avatarOpen ? 0 : null}
+        onDismiss={() => setAvatarOpen(false)}
+      />
     </View>
   );
 }
