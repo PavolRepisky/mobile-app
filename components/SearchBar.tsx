@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.divider,
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: colors.surfaceInput,
     paddingHorizontal: spacing.lg,
   },
   input: {

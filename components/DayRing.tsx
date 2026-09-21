@@ -229,14 +229,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ringShadow: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
   },
   ring: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   ringInset: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
     alignItems: 'center',
     justifyContent: 'center',
   },

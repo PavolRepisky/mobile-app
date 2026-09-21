@@ -38,6 +38,8 @@ export interface PhotoStripProps {
   layout?: 'stacked' | 'flat';
   /** Corner radius of the individual cards. */
   radius?: number;
+  /** Gap between tiles, `flat` layout only. Defaults to a hairline seam. */
+  gap?: number;
   onPress?: () => void;
   /**
    * Makes each tile its own control instead of the whole strip being one —
@@ -84,6 +86,7 @@ export function PhotoStrip({
   badgeIcon,
   layout = 'stacked',
   radius = radii.md,
+  gap = spacing.xs / 2,
   onPress,
   onPressPhoto,
   style,
@@ -97,7 +100,13 @@ export function PhotoStrip({
         style,
       ]}
     >
-      <View style={[{ height }, layout === 'flat' && styles.flatRow]}>
+      <View
+        style={[
+          { height },
+          layout === 'flat' && styles.flatRow,
+          layout === 'flat' && { gap },
+        ]}
+      >
         {photos.map((photo, i) =>
           layout === 'flat' ? (
             <FlatTile
@@ -348,9 +357,6 @@ const styles = StyleSheet.create({
   },
   flatRow: {
     flexDirection: 'row',
-    // A hair under `spacing.xs`: a full step read as too wide a seam once the
-    // tiles sat flush and square.
-    gap: spacing.xs / 2,
   },
   flatTile: {
     flex: 1,

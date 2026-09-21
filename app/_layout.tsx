@@ -53,7 +53,7 @@ export default function RootLayout() {
   // Headlines are the whole design; showing them in a fallback face first
   // would flash badly, so hold the splash until Playfair is ready.
   if (!fontsLoaded && !fontError) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.backgroundPlain }} />;
   }
 
   return (
@@ -64,7 +64,7 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
+              contentStyle: { backgroundColor: colors.backgroundPlain },
               animation: 'slide_from_right',
             }}
           >

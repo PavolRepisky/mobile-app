@@ -18,6 +18,8 @@ export interface CardProps extends ViewProps {
   flat?: boolean;
   /** Muted fill instead of pure white (invite card, task well). */
   muted?: boolean;
+  /** Corner radius, off the shared scale. Defaults to the signature `card` cut. */
+  radius?: number;
 }
 
 /**
@@ -33,13 +35,21 @@ export function Card({
   onPress,
   flat,
   muted,
+  radius,
   style,
   children,
   ...rest
 }: CardProps) {
-  const host = [styles.card, muted && styles.muted, !flat && shadows.card, style];
+  const radiusStyle = radius !== undefined && { borderRadius: radius };
+  const host = [
+    styles.card,
+    radiusStyle,
+    muted && styles.muted,
+    !flat && shadows.card,
+    style,
+  ];
   const inner = (
-    <View style={[styles.clip, padded && styles.padded]}>{children}</View>
+    <View style={[styles.clip, radiusStyle, padded && styles.padded]}>{children}</View>
   );
 
   if (onPress) {

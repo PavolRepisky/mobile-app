@@ -60,7 +60,7 @@ export default function ChallengeDetailScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
   },
   header: {
     minHeight: 60,
@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: screenPadding,
     paddingTop: spacing.md,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
   },
 });

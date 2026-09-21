@@ -1,13 +1,15 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/FriendCard';
-import { ScreenScroll } from '@/components/Screen';
+import { profileActionHeight, profileActionTop } from '@/components/ProfileLayout';
+import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import { spacing } from '@/constants/theme';
-import { FEED_AUTHORS, FRIENDS } from '@/data/content';
+import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
 type Tab = 'friends' | 'members';
@@ -16,9 +18,10 @@ type Tab = 'friends' | 'members';
  * The people you're doing it with: your own friends' days in one feed, and
  * everyone else posting in the same challenge in the same feed shape under
  * Members — the same `FriendCard` post, just posted by people you haven't
- * added rather than people you have. The header is Profile's own — same row,
- * same centred title — with no icons either side of it: there's nothing here
- * for a corner button to do.
+ * added rather than people you have. The title band is Challenges' own — no
+ * icons either side, but still lined up on the same row every other tab
+ * root's corner button sits on, even though this screen has no button of its
+ * own to share the line with.
  *
  * Every post's photo sits behind `FriendCard`'s own lock until the account
  * has proven today with one photographed task of its own — reading everyone
@@ -28,18 +31,56 @@ type Tab = 'friends' | 'members';
  */
 export default function CommunityScreen() {
   const router = useRouter();
-  const { hasPhotographedTask } = useApp();
+  const insets = useSafeAreaInsets();
+  const { hasPhotographedTask, profile, tasks, progress, currentDay, trophies, livesLeft } =
+    useApp();
   const [tab, setTab] = useState<Tab>('friends');
+
+  const titleOffset = Math.max(profileActionTop, topPadding(insets.top)) - topPadding(insets.top);
 
   const openProfile = (id: string) =>
     router.push({ pathname: '/friend/[id]', params: { id } });
+
+  // Your own day, in the same `Friend` shape a card already knows how to
+  // draw — pinned ahead of the feed once there's a real post to show numbers
+  // on. `day-${currentDay}` is the same key Profile's own grid tile already
+  // hashes its like count from, so the number here doesn't drift from the
+  // one already shown there. Unlocked and un-tappable on the identity row:
+  // it's your post, not a stranger's profile to open. The name reads "You"
+  // rather than your real name — that alone marks the card as yours, so it
+  // needs no separate badge.
+  const myPost: Friend | null = useMemo(() => {
+    if (!hasPhotographedTask) return null;
+    return {
+      id: `day-${currentDay}`,
+      name: 'You',
+      handle: profile.handle,
+      avatar: profile.avatar ?? profile.avatarSeed,
+      day: currentDay,
+      bio: profile.bio,
+      friendCount: FRIENDS.length,
+      trophies,
+      livesLeft,
+      socials: profile.socials,
+      tasks: tasks.map((task) => {
+        const entry = progress[currentDay]?.[task.id];
+        return {
+          label: task.label,
+          done: entry?.done ?? false,
+          time: entry?.time,
+          photo: entry?.photo ?? undefined,
+          photoSeed: entry?.photoSeed ?? undefined,
+        };
+      }),
+    };
+  }, [hasPhotographedTask, profile, tasks, progress, currentDay, trophies, livesLeft]);
 
   const posts = tab === 'friends' ? FRIENDS : FEED_AUTHORS;
 
   return (
     <ScreenScroll tabBar>
-      <View style={styles.header}>
-        <Text variant="sectionTitle" center style={styles.headerTitle}>
+      <View style={[styles.titleBand, { marginTop: titleOffset }]}>
+        <Text variant="sectionTitle" center>
           Community
         </Text>
       </View>
@@ -56,6 +97,7 @@ export default function CommunityScreen() {
       />
 
       <View style={styles.sections}>
+        {myPost ? <FriendCard friend={myPost} locked={false} style={styles.friendCard} /> : null}
         {posts.map((person) => (
           <FriendCard
             key={person.id}
@@ -71,15 +113,10 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Profile tab's own header row, reused exactly: same spacing, same
-  // centred title. No icons either side — there's no corner action here.
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  headerTitle: {
-    flex: 1,
+  titleBand: {
+    minHeight: profileActionHeight,
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
   },
   tabs: {
     marginBottom: spacing['2xl'],

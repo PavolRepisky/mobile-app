@@ -281,7 +281,7 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
   },
   back: {
     position: 'absolute',
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: screenPadding,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
   },
   // Squared off against the app's fully-round default, matching the
   // challenge editor's Validate button this dock is modelled on, and the

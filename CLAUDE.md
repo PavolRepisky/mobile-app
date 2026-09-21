@@ -35,12 +35,14 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 
 **Background** — `Screen tone`:
 
-| tone | token | used for |
-| --- | --- | --- |
-| `app` *(default)* | `background` `#F8F5F0` | the warm shell: discover, friends, to-do, profile |
-| `plain` | `backgroundPlain` `#FFFFFF` | own profile, a friend's profile, a wall day |
-| `alt` | `backgroundAlt` `#F8F6F5` | the settings stack |
-| `warm` | `backgroundWarm` `#FBF6F3` | profile-views |
+Every screen in the app sits on the same white, `Screen`/`ScreenScroll`'s
+default `plain` tone (`backgroundPlain` `#FFFFFF`) — the tab roots, the
+settings stack, a challenge's feed, a wall day, all of it. `app`
+(`background` `#F8F5F0`), `alt` (`backgroundAlt` `#F8F6F5`) and `warm`
+(`backgroundWarm` `#FBF6F3`) remain available tones on the component for a
+screen that deliberately wants to break from the white, but nothing in the
+app opts into one today — don't reach for them without a specific reason to
+split a screen off from the rest.
 
 **Shadow** — pick by what the thing sits on, not by how big it is:
 

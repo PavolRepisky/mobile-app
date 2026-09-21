@@ -11,6 +11,9 @@ export interface ChallengeTask {
   tint?: number;
 }
 
+/** The five browse filters on the Challenges list. */
+export type ChallengeCategory = 'Fitness' | 'Health' | 'Mindset' | 'Lifestyle' | 'Study';
+
 export interface Challenge {
   id: string;
   name: string;
@@ -18,6 +21,12 @@ export interface Challenge {
   stamp: string;
   /** One or two sentences: what the challenge is and who it's for. */
   description: string;
+  /**
+   * Which of the browse filters this challenge sits under. Unset for a
+   * custom challenge — a hand-built list of tasks has no taxonomy of its own
+   * to fall into.
+   */
+  category?: ChallengeCategory;
   joined: number;
   photoSeeds: readonly string[];
   /**
@@ -39,6 +48,7 @@ export const CHALLENGES: readonly Challenge[] = [
     stamp: 'Her 75 Challenge',
     description:
       'A friendlier 75-day reset: clean eating, daily movement, and no alcohol — built for getting summer-ready without burning out.',
+    category: 'Fitness',
     joined: 20000,
     photoSeeds: ['her75-a', 'her75-b', 'her75-c', 'her75-d'],
     defaultDays: 75,
@@ -56,6 +66,7 @@ export const CHALLENGES: readonly Challenge[] = [
     stamp: '75 Hard',
     description:
       '75 days, zero cheat days. Two workouts, a strict diet, and a daily progress photo — the original mental-toughness challenge.',
+    category: 'Health',
     joined: 10000,
     photoSeeds: ['hard-a', 'hard-b', 'hard-c', 'hard-d'],
     defaultDays: 75,
@@ -73,6 +84,7 @@ export const CHALLENGES: readonly Challenge[] = [
     stamp: '75 Medium',
     description:
       '75 days of steady, sustainable habits: one flexible meal a week, daily movement, and a nightly read.',
+    category: 'Mindset',
     joined: 5000,
     photoSeeds: ['med-a', 'med-b', 'med-c', 'med-d'],
     defaultDays: 75,
@@ -90,6 +102,7 @@ export const CHALLENGES: readonly Challenge[] = [
     stamp: '75 Soft',
     description:
       'A gentler 75 days: clean eating with a little room to breathe, daily walks, and time to unwind with a podcast.',
+    category: 'Lifestyle',
     joined: 7500,
     photoSeeds: ['soft-a', 'soft-b', 'soft-c', 'soft-d'],
     defaultDays: 75,

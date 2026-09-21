@@ -63,7 +63,16 @@ export function Pill({
       <Text
         variant={
           bold
-            ? 'bodyBold'
+            ? size === 'sm'
+              ? // `solid` and `floating` size=sm bold pills are, today, the
+                // my-challenge card's two photo badges — they earn the
+                // heaviest small cut Quicksand has, the same one the profile
+                // grid's own photo-badge counts use, so the pair reads as
+                // one weight rather than two.
+                tone === 'solid' || tone === 'floating'
+                ? 'microBold'
+                : 'labelBold'
+              : 'bodyBold'
             : size === 'sm'
               ? 'label'
               : size === 'lg'

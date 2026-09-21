@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: screenPadding,
     // Overrides `root`'s camera-black: this is a plain permission ask, not a
     // media surface, and wants the page's own light background under it.
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
   },
   gateBlurb: {
     marginTop: spacing.sm,

@@ -19,8 +19,11 @@ import {
 interface CommonProps {
   children: React.ReactNode;
   /**
-   * The tab app sits on the warm off-white; `plain` is white, `warm` a touch
-   * warmer than the shell.
+   * Every screen sits on the same white `plain` Profile is built on, by
+   * default. `app` is the warm off-white the shell used to run on, `alt` the
+   * settings stack's own cooler off-white, `warm` a touch warmer still —
+   * kept for a screen that deliberately wants to break from the white, not
+   * used anywhere today.
    */
   tone?: 'app' | 'plain' | 'alt' | 'warm';
   /** Adds the horizontal page gutter. Off for edge-to-edge photo layouts. */
@@ -61,7 +64,7 @@ const TONES = {
 /** Static full-height screen. */
 export function Screen({
   children,
-  tone = 'app',
+  tone = 'plain',
   padded = true,
   tabBar,
   topGap = screenTopGap,
@@ -97,7 +100,7 @@ export interface ScreenScrollProps
 /** Scrolling screen that keeps content clear of the floating tab bar. */
 export function ScreenScroll({
   children,
-  tone = 'app',
+  tone = 'plain',
   padded = true,
   tabBar,
   topGap = screenTopGap,

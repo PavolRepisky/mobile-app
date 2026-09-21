@@ -30,10 +30,22 @@ export const colors = {
   /** The reaction strip's circles, which sit directly on a friend's photo —
    * held just off full white so the picture underneath still reads through. */
   surfaceOnPhoto: 'rgba(255,255,255,0.92)',
+  /**
+   * The white counterpart to `inkOnPhoto`, held to the same translucency —
+   * the my-challenge card's days-left badge, paired against the dark category
+   * chip so the two read as a matched set rather than two different fills.
+   */
+  surfaceOnPhotoDim: 'rgba(255,255,255,0.55)',
   /** Inset panels: the invite card, "Create Daily Task+" well. */
   surfaceMuted: '#F1F0EA',
   /** Empty photo slots and "add" tiles on the wall. */
   surfaceSunken: '#F2F2F2',
+  /**
+   * A search field's own fill, sitting straight on the page's own white
+   * rather than the warm shell `surfaceSunken` was tuned against — held to a
+   * lighter, barely-there sink so it doesn't read as a grey block on white.
+   */
+  surfaceInput: '#F5F5F5',
   /**
    * The face of a print that has not come up yet. A shade off the paper it is
    * printed on and a shade warm of grey, the way film looks before it develops
@@ -62,6 +74,12 @@ export const colors = {
   inkGhost: '#D7D6D3',
   /** Text on dark fills. */
   inkInverse: '#FFFFFF',
+  /**
+   * A solid badge's own fill where it sits on a photo rather than the page —
+   * held translucent so the shot underneath still shows through instead of a
+   * flat block sitting on top of it. The my-challenge card's category chip.
+   */
+  inkOnPhoto: 'rgba(20,20,20,0.55)',
 
   /** Text input fills and unselected control strokes. */
   field: '#CDCDCD',

@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   gate: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundPlain,
     paddingHorizontal: screenPadding,
   },
   blurb: {

@@ -50,7 +50,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.screenRoot}>
-      <ScreenScroll tone="alt" tabBar>
+      <ScreenScroll tabBar>
         {/* The profile screen's own header row exactly: a spacer balancing
             the leading glyph so the title centres on the page, rather than
             a fixed band with a button floating over the scroll content. */}
