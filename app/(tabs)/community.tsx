@@ -113,10 +113,12 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
+  // No bottom margin of its own, unlike the other tab roots' title band —
+  // here the very next row is the Friends/Members switch, not a search bar
+  // or a month grid, and it reads better sitting right under the title.
   titleBand: {
     minHeight: profileActionHeight,
     justifyContent: 'center',
-    marginBottom: spacing.xl,
   },
   tabs: {
     marginBottom: spacing['2xl'],
