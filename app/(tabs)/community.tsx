@@ -1,9 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/FriendCard';
-import { ScreenScroll } from '@/components/Screen';
+import { profileActionHeight, profileActionTop } from '@/components/ProfileLayout';
+import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import { spacing } from '@/constants/theme';
@@ -16,9 +18,10 @@ type Tab = 'friends' | 'members';
  * The people you're doing it with: your own friends' days in one feed, and
  * everyone else posting in the same challenge in the same feed shape under
  * Members — the same `FriendCard` post, just posted by people you haven't
- * added rather than people you have. The header is Profile's own — same row,
- * same centred title — with no icons either side of it: there's nothing here
- * for a corner button to do.
+ * added rather than people you have. The title band is Challenges' own — no
+ * icons either side, but still lined up on the same row every other tab
+ * root's corner button sits on, even though this screen has no button of its
+ * own to share the line with.
  *
  * Every post's photo sits behind `FriendCard`'s own lock until the account
  * has proven today with one photographed task of its own — reading everyone
@@ -28,9 +31,12 @@ type Tab = 'friends' | 'members';
  */
 export default function CommunityScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { hasPhotographedTask, profile, tasks, progress, currentDay, trophies, livesLeft } =
     useApp();
   const [tab, setTab] = useState<Tab>('friends');
+
+  const titleOffset = Math.max(profileActionTop, topPadding(insets.top)) - topPadding(insets.top);
 
   const openProfile = (id: string) =>
     router.push({ pathname: '/friend/[id]', params: { id } });
@@ -73,8 +79,8 @@ export default function CommunityScreen() {
 
   return (
     <ScreenScroll tabBar>
-      <View style={styles.header}>
-        <Text variant="sectionTitle" center style={styles.headerTitle}>
+      <View style={[styles.titleBand, { marginTop: titleOffset }]}>
+        <Text variant="sectionTitle" center>
           Community
         </Text>
       </View>
@@ -107,15 +113,10 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Profile tab's own header row, reused exactly: same spacing, same
-  // centred title. No icons either side — there's no corner action here.
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  headerTitle: {
-    flex: 1,
+  titleBand: {
+    minHeight: profileActionHeight,
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
   },
   tabs: {
     marginBottom: spacing['2xl'],
