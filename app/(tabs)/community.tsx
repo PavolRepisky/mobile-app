@@ -77,6 +77,13 @@ export default function CommunityScreen() {
         </Text>
       </View>
 
+      {/* Your own day isn't a Friends or a Members post — it sits above the
+          segmented control so it reads once, whichever tab is open, rather
+          than as the lead item of whichever list happens to be showing. */}
+      {myPost ? (
+        <FriendCard friend={myPost} locked={false} own style={styles.ownPost} />
+      ) : null}
+
       <SegmentedTabs
         options={[
           { key: 'friends', label: 'Friends' },
@@ -89,9 +96,6 @@ export default function CommunityScreen() {
       />
 
       <View style={styles.sections}>
-        {myPost ? (
-          <FriendCard friend={myPost} locked={false} own style={styles.friendCard} />
-        ) : null}
         {posts.map((person) => (
           <FriendCard
             key={person.id}
@@ -116,6 +120,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
+  },
+  // Same rhythm as the tabs' own bottom margin below — one deliberate gap
+  // between each of the screen's three blocks (header, your post, the tabbed
+  // list), not the tighter gap the cards inside one list share.
+  ownPost: {
+    marginBottom: spacing['2xl'],
   },
   tabs: {
     marginBottom: spacing['2xl'],
