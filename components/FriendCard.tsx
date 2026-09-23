@@ -219,7 +219,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
             radius={0}
             title="Take a photo to unlock"
             hint="Finish one task with a photo and the feed opens up."
-            onPress={() => router.push('/(tabs)/todo')}
+            onPress={() => router.push('/(tabs)/tasks')}
           >
             <View
               style={carouselHeight ? { height: carouselHeight } : null}

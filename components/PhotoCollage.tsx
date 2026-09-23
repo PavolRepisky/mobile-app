@@ -734,16 +734,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     ...shadows.soft,
   },
-  // The to-do grid's own cut: a seam of its own rather than the light page
+  // The Tasks grid's own cut: a seam of its own rather than the light page
   // every other mosaic — the calendar's day cell, a friend's day — shows
-  // through its own hairline. `inkFaded` rather than the live camera grid's
-  // near-black `inkSoft`: that seam sits on a dark camera feed, this one on
-  // a light page, and the same weight read as a smear of soot across it. The
-  // same line also frames the block's own outer edge, so the grid reads as
-  // one complete cut rather than internal seams floating with no border.
+  // through its own hairline. Solid `ink`, the same black as the tracker's
+  // today ring and kept-day discs above it, so the grid and the tracker read
+  // as one set. The same line also frames the block's own outer edge, so the
+  // grid reads as one complete cut rather than internal seams floating with
+  // no border.
   mosaicBlockDark: {
-    backgroundColor: colors.inkFaded,
-    borderColor: colors.inkFaded,
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
   },
   // Sits on the photo itself, rather than hung off a card's corner the way a
   // done tick is — a time stamp is read off the print, not pinned to it as a

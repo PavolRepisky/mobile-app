@@ -8,11 +8,11 @@ import { useApp } from '@/hooks/useAppState';
  * Headless tabs so the bar can be a floating pill drawn over the content
  * rather than a docked bar that shortens it.
  *
- * Bar order is Challenges · Community · To do · Calendar · Profile: the two
+ * Bar order is Challenges · Community · Tasks · Calendar · Profile: the two
  * social pages lead, then the day itself, then Calendar beside the page it
- * belongs to — the month grid of proof photos is the to-do list's own
+ * belongs to — the month grid of proof photos is Tasks' own
  * history. Challenges and Community were one screen behind a switch until
- * they earned a tab each. To do is the app's real home, so it is the initial
+ * they earned a tab each. Tasks is the app's real home, so it is the initial
  * route, and it is the one tab drawn as a filled disc.
  */
 export default function TabsLayout() {
@@ -36,8 +36,8 @@ export default function TabsLayout() {
             <TabBarButton icon="community" label="Community" />
           </TabTrigger>
 
-          <TabTrigger name="todo" href="/todo" asChild>
-            <TabBarButton icon="todo" label="To do" filled />
+          <TabTrigger name="tasks" href="/tasks" asChild>
+            <TabBarButton icon="tasks" label="Tasks" filled />
           </TabTrigger>
 
           <TabTrigger name="calendar" href="/calendar" asChild>

@@ -49,7 +49,7 @@ export default function ChallengeDetailScreen() {
       <View style={[styles.dock, { paddingBottom: insets.bottom + spacing.lg }]}>
         <PrimaryButton
           label="Validate"
-          onPress={() => router.dismissTo('/(tabs)/todo')}
+          onPress={() => router.dismissTo('/(tabs)/tasks')}
           style={styles.validate}
         />
       </View>

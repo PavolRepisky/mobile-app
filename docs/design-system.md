@@ -181,6 +181,15 @@ stays quiet — `inkMuted` for a day already gone, `inkGhost` for one still to
 come. Today takes the ink disc a calendar always puts on it, or an ink ring when
 it already has a photo under it.
 
+**`WeekTracker`** — `rows` (`id` · `label` · seven `days`, Monday first, each
+`done`|`today`|`missed`|`future`|`outside`) · `todayIndex` · `selectedIndex`
+(the weekday letter picked out in ink — the day the photo carousel below is
+showing; defaults to today). The Tasks tab's habit grid:
+one row per task, one 24px disc per weekday. A kept day is a solid ink disc
+with a white tick, today an ink ring, a missed day a `surfaceMuted` blank —
+never red, the tracker records rather than scolds — and a day still to come a
+hairline ring. Days outside the challenge draw nothing.
+
 **`PhotoSlot`** — `photo` or `seed` · `width` (points, or a share of the
 parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
 `emptyLabel` ·
@@ -272,7 +281,7 @@ screen can lock its scroll.
 seeded by a string, and the only place literal hex is allowed.
 
 **`FloatingTabBar`** + `TabBarButton` — icons
-`'recipes'|'friends'|'todo'|'calendar'|'profile'` (outline until focused), a
+`'recipes'|'friends'|'tasks'|'calendar'|'profile'` (outline until focused), a
 glass lens behind the bar and a light pill behind the active tab. `filled`
 turns a tab into a solid ink disc with no label — the centre tab only.
 

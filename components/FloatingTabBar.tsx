@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 
-export type TabIcon = 'discover' | 'community' | 'todo' | 'calendar' | 'profile';
+export type TabIcon = 'discover' | 'community' | 'tasks' | 'calendar' | 'profile';
 
 /** The filled centre tab's disc. Sized to sit inside the bar with air around it. */
 const FILLED_SIZE = 52;
@@ -47,7 +47,7 @@ function Glyph({
           color={color}
         />
       );
-    case 'todo':
+    case 'tasks':
       return (
         <Ionicons
           name={active ? 'camera' : 'camera-outline'}

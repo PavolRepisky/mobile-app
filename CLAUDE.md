@@ -91,6 +91,7 @@ two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
 
 **Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
 pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
+`WeekTracker` task × weekday habit grid ·
 `DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
 `Polaroid` one instant print · `PhotoCollage` a pile of them ·
 `StickerText` die-cut display word · `PhotoStrip` ·

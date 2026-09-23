@@ -53,11 +53,11 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['her75-a', 'her75-b', 'her75-c', 'her75-d'],
     defaultDays: 75,
     tasks: [
-      task('h1', 'Eat clean (no junk food and no alcohol) 🥗'),
-      task('h2', 'Drink ONLY water 💧'),
-      task('h3', 'Walk 10,000 steps a day 👟'),
-      task('h4', 'One 45-minute workout per day 💪'),
-      task('h5', 'Read any book (10 pages) or listen to a podcast (5+ min) 📖'),
+      task('h1', 'Eat clean'),
+      task('h2', 'Drink only water'),
+      task('h3', 'Walk 10k steps'),
+      task('h4', 'Work out 45 min'),
+      task('h5', 'Read 10 pages'),
     ],
   },
   {
@@ -71,11 +71,11 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['hard-a', 'hard-b', 'hard-c', 'hard-d'],
     defaultDays: 75,
     tasks: [
-      task('d1', 'Follow a strict diet (no cheat meals, no alcohol)'),
+      task('d1', 'Strict diet'),
       task('d2', 'Drink water'),
-      task('d3', 'Do two 45-minute workouts per day, one must be outside'),
-      task('d4', 'Read 10 pages of a non-fiction/self-development book'),
-      task('d5', 'Take a progress picture every day'),
+      task('d3', 'Two workouts, one outside'),
+      task('d4', 'Read 10 pages'),
+      task('d5', 'Progress photo'),
     ],
   },
   {
@@ -89,11 +89,11 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['med-a', 'med-b', 'med-c', 'med-d'],
     defaultDays: 75,
     tasks: [
-      task('m1', 'Follow a diet with one flexible meal per week'),
-      task('m2', 'Drink 3 litres of water'),
-      task('m3', 'One 45-minute workout a day'),
-      task('m4', 'Read 10 pages of a book'),
-      task('m5', 'Take a progress picture every day'),
+      task('m1', 'Eat well'),
+      task('m2', 'Drink 3L water'),
+      task('m3', 'Work out 45 min'),
+      task('m4', 'Read 10 pages'),
+      task('m5', 'Progress photo'),
     ],
   },
   {
@@ -107,10 +107,10 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['soft-a', 'soft-b', 'soft-c', 'soft-d'],
     defaultDays: 75,
     tasks: [
-      task('s1', 'Eat clean (2 exceptions per week allowed)'),
+      task('s1', 'Eat mostly clean'),
       task('s2', 'Drink water'),
-      task('s3', 'Walk 10,000 steps a day'),
-      task('s4', 'Listen to a podcast (5+ min)'),
+      task('s3', 'Walk 10k steps'),
+      task('s4', 'Listen to a podcast'),
     ],
   },
 ];
