@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -13,7 +14,14 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radii, screenPadding, spacing } from '@/constants/theme';
+import {
+  absoluteFill,
+  colors,
+  gradients,
+  radii,
+  screenPadding,
+  spacing,
+} from '@/constants/theme';
 import { type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';
@@ -42,6 +50,10 @@ const GRID_CELL_PIECE = { flex: 1 } as const;
  * compositor happens to support a blurred backdrop.
  */
 const LOCK_BLUR_RADIUS = 60;
+
+/** Blur on the day stamp's drop shadow — wide and soft, so it lifts the
+ * white type off a bright shot without drawing an edge around the letters. */
+const STAMP_SHADOW_RADIUS = 12;
 
 export interface FriendCardProps {
   friend: Friend;
@@ -268,6 +280,39 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                                 )
                               }
                             />
+                            {/* The day laid across the middle of the grid,
+                                cover-line style, with the challenge's name
+                                letterspaced over it the way the reference
+                                sets "Six pics of" over its month. One line at
+                                any length: a long day shrinks to fit rather
+                                than wrapping. Hidden while locked: a big
+                                number floating over a blur reads as a
+                                teaser, not a post. */}
+                            {locked ? null : (
+                              <View style={styles.dayStamp} pointerEvents="none">
+                                <LinearGradient
+                                  colors={gradients.stampBand}
+                                  style={styles.dayStampBand}
+                                />
+                                <Text
+                                  variant="stamp"
+                                  color={colors.surface}
+                                  numberOfLines={1}
+                                  style={[styles.dayStampShadow, styles.dayStampKicker]}
+                                >
+                                  {challenge.name}
+                                </Text>
+                                <Text
+                                  variant="poster"
+                                  color={colors.surface}
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
+                                  style={styles.dayStampShadow}
+                                >
+                                  Day {day}
+                                </Text>
+                              </View>
+                            )}
                           </View>
                         );
                       }
@@ -390,6 +435,24 @@ const styles = StyleSheet.create({
   photoOuter: {
     marginTop: spacing.md,
     marginHorizontal: -screenPadding,
+  },
+  dayStamp: {
+    ...absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: screenPadding,
+  },
+  dayStampBand: {
+    ...absoluteFill,
+  },
+  dayStampShadow: {
+    textShadowColor: colors.onMediaShadow,
+    textShadowRadius: STAMP_SHADOW_RADIUS,
+  },
+  // Clear of the numeral's caps by a hair — the kicker's descenders sat on
+  // the digits any closer.
+  dayStampKicker: {
+    marginBottom: spacing.xs,
   },
   dots: {
     position: 'absolute',

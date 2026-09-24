@@ -1,4 +1,5 @@
 import { Caveat_600SemiBold } from '@expo-google-fonts/caveat';
+import { Fraunces_900Black } from '@expo-google-fonts/fraunces';
 import {
   PlayfairDisplay_500Medium,
   PlayfairDisplay_500Medium_Italic,
@@ -42,6 +43,7 @@ export default function RootLayout() {
     Quicksand_600SemiBold,
     Quicksand_700Bold,
     Caveat_600SemiBold,
+    Fraunces_900Black,
   });
 
   useEffect(() => {

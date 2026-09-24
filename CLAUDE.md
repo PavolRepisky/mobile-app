@@ -61,13 +61,15 @@ split a screen off from the rest.
 `card`/`xl` (32) is the signature card corner · `'2xl'` (44) is the friend card
 only · `lg` 20 · `md` 16 · `sm` 10.
 
-**Typeface** — three faces, no exceptions:
+**Typeface** — four faces, no exceptions:
 - **Playfair Display** — headlines only (`hero`, `headline`, `headlineSm`, `title`).
 - **Quicksand** — everything functional: body, buttons, labels, tabs, captions.
 - **Caveat** — the app's handwriting: numerals on sticky notes, and the
   caption in the chin of a `Polaroid`. Nothing else. A print is captioned by
   hand or not at all; setting those in Quicksand turns a pile of photographs
   back into a gallery with labels under it.
+- **Fraunces Black** — the `poster` variant: the "Day N" stamped across a
+  Community post's photo grid. Nothing else.
 
 Quicksand runs optically light, so each role is mapped one step up the weight
 ramp; plain copy sits on Medium, not Regular. Don't "correct" this.

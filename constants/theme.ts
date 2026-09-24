@@ -156,6 +156,9 @@ export const colors = {
   /** Ring around the shutter — white held off full strength so the solid
    * button inside still reads as the brighter of the two. */
   onMediaBorder: 'rgba(255,255,255,0.55)',
+  /** The soft drop under white type laid on a photo — just enough to lift it
+   * off a bright patch of the shot without reading as an outline. */
+  onMediaShadow: 'rgba(0,0,0,0.35)',
 } as const;
 
 /** The four pastels, in the rotation order the post-it grid uses. */
@@ -172,6 +175,13 @@ export const stickyPalette = [
  */
 export const gradients = {
   storyRing: ['#F58529', '#DD2A7B', '#8134AF'],
+  /**
+   * The band of shade behind the day stamp on a post's photo grid: clear at
+   * the top and bottom edges, darkest through the middle where the type
+   * sits, so the photos keep their full brightness everywhere the lettering
+   * isn't.
+   */
+  stampBand: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.32)', 'rgba(0,0,0,0)'],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -209,6 +219,14 @@ export const fonts = {
 
   /** Caveat — the hand-drawn numerals on sticky notes. */
   hand: 'Caveat_600SemiBold',
+
+  /**
+   * Fraunces Black — the day number stamped across a post's photo grid, and
+   * nothing else. A soft, chunky Cooper-style serif rather than Playfair,
+   * because it sits *on* a photograph like a magazine cover line: Playfair's
+   * hairlines break up over a busy image where this cut holds solid.
+   */
+  poster: 'Fraunces_900Black',
 } as const;
 
 /**
@@ -401,6 +419,17 @@ export const type = {
     fontSize: 17,
     lineHeight: 20,
     letterSpacing: 0,
+  },
+  /**
+   * "Day N" stamped across a post's photo grid, the way the reference sets
+   * its cover word. Leading pulled in to the size so the kicker above tucks
+   * against it rather than floating.
+   */
+  poster: {
+    fontFamily: fonts.poster,
+    fontSize: 68,
+    lineHeight: 68,
+    letterSpacing: -2,
   },
   stamp: {
     fontFamily: fonts.bodyBold,
