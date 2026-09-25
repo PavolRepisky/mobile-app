@@ -145,7 +145,7 @@ export default function DayPostScreen() {
             belongs to the post below it, but what this whole scroll is. */}
         <View style={styles.titleBand}>
           <Text variant="sectionTitle" center>
-            My Posts
+            My Days
           </Text>
         </View>
 

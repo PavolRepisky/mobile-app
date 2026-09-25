@@ -253,9 +253,8 @@ export default function FeedScreen() {
         style={[styles.back, { top: headerTop }, shadows.floating]}
       />
 
-      {/* Same docked bar as the challenge editor's Validate action: a solid
-          strip of page background anchored to the bottom edge, not a pill
-          floating over the content. Padded and sized to read as a filled-in
+      {/* A solid strip of page background anchored to the bottom edge, not a
+          pill floating over the content. Padded and sized to read as a filled-in
           version of the floating tab bar rather than a shrunken button
           adrift in its own space. */}
       <View style={[styles.dock, { paddingTop: dockGap, paddingBottom: dockGap }]}>
@@ -263,7 +262,9 @@ export default function FeedScreen() {
           label="Join Challenge"
           onPress={() => {
             selectChallenge(section.id);
-            router.push('/challenge/detail');
+            // Straight onto the day's tasks — joining is the whole step,
+            // with no editor to pass through on the way.
+            router.dismissTo('/(tabs)/tasks');
           }}
           style={styles.join}
         />

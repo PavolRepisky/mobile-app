@@ -1,3 +1,4 @@
+import type { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { useState } from 'react';
@@ -13,8 +14,22 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
+import { IconButton } from './IconButton';
 import { Placeholder } from './Placeholder';
 import type { PhotoSource } from './PhotoStrip';
+
+export interface PhotoViewerAction {
+  key: string;
+  /** Read out by screen readers — the button itself is just its glyph. */
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  /** Tints the glyph red — for the action that throws something away. */
+  destructive?: boolean;
+}
+
+/** The action buttons' own diameter — the app's standard glass circle. */
+const ACTION_SIZE = 52;
 
 export interface PhotoViewerProps {
   /** The strip the tapped photo came from. */
@@ -22,6 +37,25 @@ export interface PhotoViewerProps {
   /** Which one was tapped, or `null` when the viewer is closed. */
   index: number | null;
   onDismiss: () => void;
+  /**
+   * Fired once the viewer has finished fading away, for callers that open
+   * something of their own next — presenting on top of a modal that is still
+   * dismissing loses the new screen on iOS. iOS only, which is also the only
+   * platform that presents anything to lose.
+   */
+  onDismissed?: () => void;
+  /**
+   * Buttons in a row along the bottom — what you can do with the photo
+   * that's up, e.g. your own avatar's Edit and Remove. A viewer of someone
+   * else's photos has none.
+   */
+  actions?: readonly PhotoViewerAction[];
+  /**
+   * Something that isn't a photo, blown up in the photo's place — your friend
+   * code, say. Shown instead of `photos` when set, centred in the very frame a
+   * photo gets, on white, with the same backdrop and tap-to-dismiss.
+   */
+  children?: React.ReactNode;
 }
 
 /**
@@ -31,8 +65,16 @@ export interface PhotoViewerProps {
  * itself dismisses; the swipe is the only other gesture, so the two never
  * fight for the same touch.
  */
-export function PhotoViewer({ photos, index, onDismiss }: PhotoViewerProps) {
+export function PhotoViewer({
+  photos,
+  index,
+  onDismiss,
+  onDismissed,
+  actions,
+  children,
+}: PhotoViewerProps) {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal
@@ -40,6 +82,7 @@ export function PhotoViewer({ photos, index, onDismiss }: PhotoViewerProps) {
       transparent
       animationType="fade"
       onRequestClose={onDismiss}
+      onDismiss={onDismissed}
       statusBarTranslucent
     >
       <View style={styles.root}>
@@ -50,7 +93,16 @@ export function PhotoViewer({ photos, index, onDismiss }: PhotoViewerProps) {
           style={absoluteFill}
         />
 
-        {index === null ? null : (
+        {index === null ? null : children ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+            onPress={onDismiss}
+            style={styles.custom}
+          >
+            <View style={[styles.frame, styles.customFrame]}>{children}</View>
+          </Pressable>
+        ) : (
           // Remounted per opening index, so the page-tracking state below
           // starts fresh on every open rather than carrying over from
           // wherever a previous viewing left it.
@@ -61,8 +113,26 @@ export function PhotoViewer({ photos, index, onDismiss }: PhotoViewerProps) {
             width={width}
             height={height}
             onDismiss={onDismiss}
+            dotsLift={actions?.length ? ACTION_SIZE + spacing.md : 0}
           />
         )}
+
+        {/* The app's own glass circles — the same buttons that float over a
+            page everywhere else — clear of the home indicator. */}
+        {index !== null && actions?.length ? (
+          <View style={[styles.actions, { bottom: insets.bottom + spacing.xl }]}>
+            {actions.map((action) => (
+              <IconButton
+                key={action.key}
+                name={action.icon}
+                size={ACTION_SIZE}
+                color={action.destructive ? colors.destructive : colors.ink}
+                accessibilityLabel={action.label}
+                onPress={action.onPress}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
     </Modal>
   );
@@ -80,12 +150,15 @@ function PhotoViewerPager({
   width,
   height,
   onDismiss,
+  dotsLift,
 }: {
   photos: readonly PhotoSource[];
   initialIndex: number;
   width: number;
   height: number;
   onDismiss: () => void;
+  /** Extra room under the dots when an action row sits beneath them. */
+  dotsLift: number;
 }) {
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState(initialIndex);
@@ -131,7 +204,7 @@ function PhotoViewerPager({
       {photos.length > 1 && (
         <View
           pointerEvents="none"
-          style={[styles.dots, { bottom: insets.bottom + spacing.xl }]}
+          style={[styles.dots, { bottom: insets.bottom + spacing.xl + dotsLift }]}
         >
           {photos.map((_, i) => (
             <View key={i} style={[styles.dot, i === page && styles.dotActive]} />
@@ -148,6 +221,25 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+  },
+  custom: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing['2xl'],
+  },
+  actions: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.xl,
+  },
+  customFrame: {
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   page: {
     alignItems: 'center',

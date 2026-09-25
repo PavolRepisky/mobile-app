@@ -29,6 +29,12 @@ export interface PillProps {
    */
   icon?: keyof typeof Ionicons.glyphMap;
   /**
+   * Glyph after the label — a chevron on a pill that opens somewhere. Held
+   * to the muted grey whatever the tone, so it reads as a hint about the tap
+   * rather than a second word competing with the label.
+   */
+  trailingIcon?: keyof typeof Ionicons.glyphMap;
+  /**
    * Sets the label in the heaviest cut Quicksand has. For the badges that have
    * to hold their own over a photograph rather than over the page.
    */
@@ -48,6 +54,7 @@ export function Pill({
   style,
   color,
   icon,
+  trailingIcon,
   bold,
 }: PillProps) {
   const content = (
@@ -83,6 +90,14 @@ export function Pill({
       >
         {label}
       </Text>
+      {trailingIcon ? (
+        <Ionicons
+          name={trailingIcon}
+          size={size === 'sm' ? 12 : 14}
+          color={colors.inkMuted}
+          style={styles.trailingIcon}
+        />
+      ) : null}
     </>
   );
 
@@ -158,6 +173,9 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: 5,
+  },
+  trailingIcon: {
+    marginLeft: spacing.xs,
   },
   pressed: {
     opacity: 0.85,

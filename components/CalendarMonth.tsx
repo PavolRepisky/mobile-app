@@ -19,8 +19,8 @@ import { Text } from './Text';
  * and today wears a blacked-out border instead.
  *
  * The month is the unit rather than the week because it is what people name a
- * stretch of time by. The heading is set in the functional face rather than in
- * Playfair: it is a label on a grid of dates, not a line anybody reads.
+ * stretch of time by. The heading is set as a section title rather than a
+ * headline: it is a label on a grid of dates, not a line anybody reads.
  */
 
 /** Spoken and printed month names. Exported so callers can label a date too. */

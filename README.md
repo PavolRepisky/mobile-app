@@ -29,10 +29,10 @@ screenshots rather than estimated:
 | `divider` | `#E9E8E2` | hairlines, and the pill behind the active tab |
 | `sage` / `butter` / `blush` / `gold` | `#D4E5C4` / `#F1DFA8` / `#EEC5BF` / `#F3D362` | the 75-day post-it grid |
 
-Type is Playfair Display for headlines (900/700, with italic and bold accent
-runs), **Quicksand** for everything functional, and Caveat for the hand-drawn
-numerals on sticky notes. All three come from `@expo-google-fonts/*` and are
-loaded in `app/_layout.tsx`.
+Type is **Quicksand** for everything, headlines included (Bold at the
+`hero`/`headline`/`title` sizes), Caveat for the hand-drawn numerals on sticky
+notes, and Fraunces Black for the day stamped across a post's photos. All three
+come from `@expo-google-fonts/*` and are loaded in `app/_layout.tsx`.
 
 **Weight mapping.** Quicksand is a rounded geometric sans, which keeps the soft
 feel the reference gets from its rounded bold cut — across the whole ramp

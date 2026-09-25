@@ -9,19 +9,23 @@ type Weight = 500 | 700 | 900;
  * Almost every headline in the reference sets one or two words apart. Two
  * markers are supported because some headlines use both at once:
  *
- *   `*word*`   → italic of the current weight  ("Choose your *challenge*")
- *   `**word**` → upright black                 ("Why do you want to **complete** …")
+ *   `*word*`   → the accent weight             ("Choose your *challenge*")
+ *   `**word**` → the heaviest cut              ("Why do you want to **complete** …")
  *
  * "Finding **your** *perfect* challenge" needs the pair, which is why this is
  * a tokenizer rather than a simple split.
+ *
+ * Headlines are set in Quicksand like the rest of the app. It has no italic
+ * and nothing past Bold, so an accent only stands out against a lighter base
+ * weight — at the default weight the markers read as plain text.
  */
 export interface HeadlineProps {
   children: string;
   size?: Size;
-  /** Base weight. Accented `**runs**` always step up to 900. */
+  /** Base weight. Accented `**runs**` always step up to the heaviest cut. */
   weight?: Weight;
   /**
-   * Weight of the `*italic*` runs. Defaults to the base weight; set it heavier
+   * Weight of the `*accent*` runs. Defaults to the base weight; set it heavier
    * to let the rest of the line lighten while the accent holds its own.
    */
   accentWeight?: Weight;
@@ -31,21 +35,16 @@ export interface HeadlineProps {
   numberOfLines?: number;
   /**
    * Legacy single-accent switch: `accent="bold"` makes plain `*word*` markers
-   * render upright-black instead of italic.
+   * render in the heaviest cut instead of the accent weight.
    */
   accent?: 'italic' | 'bold';
 }
 
-const BASE: Record<Weight, string> = {
-  500: fonts.displayMedium,
-  700: fonts.displayBold,
-  900: fonts.displayBlack,
-};
-
-const ITALIC: Record<Weight, string> = {
-  500: fonts.displayMediumItalic,
-  700: fonts.displayBoldItalic,
-  900: fonts.displayBlackItalic,
+/** Quicksand's ramp stops at Bold, so the two heavier weights share it. */
+const FACE: Record<Weight, string> = {
+  500: fonts.bodyMedium,
+  700: fonts.bodyBold,
+  900: fonts.bodyBold,
 };
 
 type Run = { text: string; style: 'plain' | 'italic' | 'bold' };
@@ -102,14 +101,14 @@ export function Headline({
       numberOfLines={numberOfLines}
       style={[
         scale,
-        { fontFamily: BASE[baseWeight], color, textAlign: align },
+        { fontFamily: FACE[baseWeight], color, textAlign: align },
         style,
       ]}
     >
       {runs.map((run, i) => {
         if (run.style === 'plain') return run.text;
         const family =
-          run.style === 'italic' ? ITALIC[italicWeight] : fonts.displayBlack;
+          run.style === 'italic' ? FACE[italicWeight] : fonts.bodyBold;
         return (
           <RNText key={i} style={{ fontFamily: family }}>
             {run.text}

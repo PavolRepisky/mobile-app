@@ -19,17 +19,9 @@ const backBoldOffset = 0.6;
 
 const BIO_MAX = 120;
 
-type SocialPlatform = 'instagram' | 'tiktok' | 'x';
-
-const SOCIAL_META: readonly { platform: SocialPlatform; label: string }[] = [
-  { platform: 'instagram', label: 'Instagram' },
-  { platform: 'tiktok', label: 'TikTok' },
-  { platform: 'x', label: 'X' },
-];
-
 export default function SettingsScreen() {
   const router = useRouter();
-  const { profile, setName, setBio, setHandle, setSocial, resetAll } = useApp();
+  const { profile, setName, setBio, setHandle, resetAll } = useApp();
 
   const [nameOpen, setNameOpen] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
@@ -37,11 +29,6 @@ export default function SettingsScreen() {
   const [draftHandle, setDraftHandle] = useState(profile.handle);
   const [bioOpen, setBioOpen] = useState(false);
   const [draftBio, setDraftBio] = useState(profile.bio ?? '');
-  // One dialog reused for all three platforms rather than three near-copies
-  // of it — which platform is open is the only thing that changes between
-  // them.
-  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform | null>(null);
-  const [draftSocial, setDraftSocial] = useState('');
   // Both account rows are one tap from wiping everything, so each one asks
   // first. Separate flags rather than one union: the dialog fades out, and a
   // shared value would swap the copy mid-animation.
@@ -106,21 +93,6 @@ export default function SettingsScreen() {
             }}
             last
           />
-        </Group>
-
-        <Group title="Socials">
-          {SOCIAL_META.map((meta, index) => (
-            <Row
-              key={meta.platform}
-              label={meta.label}
-              value={profile.socials[meta.platform] ?? 'Add'}
-              onPress={() => {
-                setDraftSocial(profile.socials[meta.platform] ?? '');
-                setSocialPlatform(meta.platform);
-              }}
-              last={index === SOCIAL_META.length - 1}
-            />
-          ))}
         </Group>
 
         <Group title="Legal">
@@ -214,31 +186,6 @@ export default function SettingsScreen() {
             onPress: () => {
               setBio(draftBio.trim() ? draftBio.trim() : null);
               setBioOpen(false);
-            },
-          },
-        ]}
-      />
-
-      <AlertDialog
-        visible={socialPlatform !== null}
-        title={`Update ${SOCIAL_META.find((m) => m.platform === socialPlatform)?.label ?? ''}`}
-        message="Enter your username"
-        onDismiss={() => setSocialPlatform(null)}
-        input={{
-          value: draftSocial,
-          onChangeText: setDraftSocial,
-          autoFocus: true,
-        }}
-        actions={[
-          { label: 'Cancel', onPress: () => setSocialPlatform(null) },
-          {
-            label: 'Update',
-            onPress: () => {
-              if (socialPlatform) {
-                const next = draftSocial.trim().replace(/^@/, '');
-                setSocial(socialPlatform, next ? next : null);
-              }
-              setSocialPlatform(null);
             },
           },
         ]}

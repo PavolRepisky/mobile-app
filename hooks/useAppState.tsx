@@ -54,13 +54,6 @@ export interface Profile {
   avatarSeed: string | null;
   /** A photo taken or picked for the profile circle. Wins over the seed. */
   avatar: TaskPhoto | null;
-  /** Linked accounts shown as a row under the avatar. A platform with no
-   * handle just drops out of the row rather than rendering greyed-out. */
-  socials: {
-    instagram: string | null;
-    tiktok: string | null;
-    x: string | null;
-  };
 }
 
 /** One thing pinned to a wall collection from the phone's photo library. */
@@ -176,7 +169,6 @@ interface AppActions {
   setName: (name: string) => void;
   setBio: (bio: string | null) => void;
   setHandle: (handle: string) => void;
-  setSocial: (platform: keyof Profile['socials'], value: string | null) => void;
   setAvatarSeed: (seed: string | null) => void;
   setAvatarPhoto: (photo: TaskPhoto | null) => void;
 
@@ -384,7 +376,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Face-forward and not used as anyone else's avatar, so the crop reads
     // as "you" without colliding with a friend's or an author's photo.
     avatar: require('../assets/ambassadors/amb-3.jpg'),
-    socials: { instagram: 'julia_575', tiktok: 'julia_575', x: null },
   });
 
   // Set once and never written again: you only ever download the app the once,
@@ -483,13 +474,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setHandle = useCallback((handle: string) => {
     setProfile((p) => ({ ...p, handle }));
   }, []);
-
-  const setSocial = useCallback(
-    (platform: keyof Profile['socials'], value: string | null) => {
-      setProfile((p) => ({ ...p, socials: { ...p.socials, [platform]: value } }));
-    },
-    [],
-  );
 
   const setAvatarSeed = useCallback((avatarSeed: string | null) => {
     setProfile((p) => ({ ...p, avatarSeed }));
@@ -831,7 +815,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Face-forward and not used as anyone else's avatar, so the crop
       // reads as "you" without colliding with a friend's or an author's photo.
       avatar: require('../assets/ambassadors/amb-3.jpg'),
-      socials: { instagram: 'julia_575', tiktok: 'julia_575', x: null },
     });
     setWall(seedWall());
     setPinDraft(null);
@@ -868,7 +851,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setName,
       setBio,
       setHandle,
-      setSocial,
       setAvatarSeed,
       setAvatarPhoto,
       selectChallenge,
@@ -902,7 +884,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       profile, installedAt, challenge, tasks, startDate, totalDays,
       paused, tabBarHidden, progress, postReactions, friendComments, savedPosts, inviteCode, trophies,
       currentDay, endDate, missedDays, livesLeft, hasPhotographedTask, wall, pinDraft, customChallenges,
-      setName, setBio, setHandle, setSocial, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
+      setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
       setTabBarHidden, toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
       reactToPost, addFriendComment, toggleSavePost, resetAll,

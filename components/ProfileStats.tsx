@@ -59,9 +59,9 @@ const infoIconBoldOffset = 0.6;
  * not a widget. A hairline between columns is enough to divide them. The two
  * that lead somewhere carry a chevron so the tap doesn't come as a surprise.
  *
- * Numerals here are functional rather than editorial, so they stay in
- * Quicksand: Playfair is the app's voice for a headline, and a stat is a
- * reading off the account, not something the page says.
+ * Numerals here are functional rather than editorial, so they stay at
+ * section-title size rather than headline size: a stat is a reading off the
+ * account, not something the page says.
  */
 export function ProfileStats({ stats, showIcons = true, style }: ProfileStatsProps) {
   const [infoStat, setInfoStat] = useState<ProfileStat | null>(null);

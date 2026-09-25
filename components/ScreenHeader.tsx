@@ -13,11 +13,11 @@ import { IconButton } from './IconButton';
 import { Text, type TextProps } from './Text';
 
 export interface ScreenHeaderProps {
-  /** Playfair title with optional `*accent*` markers. */
+  /** Headline-scale title with optional `*accent*` markers. */
   title?: string;
   /** Inter subtitle under the title. */
   subtitle?: string;
-  /** Small caps Inter title instead of Playfair — used by Settings / Bio. */
+  /** Smaller functional title instead of the headline — used by Settings / Bio. */
   plainTitle?: string;
   /** Type scale for `plainTitle`, for screens that want a quieter title. */
   plainTitleVariant?: TextProps['variant'];

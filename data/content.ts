@@ -68,14 +68,6 @@ export interface Friend {
   friendCount: number;
   trophies: number;
   livesLeft: number;
-  /** Linked accounts shown as a row under their bio — same shape as
-   * `Profile['socials']`. A platform with no handle drops out of the row
-   * rather than rendering greyed-out. */
-  socials: {
-    instagram: string | null;
-    tiktok: string | null;
-    x: string | null;
-  };
   tasks: readonly {
     label: string;
     done: boolean;
@@ -132,7 +124,6 @@ export const FRIENDS: readonly Friend[] = [
     friendCount: 18,
     trophies: 2,
     livesLeft: 3,
-    socials: { instagram: 'lily.days', tiktok: null, x: null },
     tasks: [
       {
         label: CHALLENGE_TASKS[0],
@@ -206,7 +197,6 @@ export const FRIENDS: readonly Friend[] = [
     friendCount: 24,
     trophies: 4,
     livesLeft: 2,
-    socials: { instagram: null, tiktok: 'zoegoesfor', x: null },
     tasks: [
       {
         label: CHALLENGE_TASKS[0],
@@ -301,7 +291,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 31,
     trophies: 6,
     livesLeft: 3,
-    socials: { instagram: 'mia.moves', tiktok: 'mia.moves', x: null },
     tasks: tasksDone([
       { time: '7:10 AM', photo: require('../assets/feed/posts/orange-chicken-fried-rice.jpg') },
       { time: '11:02 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -355,7 +344,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 40,
     trophies: 9,
     livesLeft: 1,
-    socials: { instagram: 'sofia.sleeps', tiktok: null, x: null },
     tasks: tasksDone([
       { time: '9:15 AM', photo: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg') },
       { time: '1:20 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -398,7 +386,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 27,
     trophies: 11,
     livesLeft: 3,
-    socials: { instagram: null, tiktok: null, x: 'elena_drives' },
     tasks: tasksDone([
       { time: '6:02 AM', photo: require('../assets/wall/eat/salmon-rice-asparagus.jpg') },
       { time: '8:45 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -452,7 +439,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 15,
     trophies: 1,
     livesLeft: 2,
-    socials: { instagram: 'norainthehood', tiktok: null, x: null },
     tasks: tasksDone([
       null,
       { time: '3:12 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
@@ -495,7 +481,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     friendCount: 52,
     trophies: 14,
     livesLeft: 3,
-    socials: { instagram: 'camilaglow', tiktok: 'camilaglow', x: null },
     tasks: tasksDone([
       { time: '8:30 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
       { time: '12:00 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },

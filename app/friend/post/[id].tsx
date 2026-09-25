@@ -10,7 +10,7 @@ import { Text } from '@/components/Text';
 import { colors, screenPadding, spacing } from '@/constants/theme';
 import { PEOPLE } from '@/data/content';
 
-/** Matches the back chevron's own drawn size — the own-profile "My Posts"
+/** Matches the back chevron's own drawn size — the own-profile "My Days"
  * screen's own footprint for it, since the button floats above the scroll
  * rather than sitting in its flow. */
 const BACK_ICON_SIZE = 26.6;
@@ -18,7 +18,7 @@ const BACK_ICON_SIZE = 26.6;
 /**
  * A friend's or member's posts, opened from their profile grid — every day
  * they've shot, most recent first, the same continuous feed your own "My
- * Posts" screen scrolls through, landing on the tile that was tapped rather
+ * Days" screen scrolls through, landing on the tile that was tapped rather
  * than always the top. The back button floats over the feed the same way —
  * scrolling between days never moves it, and the title band above scrolls
  * with the content instead. Each day is the same `FriendCard` the Community
@@ -102,7 +102,7 @@ export default function FriendPostScreen() {
             every other pushed screen's title band does. */}
         <View style={styles.titleBand}>
           <Text variant="sectionTitle" center>
-            {friend.name}&apos;s Posts
+            {friend.name}&apos;s Days
           </Text>
         </View>
 
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.xl,
   },
-  // One post's clearance from the next — the own-profile "My Posts" feed's
+  // One post's clearance from the next — the own-profile "My Days" feed's
   // own break between days.
   post: {
     marginBottom: spacing['3xl'],

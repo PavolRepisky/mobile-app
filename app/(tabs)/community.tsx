@@ -61,7 +61,6 @@ export default function CommunityScreen() {
       friendCount: FRIENDS.length,
       trophies,
       livesLeft,
-      socials: profile.socials,
       tasks: tasks.map((task) => {
         const entry = progress[currentDay]?.[task.id];
         return {

@@ -1,14 +1,6 @@
 import { Caveat_600SemiBold } from '@expo-google-fonts/caveat';
 import { Fraunces_900Black } from '@expo-google-fonts/fraunces';
 import {
-  PlayfairDisplay_500Medium,
-  PlayfairDisplay_500Medium_Italic,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_700Bold_Italic,
-  PlayfairDisplay_900Black,
-  PlayfairDisplay_900Black_Italic,
-} from '@expo-google-fonts/playfair-display';
-import {
   Quicksand_400Regular,
   Quicksand_500Medium,
   Quicksand_600SemiBold,
@@ -32,12 +24,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    PlayfairDisplay_500Medium,
-    PlayfairDisplay_500Medium_Italic,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_700Bold_Italic,
-    PlayfairDisplay_900Black,
-    PlayfairDisplay_900Black_Italic,
     Quicksand_400Regular,
     Quicksand_500Medium,
     Quicksand_600SemiBold,
@@ -53,7 +39,7 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   // Headlines are the whole design; showing them in a fallback face first
-  // would flash badly, so hold the splash until Playfair is ready.
+  // would flash badly, so hold the splash until every face is ready.
   if (!fontsLoaded && !fontError) {
     return <View style={{ flex: 1, backgroundColor: colors.backgroundPlain }} />;
   }
@@ -77,6 +63,7 @@ export default function RootLayout() {
               options={{ animation: 'fade', presentation: 'fullScreenModal' }}
             />
             <Stack.Screen name="add-friends" />
+            <Stack.Screen name="add-friend/[handle]" />
             <Stack.Screen
               name="friend/[id]"
               options={{
@@ -132,7 +119,6 @@ export default function RootLayout() {
             />
             <Stack.Screen name="feed/[id]" />
             <Stack.Screen name="challenge/create" />
-            <Stack.Screen name="challenge/detail" />
             <Stack.Screen name="account/settings" />
           </Stack>
         </AppProvider>

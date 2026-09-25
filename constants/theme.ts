@@ -189,14 +189,6 @@ export const gradients = {
 // ---------------------------------------------------------------------------
 
 export const fonts = {
-  /** Playfair Display — every headline. */
-  displayBlack: 'PlayfairDisplay_900Black',
-  displayBlackItalic: 'PlayfairDisplay_900Black_Italic',
-  displayBold: 'PlayfairDisplay_700Bold',
-  displayBoldItalic: 'PlayfairDisplay_700Bold_Italic',
-  displayMedium: 'PlayfairDisplay_500Medium',
-  displayMediumItalic: 'PlayfairDisplay_500Medium_Italic',
-
   /**
    * Quicksand — body copy, buttons, labels, everything functional. A rounded
    * geometric sans, so it keeps the soft feel the reference gets from its
@@ -222,58 +214,53 @@ export const fonts = {
 
   /**
    * Fraunces Black — the day number stamped across a post's photo grid, and
-   * nothing else. A soft, chunky Cooper-style serif rather than Playfair,
-   * because it sits *on* a photograph like a magazine cover line: Playfair's
-   * hairlines break up over a busy image where this cut holds solid.
+   * nothing else. A soft, chunky Cooper-style serif, because it sits *on* a
+   * photograph like a magazine cover line: a thin-stroked face breaks up over
+   * a busy image where this cut holds solid.
    */
   poster: 'Fraunces_900Black',
 } as const;
 
 /**
  * Tracking for anything set in Quicksand. The face sets wider than the
- * reference's rounded cut, so every Quicksand string is pulled a point tighter;
- * the Playfair headlines keep their own metrics. Components that build their
+ * reference's rounded cut, so every Quicksand string is pulled a point tighter,
+ * headlines included. Components that build their
  * own Quicksand style — text inputs, the oversized Discover/Friends labels —
  * pull this rather than repeating the number.
  */
 export const bodyTracking = -1;
 
 /**
- * Tracking for the Playfair headlines. A lighter hand than the Quicksand
- * setting: the display cut is already tightly fitted, so it only wants the
- * edge taken off.
- */
-export const displayTracking = -0.5;
-
-/**
  * Type scale. Headline sizes track the reference closely: the big welcome
  * headline is ~44px on a 1170pt-wide render, the standard question headline
- * ~34px, section titles ~26px.
+ * ~34px, section titles ~26px. Headlines are set in Quicksand's heaviest cut
+ * like everything else — the app has no separate display face; size alone
+ * is what sets a headline apart.
  */
 export const type = {
   hero: {
-    fontFamily: fonts.displayBlack,
+    fontFamily: fonts.bodyBold,
     fontSize: 44,
     lineHeight: 48,
-    letterSpacing: displayTracking,
+    letterSpacing: bodyTracking,
   },
   headline: {
-    fontFamily: fonts.displayBlack,
+    fontFamily: fonts.bodyBold,
     fontSize: 34,
     lineHeight: 40,
-    letterSpacing: displayTracking,
+    letterSpacing: bodyTracking,
   },
   headlineSm: {
-    fontFamily: fonts.displayBlack,
+    fontFamily: fonts.bodyBold,
     fontSize: 27,
     lineHeight: 33,
-    letterSpacing: displayTracking,
+    letterSpacing: bodyTracking,
   },
   title: {
-    fontFamily: fonts.displayBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 30,
     lineHeight: 36,
-    letterSpacing: displayTracking,
+    letterSpacing: bodyTracking,
   },
 
   sectionTitle: {
@@ -671,7 +658,6 @@ export const theme = {
   fonts,
   type,
   bodyTracking,
-  displayTracking,
   spacing,
   screenPadding,
   screenTopGap,

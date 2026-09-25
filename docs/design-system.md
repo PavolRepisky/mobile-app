@@ -26,15 +26,15 @@ Semantic names only — nothing is called `pink` or `grey200`.
 
 ### Type scale
 
-Headline cuts — Playfair Display: `hero` 44 · `headline` 34 · `headlineSm` 27 ·
-`title` 30.
+Headline cuts — Quicksand Bold: `hero` 44 · `headline` 34 · `headlineSm` 27 ·
+`title` 30. There is no separate display face; size sets a headline apart.
 
 Functional cuts — Quicksand: `sectionTitle` 23 · `cardTitle` 17 · `body` 16 ·
 `bodyStrong` 16 · `bodySemi` 16 · `bodyBold` 16 · `button` 17 · `label` 14 ·
 `caption` 13 · `micro` 11 · `tab` 12.
 
 Tracking is baked into the scale: `bodyTracking` (-1) on every Quicksand
-string, `displayTracking` (-0.5) on Playfair. A component building its own
+string, headlines included. A component building its own
 Quicksand style pulls `bodyTracking` rather than repeating the number.
 
 ### Space, radius, elevation
@@ -87,7 +87,7 @@ stays reachable. Exports
 `profileAvatarSize` (120), `profileActionTop` (56), `profileActionHeight` (52)
 so callers can align against it.
 
-**`ScreenHeader`** — `title` (Playfair) or `plainTitle` (Quicksand, with
+**`ScreenHeader`** — `title` (headline scale) or `plainTitle` (smaller, with
 `plainTitleVariant`/`plainTitleStyle`), `subtitle`, `onBack`/`showBack`,
 `onClose`, and a `right` node.
 
@@ -175,7 +175,7 @@ the month to `shots` (up to four `photo`/`seed` pairs) · `past` · `today` ·
 `label` · `onPress`. One month as a seven-column grid, Monday first, with the
 day's photographs tiled behind its numeral — one fills the cell, two split it
 across, three put one over a pair, four take a corner each. A single cover
-would say a day was one picture; the mosaic says how full it was. The heading is `sectionTitle`, not a Playfair headline: it labels a
+would say a day was one picture; the mosaic says how full it was. The heading is `sectionTitle`, not a headline: it labels a
 grid of dates rather than opening a page. Photographs lead, so a bare numeral
 stays quiet — `inkMuted` for a day already gone, `inkGhost` for one still to
 come. Today takes the ink disc a calendar always puts on it, or an ink ring when
@@ -208,7 +208,7 @@ neighbouring copies meet. The plaque gets the same idea with one shape and one
 edge, and thicker is simply more paper rather than more artefact.
 
 **`DayCard`** — `day` · `date` · `cells` · `challengeName` · `handle` ·
-`background`. The day composed as one 4:5 page to be posted: a Playfair `*day* five` over the
+`background`. The day composed as one 4:5 page to be posted: a headline `*day* five` over the
 scattered prints on the warm paper, closed off with a drawn rule and the
 uppercase `stamp` line. It is the app's face on other people's feeds, so the
 stack — a `StickerText` day over hand-laid prints over the challenge's own

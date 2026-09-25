@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { EmptyState } from '@/components/EmptyState';
@@ -48,12 +48,6 @@ const streakBadgeOverlap = -4;
 const streakBadgeRingWidth = 2;
 const streakIconSize = 14;
 
-/** Boxed rather than bare — matches your own profile's own linked-account
- * chips exactly. */
-const socialIconSize = 16;
-const socialIconBoxSize = 34;
-const socialIconBoxBorderWidth = 1.5;
-
 /**
  * A friend's or a challenge member's profile, opened from the Community tab
  * or from who posted in a challenge feed. Same shell as your own Profile
@@ -69,32 +63,6 @@ export default function FriendProfileScreen() {
   const [avatarOpen, setAvatarOpen] = useState(false);
 
   const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
-
-  // Same drop-out rule as your own profile's row — a platform with no handle
-  // just isn't in it, rather than rendering greyed-out.
-  const socialLinks = [
-    friend.socials.instagram
-      ? {
-          key: 'instagram',
-          icon: 'logo-instagram' as const,
-          url: `https://instagram.com/${friend.socials.instagram}`,
-        }
-      : null,
-    friend.socials.tiktok
-      ? {
-          key: 'tiktok',
-          icon: 'logo-tiktok' as const,
-          url: `https://tiktok.com/@${friend.socials.tiktok}`,
-        }
-      : null,
-    friend.socials.x
-      ? {
-          key: 'x',
-          icon: 'logo-x' as const,
-          url: `https://x.com/${friend.socials.x}`,
-        }
-      : null,
-  ].filter((link): link is NonNullable<typeof link> => link !== null);
 
   // Their current day plus every earlier one — most recent first, the same
   // order the own-profile grid lists its own days in. Each is cut into the
@@ -192,25 +160,6 @@ export default function FriendProfileScreen() {
               <Text variant="bodyBold" color={colors.inkMuted} style={styles.bio}>
                 {friend.bio ?? 'No bio yet'}
               </Text>
-
-              {socialLinks.length ? (
-                <View style={styles.socialsRow}>
-                  {socialLinks.map((link) => (
-                    <Pressable
-                      key={link.key}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open ${link.key}`}
-                      onPress={() => Linking.openURL(link.url)}
-                      style={({ pressed }) => [
-                        styles.socialIconBox,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Ionicons name={link.icon} size={socialIconSize} color={colors.inkMuted} />
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
             </View>
           </View>
 
@@ -246,7 +195,7 @@ export default function FriendProfileScreen() {
           {posts.length === 0 ? (
             <EmptyState
               icon="camera-outline"
-              title="No posts yet"
+              title="No days yet"
               hint={`${friend.name} hasn't photographed a task yet.`}
             />
           ) : (
@@ -385,21 +334,6 @@ const styles = StyleSheet.create({
   bio: {
     marginTop: 2,
   },
-  socialsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  socialIconBox: {
-    width: socialIconBoxSize,
-    height: socialIconBoxSize,
-    borderRadius: radii.sm,
-    borderWidth: socialIconBoxBorderWidth,
-    borderColor: colors.divider,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   stats: {
     alignSelf: 'stretch',
     marginTop: spacing.xl,
@@ -416,9 +350,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
+  // Half the gap on each side of every tile, so two neighbours add up to a
+  // full `xs` gap between them.
   postCellWrap: {
     width: '33.333%',
-    padding: 1,
+    padding: spacing.xs / 2,
   },
   postTile: {
     aspectRatio: POST_TILE_RATIO,

@@ -61,9 +61,11 @@ split a screen off from the rest.
 `card`/`xl` (32) is the signature card corner · `'2xl'` (44) is the friend card
 only · `lg` 20 · `md` 16 · `sm` 10.
 
-**Typeface** — four faces, no exceptions:
-- **Playfair Display** — headlines only (`hero`, `headline`, `headlineSm`, `title`).
-- **Quicksand** — everything functional: body, buttons, labels, tabs, captions.
+**Typeface** — three faces, no exceptions:
+- **Quicksand** — everything, headlines included: body, buttons, labels, tabs,
+  captions, and the `hero`/`headline`/`headlineSm`/`title` scale (Bold). The
+  app has no separate display face — Playfair was removed on purpose; don't
+  add a serif back for headlines.
 - **Caveat** — the app's handwriting: numerals on sticky notes, and the
   caption in the chin of a `Polaroid`. Nothing else. A print is captioned by
   hand or not at all; setting those in Quicksand turns a pile of photographs
@@ -80,8 +82,8 @@ ramp; plain copy sits on Medium, not Regular. Don't "correct" this.
 action + body · `ScreenHeader` back/close + title · `Card` white or muted
 surface · `EmptyState` icon + title + hint.
 
-**Type** · `Text` (variant) · `Headline` (Playfair, `**bold**` and `*italic*`
-runs step the weight up).
+**Type** · `Text` (variant) · `Headline` (headline-scale Quicksand; `**bold**`
+and `*accent*` runs step the weight up from a lighter base).
 
 **Controls** · `PrimaryButton` / `SecondaryButton` / `TextLink` ·
 `IconButton` circular · `Pill` (`floating`|`glass`|`solid`|`muted`|`outline` ×
@@ -106,7 +108,7 @@ pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
 - **The day card is the app's face.** `DayCard` is what leaves the app and
   lands on somebody else's feed, so its composition is a fixed part of the
   visual language, not a screen to redecorate. Change what a day *contains*
-  freely; leave the Playfair-over-prints pairing, the warm page and the stamp
+  freely; leave the headline-over-prints pairing, the warm page and the stamp
   footer alone.
 - **Comments explain *why*, in prose.** The existing files justify their values
   ("sampled off the reference", "anything heavier reads as a drawn outline").
