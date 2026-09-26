@@ -22,8 +22,6 @@ const ROW_HEIGHT = 40;
  * usually sits), padding the sheet out with nothing; three is enough to read
  * as a drum and leaves at most one. */
 const VISIBLE_ROWS = 3;
-/** How far each step away from the centre fades a row. */
-const ROW_FADE = [1, 0.35];
 
 export interface WheelPickerProps<T extends string | number> {
   values: readonly T[];
@@ -40,7 +38,7 @@ const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min)
 /**
  * The iPhone's date-picker drum, one column of it: rows scroll under a
  * rounded band in the middle and snap into it, the row in the band full ink
- * and its neighbours fading the further off it they sit. Every row that
+ * and its neighbours in the muted text grey. Every row that
  * crosses the band fires a selection tick, the same detent `DayScrubber`
  * gives its strokes. Drawn in JS rather than the native picker so it needs
  * no extra native module and sets its rows in the app's own type.
@@ -102,14 +100,15 @@ export function WheelPicker<T extends string | number>({
         scrollEventThrottle={16}
         contentContainerStyle={styles.content}
       >
+        {/* The row in the band in ink, the rest in the text grey — flat
+            colours rather than a faded ink, which would blend into a grey
+            of its own that nothing else on the page uses. */}
         {values.map((item, index) => {
-          const distance = Math.min(Math.abs(index - active), ROW_FADE.length - 1);
           return (
             <View key={String(item)} style={styles.row}>
               <Text
                 variant="sectionTitleXs"
-                color={colors.ink}
-                style={{ opacity: ROW_FADE[distance] }}
+                color={index === active ? colors.ink : colors.inkMuted}
               >
                 {format(item)}
               </Text>

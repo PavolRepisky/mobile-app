@@ -424,7 +424,7 @@ export default function ProfileScreen() {
               {ringSegments(tasks.length).map((segment, index) =>
                 index < doneToday
                   ? null
-                  : ringSegment(segment, index, colors.inkGhost, tasks.length > 1),
+                  : ringSegment(segment, index, colors.inkMuted, tasks.length > 1),
               )}
               <G mask="url(#ringDone)">
                 {ringSweep.map((slice, index) => (
@@ -487,7 +487,7 @@ export default function ProfileScreen() {
               {profile.handle}
             </Text>
             {profile.bio ? (
-              <Text variant="bodyBold" color={colors.inkFaded} center style={styles.bio}>
+              <Text variant="bodyBold" color={colors.inkMuted} center style={styles.bio}>
                 {profile.bio}
               </Text>
             ) : null}
@@ -512,7 +512,7 @@ export default function ProfileScreen() {
               </Text>
               <Text variant="labelHeavy">
                 Day {currentDay}
-                <Text variant="labelHeavy" color={colors.inkFaded}>
+                <Text variant="labelHeavy" color={colors.inkMuted}>
                   {` / ${totalDays}`}
                 </Text>
               </Text>
@@ -522,7 +522,7 @@ export default function ProfileScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={CHALLENGE_CHEVRON}
-                color={colors.inkFaded}
+                color={colors.inkMuted}
                 style={styles.challengeChevron}
               />
             </View>
@@ -615,7 +615,7 @@ export default function ProfileScreen() {
                   <Ionicons
                     name="chevron-forward"
                     size={MONTH_ARROW}
-                    color={monthOffset >= 0 ? colors.inkGhost : colors.ink}
+                    color={monthOffset >= 0 ? colors.inkMuted : colors.ink}
                   />
                 </Pressable>
               </View>
@@ -713,7 +713,11 @@ export default function ProfileScreen() {
 
       {/* The year, picked on the iPhone's own date-wheel drum from a sheet
           at the bottom. Done moves the calendar; tapping away leaves it. */}
-      <BottomSheet visible={yearSheetOpen} onDismiss={() => setYearSheetOpen(false)}>
+      <BottomSheet
+        visible={yearSheetOpen}
+        onDismiss={() => setYearSheetOpen(false)}
+        handleColor={colors.surfaceSunken}
+      >
         <Text variant="sectionTitleXs" center>
           Year
         </Text>
@@ -738,7 +742,11 @@ export default function ProfileScreen() {
       {/* The friend code slides up from the bottom the way the comments do:
           something to hold out to a friend for a moment, over the profile,
           and swiped or tapped away when they've scanned it. */}
-      <BottomSheet visible={codeOpen} onDismiss={() => setCodeOpen(false)}>
+      <BottomSheet
+        visible={codeOpen}
+        onDismiss={() => setCodeOpen(false)}
+        handleColor={colors.surfaceSunken}
+      >
         <View style={styles.codeSheet}>
           <Text variant="sectionTitleXs" center>
             Your QR code

@@ -110,7 +110,9 @@ export interface CalendarMonthProps {
    * outline, so the month reads as a full sheet of cells, shot or not, rather
    * than photos floating among empty boxes — My Profile's own month view.
    * A day's photos also butt straight up against each other there, one print
-   * cut into pieces rather than a set of separate ones.
+   * cut into pieces rather than a set of separate ones. Its greys are the
+   * profile's own two: `inkMuted` for every date and mark that isn't on a
+   * photo, `surfaceSunken` for every fill and edge.
    */
   filled?: boolean;
   /** Drawn in place of the month's own name — a caller that pages between
@@ -186,7 +188,7 @@ function DayCell({
   // shot, so it holds more weight than one that has not arrived yet.
   const numberColor = hasShot
     ? colors.inkInverse
-    : past
+    : past || filled
       ? colors.inkMuted
       : colors.inkGhost;
 
@@ -227,7 +229,7 @@ function DayCell({
 
   const content = (
     <>
-      <Mosaic tiles={tiles} date={date} today={today} seamless={filled} />
+      <Mosaic tiles={tiles} date={date} today={today} seamless={filled} backed={filled} />
       {/* The numeral is white on whatever the day happened to look like, so it
           needs a wash under it rather than trusting the photo to be dark. */}
       <View style={[styles.scrim, today && styles.scrimToday]} />
@@ -237,7 +239,9 @@ function DayCell({
   );
 
   const body = hasShot ? (
-    <View style={[styles.tile, today && styles.tileToday]}>{content}</View>
+    <View style={[styles.tile, filled && styles.tileFilled, today && styles.tileToday]}>
+      {content}
+    </View>
   ) : (
     <View
       style={[
@@ -248,7 +252,7 @@ function DayCell({
       ]}
     >
       {numeral}
-      {missed ? <View style={styles.missDash} /> : null}
+      {missed ? <View style={[styles.missDash, filled && styles.missDashFilled]} /> : null}
     </View>
   );
 
@@ -277,12 +281,15 @@ function Mosaic({
   date,
   today,
   seamless,
+  backed,
 }: {
   tiles: readonly DayShot[];
   date: number;
   today?: boolean;
   /** Drops the seam, so the pieces meet edge to edge. */
   seamless?: boolean;
+  /** Backs the photos in the filled cells' own grey, not the warm page. */
+  backed?: boolean;
 }) {
   const shot = (t: DayShot, i: number) =>
     t.photo ? (
@@ -291,7 +298,7 @@ function Mosaic({
       <Placeholder key={i} seed={t.seed ?? `day-${date}-${i}`} radius={0} style={PIECE} />
     );
 
-  const photoStyle = [styles.photo, today && styles.photoToday];
+  const photoStyle = [styles.photo, backed && styles.photoFilled, today && styles.photoToday];
   const column = [...photoStyle, styles.mosaicColumn, seamless && styles.seamless];
   const row = [styles.mosaicRow, seamless && styles.seamless];
 
@@ -449,6 +456,18 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.field,
     transform: [{ rotate: '-40deg' }],
+  },
+  // The profile's filled month keeps to its page's two greys: the photo
+  // cell's hairline in the fill grey, the photo's backing likewise, and the
+  // missed-day slash in the text grey.
+  tileFilled: {
+    borderColor: colors.surfaceSunken,
+  },
+  photoFilled: {
+    backgroundColor: colors.surfaceSunken,
+  },
+  missDashFilled: {
+    backgroundColor: colors.inkMuted,
   },
   // Tucked into the bottom-right corner, over the scrim, ringed in white so
   // it holds its edge on a busy photo.

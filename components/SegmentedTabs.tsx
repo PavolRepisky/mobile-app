@@ -84,13 +84,13 @@ export function SegmentedTabs<T extends string = string>({
             <Ionicons
               name={option.icon}
               size={pill ? PILL_ICON : large && !dense ? 19 : 17}
-              color={active ? colors.ink : pill ? colors.inkFaded : colors.inkGhost}
+              color={active ? colors.ink : pill ? colors.inkMuted : colors.inkGhost}
               style={[styles.icon, (dense || pill) && styles.denseIcon]}
             />
           ) : null}
           <Text
             variant={pill ? 'bodyBold' : large ? 'sectionTitle' : 'cardTitle'}
-            color={active ? colors.ink : pill ? colors.inkFaded : colors.inkGhost}
+            color={active ? colors.ink : pill ? colors.inkMuted : colors.inkGhost}
             style={
               pill
                 ? undefined
