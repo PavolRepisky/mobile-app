@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertDialog } from '@/components/AlertDialog';
@@ -34,13 +34,11 @@ export default function SettingsScreen() {
   // Changing the photo lives here rather than on the profile, where a tap on
   // the photo plays today's story instead. With a photo set, the row opens it
   // full-screen with Edit and Remove; without one it goes straight to the
-  // library. Edit opens the library once the viewer is gone — on iOS a sheet
-  // presented over a modal that is still fading out never shows.
+  // library. Edit opens the library over the photo, which stays open.
   const avatarSource = profile.avatar ?? profile.avatarSeed;
   const hasAvatar = Boolean(avatarSource);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const libraryAfterViewer = useRef(false);
 
   const [nameOpen, setNameOpen] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
@@ -263,24 +261,18 @@ export default function SettingsScreen() {
         photos={avatarSource ? [avatarSource] : []}
         index={photoOpen ? 0 : null}
         onDismiss={() => setPhotoOpen(false)}
-        onDismissed={() => {
-          if (!libraryAfterViewer.current) return;
-          libraryAfterViewer.current = false;
-          setLibraryOpen(true);
-        }}
         actions={[
           {
             key: 'edit',
             label: 'Edit',
             // The outline cut, like the profile header's own glyphs.
             icon: 'pencil-outline',
-            onPress: () => {
-              setPhotoOpen(false);
-              // iOS waits for the viewer to finish fading; nowhere else
-              // loses a sheet presented straight away.
-              if (Platform.OS === 'ios') libraryAfterViewer.current = true;
-              else setLibraryOpen(true);
-            },
+            // The library slides up over the photo rather than replacing it:
+            // the viewer stays open underneath, so a new pick lands in it
+            // straight away and closing the library comes back to the photo.
+            // Stacking on a modal that's still up is safe on iOS — it's
+            // presenting over one mid-dismiss that loses the new sheet.
+            onPress: () => setLibraryOpen(true),
           },
           {
             key: 'remove',
