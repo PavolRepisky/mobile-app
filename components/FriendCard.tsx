@@ -82,16 +82,31 @@ function fakeCount(key: string, min: number, max: number): number {
 }
 
 /**
- * How each reaction is read out, and the range its made-up count is drawn
- * from — hearts the most common, laughs the rarest, so the row reads like a
- * real post's rather than four equal numbers.
+ * How each reaction is drawn and read out, and the range its made-up count is
+ * drawn from — hearts the most common, laughs the rarest, so the row reads
+ * like a real post's rather than four equal numbers. Drawn as Ionicons, the
+ * app's one icon set, rather than the emoji they're stored as: outline until
+ * it's yours, filled once it is. Ionicons has no clapping hands, so the clap
+ * is a thumbs-up.
  */
-const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: number; max: number }> = {
-  '❤️': { name: 'Love', min: 40, max: 220 },
-  '🔥': { name: 'Fire', min: 10, max: 90 },
-  '👏': { name: 'Clap', min: 5, max: 60 },
-  '😂': { name: 'Laugh', min: 0, max: 25 },
+const REACTION_INFO: Record<
+  (typeof REACTIONS)[number],
+  {
+    name: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    iconSelected: keyof typeof Ionicons.glyphMap;
+    min: number;
+    max: number;
+  }
+> = {
+  '❤️': { name: 'Love', icon: 'heart-outline', iconSelected: 'heart', min: 40, max: 220 },
+  '🔥': { name: 'Fire', icon: 'flame-outline', iconSelected: 'flame', min: 10, max: 90 },
+  '👏': { name: 'Nice', icon: 'thumbs-up-outline', iconSelected: 'thumbs-up', min: 5, max: 60 },
+  '😂': { name: 'Laugh', icon: 'happy-outline', iconSelected: 'happy', min: 0, max: 25 },
 };
+
+/** A reaction's glyph, sized to sit on the pill's count line. */
+const REACTION_ICON = 16;
 
 /** A reaction pill's height — a thumb-sized target that still sits four
  * across with the comment count on one row. */
@@ -124,10 +139,10 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
   // yours again takes it back.
   const mine = postReactions[postId] ?? null;
   const reactions = REACTIONS.map((emoji) => {
-    const { name, min, max } = REACTION_INFO[emoji];
+    const { name, icon, iconSelected, min, max } = REACTION_INFO[emoji];
     const selected = mine === emoji;
     const count = fakeCount(`${postId}-${emoji}`, min, max) + (selected ? 1 : 0);
-    return { emoji, name, selected, count };
+    return { emoji, name, icon: selected ? iconSelected : icon, selected, count };
   });
 
   const comments = mergeCommentThread(
@@ -360,7 +375,11 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                 pressed && styles.pressed,
               ]}
             >
-              <Text variant="meta">{reaction.emoji}</Text>
+              <Ionicons
+                name={reaction.icon}
+                size={REACTION_ICON}
+                color={reaction.selected ? colors.inkInverse : colors.ink}
+              />
               {reaction.count > 0 ? (
                 <Text
                   variant="metaBold"
