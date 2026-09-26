@@ -55,10 +55,6 @@ const HEADER_ICON = 22;
  * photo the main thing, big enough to read as a mark rather than a speck. */
 const TILE_MARK = 22;
 
-/** Height of the challenge card's progress bar — a hairline would vanish on
- * the grey card, anything heavier starts to read as a second button. */
-const PROGRESS_HEIGHT = 5;
-
 /** Same hero circle the to-do ring and a friend's profile share — this is
  * the one place on the app's own profile that gets to be that big. */
 const avatarSize = profileAvatarSize;
@@ -808,8 +804,10 @@ const styles = StyleSheet.create({
   challengeName: {
     flex: 1,
   },
+  // The ring's own stroke: the bar wears the ring's sweep, so it's drawn at
+  // the ring's weight and the two read as the same line, bent and straight.
   progressTrack: {
-    height: PROGRESS_HEIGHT,
+    height: RING_STROKE,
     borderRadius: radii.pill,
     // White rather than a divider grey: on the ring's grey card a divider
     // tone sits within a shade of the fill behind it and the track vanishes.
