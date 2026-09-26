@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   FlatList,
   Pressable,
   StyleSheet,
@@ -99,6 +100,8 @@ const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: num
 const DOUBLE_TAP_MS = 300;
 /** The heart that pops over the photo on a double tap. */
 const HEART_BURST = 96;
+/** Where the heart lands: small enough to read as dropping into the ❤️ pill. */
+const HEART_LANDED = 0.2;
 
 /** A reaction pill's height — a thumb-sized target that still sits four
  * across with the comment count on one row. */
@@ -190,7 +193,15 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
   // never takes one back, the way Instagram's double tap only ever likes —
   // and pops a big heart over the photo so the tap reads as landed.
   const lastTap = useRef(0);
-  const burst = useRef(new Animated.Value(0)).current;
+  // The heart pops up over the photo, then flies down into the ❤️ pill under
+  // it and shrinks away there — Instagram's double tap, landing where the
+  // like it left is counted.
+  const photoRef = useRef<View>(null);
+  const loveRef = useRef<View>(null);
+  const pop = useRef(new Animated.Value(0)).current;
+  const flight = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const flightScale = useRef(new Animated.Value(1)).current;
+  const heartOpacity = useRef(new Animated.Value(0)).current;
   const onPhotoTap = () => {
     const now = Date.now();
     if (now - lastTap.current > DOUBLE_TAP_MS) {
@@ -199,11 +210,42 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
     }
     lastTap.current = 0;
     if (mine !== LOVE) reactToPost(postId, LOVE);
-    burst.setValue(0);
-    Animated.sequence([
-      Animated.spring(burst, { toValue: 1, useNativeDriver: true, friction: 5 }),
-      Animated.timing(burst, { toValue: 0, duration: 220, delay: 350, useNativeDriver: true }),
-    ]).start();
+
+    // Measured at the tap rather than tracked: the feed scrolls, so any
+    // stored position would be stale by the time the heart flies.
+    photoRef.current?.measureInWindow((px, py, pw, ph) => {
+      loveRef.current?.measureInWindow((lx, ly, lw, lh) => {
+        const to = { x: lx + lw / 2 - (px + pw / 2), y: ly + lh / 2 - (py + ph / 2) };
+        pop.setValue(0);
+        flight.setValue({ x: 0, y: 0 });
+        flightScale.setValue(1);
+        heartOpacity.setValue(1);
+        Animated.sequence([
+          Animated.spring(pop, { toValue: 1, friction: 4, tension: 90, useNativeDriver: true }),
+          Animated.delay(120),
+          Animated.parallel([
+            Animated.timing(flight, {
+              toValue: to,
+              duration: 380,
+              easing: Easing.inOut(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.timing(flightScale, {
+              toValue: HEART_LANDED,
+              duration: 380,
+              easing: Easing.in(Easing.cubic),
+              useNativeDriver: true,
+            }),
+            Animated.timing(heartOpacity, {
+              toValue: 0,
+              duration: 120,
+              delay: 260,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start();
+      });
+    });
   };
   const [carouselWidth, setCarouselWidth] = useState(0);
   const carouselHeight = carouselWidth ? Math.round(carouselWidth / CAROUSEL_RATIO) : 0;
@@ -331,6 +373,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
             onPress={() => router.push('/(tabs)/tasks')}
           >
             <View
+              ref={photoRef}
               style={carouselHeight ? { height: carouselHeight } : null}
               onLayout={(e) => setCarouselWidth(e.nativeEvent.layout.width)}
             >
@@ -368,19 +411,21 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                     style={[
                       styles.heartBurst,
                       {
-                        opacity: burst,
+                        opacity: heartOpacity,
                         transform: [
+                          { translateX: flight.x },
+                          { translateY: flight.y },
                           {
-                            scale: burst.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0.6, 1],
-                            }),
+                            scale: Animated.multiply(
+                              pop.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
+                              flightScale,
+                            ),
                           },
                         ],
                       },
                     ]}
                   >
-                    <Ionicons name="heart" size={HEART_BURST} color={colors.surface} />
+                    <Ionicons name="heart" size={HEART_BURST} color={colors.destructive} />
                   </Animated.View>
 
                   {/* Instagram's own multi-photo tell, the post-detail
@@ -410,6 +455,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
           {reactions.map((reaction) => (
             <Pressable
               key={reaction.emoji}
+              ref={reaction.emoji === LOVE ? loveRef : undefined}
               accessibilityRole="button"
               accessibilityLabel={`${reaction.name}, ${reaction.count}`}
               accessibilityState={{ selected: reaction.selected }}
@@ -596,6 +642,7 @@ const styles = StyleSheet.create({
   // unbled width the moment it locks, and the top gap would read as blurred
   // blank space reaching up to the subtitle instead of clear air above it.
   photoOuter: {
+    zIndex: 1,
     marginTop: layout.heading,
     marginHorizontal: -layout.gutter,
   },
