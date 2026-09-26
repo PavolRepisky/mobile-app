@@ -105,9 +105,10 @@ export interface CalendarMonthProps {
   /** What each date holds, keyed by day of the month. */
   days: Record<number, CalendarDay>;
   /**
-   * Gives every photo-less day a solid grey fill in place of the hairline
-   * outline, so the month reads as a full sheet of cells, shot or not, rather
-   * than photos floating among empty boxes — My Profile's own month view.
+   * My Profile's own month view: every photo-less day gets a solid grey fill
+   * in place of the hairline outline, so the month reads as a full sheet of
+   * cells, shot or not, and each date sits in its cell's top-left corner, the
+   * way a wall calendar prints it, rather than centred over the photo.
    */
   filled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -200,6 +201,7 @@ function DayCell({
             ? colors.ink
             : numberColor
       }
+      style={filled && styles.numeralCorner}
     >
       {date}
     </Text>
@@ -409,6 +411,13 @@ const styles = StyleSheet.create({
     borderRadius: CELL_RADIUS,
     borderWidth: 1,
     borderColor: colors.divider,
+  },
+  // Tucked into the top-left the way a wall calendar prints its dates, a
+  // small inset clear of the cell's corner radius.
+  numeralCorner: {
+    position: 'absolute',
+    top: spacing.xs,
+    left: spacing.sm,
   },
   // The fill carries the cell's edge on its own; a hairline around it only
   // draws a second, fainter box. Today's border still sits on top.
