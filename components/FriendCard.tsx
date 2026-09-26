@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
+  Animated,
   FlatList,
   Pressable,
   StyleSheet,
@@ -93,6 +94,12 @@ const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: num
   '😂': { name: 'Laugh', min: 0, max: 25 },
 };
 
+/** How close two taps have to land to count as a double tap — the window
+ * iOS itself gives a double tap. */
+const DOUBLE_TAP_MS = 300;
+/** The heart that pops over the photo on a double tap. */
+const HEART_BURST = 96;
+
 /** A reaction pill's height — a thumb-sized target that still sits four
  * across with the comment count on one row. */
 const REACTION_CHIP = 32;
@@ -123,6 +130,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
   // One reaction per person per post: picking another moves it, picking
   // yours again takes it back.
   const mine = postReactions[postId] ?? null;
+  const LOVE = REACTIONS[0];
   const reactions = REACTIONS.map((emoji) => {
     const { name, min, max } = REACTION_INFO[emoji];
     const selected = mine === emoji;
@@ -177,6 +185,26 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
       : photoSlides;
 
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Double tap to love: the second tap inside the window leaves a heart —
+  // never takes one back, the way Instagram's double tap only ever likes —
+  // and pops a big heart over the photo so the tap reads as landed.
+  const lastTap = useRef(0);
+  const burst = useRef(new Animated.Value(0)).current;
+  const onPhotoTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current > DOUBLE_TAP_MS) {
+      lastTap.current = now;
+      return;
+    }
+    lastTap.current = 0;
+    if (mine !== LOVE) reactToPost(postId, LOVE);
+    burst.setValue(0);
+    Animated.sequence([
+      Animated.spring(burst, { toValue: 1, useNativeDriver: true, friction: 5 }),
+      Animated.timing(burst, { toValue: 0, duration: 220, delay: 350, useNativeDriver: true }),
+    ]).start();
+  };
   const [carouselWidth, setCarouselWidth] = useState(0);
   const carouselHeight = carouselWidth ? Math.round(carouselWidth / CAROUSEL_RATIO) : 0;
 
@@ -184,6 +212,59 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
     if (!carouselWidth) return;
     const next = Math.round(e.nativeEvent.contentOffset.x / carouselWidth);
     if (next !== activeIndex) setActiveIndex(next);
+  };
+
+  const renderSlide = (item: (typeof slides)[number]) => {
+    const slideSize = { width: carouselWidth, height: carouselHeight };
+    if (item.kind === 'grid') {
+      return (
+        <View style={slideSize}>
+          <MosaicArrangement
+            cells={item.rows}
+            seam={0}
+            renderCell={(row) =>
+              row.photo ? (
+                <Image
+                  key={row.key}
+                  source={row.photo}
+                  style={GRID_CELL_PIECE}
+                  contentFit="cover"
+                  blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
+                />
+              ) : (
+                <Placeholder
+                  key={row.key}
+                  seed={row.seed ?? undefined}
+                  radius={0}
+                  style={GRID_CELL_PIECE}
+                />
+              )
+            }
+          />
+          {/* The day laid across the middle of the grid,
+              cover-line style, with the challenge's name
+              letterspaced over it the way the reference
+              sets "Six pics of" over its month. One line at
+              any length: a long day shrinks to fit rather
+              than wrapping. Hidden while locked: a big
+              number floating over a blur reads as a
+              teaser, not a post. */}
+          {locked ? null : (
+            <DayStamp day={day} kicker={challenge.name} />
+          )}
+        </View>
+      );
+    }
+    return item.photo ? (
+      <Image
+        source={item.photo}
+        style={slideSize}
+        contentFit="cover"
+        blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
+      />
+    ) : (
+      <Placeholder seed={item.seed} radius={0} style={slideSize} />
+    );
   };
 
   const submit = (parentId: string | null) => {
@@ -269,59 +350,38 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                       offset: carouselWidth * index,
                       index,
                     })}
-                    renderItem={({ item }) => {
-                      const slideSize = { width: carouselWidth, height: carouselHeight };
-                      if (item.kind === 'grid') {
-                        return (
-                          <View style={slideSize}>
-                            <MosaicArrangement
-                              cells={item.rows}
-                              seam={0}
-                              renderCell={(row) =>
-                                row.photo ? (
-                                  <Image
-                                    key={row.key}
-                                    source={row.photo}
-                                    style={GRID_CELL_PIECE}
-                                    contentFit="cover"
-                                    blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
-                                  />
-                                ) : (
-                                  <Placeholder
-                                    key={row.key}
-                                    seed={row.seed ?? undefined}
-                                    radius={0}
-                                    style={GRID_CELL_PIECE}
-                                  />
-                                )
-                              }
-                            />
-                            {/* The day laid across the middle of the grid,
-                                cover-line style, with the challenge's name
-                                letterspaced over it the way the reference
-                                sets "Six pics of" over its month. One line at
-                                any length: a long day shrinks to fit rather
-                                than wrapping. Hidden while locked: a big
-                                number floating over a blur reads as a
-                                teaser, not a post. */}
-                            {locked ? null : (
-                              <DayStamp day={day} kicker={challenge.name} />
-                            )}
-                          </View>
-                        );
-                      }
-                      return item.photo ? (
-                        <Image
-                          source={item.photo}
-                          style={slideSize}
-                          contentFit="cover"
-                          blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
-                        />
-                      ) : (
-                        <Placeholder seed={item.seed} radius={0} style={slideSize} />
-                      );
-                    }}
+                    renderItem={({ item }) => (
+                      // A double tap anywhere on the photo leaves a heart;
+                      // single taps and swipes still belong to the carousel.
+                      <Pressable
+                        accessible={false}
+                        disabled={locked}
+                        onPress={onPhotoTap}
+                      >
+                        {renderSlide(item)}
+                      </Pressable>
+                    )}
                   />
+
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.heartBurst,
+                      {
+                        opacity: burst,
+                        transform: [
+                          {
+                            scale: burst.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.6, 1],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <Ionicons name="heart" size={HEART_BURST} color={colors.surface} />
+                  </Animated.View>
 
                   {/* Instagram's own multi-photo tell, the post-detail
                       screen's own dots: small marks riding the bottom edge
@@ -613,6 +673,12 @@ const styles = StyleSheet.create({
   },
   caption: {
     marginTop: layout.stack,
+  },
+  // Centred over the photo, never in the way of a touch.
+  heartBurst: {
+    ...absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.7,
