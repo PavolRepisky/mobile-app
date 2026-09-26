@@ -56,7 +56,10 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.screenRoot}>
-      <ScreenScroll tabBar>
+      {/* The one screen off the white: its groups are white cards, and on a
+          white page they'd dissolve into it. The cooler off-white is what
+          lets each group read as its own card. */}
+      <ScreenScroll tone="alt" tabBar>
         {/* The profile screen's own header row exactly: a spacer balancing
             the leading glyph so the title centres on the page, rather than
             a fixed band with a button floating over the scroll content. */}

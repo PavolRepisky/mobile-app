@@ -56,13 +56,14 @@ names the role (`inkMuted`), not the shade (`greyDark`).
 **Background** — `Screen tone`:
 
 Every screen in the app sits on the same white, `Screen`/`ScreenScroll`'s
-default `plain` tone (`backgroundPlain` `#FFFFFF`) — the tab roots, the
-settings stack, a challenge's feed, a friend's day, all of it. `app`
-(`background` `#F8F5F0`), `alt` (`backgroundAlt` `#F8F6F5`) and `warm`
-(`backgroundWarm` `#FBF6F3`) remain available tones on the component for a
-screen that deliberately wants to break from the white, but nothing in the
-app opts into one today — don't reach for them without a specific reason to
-split a screen off from the rest.
+default `plain` tone (`backgroundPlain` `#FFFFFF`) — the tab roots, a
+challenge's feed, a friend's day, all of it — with one exception: Settings
+sits on `alt` (`backgroundAlt` `#F8F6F5`), because its groups are white
+cards and on a white page they'd dissolve. `app` (`background` `#F8F5F0`)
+and `warm` (`backgroundWarm` `#FBF6F3`) remain available tones on the
+component for a screen that deliberately wants to break from the white —
+don't reach for any of them without a specific reason to split a screen off
+from the rest.
 
 **Shadow** — pick by what the thing sits on, not by how big it is:
 
