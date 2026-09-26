@@ -88,7 +88,8 @@ and `*accent*` runs step the weight up from a lighter base).
 **Controls** · `PrimaryButton` / `SecondaryButton` / `TextLink` ·
 `IconButton` circular · `Pill` (`floating`|`glass`|`solid`|`muted`|`outline` ×
 `sm`|`md`|`lg`) · `SegmentedTabs` (`underline`|`pill`) · `BigSegmentHeader` the
-two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
+two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers · `WheelPicker`
+the iOS date-wheel drum.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.

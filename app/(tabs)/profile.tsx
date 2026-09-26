@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
+import { PrimaryButton } from '@/components/Buttons';
 import {
   CalendarMonth,
   MONTH_NAMES,
@@ -22,7 +23,6 @@ import { EmptyState } from '@/components/EmptyState';
 import { DayStamp } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
 import { MosaicArrangement } from '@/components/PhotoCollage';
-import { PopoverMenu } from '@/components/PopoverMenu';
 import { Placeholder } from '@/components/Placeholder';
 import {
   profileActionTop,
@@ -32,6 +32,7 @@ import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import { colors, gradients, radii, screenPadding, shadows, spacing } from '@/constants/theme';
+import { WheelPicker } from '@/components/WheelPicker';
 import { useApp, usePostedDays } from '@/hooks/useAppState';
 
 /** Kept out of the stylesheet because it is handed to `Image` as often as to
@@ -66,11 +67,9 @@ const DAYS_SWITCH_WIDTH = 190;
 const MONTH_ARROW = 24;
 /** The ▾ beside the month name, a step under the name's own cap height. */
 const MONTH_CARET = 18;
-/** How far the year picker reaches either side of this year. Back far enough
- * to look at the months before the app, ahead as far as the next challenge
- * is likely to be planned. */
+/** How far back the year picker reaches — far enough to look at the months
+ * before the app. It stops at this year: there's nothing to see ahead. */
 const YEARS_BACK = 5;
-const YEARS_AHEAD = 1;
 
 /** The challenge card's "opens a page" chevron — a Settings row's own size. */
 const CHALLENGE_CHEVRON = 20;
@@ -238,8 +237,11 @@ export default function ProfileScreen() {
   // now, -1 last month. An offset rather than a date, so the view still opens
   // on the current month once the calendar rolls into a new one.
   const [monthOffset, setMonthOffset] = useState(0);
-  const [yearMenu, setYearMenu] = useState<{ top: number; left: number } | null>(null);
-  const yearTriggerRef = useRef<View>(null);
+  // The year sheet's own pick, held apart from the month on show until Done —
+  // the wheel passes a year per row, and redrawing the calendar behind the
+  // sheet at every one of them is work nobody sees.
+  const [yearSheetOpen, setYearSheetOpen] = useState(false);
+  const [pendingYear, setPendingYear] = useState(0);
 
   const doneOn = (day: number) =>
     tasks.filter((task) => progress[day]?.[task.id]?.done).length;
@@ -348,27 +350,22 @@ export default function ProfileScreen() {
     return { month: first, days };
   }, [monthOffset, startDate, totalDays, currentDay, tasks, progress, router]);
 
-  // The years the picker offers: a spread around this one, stretched to take
-  // in the year the challenge started should it fall outside that.
+  // The years the picker offers: back from this one, stretched to take in the
+  // year the challenge started should it fall further back than that.
   const thisYear = new Date().getFullYear();
   const firstYear = Math.min(thisYear - YEARS_BACK, startDate.getFullYear());
-  const years = Array.from(
-    { length: thisYear + YEARS_AHEAD - firstYear + 1 },
-    (_, i) => firstYear + i,
-  );
+  const years = Array.from({ length: thisYear - firstYear + 1 }, (_, i) => firstYear + i);
 
   // A year on its own isn't a page — it keeps the month being looked at and
-  // moves it to the chosen year.
+  // moves it to the chosen year, pulled back to this month if that lands it
+  // in the future.
   const jumpToYear = (year: number) => {
-    setMonthOffset(monthOffset + (year - shownMonth.month.getFullYear()) * 12);
+    setMonthOffset(Math.min(0, monthOffset + (year - shownMonth.month.getFullYear()) * 12));
   };
 
-  // Drops from under the name, measured at the moment it opens rather than
-  // tracked — the page scrolls, so any stored position would be stale.
-  const openYearMenu = () => {
-    yearTriggerRef.current?.measureInWindow((x, y, _width, height) => {
-      setYearMenu({ top: y + height + spacing.xs, left: x });
-    });
+  const openYearSheet = () => {
+    setPendingYear(shownMonth.month.getFullYear());
+    setYearSheetOpen(true);
   };
 
   const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
@@ -585,10 +582,9 @@ export default function ProfileScreen() {
                 </Pressable>
 
                 <Pressable
-                  ref={yearTriggerRef}
                   accessibilityRole="button"
                   accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
-                  onPress={openYearMenu}
+                  onPress={openYearSheet}
                   hitSlop={spacing.sm}
                   style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
                 >
@@ -605,6 +601,9 @@ export default function ProfileScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Next month"
+                  // This month is as far as it goes — the calendar shows
+                  // what has been, not what's ahead.
+                  disabled={monthOffset >= 0}
                   onPress={() => setMonthOffset(monthOffset + 1)}
                   hitSlop={spacing.md}
                   style={({ pressed }) => pressed && styles.pressed}
@@ -612,7 +611,7 @@ export default function ProfileScreen() {
                   <Ionicons
                     name="chevron-forward"
                     size={MONTH_ARROW}
-                    color={colors.ink}
+                    color={monthOffset >= 0 ? colors.inkGhost : colors.ink}
                   />
                 </Pressable>
               </View>
@@ -708,16 +707,29 @@ export default function ProfileScreen() {
         style={[styles.cornerRight, { top: headerTop }]}
       />
 
-      <PopoverMenu
-        visible={yearMenu !== null}
-        onDismiss={() => setYearMenu(null)}
-        top={yearMenu?.top ?? 0}
-        left={yearMenu?.left ?? 0}
-        items={years.map((year) => ({
-          label: String(year),
-          onPress: () => jumpToYear(year),
-        }))}
-      />
+      {/* The year, picked on the iPhone's own date-wheel drum from a sheet
+          at the bottom. Done moves the calendar; tapping away leaves it. */}
+      <BottomSheet visible={yearSheetOpen} onDismiss={() => setYearSheetOpen(false)}>
+        <Text variant="sectionTitleXs" center>
+          Year
+        </Text>
+        <WheelPicker
+          // Remounted on every open, so the drum starts on the year on show
+          // rather than wherever it was last left.
+          key={yearSheetOpen ? 'open' : 'closed'}
+          values={years}
+          value={pendingYear}
+          onChange={setPendingYear}
+          style={styles.yearWheel}
+        />
+        <PrimaryButton
+          label="Done"
+          onPress={() => {
+            jumpToYear(pendingYear);
+            setYearSheetOpen(false);
+          }}
+        />
+      </BottomSheet>
 
       {/* The friend code slides up from the bottom the way the comments do:
           something to hold out to a friend for a moment, over the profile,
@@ -886,6 +898,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  yearWheel: {
+    marginVertical: spacing.lg,
   },
   monthTitle: {
     flexDirection: 'row',
