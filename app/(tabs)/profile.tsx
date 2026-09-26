@@ -182,6 +182,16 @@ function accentAt(t: number): string {
  * reads clockwise. */
 const RING_SWEEP_COLORS = [...gradients.profileAccent].reverse() as [string, string, string];
 
+/** How far the challenge card's copy of the sweep is washed toward white. A
+ * 6pt ring carries the full pastels; a whole card of them shouts over the
+ * profile, and halfway back reads as a tint rather than a fill. */
+const CARD_SWEEP_WASH = 0.5;
+
+/** The sweep as the challenge card wears it — the same three stops, softened. */
+const CARD_SWEEP_COLORS = RING_SWEEP_COLORS.map((stop) =>
+  mixHex(stop, colors.surface, CARD_SWEEP_WASH),
+) as [string, string, string];
+
 /** The sweep's slices, clockwise from 12 o'clock. */
 const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
   rotation: -90 + (i * 360) / RING_SWEEP_SLICES,
@@ -514,7 +524,7 @@ export default function ProfileScreen() {
               the challenge wears the gauge that measures it. The card's
               clip rounds it to the card's corners. */}
           <LinearGradient
-            colors={RING_SWEEP_COLORS}
+            colors={CARD_SWEEP_COLORS}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.challengeGradient}
