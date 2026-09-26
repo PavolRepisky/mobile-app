@@ -694,7 +694,10 @@ const styles = StyleSheet.create({
   },
   challengeBody: {
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.lg,
+    // A step more under the bar than over the title — the bar sits on the
+    // card's bottom edge otherwise, and reads as clipped by it.
+    paddingBottom: spacing.xl,
     gap: spacing.sm,
   },
   challengeRow: {
