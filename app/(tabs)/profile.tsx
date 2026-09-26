@@ -307,9 +307,13 @@ export default function ProfileScreen() {
         const cell: CalendarDay = { shots, past: on <= today, today: isToday };
 
         if (day !== null && day < currentDay) {
-          if (done === tasks.length) cell.mark = 'done';
-          else if (shots.length) cell.mark = `${done}/${tasks.length}`;
-          else cell.missed = true;
+          // A finished day carries no mark — its photos are the proof, the
+          // same way a finished day's grid tile is just its photos. Only a
+          // day that fell short says so.
+          if (done < tasks.length) {
+            if (shots.length) cell.mark = `${done}/${tasks.length}`;
+            else cell.missed = true;
+          }
           if (shots.length) {
             cell.onPress = () =>
               router.push({ pathname: '/day/[day]', params: { day: String(day) } });
@@ -528,6 +532,7 @@ export default function ProfileScreen() {
               key={entry.key}
               month={entry.month}
               days={entry.days}
+              filled
               style={styles.month}
             />
           ))

@@ -104,6 +104,12 @@ export interface CalendarMonthProps {
   month: Date;
   /** What each date holds, keyed by day of the month. */
   days: Record<number, CalendarDay>;
+  /**
+   * Gives every photo-less day a solid grey fill in place of the hairline
+   * outline, so the month reads as a full sheet of cells, shot or not, rather
+   * than photos floating among empty boxes — My Profile's own month view.
+   */
+  filled?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -116,7 +122,7 @@ function leadingBlanks(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
 }
 
-export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
+export function CalendarMonth({ month, days, filled, style }: CalendarMonthProps) {
   const year = month.getFullYear();
   const index = month.getMonth();
 
@@ -147,7 +153,7 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
         {cells.map((date, i) => (
           <View key={date ?? `blank-${i}`} style={styles.cell}>
             {date === null ? null : (
-              <DayCell date={date} day={days[date] ?? {}} />
+              <DayCell date={date} day={days[date] ?? {}} filled={filled} />
             )}
           </View>
         ))}
@@ -156,7 +162,15 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
   );
 }
 
-function DayCell({ date, day }: { date: number; day: CalendarDay }) {
+function DayCell({
+  date,
+  day,
+  filled,
+}: {
+  date: number;
+  day: CalendarDay;
+  filled?: boolean;
+}) {
   const { shots, past, today, mark, missed, onPress } = day;
   const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
   const hasShot = tiles.length > 0;
@@ -219,7 +233,14 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
   const body = hasShot ? (
     <View style={[styles.tile, today && styles.tileToday]}>{content}</View>
   ) : (
-    <View style={[styles.plain, today && styles.plainToday, missed && styles.plainMissed]}>
+    <View
+      style={[
+        styles.plain,
+        filled && styles.plainFilled,
+        today && styles.plainToday,
+        missed && styles.plainMissed,
+      ]}
+    >
       {numeral}
       {missed ? <View style={styles.missDash} /> : null}
     </View>
@@ -388,6 +409,12 @@ const styles = StyleSheet.create({
     borderRadius: CELL_RADIUS,
     borderWidth: 1,
     borderColor: colors.divider,
+  },
+  // The fill carries the cell's edge on its own; a hairline around it only
+  // draws a second, fainter box. Today's border still sits on top.
+  plainFilled: {
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSunken,
   },
   // Today, before it has a photo, is marked by darkening the cell's own
   // border rather than a separate disc behind the numeral.
