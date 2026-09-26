@@ -258,6 +258,72 @@ export const fonts = {
 export const bodyTracking = -1;
 
 /**
+ * The type hierarchy, settled on My Profile and Settings: seven levels, each
+ * one a clear step from the next in size or weight, so a screen reads top
+ * down instead of as a scatter of near-identical sizes. Quicksand runs light,
+ * so nothing sits below SemiBold. The `type` scale below exposes each level
+ * by name, and the older variants that meant the same thing point here
+ * rather than keeping their own numbers.
+ */
+export const hierarchy = {
+  /** The screen's own title and the person it belongs to: "My Profile",
+   * "Settings", the name under the avatar. */
+  pageTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 23,
+    lineHeight: 28,
+    letterSpacing: bodyTracking,
+  },
+  /** A section inside the page: "Days", a month's name, a sheet's or a
+   * dialog's title, a picker's values. */
+  sectionHeading: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 19,
+    lineHeight: 25,
+    letterSpacing: bodyTracking,
+  },
+  /** The name of one thing on the page: the challenge card's title. */
+  itemTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /** Reading text and list rows: a bio, a settings row's label, a switch's
+   * labels, a dialog's message. */
+  copy: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /** Supporting detail next to something bigger: a handle, a settings row's
+   * value, a group's title. */
+  meta: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: bodyTracking,
+  },
+  /** Supporting detail that carries a number people look for: "Day 5 / 75",
+   * a calendar date. */
+  metaBold: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: bodyTracking,
+  },
+  /** The smallest thing on a page: a count on a pill or a tile, a weekday
+   * letter, a mark in a calendar cell. */
+  badge: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: bodyTracking,
+  },
+} as const;
+
+/**
  * Type scale. Headline sizes track the reference closely: the big welcome
  * headline is ~44px on a 1170pt-wide render, the standard question headline
  * ~34px, section titles ~26px. Headlines are set in Quicksand's heaviest cut
@@ -265,6 +331,15 @@ export const bodyTracking = -1;
  * is what sets a headline apart.
  */
 export const type = {
+  // The hierarchy's levels, by name — reach for these first.
+  pageTitle: hierarchy.pageTitle,
+  sectionHeading: hierarchy.sectionHeading,
+  itemTitle: hierarchy.itemTitle,
+  copy: hierarchy.copy,
+  meta: hierarchy.meta,
+  metaBold: hierarchy.metaBold,
+  badge: hierarchy.badge,
+
   hero: {
     fontFamily: fonts.bodyBold,
     fontSize: 44,
@@ -290,34 +365,19 @@ export const type = {
     letterSpacing: bodyTracking,
   },
 
-  sectionTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 23,
-    lineHeight: 28,
-    letterSpacing: bodyTracking,
-  },
+  sectionTitle: hierarchy.pageTitle,
   /**
    * A touch under `sectionTitle`'s own default. Discover's per-challenge
    * titles and the preview page's "Daily Tasks" and "Reviews" headings all
    * share this cut, so the three read as the same weight of heading.
    */
-  sectionTitleSm: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 22,
-    lineHeight: 26,
-    letterSpacing: bodyTracking,
-  },
+  sectionTitleSm: hierarchy.sectionHeading,
   /**
    * A further step down, for a card's own title sitting under a page-level
    * heading that already carries `sectionTitle` — the profile's "Current
    * challenge" card.
    */
-  sectionTitleXs: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 21,
-    lineHeight: 27,
-    letterSpacing: bodyTracking,
-  },
+  sectionTitleXs: hierarchy.sectionHeading,
   cardTitle: {
     fontFamily: fonts.bodySemi,
     fontSize: 17,
@@ -327,12 +387,7 @@ export const type = {
   /** `cardTitle`'s own size, stepped up to true Bold — a sheet heading that
    * wants more weight than the ambient Semi carries without reading as a
    * bigger title than it is. */
-  cardTitleBold: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 17,
-    lineHeight: 22,
-    letterSpacing: bodyTracking,
-  },
+  cardTitleBold: hierarchy.itemTitle,
   body: {
     fontFamily: fonts.body,
     fontSize: 16,
@@ -349,12 +404,7 @@ export const type = {
    * One step under `bodyBold`: copy that wants weight without the shout — the
    * bullet list on the support card.
    */
-  bodySemi: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: bodyTracking,
-  },
+  bodySemi: hierarchy.copy,
   bodyBold: {
     fontFamily: fonts.bodyBold,
     fontSize: 16,
@@ -389,23 +439,7 @@ export const type = {
    * has to hold its own printed over a photo rather than sitting on plain
    * background the way most `label` copy does.
    */
-  labelBold: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 14,
-    lineHeight: 18,
-    letterSpacing: bodyTracking,
-  },
-  /**
-   * `labelBold`, the last step up the ramp — the heaviest cut Quicksand has at
-   * label size. My Profile's "Day N / 75", which has to carry as much weight
-   * as the challenge name beside it without growing to its size.
-   */
-  labelHeavy: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    lineHeight: 18,
-    letterSpacing: bodyTracking,
-  },
+  labelBold: hierarchy.meta,
   caption: {
     fontFamily: fonts.bodyLight,
     fontSize: 13,
@@ -422,12 +456,7 @@ export const type = {
    * own post tiles, which need to hold their own printed straight onto a
    * photo rather than fade into it. The heaviest cut Quicksand has: anything
    * lighter washes out again against a busy photo at this size. */
-  microBold: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    lineHeight: 16,
-    letterSpacing: bodyTracking,
-  },
+  microBold: hierarchy.badge,
   /**
    * The uppercase stamp closing the day card — the challenge name and the
    * handle under its rule. Letterspaced open rather than set at the body

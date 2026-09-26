@@ -89,7 +89,7 @@ export function SegmentedTabs<T extends string = string>({
             />
           ) : null}
           <Text
-            variant={pill ? 'bodyBold' : large ? 'sectionTitle' : 'cardTitle'}
+            variant={pill ? 'copy' : large ? 'sectionTitle' : 'cardTitle'}
             color={active ? colors.ink : pill ? colors.inkMuted : colors.inkGhost}
             style={
               pill

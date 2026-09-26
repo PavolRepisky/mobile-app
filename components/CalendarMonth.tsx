@@ -147,7 +147,7 @@ export function CalendarMonth({ month, days, filled, header, style }: CalendarMo
         {WEEKDAYS.map((name) => (
           <Text
             key={name}
-            variant="micro"
+            variant={filled ? 'badge' : 'micro'}
             color={colors.inkMuted}
             center
             style={styles.weekday}
@@ -200,7 +200,7 @@ function DayCell({
   const overPhoto = hasShot;
   const numeral = (
     <Text
-      variant="bodyBold"
+      variant={filled ? 'metaBold' : 'bodyBold'}
       color={
         overPhoto
           ? colors.inkInverse
@@ -220,7 +220,7 @@ function DayCell({
       </View>
     ) : (
       <View style={styles.markCount}>
-        <Text variant="micro" color={colors.ink}>
+        <Text variant={filled ? 'badge' : 'micro'} color={colors.ink}>
           {mark}
         </Text>
       </View>

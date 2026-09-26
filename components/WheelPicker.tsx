@@ -107,7 +107,7 @@ export function WheelPicker<T extends string | number>({
           return (
             <View key={String(item)} style={styles.row}>
               <Text
-                variant="sectionTitleXs"
+                variant="sectionHeading"
                 color={index === active ? colors.ink : colors.inkGhost}
               >
                 {format(item)}

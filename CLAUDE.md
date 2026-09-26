@@ -84,6 +84,25 @@ from the rest.
 `card`/`xl` (32) is the signature card corner · `'2xl'` (44) is the friend card
 only · `lg` 20 · `md` 16 · `sm` 10.
 
+**Type hierarchy** — seven levels, defined once as `hierarchy` in `theme.ts`
+and used as `Text` variants by name. My Profile and Settings use these and
+nothing else; build other screens from them too:
+
+| variant | size / weight | for |
+| --- | --- | --- |
+| `pageTitle` | 23 Bold | the screen's title, the profile's name |
+| `sectionHeading` | 19 Bold | "Days", a month's name, sheet and dialog titles, picker values |
+| `itemTitle` | 17 Bold | one thing's name: the challenge card |
+| `copy` | 16 SemiBold | reading text and rows: a bio, a settings row, a switch's labels, a dialog's message and field |
+| `meta` | 14 SemiBold | detail beside something bigger: a handle, a row's value, a group title |
+| `metaBold` | 14 Bold | detail carrying a number: "Day 5 / 75", a calendar date |
+| `badge` | 12 Bold | counts on pills and tiles, weekday letters, calendar marks |
+
+The older names that meant one of these point at it (`sectionTitle` →
+`pageTitle`, `sectionTitleSm`/`sectionTitleXs` → `sectionHeading`,
+`cardTitleBold` → `itemTitle`, `bodySemi` → `copy`, `labelBold` → `meta`,
+`microBold` → `badge`). Prefer the level names in new code.
+
 **Typeface** — three faces, no exceptions:
 - **Quicksand** — everything, headlines included: body, buttons, labels, tabs,
   captions, and the `hero`/`headline`/`headlineSm`/`title` scale (Bold). The

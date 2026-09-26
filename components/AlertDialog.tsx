@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 
-import { bodyTracking, colors, fonts, radii, shadows, spacing } from '@/constants/theme';
+import { colors, radii, shadows, spacing, type } from '@/constants/theme';
 import { Text } from './Text';
 
 export interface AlertAction {
@@ -91,13 +91,13 @@ export function AlertDialog({
         >
           <View style={[styles.panel, shadows.floating]}>
             <View style={styles.dialog}>
-              <Text variant="cardTitle" style={styles.title}>
+              <Text variant="sectionHeading">
                 {title}
               </Text>
 
               {message ? (
                 <Text
-                  variant="body"
+                  variant="copy"
                   color={colors.inkMuted}
                   style={styles.message}
                 >
@@ -191,15 +191,6 @@ const styles = StyleSheet.create({
   dialog: {
     padding: spacing['2xl'],
   },
-  /**
-   * A step past the card titles this variant is otherwise used for: the alert
-   * has nothing else on it to carry the weight, so the heading has to.
-   */
-  title: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 19,
-    lineHeight: 25,
-  },
   message: {
     marginTop: spacing.sm,
   },
@@ -209,10 +200,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceSunken,
     paddingHorizontal: spacing.xl,
-    fontFamily: fonts.body,
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: bodyTracking,
+    // What you type reads at the hierarchy's `copy` level, the same as the
+    // message above it.
+    ...type.copy,
     color: colors.ink,
   },
   // A pill reads as a single line; a paragraph needs a box it can wrap

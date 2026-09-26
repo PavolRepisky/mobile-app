@@ -70,7 +70,7 @@ export default function SettingsScreen() {
             button pinned beside it and dropped to the same line, so moving
             between the two screens nothing in the header jumps. */}
         <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
+          <Text variant="pageTitle" center>
             Settings
           </Text>
         </View>
@@ -314,7 +314,7 @@ function Group({
 }) {
   return (
     <View style={styles.group}>
-      <Text variant="label" color={colors.inkMuted} style={styles.groupTitle}>
+      <Text variant="meta" color={colors.inkMuted} style={styles.groupTitle}>
         {title}
       </Text>
       <View style={styles.groupCard}>{children}</View>
@@ -351,7 +351,7 @@ function Row({
       ]}
     >
       <Text
-        variant="cardTitle"
+        variant="copy"
         color={destructive ? colors.destructive : colors.ink}
         style={styles.rowLabel}
       >
@@ -359,7 +359,7 @@ function Row({
       </Text>
 
       {value ? (
-        <Text variant="bodySemi" color={colors.inkMuted} style={styles.rowValue}>
+        <Text variant="meta" color={colors.inkMuted} style={styles.rowValue}>
           {value}
         </Text>
       ) : null}

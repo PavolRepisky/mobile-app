@@ -373,7 +373,7 @@ export default function ProfileScreen() {
             are pinned over the scroll below, so they stay in reach however
             far down the days go. */}
         <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
+          <Text variant="pageTitle" center>
             My Profile
           </Text>
         </View>
@@ -461,7 +461,7 @@ export default function ProfileScreen() {
               importantForAccessibility="no-hide-descendants"
               style={[styles.badge, shadows.hard]}
             >
-              <Text variant="microBold" color={colors.inkInverse}>
+              <Text variant="badge" color={colors.inkInverse}>
                 {`${doneToday}/${tasks.length}`}
               </Text>
             </View>
@@ -471,14 +471,14 @@ export default function ProfileScreen() {
               Settings' job, not a tap here — and a missing bio is simply left
               out rather than standing in as placeholder text. */}
           <View style={styles.identityText}>
-            <Text variant="sectionTitle" center>
+            <Text variant="pageTitle" center>
               {profile.name}
             </Text>
-            <Text variant="bodyBold" color={colors.inkMuted} center>
+            <Text variant="meta" color={colors.inkMuted} center>
               {profile.handle}
             </Text>
             {profile.bio ? (
-              <Text variant="bodyBold" color={colors.inkMuted} center style={styles.bio}>
+              <Text variant="copy" color={colors.inkMuted} center style={styles.bio}>
                 {profile.bio}
               </Text>
             ) : null}
@@ -498,12 +498,12 @@ export default function ProfileScreen() {
         >
           <View style={styles.challengeBody}>
             <View style={styles.challengeRow}>
-              <Text variant="cardTitleBold" numberOfLines={1} style={styles.challengeName}>
+              <Text variant="itemTitle" numberOfLines={1} style={styles.challengeName}>
                 {challenge.name}
               </Text>
-              <Text variant="labelHeavy">
+              <Text variant="metaBold">
                 Day {currentDay}
-                <Text variant="labelHeavy" color={colors.inkMuted}>
+                <Text variant="metaBold" color={colors.inkMuted}>
                   {` / ${totalDays}`}
                 </Text>
               </Text>
@@ -538,7 +538,7 @@ export default function ProfileScreen() {
         </Card>
 
         <View style={styles.daysHeader}>
-          <Text variant="sectionTitle">Days</Text>
+          <Text variant="sectionHeading">Days</Text>
           <SegmentedTabs
             variant="pill"
             options={[
@@ -582,7 +582,7 @@ export default function ProfileScreen() {
                   hitSlop={spacing.sm}
                   style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
                 >
-                  <Text variant="sectionTitleXs" style={styles.monthTitleText}>
+                  <Text variant="sectionHeading" style={styles.monthTitleText}>
                     {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
                   </Text>
                   <Ionicons
@@ -666,7 +666,7 @@ export default function ProfileScreen() {
                         just its photos. */}
                     {finished ? null : (
                       <View style={styles.tileCount}>
-                        <Text variant="micro" color={colors.ink}>
+                        <Text variant="badge" color={colors.ink}>
                           {`${post.done}/${tasks.length}`}
                         </Text>
                       </View>
@@ -708,7 +708,7 @@ export default function ProfileScreen() {
         visible={yearSheetOpen}
         onDismiss={() => setYearSheetOpen(false)}
       >
-        <Text variant="sectionTitleXs" center>
+        <Text variant="sectionHeading" center>
           Year
         </Text>
         <WheelPicker
@@ -737,7 +737,7 @@ export default function ProfileScreen() {
         onDismiss={() => setCodeOpen(false)}
       >
         <View style={styles.codeSheet}>
-          <Text variant="sectionTitleXs" center>
+          <Text variant="sectionHeading" center>
             Your QR code
           </Text>
           <View style={styles.codeTile}>
@@ -922,8 +922,8 @@ const styles = StyleSheet.create({
   },
   monthCaret: {
     // Measured off the two fonts: the chevron sits dead centre in its icon
-    // box, but Quicksand's caps and digits sit ~0.5pt below the centre of a
-    // 21/27 line. In a centred row a 1pt top margin moves the caret half
+    // box, but Quicksand's caps and digits sit ~0.5pt below the centre of
+    // `sectionHeading`'s 19/25 line. In a centred row a 1pt top margin moves the caret half
     // that, onto the same line as the name.
     marginTop: MONTH_CARET_NUDGE,
   },
