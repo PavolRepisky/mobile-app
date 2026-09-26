@@ -314,7 +314,7 @@ function Group({
 }) {
   return (
     <View style={styles.group}>
-      <Text variant="meta" color={colors.inkMuted} style={styles.groupTitle}>
+      <Text variant="copy" color={colors.inkMuted} style={styles.groupTitle}>
         {title}
       </Text>
       <View style={styles.groupCard}>{children}</View>

@@ -93,8 +93,8 @@ nothing else; build other screens from them too:
 | `pageTitle` | 23 Bold | the screen's title, the profile's name |
 | `sectionHeading` | 21 Bold | "Days", a month's name, sheet and dialog titles, picker values |
 | `itemTitle` | 18 Bold | one thing's name: the challenge card |
-| `copy` | 16 SemiBold | reading text and rows: a bio, a settings row, a switch's labels, a dialog's message and field |
-| `meta` | 14 SemiBold | detail beside something bigger: a handle, a row's value, a group title |
+| `copy` | 16 SemiBold | reading text and rows: a bio, a settings row and its group title, a switch's labels, a dialog's message and field |
+| `meta` | 14 SemiBold | detail beside something bigger: a handle, a row's value |
 | `metaBold` | 14 Bold | detail carrying a number: "Day 5 / 75", a calendar date |
 | `badge` | 12 Bold | counts on pills and tiles, weekday letters, calendar marks |
 
