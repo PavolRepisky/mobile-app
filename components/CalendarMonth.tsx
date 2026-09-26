@@ -111,8 +111,8 @@ export interface CalendarMonthProps {
    * than photos floating among empty boxes — My Profile's own month view.
    * A day's photos also butt straight up against each other there, one print
    * cut into pieces rather than a set of separate ones. Its greys are the
-   * profile's own two: `inkMuted` for every date and mark that isn't on a
-   * photo, `surfaceSunken` for every fill and edge.
+   * profile's own: `inkMuted` for past dates and marks, `inkGhost` for dates
+   * still to come, `surfaceSunken` for every fill and edge.
    */
   filled?: boolean;
   /** Drawn in place of the month's own name — a caller that pages between
@@ -188,7 +188,7 @@ function DayCell({
   // shot, so it holds more weight than one that has not arrived yet.
   const numberColor = hasShot
     ? colors.inkInverse
-    : past || filled
+    : past
       ? colors.inkMuted
       : colors.inkGhost;
 

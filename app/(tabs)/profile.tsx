@@ -424,7 +424,7 @@ export default function ProfileScreen() {
               {ringSegments(tasks.length).map((segment, index) =>
                 index < doneToday
                   ? null
-                  : ringSegment(segment, index, colors.inkMuted, tasks.length > 1),
+                  : ringSegment(segment, index, colors.inkGhost, tasks.length > 1),
               )}
               <G mask="url(#ringDone)">
                 {ringSweep.map((slice, index) => (
@@ -615,7 +615,7 @@ export default function ProfileScreen() {
                   <Ionicons
                     name="chevron-forward"
                     size={MONTH_ARROW}
-                    color={monthOffset >= 0 ? colors.inkMuted : colors.ink}
+                    color={monthOffset >= 0 ? colors.inkGhost : colors.ink}
                   />
                 </Pressable>
               </View>

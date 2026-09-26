@@ -38,7 +38,7 @@ const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min)
 /**
  * The iPhone's date-picker drum, one column of it: rows scroll under a
  * rounded band in the middle and snap into it, the row in the band full ink
- * and its neighbours in the muted text grey. Every row that
+ * and its neighbours in the light `inkGhost` grey. Every row that
  * crosses the band fires a selection tick, the same detent `DayScrubber`
  * gives its strokes. Drawn in JS rather than the native picker so it needs
  * no extra native module and sets its rows in the app's own type.
@@ -100,15 +100,15 @@ export function WheelPicker<T extends string | number>({
         scrollEventThrottle={16}
         contentContainerStyle={styles.content}
       >
-        {/* The row in the band in ink, the rest in the text grey — flat
-            colours rather than a faded ink, which would blend into a grey
-            of its own that nothing else on the page uses. */}
+        {/* The row in the band in ink, the rest in the light "not
+            chosen" grey — flat colours rather than a faded ink, which would
+            blend into a grey of its own that nothing else uses. */}
         {values.map((item, index) => {
           return (
             <View key={String(item)} style={styles.row}>
               <Text
                 variant="sectionTitleXs"
-                color={index === active ? colors.ink : colors.inkMuted}
+                color={index === active ? colors.ink : colors.inkGhost}
               >
                 {format(item)}
               </Text>
