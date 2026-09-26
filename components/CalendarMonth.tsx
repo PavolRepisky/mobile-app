@@ -108,6 +108,8 @@ export interface CalendarMonthProps {
    * Gives every photo-less day a solid grey fill in place of the hairline
    * outline, so the month reads as a full sheet of cells, shot or not, rather
    * than photos floating among empty boxes — My Profile's own month view.
+   * A day's photos also butt straight up against each other there, one print
+   * cut into pieces rather than a set of separate ones.
    */
   filled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -221,7 +223,7 @@ function DayCell({
 
   const content = (
     <>
-      <Mosaic tiles={tiles} date={date} today={today} />
+      <Mosaic tiles={tiles} date={date} today={today} seamless={filled} />
       {/* The numeral is white on whatever the day happened to look like, so it
           needs a wash under it rather than trusting the photo to be dark. */}
       <View style={[styles.scrim, today && styles.scrimToday]} />
@@ -270,10 +272,13 @@ function Mosaic({
   tiles,
   date,
   today,
+  seamless,
 }: {
   tiles: readonly DayShot[];
   date: number;
   today?: boolean;
+  /** Drops the seam, so the pieces meet edge to edge. */
+  seamless?: boolean;
 }) {
   const shot = (t: DayShot, i: number) =>
     t.photo ? (
@@ -283,6 +288,8 @@ function Mosaic({
     );
 
   const photoStyle = [styles.photo, today && styles.photoToday];
+  const column = [...photoStyle, styles.mosaicColumn, seamless && styles.seamless];
+  const row = [styles.mosaicRow, seamless && styles.seamless];
 
   if (tiles.length === 1) {
     return <View style={photoStyle}>{shot(tiles[0], 0)}</View>;
@@ -290,7 +297,7 @@ function Mosaic({
 
   if (tiles.length === 2) {
     return (
-      <View style={[...photoStyle, styles.mosaicColumn]}>
+      <View style={column}>
         {tiles.map((t, i) => shot(t, i))}
       </View>
     );
@@ -298,9 +305,9 @@ function Mosaic({
 
   if (tiles.length === 3) {
     return (
-      <View style={[...photoStyle, styles.mosaicColumn]}>
+      <View style={column}>
         {shot(tiles[0], 0)}
-        <View style={styles.mosaicRow}>
+        <View style={row}>
           {shot(tiles[1], 1)}
           {shot(tiles[2], 2)}
         </View>
@@ -309,12 +316,12 @@ function Mosaic({
   }
 
   return (
-    <View style={[...photoStyle, styles.mosaicColumn]}>
-      <View style={styles.mosaicRow}>
+    <View style={column}>
+      <View style={row}>
         {shot(tiles[0], 0)}
         {shot(tiles[1], 1)}
       </View>
-      <View style={styles.mosaicRow}>
+      <View style={row}>
         {shot(tiles[2], 2)}
         {shot(tiles[3], 3)}
       </View>
@@ -388,6 +395,9 @@ const styles = StyleSheet.create({
   mosaicColumn: {
     flexDirection: 'column',
     gap: SEAM,
+  },
+  seamless: {
+    gap: 0,
   },
   mosaicRow: {
     flex: 1,
