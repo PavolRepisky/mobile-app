@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
@@ -54,6 +55,9 @@ const HEADER_ICON = 22;
 /** The "3/5" count on a partly done day's tile: small enough to leave the
  * photo the main thing, big enough to read as a mark rather than a speck. */
 const TILE_MARK = 22;
+
+/** The challenge card's "opens a page" chevron — a Settings row's own size. */
+const CHALLENGE_CHEVRON = 20;
 
 /** Same hero circle the to-do ring and a friend's profile share — this is
  * the one place on the app's own profile that gets to be that big. */
@@ -471,6 +475,8 @@ export default function ProfileScreen() {
           padded={false}
           radius={radii.md}
           onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+          accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
+          accessibilityHint="Opens the challenge"
           style={styles.challengeCard}
         >
           <View style={styles.challengeBody}>
@@ -484,6 +490,15 @@ export default function ProfileScreen() {
                   {` / ${totalDays}`}
                 </Text>
               </Text>
+              {/* The same chevron a Settings row ends on — the one cue the
+                  app already uses for "this opens a page", where a flat
+                  card on its own reads as information rather than a way in. */}
+              <Ionicons
+                name="chevron-forward"
+                size={CHALLENGE_CHEVRON}
+                color={colors.inkFaded}
+                style={styles.challengeChevron}
+              />
             </View>
             <View
               style={styles.progressTrack}
@@ -800,6 +815,11 @@ const styles = StyleSheet.create({
   },
   challengeName: {
     flex: 1,
+  },
+  // Pulled in toward "Day N / 75" — the glyph carries its own side bearing,
+  // so the row's full gap left it floating apart from the text it ends.
+  challengeChevron: {
+    marginLeft: -spacing.xs,
   },
   // The ring's own stroke: the bar wears the ring's sweep, so it's drawn at
   // the ring's weight and the two read as the same line, bent and straight.
