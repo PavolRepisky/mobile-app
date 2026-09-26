@@ -14,7 +14,7 @@ import { Text } from './Text';
 /** The icon row's measurements, taken off Instagram's own profile tabs: a
  * glyph big enough to carry the tab without a word under it, on a row tall
  * enough to be an easy thumb target across the whole width. */
-const ICON_TAB_GLYPH = 26;
+const ICON_TAB_GLYPH = 23;
 const ICON_TAB_HEIGHT = 44;
 /** Half the gap between neighbouring underlines, on each side of every tab
  * — the same half-gap a profile grid tile keeps (`spacing.xs / 2`), so a
