@@ -39,8 +39,8 @@ Profile's task ring (swept round it) and the challenge card's bar.
 ### Type scale
 
 The hierarchy comes first — `hierarchy` in `theme.ts`, seven levels exposed
-as `Text` variants: `pageTitle` 23 Bold · `sectionHeading` 19 Bold ·
-`itemTitle` 17 Bold · `copy` 16 SemiBold · `meta` 14 SemiBold · `metaBold` 14
+as `Text` variants: `pageTitle` 23 Bold · `sectionHeading` 21 Bold ·
+`itemTitle` 18 Bold · `copy` 16 SemiBold · `meta` 14 SemiBold · `metaBold` 14
 Bold · `badge` 12 Bold. My Profile and Settings are built from these alone;
 `sectionTitle`, `sectionTitleSm`, `sectionTitleXs`, `cardTitleBold`,
 `bodySemi`, `labelBold` and `microBold` now point at the matching level.

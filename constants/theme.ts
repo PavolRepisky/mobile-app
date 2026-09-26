@@ -278,15 +278,15 @@ export const hierarchy = {
    * dialog's title, a picker's values. */
   sectionHeading: {
     fontFamily: fonts.bodyBold,
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 21,
+    lineHeight: 27,
     letterSpacing: bodyTracking,
   },
   /** The name of one thing on the page: the challenge card's title. */
   itemTitle: {
     fontFamily: fonts.bodyBold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 18,
+    lineHeight: 24,
     letterSpacing: bodyTracking,
   },
   /** Reading text and list rows: a bio, a settings row's label, a switch's

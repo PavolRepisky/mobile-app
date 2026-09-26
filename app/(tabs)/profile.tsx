@@ -923,7 +923,7 @@ const styles = StyleSheet.create({
   monthCaret: {
     // Measured off the two fonts: the chevron sits dead centre in its icon
     // box, but Quicksand's caps and digits sit ~0.5pt below the centre of
-    // `sectionHeading`'s 19/25 line. In a centred row a 1pt top margin moves the caret half
+    // `sectionHeading`'s 21/27 line. In a centred row a 1pt top margin moves the caret half
     // that, onto the same line as the name.
     marginTop: MONTH_CARET_NUDGE,
   },
