@@ -91,8 +91,8 @@ nothing else; build other screens from them too:
 | variant | size / weight | for |
 | --- | --- | --- |
 | `pageTitle` | 23 Bold | the screen's title, the profile's name |
-| `sectionHeading` | 21 Bold | "Days", a month's name, sheet and dialog titles, picker values |
-| `itemTitle` | 18 Bold | one thing's name: the challenge card |
+| `sectionHeading` | 21 Bold | "Days", sheet and dialog titles, picker values |
+| `itemTitle` | 18 Bold | one thing's name: the challenge card, the month on show |
 | `copy` | 16 SemiBold | reading text and rows: a bio, a settings row (label and value) and its group title, a switch's labels, a dialog's message and field |
 | `meta` | 14 SemiBold | detail beside something bigger |
 | `metaBold` | 14 Bold | detail carrying a number: "Day 5 / 75", a calendar date |

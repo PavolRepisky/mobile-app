@@ -582,7 +582,7 @@ export default function ProfileScreen() {
                   hitSlop={spacing.sm}
                   style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
                 >
-                  <Text variant="sectionHeading" style={styles.monthTitleText}>
+                  <Text variant="itemTitle" style={styles.monthTitleText}>
                     {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
                   </Text>
                   <Ionicons
@@ -923,7 +923,7 @@ const styles = StyleSheet.create({
   monthCaret: {
     // Measured off the two fonts: the chevron sits dead centre in its icon
     // box, but Quicksand's caps and digits sit ~0.5pt below the centre of
-    // `sectionHeading`'s 21/27 line. In a centred row a 1pt top margin moves the caret half
+    // `itemTitle`'s 18/24 line. In a centred row a 1pt top margin moves the caret half
     // that, onto the same line as the name.
     marginTop: MONTH_CARET_NUDGE,
   },
