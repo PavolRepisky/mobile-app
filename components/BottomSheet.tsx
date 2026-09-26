@@ -140,9 +140,6 @@ export interface BottomSheetProps {
   children: React.ReactNode;
   /** Shows the small grabber at the top edge. */
   handle?: boolean;
-  /** The grabber's colour, for a screen that holds to a narrower palette
-   * than the app's default hairline grey. */
-  handleColor?: string;
   /** Sheet fills most of the screen and scrolls its contents. */
   tall?: boolean;
   padded?: boolean;
@@ -172,7 +169,6 @@ export function BottomSheet({
   onDismissed,
   children,
   handle = true,
-  handleColor,
   tall,
   padded = true,
   bottomGap,
@@ -270,11 +266,7 @@ export function BottomSheet({
             { transform: [{ translateY }] },
           ]}
         >
-          {handle ? (
-            <View
-              style={[styles.handle, handleColor ? { backgroundColor: handleColor } : null]}
-            />
-          ) : null}
+          {handle ? <View style={styles.handle} /> : null}
           {body}
         </Animated.View>
       </View>
@@ -302,7 +294,8 @@ const styles = StyleSheet.create({
     width: 42,
     height: 5,
     borderRadius: radii.pill,
-    backgroundColor: colors.divider,
+    // The palette's fill grey — every sheet's grabber, on every screen.
+    backgroundColor: colors.surfaceSunken,
     marginBottom: spacing.lg,
   },
 });

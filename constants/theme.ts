@@ -28,6 +28,9 @@ export const palette = {
   greyLight: '#D7D6D3',
   /** Fills: cards, calendar cells, tracks, a picker's selection band. */
   greyFill: '#F2F2F2',
+  /** The one colour kept for danger: a destructive row or button, the action
+   * that can't be taken back. Nothing else is red. */
+  red: '#E63950',
 } as const;
 
 export const colors = {
@@ -36,8 +39,9 @@ export const colors = {
   /** Pure white — a deliberate split from the warm app shell. Own profile,
    * a friend's profile and a wall day all sit on it. */
   backgroundPlain: palette.white,
-  /** Slightly cooler off-white used by the settings stack. */
-  backgroundAlt: '#F8F6F5',
+  /** The settings stack's page: the palette's fill grey, so the white groups
+   * on it read as cards while the screen keeps to the profile's colours. */
+  backgroundAlt: palette.greyFill,
   /**
    * The warm pinkish off-white the profile-views screen sits on — a touch
    * warmer than `background`, sampled off reference/screens/profile/screen5.
@@ -111,7 +115,7 @@ export const colors = {
    * Destructive rows and the Restart action. A saturated red rather than the
    * washed-out pink it started as — it has to read as a warning at a glance.
    */
-  destructive: '#E63950',
+  destructive: palette.red,
 
   /**
    * The rose accent on the Add Friends screen's "See all". Sampled off the
@@ -135,7 +139,8 @@ export const colors = {
 
   /** Scrims. */
   scrim: 'rgba(0,0,0,0.45)',
-  scrimLight: 'rgba(28,26,24,0.18)',
+  /** `palette.black` (#141414) at 18% — the dim behind a dialog. */
+  scrimLight: 'rgba(20,20,20,0.18)',
   /**
    * The wash under a numeral or label printed straight onto a photo, where
    * there is no room for a plate behind it — the calendar's day numbers. Held
@@ -151,14 +156,6 @@ export const colors = {
    */
   scrimLock: 'rgba(20,20,20,0.88)',
 
-  /**
-   * Washes that sit *on* glass rather than on a background. They are black at a
-   * few percent rather than a grey fill, so they darken whatever the lens is
-   * sampling instead of covering it — a solid chip here would read as a card on
-   * the dialog rather than a frosted pill in it.
-   */
-  frostField: 'rgba(0,0,0,0.06)',
-  frostAction: 'rgba(0,0,0,0.07)',
   /** The barely-there dim behind a popover; the lens does the rest. */
   frostBackdrop: 'rgba(0,0,0,0.04)',
 

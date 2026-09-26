@@ -406,7 +406,9 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    // The palette's fill grey rather than the warmer `divider`, so the
+    // screen keeps to My Profile's colours.
+    borderBottomColor: colors.surfaceSunken,
   },
   rowLabel: {
     flex: 1,

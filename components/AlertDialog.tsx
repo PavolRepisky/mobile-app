@@ -91,7 +91,7 @@ export function AlertDialog({
               {message ? (
                 <Text
                   variant="body"
-                  color={colors.inkSoft}
+                  color={colors.inkMuted}
                   style={styles.message}
                 >
                   {message}
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     height: 52,
     borderRadius: radii.pill,
-    backgroundColor: colors.frostField,
+    backgroundColor: colors.surfaceSunken,
     paddingHorizontal: spacing.xl,
     fontFamily: fonts.body,
     fontSize: 16,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     // Reads as a frosted pill on the glass rather than a grey chip on a card,
     // which is what the same wash does on the tab bar's active tab.
-    backgroundColor: colors.frostAction,
+    backgroundColor: colors.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },

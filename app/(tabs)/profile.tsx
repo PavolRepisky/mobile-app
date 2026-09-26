@@ -707,7 +707,6 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={yearSheetOpen}
         onDismiss={() => setYearSheetOpen(false)}
-        handleColor={colors.surfaceSunken}
       >
         <Text variant="sectionTitleXs" center>
           Year
@@ -736,7 +735,6 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={codeOpen}
         onDismiss={() => setCodeOpen(false)}
-        handleColor={colors.surfaceSunken}
       >
         <View style={styles.codeSheet}>
           <Text variant="sectionTitleXs" center>

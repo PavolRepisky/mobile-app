@@ -33,7 +33,7 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 
 ## Choosing tokens
 
-**Colour** — five codes carry a page, defined once as `palette` in
+**Colour** — five codes carry a page, plus one red for danger, defined once as `palette` in
 `theme.ts` and reached through the semantic tokens that point at them:
 
 | palette | code | token | for |
@@ -42,13 +42,15 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 | `white` | `#FFFFFF` | `surface` · `backgroundPlain` · `inkInverse` | page, cards, type on photos |
 | `greyDark` | `#9C9C9C` | `inkMuted` | secondary text people still read: handles, captions, past dates |
 | `greyLight` | `#D7D6D3` | `inkGhost` | not yet / not available: future dates, unfinished segments, disabled arrows |
-| `greyFill` | `#F2F2F2` | `surfaceSunken` | fills: cards, calendar cells, tracks, a picker's band |
+| `greyFill` | `#F2F2F2` | `surfaceSunken` · `backgroundAlt` | fills: cards, calendar cells, tracks, a picker's band, the Settings page |
+| `red` | `#E63950` | `destructive` | the action that can't be taken back — nothing else |
 
 Beside them sits one accent, `gradients.accent` — peach `#F7C3A0` into rose
 `#EFA3B7` into lavender `#D8C6EE`, stored in the order it is drawn. It is the
 colour of progress: the profile's task ring and challenge bar.
 
-My Profile uses these and nothing else. Reach for them first on any page; the
+My Profile and Settings use these and nothing else; so do the shared
+dialog, photo viewer and bottom sheets. Reach for them first on any page; the
 older in-between greys (`inkFaded`, `inkSoft`, `field`, `divider`) remain for
 screens that already use them. Never use `palette` outside `theme.ts` — code
 names the role (`inkMuted`), not the shade (`greyDark`).
@@ -58,7 +60,7 @@ names the role (`inkMuted`), not the shade (`greyDark`).
 Every screen in the app sits on the same white, `Screen`/`ScreenScroll`'s
 default `plain` tone (`backgroundPlain` `#FFFFFF`) — the tab roots, a
 challenge's feed, a friend's day, all of it — with one exception: Settings
-sits on `alt` (`backgroundAlt` `#F8F6F5`), because its groups are white
+sits on `alt` (`backgroundAlt`, the palette's `#F2F2F2`), because its groups are white
 cards and on a white page they'd dissolve. `app` (`background` `#F8F5F0`)
 and `warm` (`backgroundWarm` `#FBF6F3`) remain available tones on the
 component for a screen that deliberately wants to break from the white —
