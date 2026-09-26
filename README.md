@@ -80,7 +80,7 @@ headlines use them together.
 
 ```
 app/                     routes (Expo Router)
-  (tabs)/                Challenges · Community · Tasks · Calendar · Profile
+  (tabs)/                Challenges · Community · Tasks · Profile
   account/ challenge/ day/ feed/ friend/   pushed + modal routes
 components/              shared UI
 constants/theme.ts       design tokens
@@ -91,8 +91,8 @@ lib/                     date/word formatting
 
 The tab bar is a floating pill drawn over the content, built on the headless
 `expo-router/ui` tabs so it can be positioned freely. Bar order is
-Discover · Friends · To do · Calendar · Profile while **To do** is the app's
-real home and the initial route.
+Challenges · Community · Tasks · Profile while **Tasks** is the app's real
+home and the initial route. The month calendar lives inside Profile.
 
 ## State
 

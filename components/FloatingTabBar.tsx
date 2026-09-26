@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 
-export type TabIcon = 'discover' | 'community' | 'tasks' | 'calendar' | 'profile';
+export type TabIcon = 'discover' | 'community' | 'tasks' | 'profile';
 
 /** The filled centre tab's disc. Sized to sit inside the bar with air around it. */
 const FILLED_SIZE = 52;
@@ -52,16 +52,6 @@ function Glyph({
         <Ionicons
           name={active ? 'camera' : 'camera-outline'}
           size={size + 2}
-          color={color}
-        />
-      );
-    // The month grid of proof photos is a record of the days gone by, so the
-    // tab is dated rather than starred.
-    case 'calendar':
-      return (
-        <Ionicons
-          name={active ? 'calendar' : 'calendar-outline'}
-          size={size}
           color={color}
         />
       );

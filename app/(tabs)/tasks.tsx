@@ -134,7 +134,7 @@ export default function TasksScreen() {
   const [doneFor, setDoneFor] = useState<{ taskId: string; day: number } | null>(null);
 
   // Lines the title up on the same row every other tab root's corner button
-  // sits on, the way Discover's and Calendar's own titles do.
+  // sits on, the way Discover's own title does.
   const headerTop = Math.max(profileActionTop, topPadding(insets.top));
   const titleOffset = headerTop - topPadding(insets.top);
 
@@ -152,7 +152,7 @@ export default function TasksScreen() {
           onClose={() => setCameraDismissed(true)}
         />
       ) : (
-        // Plain, centred title — the same header Discover and Calendar use —
+        // Plain, centred title — the same header Discover uses —
         // naming what the page holds rather than an identity of its own. The
         // settings glyph is laid out the way My Profile lays out its own: a
         // spacer the glyph's width on the left so the title centres on the
