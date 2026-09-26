@@ -59,7 +59,7 @@ const PROGRESS_HEIGHT = 5;
 
 /** Wide enough for "Grid" and "Month" with their glyphs; the pill track
  * splits it evenly so the chip slides between two fixed stops. */
-const DAYS_SWITCH_WIDTH = 210;
+const DAYS_SWITCH_WIDTH = 190;
 
 /** Same hero circle the to-do ring and a friend's profile share — this is
  * the one place on the app's own profile that gets to be that big. */

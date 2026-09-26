@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     height: PILL_HEIGHT,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderRadius: radii.pill,
   },
   // White on the grey track, lifted a touch so it reads as the chip that
