@@ -381,6 +381,17 @@ export const type = {
     lineHeight: 18,
     letterSpacing: bodyTracking,
   },
+  /**
+   * `labelBold`, the last step up the ramp — the heaviest cut Quicksand has at
+   * label size. My Profile's "Day N / 75", which has to carry as much weight
+   * as the challenge name beside it without growing to its size.
+   */
+  labelHeavy: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: bodyTracking,
+  },
   caption: {
     fontFamily: fonts.bodyLight,
     fontSize: 13,

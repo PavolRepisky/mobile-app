@@ -457,12 +457,11 @@ export default function ProfileScreen() {
         {/* The challenge the ring is measuring, how far into it you are, and
             a way into its page. Set in a lighter cut of the grey the ring's
             open segments wear, so the gauge and the challenge it measures
-            read as one thing. Fully rounded, a pill like the switch and the
-            progress bar it carries. */}
+            read as one thing. */}
         <Card
           flat
           padded={false}
-          radius={radii.pill}
+          radius={radii.md}
           onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
           accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
           accessibilityHint="Opens the challenge"
@@ -473,9 +472,9 @@ export default function ProfileScreen() {
               <Text variant="cardTitleBold" numberOfLines={1} style={styles.challengeName}>
                 {challenge.name}
               </Text>
-              <Text variant="labelBold">
+              <Text variant="labelHeavy">
                 Day {currentDay}
-                <Text variant="labelBold" color={colors.inkFaded}>
+                <Text variant="labelHeavy" color={colors.inkFaded}>
                   {` / ${totalDays}`}
                 </Text>
               </Text>
@@ -510,7 +509,7 @@ export default function ProfileScreen() {
         </Card>
 
         <View style={styles.daysHeader}>
-          <Text variant="sectionTitle">Days</Text>
+          <Text variant="sectionTitle">Your Days</Text>
           <SegmentedTabs
             variant="pill"
             options={[
