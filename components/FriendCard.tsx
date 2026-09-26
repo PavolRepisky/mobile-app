@@ -14,7 +14,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, radii, shadows, spacing } from '@/constants/theme';
 import { REACTIONS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';
@@ -82,35 +82,24 @@ function fakeCount(key: string, min: number, max: number): number {
 }
 
 /**
- * How each reaction is drawn and read out, and the range its made-up count is
- * drawn from — hearts the most common, laughs the rarest, so the row reads
- * like a real post's rather than four equal numbers. Drawn as Ionicons, the
- * app's one icon set, rather than the emoji they're stored as: outline until
- * it's yours, filled once it is. Ionicons has no clapping hands, so the clap
- * is a thumbs-up.
+ * How each reaction is read out, and the range its made-up count is drawn
+ * from — hearts the most common, laughs the rarest, so a post's tally reads
+ * like a real one rather than four equal numbers.
  */
-const REACTION_INFO: Record<
-  (typeof REACTIONS)[number],
-  {
-    name: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    iconSelected: keyof typeof Ionicons.glyphMap;
-    min: number;
-    max: number;
-  }
-> = {
-  '❤️': { name: 'Love', icon: 'heart-outline', iconSelected: 'heart', min: 40, max: 220 },
-  '🔥': { name: 'Fire', icon: 'flame-outline', iconSelected: 'flame', min: 10, max: 90 },
-  '👏': { name: 'Nice', icon: 'thumbs-up-outline', iconSelected: 'thumbs-up', min: 5, max: 60 },
-  '😂': { name: 'Laugh', icon: 'happy-outline', iconSelected: 'happy', min: 0, max: 25 },
+const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: number; max: number }> = {
+  '❤️': { name: 'Love', min: 40, max: 220 },
+  '🔥': { name: 'Fire', min: 10, max: 90 },
+  '👏': { name: 'Clap', min: 5, max: 60 },
+  '😂': { name: 'Laugh', min: 0, max: 25 },
 };
 
-/** A reaction's glyph, sized to sit on the pill's count line. */
-const REACTION_ICON = 16;
-
-/** A reaction pill's height — a thumb-sized target that still sits four
- * across with the comment count on one row. */
-const REACTION_CHIP = 32;
+/** The react button riding the photo's corner — a touch under the header's
+ * round buttons, so it sits on the picture without covering much of it. */
+const REACT_BUTTON = 40;
+/** The react button's own glyph before you've reacted. */
+const REACT_ICON = 22;
+/** How many of the most-used reactions the tally under the photo shows. */
+const TALLY_TOP = 3;
 
 /**
  * A friend's day as one flat post — avatar, name and the post-detail screen's
@@ -139,11 +128,18 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
   // yours again takes it back.
   const mine = postReactions[postId] ?? null;
   const reactions = REACTIONS.map((emoji) => {
-    const { name, icon, iconSelected, min, max } = REACTION_INFO[emoji];
+    const { name, min, max } = REACTION_INFO[emoji];
     const selected = mine === emoji;
     const count = fakeCount(`${postId}-${emoji}`, min, max) + (selected ? 1 : 0);
-    return { emoji, name, icon: selected ? iconSelected : icon, selected, count };
+    return { emoji, name, selected, count };
   });
+  const reactionTotal = reactions.reduce((sum, reaction) => sum + reaction.count, 0);
+  // The tally under the photo: the few most-used reactions, most first.
+  const tally = reactions
+    .filter((reaction) => reaction.count > 0)
+    .sort((x, y) => y.count - x.count)
+    .slice(0, TALLY_TOP);
+  const [trayOpen, setTrayOpen] = useState(false);
 
   const comments = mergeCommentThread(
     post ? [] : friend.comments ?? [],
@@ -351,6 +347,51 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                       ))}
                     </View>
                   ) : null}
+
+                  {/* Reacting lives on the photo, the way a story's reply
+                      does: one button in the corner that opens the four
+                      emoji over it. It shows your own reaction once you've
+                      left one. Hidden while locked, like the stamp. */}
+                  {locked ? null : (
+                    <>
+                      {trayOpen ? (
+                        <View style={styles.reactTray}>
+                          {reactions.map((reaction) => (
+                            <Pressable
+                              key={reaction.emoji}
+                              accessibilityRole="button"
+                              accessibilityLabel={reaction.name}
+                              accessibilityState={{ selected: reaction.selected }}
+                              onPress={() => {
+                                reactToPost(postId, reaction.emoji);
+                                setTrayOpen(false);
+                              }}
+                              style={({ pressed }) => [
+                                styles.reactOption,
+                                reaction.selected && styles.reactOptionSelected,
+                                pressed && styles.pressed,
+                              ]}
+                            >
+                              <Text variant="sectionHeading">{reaction.emoji}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      ) : null}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={mine ? 'Change your reaction' : 'React'}
+                        accessibilityState={{ expanded: trayOpen }}
+                        onPress={() => setTrayOpen((open) => !open)}
+                        style={({ pressed }) => [styles.reactButton, pressed && styles.pressed]}
+                      >
+                        {mine ? (
+                          <Text variant="copy">{mine}</Text>
+                        ) : (
+                          <Ionicons name="happy-outline" size={REACT_ICON} color={colors.ink} />
+                        )}
+                      </Pressable>
+                    </>
+                  )}
                 </>
               ) : null}
             </View>
@@ -359,37 +400,13 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
       ) : null}
 
       <View style={styles.actions}>
-        {/* The reactions lead the row, one pill each; the one you left is
-            set in ink. The comments sit apart at the far end. */}
-        <View style={styles.reactions}>
-          {reactions.map((reaction) => (
-            <Pressable
-              key={reaction.emoji}
-              accessibilityRole="button"
-              accessibilityLabel={`${reaction.name}, ${reaction.count}`}
-              accessibilityState={{ selected: reaction.selected }}
-              onPress={() => reactToPost(postId, reaction.emoji)}
-              style={({ pressed }) => [
-                styles.reaction,
-                reaction.selected && styles.reactionSelected,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons
-                name={reaction.icon}
-                size={REACTION_ICON}
-                color={reaction.selected ? colors.inkInverse : colors.ink}
-              />
-              {reaction.count > 0 ? (
-                <Text
-                  variant="metaBold"
-                  color={reaction.selected ? colors.inkInverse : colors.ink}
-                >
-                  {reaction.count}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
+        {/* The reactions' tally: the most-used few and the total. Picking
+            one happens on the photo itself. */}
+        <View style={styles.actionGroup}>
+          {tally.length ? (
+            <Text variant="meta">{tally.map((reaction) => reaction.emoji).join('')}</Text>
+          ) : null}
+          <Text variant="metaBold">{reactionTotal}</Text>
         </View>
 
         <View style={styles.actionGroup}>
@@ -608,22 +625,40 @@ const styles = StyleSheet.create({
     gap: layout.inline,
     marginTop: layout.heading,
   },
-  reactions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.stack,
-  },
-  reaction: {
-    height: REACTION_CHIP,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.line,
-    paddingHorizontal: layout.pill,
+  // Both anchored to the photo's bottom-right corner, clear of the page dots
+  // centred along the same edge; the tray opens above the button.
+  reactButton: {
+    position: 'absolute',
+    right: layout.heading,
+    bottom: layout.heading,
+    width: REACT_BUTTON,
+    height: REACT_BUTTON,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceSunken,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    ...shadows.soft,
   },
-  reactionSelected: {
-    backgroundColor: colors.ink,
+  reactTray: {
+    position: 'absolute',
+    right: layout.heading,
+    bottom: layout.heading + REACT_BUTTON + layout.stack,
+    flexDirection: 'row',
+    gap: layout.line,
+    padding: layout.line,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    ...shadows.soft,
+  },
+  reactOption: {
+    width: REACT_BUTTON,
+    height: REACT_BUTTON,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reactOptionSelected: {
+    backgroundColor: colors.surfaceSunken,
   },
   actionGroup: {
     flexDirection: 'row',
