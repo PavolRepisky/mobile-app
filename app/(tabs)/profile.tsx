@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Defs, LinearGradient, Mask, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -121,13 +121,44 @@ function ringSegment(
 }
 
 /**
- * Where the accent runs across the ring's box, as fractions of it: from the
- * left edge a little above centre to the bottom-right corner. That lands the
- * lavender down the left side, the rose across the top right and the peach at
- * the bottom right — the way the mock colours its ring.
+ * The accent runs *around* the ring rather than across its box: lavender
+ * where the first segment starts at 12 o'clock, rose halfway round, peach by
+ * the time the last segment closes. SVG has no conic gradient, so the sweep
+ * is drawn as this many thin arcs, each one flat-coloured for its angle — at
+ * a 4° step the banding is below what the eye picks out on a 6pt stroke.
  */
-const RING_GRADIENT_FROM = { x: 0, y: 0.3 };
-const RING_GRADIENT_TO = { x: 1, y: 0.9 };
+const RING_SWEEP_SLICES = 90;
+/** How far each slice overlaps the next, along the ring — butted edge to
+ * edge, anti-aliasing leaves a hairline seam of background between them. */
+const RING_SWEEP_OVERLAP = 0.6;
+
+/** Blends two `#RRGGBB` colours, `t` of the way from `a` to `b`. */
+function mixHex(a: string, b: string, t: number): string {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2]
+    .map((i) =>
+      Math.round(channel(a, i) + (channel(b, i) - channel(a, i)) * t)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
+
+/** The accent at `t` of the way round the ring, spread evenly over its stops. */
+function accentAt(t: number): string {
+  const stops = gradients.profileAccent;
+  const scaled = Math.min(Math.max(t, 0), 1) * (stops.length - 1);
+  const i = Math.min(Math.floor(scaled), stops.length - 2);
+  return mixHex(stops[i], stops[i + 1], scaled - i);
+}
+
+/** The sweep's slices, clockwise from 12 o'clock. */
+const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
+  rotation: -90 + (i * 360) / RING_SWEEP_SLICES,
+  // Coloured at the slice's middle, so the first and last land just inside
+  // the two end stops rather than exactly on them.
+  color: accentAt((i + 0.5) / RING_SWEEP_SLICES),
+}));
 
 /** The badge sits centred on the bottom of the ring, the way the "Day N" pill
  * sits on the story ring — sized to that overlap, not to the type scale. */
@@ -329,28 +360,12 @@ export default function ProfileScreen() {
                 segments wear the profile's own warm accent; open ones take
                 the empty-day grey the story ring uses.
 
-                The gradient is laid once across the whole ring and shown
-                through the done segments as a mask. Painted onto each
-                segment instead, it would turn with that segment's own
-                rotation and every segment would come out the same hue. */}
+                The sweep is laid once around the whole ring and shown
+                through the done segments as a mask, so a segment's colour
+                is simply where it sits on the circle — the first one
+                lavender, the last one peach, whichever tasks are done. */}
             <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
               <Defs>
-                <LinearGradient
-                  id="ringGradient"
-                  gradientUnits="userSpaceOnUse"
-                  x1={RING_SIZE * RING_GRADIENT_FROM.x}
-                  y1={RING_SIZE * RING_GRADIENT_FROM.y}
-                  x2={RING_SIZE * RING_GRADIENT_TO.x}
-                  y2={RING_SIZE * RING_GRADIENT_TO.y}
-                >
-                  {gradients.profileAccent.map((stop, index) => (
-                    <Stop
-                      key={stop}
-                      offset={index / (gradients.profileAccent.length - 1)}
-                      stopColor={stop}
-                    />
-                  ))}
-                </LinearGradient>
                 {/* White is what a mask lets through — the done segments'
                     shape, not a colour anyone sees. */}
                 <Mask
@@ -374,12 +389,21 @@ export default function ProfileScreen() {
                   ? null
                   : ringSegment(segment, index, colors.inkGhost, tasks.length > 1),
               )}
-              <Rect
-                width={RING_SIZE}
-                height={RING_SIZE}
-                fill="url(#ringGradient)"
-                mask="url(#ringDone)"
-              />
+              <G mask="url(#ringDone)">
+                {ringSweep.map((slice, index) => (
+                  <Circle
+                    key={index}
+                    cx={RING_SIZE / 2}
+                    cy={RING_SIZE / 2}
+                    r={RING_RADIUS}
+                    stroke={slice.color}
+                    strokeWidth={RING_STROKE}
+                    fill="none"
+                    strokeDasharray={`${RING_CIRCUMFERENCE / RING_SWEEP_SLICES + RING_SWEEP_OVERLAP} ${RING_CIRCUMFERENCE}`}
+                    transform={`rotate(${slice.rotation} ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+                  />
+                ))}
+              </G>
             </Svg>
 
             {/* The disc behind the photo is the avatar's own shape, so the
