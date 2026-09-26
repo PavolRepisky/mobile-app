@@ -17,6 +17,7 @@ import {
 } from '@/components/CalendarMonth';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { DayStamp } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
 import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Placeholder } from '@/components/Placeholder';
@@ -463,6 +464,11 @@ export default function ProfileScreen() {
                         )
                       }
                     />
+
+                    {/* The same stamp the post carries once it's opened, so
+                        the tile already reads as that post rather than a
+                        loose pile of photos. */}
+                    <DayStamp day={post.day} compact />
 
                     {/* Only a day that fell short says so — a finished day is
                         just its photos. */}

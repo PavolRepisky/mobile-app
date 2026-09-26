@@ -289,29 +289,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                                 number floating over a blur reads as a
                                 teaser, not a post. */}
                             {locked ? null : (
-                              <View style={styles.dayStamp} pointerEvents="none">
-                                <LinearGradient
-                                  colors={gradients.stampBand}
-                                  style={styles.dayStampBand}
-                                />
-                                <Text
-                                  variant="stamp"
-                                  color={colors.surface}
-                                  numberOfLines={1}
-                                  style={[styles.dayStampShadow, styles.dayStampKicker]}
-                                >
-                                  {challenge.name}
-                                </Text>
-                                <Text
-                                  variant="poster"
-                                  color={colors.surface}
-                                  numberOfLines={1}
-                                  adjustsFontSizeToFit
-                                  style={styles.dayStampShadow}
-                                >
-                                  Day {day}
-                                </Text>
-                              </View>
+                              <DayStamp day={day} kicker={challenge.name} />
                             )}
                           </View>
                         );
@@ -402,6 +380,53 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
   );
 }
 
+export interface DayStampProps {
+  day: number;
+  /** Letterspaced over the numeral — the challenge's name on a full post.
+   * Left off a grid tile, where it would shrink to an unreadable hairline. */
+  kicker?: string;
+  /** Tighter side clearance for a thumbnail a third of the page wide. */
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * "Day N" stamped across a post's photo grid, over a band of shade — shared
+ * by the post itself and the profile grid's tile for it, so a day wears the
+ * same stamp before it's opened as after. One line at any length: a long day
+ * shrinks to fit rather than wrapping, which is also what scales the poster
+ * numeral down to a thumbnail.
+ */
+export function DayStamp({ day, kicker, compact, style }: DayStampProps) {
+  return (
+    <View
+      style={[styles.dayStamp, compact && styles.dayStampCompact, style]}
+      pointerEvents="none"
+    >
+      <LinearGradient colors={gradients.stampBand} style={styles.dayStampBand} />
+      {kicker ? (
+        <Text
+          variant="stamp"
+          color={colors.surface}
+          numberOfLines={1}
+          style={[styles.dayStampShadow, styles.dayStampKicker]}
+        >
+          {kicker}
+        </Text>
+      ) : null}
+      <Text
+        variant="poster"
+        color={colors.surface}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        style={styles.dayStampShadow}
+      >
+        Day {day}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   identity: {
     flexDirection: 'row',
@@ -441,6 +466,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: screenPadding,
+  },
+  dayStampCompact: {
+    paddingHorizontal: spacing.sm,
   },
   dayStampBand: {
     ...absoluteFill,
