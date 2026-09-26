@@ -68,6 +68,8 @@ export interface FriendCardProps {
     id: string;
     day: number;
     tasks: Friend['tasks'];
+    /** That day's own caption. */
+    caption?: string;
   };
 }
 
@@ -129,7 +131,9 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
       seed: task.photoSeed,
     }));
 
-  const doneLabels = postTasks.filter((task) => task.done).map((task) => task.label);
+  // What they wrote for the day, not a list of what they ticked off — the
+  // photos already show that.
+  const caption = post ? post.caption : friend.caption;
 
   // With more than one photo, the carousel opens on the merged grid the
   // static card used to show outright — the post still reads as that tile
@@ -353,7 +357,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
         </View>
       </View>
 
-      {doneLabels.length ? (
+      {caption ? (
         // Reading text at the `copy` level, in ink; the handle leading it
         // steps back to the text grey — the hierarchy has no bold at this
         // size, so colour carries the difference, and the post itself reads
@@ -362,7 +366,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
           <Text variant="copy" color={colors.inkMuted}>
             {friend.handle}{' '}
           </Text>
-          {doneLabels.join(' · ')}
+          {caption}
         </Text>
       ) : null}
 
@@ -477,11 +481,12 @@ const styles = StyleSheet.create({
     marginLeft: layout.inline,
   },
   // A bare step rather than a `layout` role: the air either side of the
-  // separator dot is an optical call, tighter than `inline` would set it.
+  // separator dot is an optical call — close enough that the challenge, the
+  // dot and the day read as one line of detail.
   subtitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs + spacing.xs / 2,
   },
   challengeLink: {
     textDecorationLine: 'underline',

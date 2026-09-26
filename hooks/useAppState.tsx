@@ -94,6 +94,9 @@ interface AppState {
   tabBarHidden: boolean;
 
   progress: Progress;
+  /** What you wrote under each day's post, by challenge day — the caption
+   * your own posts show. A day can go without one. */
+  captions: Record<number, string>;
   /** The emoji left on a feed post, by post id — also used for a friend's
    * post on the Friends tab, keyed by their friend id. */
   postReactions: Record<string, string>;
@@ -188,6 +191,15 @@ const AppContext = createContext<AppContextValue | null>(null);
 // ---------------------------------------------------------------------------
 
 const SEED_DAY = 5;
+
+/** The seeded account's own captions for the days it has already posted —
+ * today, still in progress, has none yet. */
+const SEED_CAPTIONS: Readonly<Record<number, string>> = {
+  1: 'Day one done. Slow start, but I showed up.',
+  2: 'Legs are sore and the bottle is empty. Counting that as a win.',
+  3: 'Sunday meal prep paid off today.',
+  4: "Almost skipped the walk. So glad I didn't.",
+};
 
 /**
  * How long ago the seeded account downloaded the app. Deliberately well before
@@ -314,6 +326,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
   );
+  const [captions, setCaptions] = useState<Record<number, string>>(SEED_CAPTIONS);
   // Seeded from the posts that ship already reacted to, so those stay as they
   // are until someone taps the emoji back off.
   const [postReactions, setPostReactions] = useState<Record<string, string>>(
@@ -402,6 +415,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTasksState(tinted(next.tasks));
       setTotalDays(next.defaultDays);
       setProgress({});
+      setCaptions({});
     },
     [customChallenges],
   );
@@ -486,6 +500,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const restartChallenge = useCallback(() => {
     setStartDateState(startOfToday());
     setProgress({});
+    setCaptions({});
   }, []);
 
   const toggleTask = useCallback(
@@ -625,6 +640,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setStartDateState(addDays(startOfToday(), -(SEED_DAY - 1)));
     setTotalDays(SEED_CHALLENGE.defaultDays);
     setProgress(seedProgress(SEED_CHALLENGE.tasks));
+    setCaptions(SEED_CAPTIONS);
     setProfile({
       name: 'Julia',
       handle: '@julia_575',
@@ -648,6 +664,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       paused,
       tabBarHidden,
       progress,
+      captions,
       postReactions,
       friendComments,
       inviteCode,
@@ -687,7 +704,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       profile, installedAt, challenge, tasks, startDate, totalDays,
-      paused, tabBarHidden, progress, postReactions, friendComments, inviteCode, trophies,
+      paused, tabBarHidden, progress, captions, postReactions, friendComments, inviteCode, trophies,
       currentDay, endDate, missedDays, livesLeft, hasPhotographedTask, customChallenges,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,

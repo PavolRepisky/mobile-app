@@ -44,7 +44,7 @@ export default function DayPostScreen() {
   // that runs lower.
   const headerTop = Math.max(profileActionTop, topPadding(insets.top));
 
-  const { profile, tasks, progress, currentDay, trophies, livesLeft } = useApp();
+  const { profile, tasks, progress, captions, currentDay, trophies, livesLeft } = useApp();
 
   // You, in the same `Friend` shape Community builds for your own card —
   // only the identity row reads off it; each day's photos come in through
@@ -155,7 +155,7 @@ export default function DayPostScreen() {
           >
             <FriendCard
               friend={me}
-              post={{ id: `day-${day}`, day, tasks: tasksFor(day) }}
+              post={{ id: `day-${day}`, day, tasks: tasksFor(day), caption: captions[day] }}
             />
           </View>
         ))}

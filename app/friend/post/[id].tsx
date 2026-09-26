@@ -106,7 +106,7 @@ export default function FriendPostScreen() {
           </Text>
         </View>
 
-        {days.map(({ day, tasks }) => (
+        {days.map(({ day, tasks, caption }) => (
           <View
             key={day}
             ref={(r) => {
@@ -119,7 +119,11 @@ export default function FriendPostScreen() {
                 profile this feed was already opened from. */}
             <FriendCard
               friend={friend}
-              post={day === friend.day ? undefined : { id: `${friend.id}-day${day}`, day, tasks }}
+              post={
+                day === friend.day
+                  ? undefined
+                  : { id: `${friend.id}-day${day}`, day, tasks, caption }
+              }
             />
           </View>
         ))}

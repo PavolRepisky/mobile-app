@@ -85,6 +85,9 @@ export interface Friend {
    * rather than replacing them.
    */
   comments?: readonly CommentEntry[];
+  /** What they wrote under today's post, in their own words — the post's
+   * caption. A day can go without one. */
+  caption?: string;
   /**
    * Earlier days, shown as extra tiles in their profile grid so it always
    * has more than one post to browse — `day`/`tasks` above stay what the
@@ -93,6 +96,8 @@ export interface Friend {
    */
   pastPosts?: readonly {
     day: number;
+    /** That day's caption, as `caption` is today's. */
+    caption?: string;
     tasks: readonly {
       label: string;
       done: boolean;
@@ -119,6 +124,7 @@ export const FRIENDS: readonly Friend[] = [
     handle: '@lily.days',
     avatar: require('../assets/friends/lily.jpg'),
     day: 3,
+    caption: 'Lunch outside and a full bottle before five. Small wins.',
     bio: null,
     postedAgo: '15h ago',
     friendCount: 18,
@@ -146,6 +152,7 @@ export const FRIENDS: readonly Friend[] = [
     pastPosts: [
       {
         day: 2,
+        caption: 'Rice bowl, then a run in the drizzle. Day two, done.',
         tasks: [
           {
             label: CHALLENGE_TASKS[0],
@@ -192,6 +199,7 @@ export const FRIENDS: readonly Friend[] = [
     // Not used as an avatar anywhere else in the app.
     avatar: require('../assets/ambassadors/amb-2.jpg'),
     day: 12,
+    caption: 'Twelve days in and my mornings finally feel like mine.',
     bio: null,
     postedAgo: '3h ago',
     friendCount: 24,
@@ -219,6 +227,7 @@ export const FRIENDS: readonly Friend[] = [
     pastPosts: [
       {
         day: 11,
+        caption: 'Rest day energy, but the walk still happened.',
         tasks: [
           {
             label: CHALLENGE_TASKS[0],
@@ -286,6 +295,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     handle: '@mia.moves',
     avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
     day: 12,
+    caption: 'Up at five, lights on, no excuses.',
     bio: 'purple lights and 5am alarms',
     postedAgo: '2h ago',
     friendCount: 31,
@@ -301,6 +311,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     pastPosts: [
       {
         day: 11,
+        caption: 'Hike before work, a book on the bench after. Good day.',
         tasks: tasksDone([
           { time: '7:20 AM', photo: require('../assets/feed/posts/mountain-hike.jpg') },
           null,
@@ -339,6 +350,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     handle: '@sofia.sleeps',
     avatar: require('../assets/feed/author-hair-flip.jpg'),
     day: 28,
+    caption: 'Four weeks. I did not think I would get this far.',
     bio: 'day 28 and finally sleeping properly',
     postedAgo: '6h ago',
     friendCount: 40,
@@ -354,6 +366,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     pastPosts: [
       {
         day: 27,
+        caption: 'Tired today, showed up anyway.',
         tasks: tasksDone([
           { time: '8:40 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
           null,
@@ -381,6 +394,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     handle: '@elena_drives',
     avatar: require('../assets/feed/author-car-night.jpg'),
     day: 41,
+    caption: 'Day 41 and still loving the early swims.',
     bio: 'late drives, early gym',
     postedAgo: '20m ago',
     friendCount: 27,
@@ -396,6 +410,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     pastPosts: [
       {
         day: 40,
+        caption: 'Meal prep saved me on a crazy day.',
         tasks: tasksDone([
           { time: '6:15 AM', photo: require('../assets/feed/posts/post-workout-smoothie.jpg') },
           null,
@@ -434,6 +449,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     handle: '@norainthehood',
     avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
     day: 7,
+    caption: 'A week in! Hardest part is the water, weirdly.',
     bio: 'same hoodie in every photo, sorry',
     postedAgo: '1d ago',
     friendCount: 15,
@@ -449,6 +465,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     pastPosts: [
       {
         day: 6,
+        caption: 'Kept it simple today and it still counts.',
         tasks: tasksDone([
           null,
           { time: '4:45 PM', photo: require('../assets/feed/posts/canal-dog-walk.jpg') },
@@ -476,6 +493,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     handle: '@camilaglow',
     avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
     day: 55,
+    caption: '55 down. Twenty to go and I can feel the difference.',
     bio: 'started for the glow, stayed for the walks',
     postedAgo: '9h ago',
     friendCount: 52,
@@ -491,6 +509,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
     pastPosts: [
       {
         day: 54,
+        caption: 'Slow run, big smile.',
         tasks: tasksDone([
           { time: '7:45 AM', photo: require('../assets/wall/workouts/home-mat-core.jpg') },
           null,

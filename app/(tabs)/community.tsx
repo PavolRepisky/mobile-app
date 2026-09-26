@@ -37,8 +37,16 @@ const CORNER_SIZE = 46;
 export default function CommunityScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { hasPhotographedTask, profile, tasks, progress, currentDay, trophies, livesLeft } =
-    useApp();
+  const {
+    hasPhotographedTask,
+    profile,
+    tasks,
+    progress,
+    captions,
+    currentDay,
+    trophies,
+    livesLeft,
+  } = useApp();
   const [tab, setTab] = useState<Tab>('friends');
 
   // The shared line the title and the corner button sit on — see Challenges.
@@ -68,6 +76,7 @@ export default function CommunityScreen() {
       friendCount: FRIENDS.length,
       trophies,
       livesLeft,
+      caption: captions[currentDay],
       tasks: tasks.map((task) => {
         const entry = progress[currentDay]?.[task.id];
         return {
@@ -79,7 +88,7 @@ export default function CommunityScreen() {
         };
       }),
     };
-  }, [hasPhotographedTask, profile, tasks, progress, currentDay, trophies, livesLeft]);
+  }, [hasPhotographedTask, profile, tasks, progress, captions, currentDay, trophies, livesLeft]);
 
   const posts = tab === 'friends' ? FRIENDS : FEED_AUTHORS;
 
