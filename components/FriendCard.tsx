@@ -98,10 +98,14 @@ const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: num
 /** How close two taps have to land to count as a double tap — the window
  * iOS itself gives a double tap. */
 const DOUBLE_TAP_MS = 300;
-/** The heart that pops over the photo on a double tap. */
-const HEART_BURST = 96;
-/** Where the heart lands: small enough to read as dropping into the ❤️ pill. */
-const HEART_LANDED = 0.2;
+/**
+ * The ❤️ that pops over the photo on a double tap: set at the biggest type
+ * level (`hero`, 44) and drawn twice that, since an emoji only takes its
+ * size from its type. Lands at `HEART_LANDED` of that — about the 14pt of
+ * the ❤️ in the pill it drops into.
+ */
+const HEART_SCALE = 2;
+const HEART_LANDED = 0.16;
 
 /** A reaction pill's height — a thumb-sized target that still sits four
  * across with the comment count on one row. */
@@ -417,7 +421,10 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                           { translateY: flight.y },
                           {
                             scale: Animated.multiply(
-                              pop.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
+                              pop.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0.3 * HEART_SCALE, HEART_SCALE],
+                              }),
                               flightScale,
                             ),
                           },
@@ -425,7 +432,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                       },
                     ]}
                   >
-                    <Ionicons name="heart" size={HEART_BURST} color={colors.destructive} />
+                    <Text variant="hero">{LOVE}</Text>
                   </Animated.View>
 
                   {/* Instagram's own multi-photo tell, the post-detail
