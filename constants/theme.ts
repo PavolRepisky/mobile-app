@@ -522,6 +522,42 @@ export const screenPadding = 20;
 /** Breathing room between the status bar and the first thing on a screen. */
 export const screenTopGap = 20;
 
+/**
+ * Spacing by role, settled on My Profile and Settings. `spacing` is the ruler;
+ * these say which mark to use for what, so the same kind of gap is the same
+ * size wherever it turns up instead of whichever step looked right that day.
+ * Reach for a role first; a bare `spacing` step is for an optical nudge.
+ */
+export const layout = {
+  /** The page's side margin. */
+  gutter: screenPadding,
+  /** Under the page's title row, before its first content. */
+  title: spacing.xl,
+  /** Between the big blocks of a page: the challenge card, "Days", a
+   * settings group, the month below the grid. */
+  section: spacing['2xl'],
+  /** Between elements inside one block: avatar to name, a sheet's title,
+   * wheel and button, a month's name to its weekdays. */
+  block: spacing.lg,
+  /** From a heading to what it heads: "Days" to the grid, a group's title
+   * to its card. */
+  heading: spacing.md,
+  /** Between things stacked inside a card: the challenge name row and its
+   * bar, a weekday row and the dates under it. */
+  stack: spacing.sm,
+  /** Between two lines of text that belong together: a handle and the bio. */
+  line: spacing.xs,
+  /** Between things side by side on one row: a name and its day count, a
+   * row's value and its chevron. */
+  inline: spacing.md,
+  /** Inside a card or a list row, every side. */
+  card: spacing.xl,
+  /** Either side of a pill's label: a count badge, a tile's "3/5". */
+  pill: spacing.sm,
+  /** Between tiles in a grid: the day posts, the calendar's cells. */
+  grid: spacing.xs,
+} as const;
+
 export const radii = {
   sm: 10,
   md: 16,

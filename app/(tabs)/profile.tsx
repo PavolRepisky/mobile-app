@@ -33,7 +33,14 @@ import {
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { colors, gradients, radii, screenPadding, shadows, spacing } from '@/constants/theme';
+import {
+  colors,
+  gradients,
+  layout,
+  radii,
+  shadows,
+  spacing,
+} from '@/constants/theme';
 import { WheelPicker } from '@/components/WheelPicker';
 import { useApp, usePostedDays } from '@/hooks/useAppState';
 
@@ -764,15 +771,15 @@ const styles = StyleSheet.create({
   header: {
     minHeight: profileActionButton,
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: layout.title,
   },
   cornerLeft: {
     position: 'absolute',
-    left: screenPadding,
+    left: layout.gutter,
   },
   cornerRight: {
     position: 'absolute',
-    right: screenPadding,
+    right: layout.gutter,
   },
   identity: {
     alignItems: 'center',
@@ -791,13 +798,13 @@ const styles = StyleSheet.create({
   },
   codeSheet: {
     alignItems: 'center',
-    gap: spacing.lg,
-    paddingBottom: spacing.md,
+    gap: layout.block,
+    paddingBottom: layout.block,
   },
   // A solid white square under the code, lifted off the sheet: a scanner
   // needs the code on flat white with a quiet margin round it.
   codeTile: {
-    padding: spacing.lg,
+    padding: layout.block,
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     ...shadows.card,
@@ -821,7 +828,7 @@ const styles = StyleSheet.create({
     height: badgeHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: layout.pill,
     borderRadius: radii.pill,
     backgroundColor: colors.ink,
     // A ring the page's own white so the badge reads as sitting on top of the
@@ -832,29 +839,27 @@ const styles = StyleSheet.create({
   identityText: {
     alignSelf: 'stretch',
     alignItems: 'center',
-    marginTop: spacing.lg + badgeOverhang,
+    marginTop: layout.block + badgeOverhang,
   },
   bio: {
-    marginTop: 2,
+    marginTop: layout.line,
   },
   challengeCard: {
-    marginTop: spacing.xl,
+    marginTop: layout.section,
     // The month view's own filled-cell grey, so the card and the calendar
     // below it read as cut from the same sheet.
     backgroundColor: colors.surfaceSunken,
   },
+  // The card role on every side — the bar gets the same room under it as
+  // the title has over it, so it no longer reads as clipped by the edge.
   challengeBody: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    // A step more under the bar than over the title — the bar sits on the
-    // card's bottom edge otherwise, and reads as clipped by it.
-    paddingBottom: spacing.xl,
-    gap: spacing.sm,
+    padding: layout.card,
+    gap: layout.stack,
   },
   challengeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: layout.inline,
   },
   challengeName: {
     flex: 1,
@@ -886,14 +891,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing['2xl'],
-    marginBottom: spacing.md,
+    marginTop: layout.section,
+    marginBottom: layout.heading,
   },
   daysSwitch: {
     width: DAYS_SWITCH_WIDTH,
   },
   month: {
-    marginBottom: spacing['2xl'],
+    marginBottom: layout.section,
   },
   monthHeader: {
     flexDirection: 'row',
@@ -901,7 +906,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   yearWheel: {
-    marginVertical: spacing.lg,
+    marginVertical: layout.block,
   },
   monthTitle: {
     flexDirection: 'row',
@@ -938,7 +943,7 @@ const styles = StyleSheet.create({
   // full `xs` gap between them.
   postCellWrap: {
     width: '33.333%',
-    padding: spacing.xs / 2,
+    padding: layout.grid / 2,
   },
   postTile: {
     aspectRatio: POST_TILE_RATIO,
@@ -951,7 +956,7 @@ const styles = StyleSheet.create({
     right: spacing.xs,
     bottom: spacing.xs,
     height: TILE_MARK,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: layout.pill,
     borderRadius: radii.pill,
     justifyContent: 'center',
     backgroundColor: colors.surface,

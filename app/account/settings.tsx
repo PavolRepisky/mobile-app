@@ -16,7 +16,7 @@ import {
 } from '@/components/ProfileLayout';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, fonts, radii, screenPadding, spacing } from '@/constants/theme';
+import { colors, layout, radii } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 
 
@@ -383,21 +383,20 @@ const styles = StyleSheet.create({
   header: {
     minHeight: profileActionButton,
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: layout.title,
   },
   cornerLeft: {
     position: 'absolute',
-    left: screenPadding,
+    left: layout.gutter,
   },
   group: {
-    marginBottom: spacing['2xl'],
+    marginBottom: layout.section,
   },
+  // Indented by the card role, so each group's title lines up with the row
+  // text inside the card under it.
   groupTitle: {
-    // The group headings carry the structure of the screen, so they run in the
-    // heavy cut rather than the label default.
-    fontFamily: fonts.bodyBold,
-    marginBottom: spacing.sm,
-    marginLeft: spacing.xs,
+    marginBottom: layout.heading,
+    marginLeft: layout.card,
   },
   groupCard: {
     backgroundColor: colors.surface,
@@ -407,8 +406,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.xl,
+    paddingVertical: layout.card,
+    paddingHorizontal: layout.card,
   },
   rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -420,7 +419,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowValue: {
-    marginRight: spacing.md,
+    marginRight: layout.inline,
   },
   pressed: {
     opacity: 0.7,

@@ -21,7 +21,8 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 3. **All text goes through `@/components/Text`** with a `variant`. Never import
    `Text` from `react-native`. Headlines go through `@/components/Headline`.
 4. **No magic numbers** for padding, margin, gap, radius or shadow. Use
-   `spacing`, `screenPadding`, `radii`, `shadows`. Sizes tied to a specific
+   `layout` (spacing by role) first, then `spacing`, `radii`, `shadows`; a
+   bare `spacing` step is for an optical nudge. Sizes tied to a specific
    drawing (a 46px check circle, a 120px avatar) are fine as named constants.
 5. **Every screen wraps in `Screen` or `ScreenScroll`.** Never hand-roll a
    `SafeAreaView` + `ScrollView` + background colour. Screens under `(tabs)/`
@@ -102,6 +103,24 @@ The older names that meant one of these point at it (`sectionTitle` →
 `pageTitle`, `sectionTitleSm`/`sectionTitleXs` → `sectionHeading`,
 `cardTitleBold` → `itemTitle`, `bodySemi` → `copy`, `labelBold` → `meta`,
 `microBold` → `badge`). Prefer the level names in new code.
+
+**Spacing** — by role, defined once as `layout` in `theme.ts` on top of the
+`spacing` ruler. My Profile and Settings use these for every gap, margin and
+padding:
+
+| role | size | for |
+| --- | --- | --- |
+| `gutter` | 20 | the page's side margin |
+| `title` | 20 | under the page's title row |
+| `section` | 24 | between big blocks: a card, "Days", a settings group |
+| `block` | 16 | between elements inside a block: avatar to name, a sheet's parts |
+| `heading` | 12 | from a heading to what it heads |
+| `stack` | 8 | between things stacked inside a card |
+| `line` | 4 | between two lines of text that belong together |
+| `inline` | 12 | between things side by side on a row |
+| `card` | 20 | inside a card or list row, every side |
+| `pill` | 8 | either side of a pill's label |
+| `grid` | 4 | between tiles in a grid |
 
 **Typeface** — three faces, no exceptions:
 - **Quicksand** — everything, headlines included: body, buttons, labels, tabs,

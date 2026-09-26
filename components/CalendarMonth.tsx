@@ -10,7 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
+import { absoluteFill, colors, layout, radii, shadows, spacing } from '@/constants/theme';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';
 
@@ -343,8 +343,8 @@ function Mosaic({
 const styles = StyleSheet.create({
   weekdays: {
     flexDirection: 'row',
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
+    marginTop: layout.block,
+    marginBottom: layout.stack,
   },
   weekday: {
     flex: 1,
@@ -354,13 +354,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     // Matches the horizontal gap the cell's own padding makes, so the grid
     // reads as evenly spaced in both directions.
-    rowGap: spacing.xs,
+    rowGap: layout.grid,
   },
   cell: {
     width: `${100 / 7}%`,
     aspectRatio: CELL_ASPECT,
     // A hair of air between neighbouring prints; the row gap matches it.
-    paddingHorizontal: spacing.xs / 2,
+    paddingHorizontal: layout.grid / 2,
   },
   press: {
     flex: 1,

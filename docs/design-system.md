@@ -62,6 +62,11 @@ Quicksand style pulls `bodyTracking` rather than repeating the number.
 `3xl` 32 · `4xl` 40 · `5xl` 56 · `6xl` 72. The page gutter is `screenPadding`
 (20); the gap under the status bar is `screenTopGap` (20).
 
+On top of that ruler sits `layout`, spacing by role: `gutter` 20 · `title` 20 ·
+`section` 24 · `block` 16 · `heading` 12 · `stack` 8 · `line` 4 · `inline` 12
+· `card` 20 · `pill` 8 · `grid` 4. My Profile and Settings take every gap,
+margin and padding from it; a bare `spacing` step is left for optical nudges.
+
 `radii`: `sm` 10 · `md` 16 · `lg` 20 · `card`/`xl` 32 · `2xl` 44 · `pill` 999.
 
 `shadows` are all low-opacity and large-blur — see the selection table in
