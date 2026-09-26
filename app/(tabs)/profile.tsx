@@ -780,6 +780,9 @@ const styles = StyleSheet.create({
   },
   titlePillShape: {
     height: HEADER_BUTTON,
+    // Pill shrink-wraps itself with `alignSelf: 'flex-start'`, which beats
+    // the row's own centring and pins it to the left edge.
+    alignSelf: 'center',
   },
   cornerLeft: {
     position: 'absolute',
