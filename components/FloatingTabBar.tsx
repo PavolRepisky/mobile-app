@@ -74,10 +74,10 @@ export interface TabBarButtonProps extends PressableProps {
 }
 
 /**
- * One tab: its glyph with the label set under it, every tab alike — Tasks
- * included, which used to stand apart as a filled disc. The active tab sits
- * inside a light pill and fills its glyph in; labels stay ink-black in both
- * states, which is what the reference does.
+ * One tab: its glyph with the label set under it in the regular-weight `tab`
+ * cut, every tab alike — Tasks included, which used to stand apart as a
+ * filled disc. The active tab sits inside a light pill and fills its glyph
+ * in; labels stay ink-black in both states, which is what the reference does.
  */
 export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
   function TabBarButton({ icon, label, isFocused, style, ...rest }, ref) {
@@ -91,7 +91,7 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
         style={[styles.tab, isFocused && styles.tabActive]}
       >
         <Glyph icon={icon} active={!!isFocused} />
-        <Text variant="badge" numberOfLines={1} style={styles.label}>
+        <Text variant="tab" numberOfLines={1} style={styles.label}>
           {label}
         </Text>
       </Pressable>
