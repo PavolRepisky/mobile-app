@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -153,6 +154,11 @@ function accentAt(t: number): string {
   return mixHex(stops[i], stops[i + 1], scaled - i);
 }
 
+/** The accent in the order the sweep runs it, peach first — shared with the
+ * challenge card's progress bar, which reads left to right the way the ring
+ * reads clockwise. */
+const RING_SWEEP_COLORS = [...gradients.profileAccent].reverse() as [string, string, string];
+
 /** The sweep's slices, clockwise from 12 o'clock. */
 const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
   rotation: -90 + (i * 360) / RING_SWEEP_SLICES,
@@ -211,6 +217,7 @@ export default function ProfileScreen() {
   const friendCodeUrl = Linking.createURL(`add-friend/${profile.handle.replace(/^@/, '')}`);
 
   const [daysView, setDaysView] = useState<DaysView>('grid');
+  const [trackWidth, setTrackWidth] = useState(0);
 
   const doneOn = (day: number) =>
     tasks.filter((task) => progress[day]?.[task.id]?.done).length;
@@ -482,8 +489,22 @@ export default function ProfileScreen() {
                 </Text>
               </Text>
             </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]} />
+            <View
+              style={styles.progressTrack}
+              onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+            >
+              {/* The fill clips a gradient as wide as the whole track, so
+                  the colour marks how far through the challenge you are —
+                  peach early on, lavender only near the end — the same way
+                  the ring's sweep is read off where a segment sits. */}
+              <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]}>
+                <LinearGradient
+                  colors={RING_SWEEP_COLORS}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.progressGradient, { width: trackWidth }]}
+                />
+              </View>
             </View>
           </View>
         </Card>
@@ -795,7 +816,10 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: radii.pill,
-    backgroundColor: colors.ink,
+    overflow: 'hidden',
+  },
+  progressGradient: {
+    height: '100%',
   },
   daysTabs: {
     marginTop: spacing.xl,
