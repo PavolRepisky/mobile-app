@@ -354,11 +354,12 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
       </View>
 
       {doneLabels.length ? (
-        // Reading text at the `copy` level, in the palette's text grey; the
-        // handle leading it steps up to ink — the hierarchy has no bold at
-        // this size, so colour carries the difference.
-        <Text variant="copy" color={colors.inkMuted} style={styles.caption}>
-          <Text variant="copy" color={colors.ink}>
+        // Reading text at the `copy` level, in ink; the handle leading it
+        // steps back to the text grey — the hierarchy has no bold at this
+        // size, so colour carries the difference, and the post itself reads
+        // first.
+        <Text variant="copy" color={colors.ink} style={styles.caption}>
+          <Text variant="copy" color={colors.inkMuted}>
             {friend.handle}{' '}
           </Text>
           {doneLabels.join(' · ')}
