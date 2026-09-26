@@ -31,15 +31,7 @@ import {
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import {
-  absoluteFill,
-  colors,
-  gradients,
-  radii,
-  screenPadding,
-  shadows,
-  spacing,
-} from '@/constants/theme';
+import { colors, gradients, radii, screenPadding, shadows, spacing } from '@/constants/theme';
 import { WheelPicker } from '@/components/WheelPicker';
 import { useApp, usePostedDays } from '@/hooks/useAppState';
 
@@ -178,19 +170,9 @@ function accentAt(t: number): string {
 }
 
 /** The accent in the order the sweep runs it, peach first — shared with the
- * challenge card's background, which reads left to right the way the ring
+ * challenge card's progress bar, which reads left to right the way the ring
  * reads clockwise. */
 const RING_SWEEP_COLORS = [...gradients.profileAccent].reverse() as [string, string, string];
-
-/** How far the challenge card's copy of the sweep is washed toward white. A
- * 6pt ring carries the full pastels; a whole card of them shouts over the
- * profile, and halfway back reads as a tint rather than a fill. */
-const CARD_SWEEP_WASH = 0.5;
-
-/** The sweep as the challenge card wears it — the same three stops, softened. */
-const CARD_SWEEP_COLORS = RING_SWEEP_COLORS.map((stop) =>
-  mixHex(stop, colors.surface, CARD_SWEEP_WASH),
-) as [string, string, string];
 
 /** The sweep's slices, clockwise from 12 o'clock. */
 const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
@@ -250,6 +232,7 @@ export default function ProfileScreen() {
   const friendCodeUrl = Linking.createURL(`add-friend/${profile.handle.replace(/^@/, '')}`);
 
   const [daysView, setDaysView] = useState<DaysView>('grid');
+  const [trackWidth, setTrackWidth] = useState(0);
   // Which month the month view shows, counted in months from this one — 0 is
   // now, -1 last month. An offset rather than a date, so the view still opens
   // on the current month once the calendar rolls into a new one.
@@ -519,16 +502,6 @@ export default function ProfileScreen() {
           accessibilityHint="Opens the challenge"
           style={styles.challengeCard}
         >
-          {/* The ring's own sweep laid across the whole card, peach to
-              lavender left to right the way the ring runs it clockwise —
-              the challenge wears the gauge that measures it. The card's
-              clip rounds it to the card's corners. */}
-          <LinearGradient
-            colors={CARD_SWEEP_COLORS}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.challengeGradient}
-          />
           <View style={styles.challengeBody}>
             <View style={styles.challengeRow}>
               <Text variant="cardTitleBold" numberOfLines={1} style={styles.challengeName}>
@@ -536,7 +509,7 @@ export default function ProfileScreen() {
               </Text>
               <Text variant="labelHeavy">
                 Day {currentDay}
-                <Text variant="labelHeavy" color={colors.inkSoft}>
+                <Text variant="labelHeavy" color={colors.inkFaded}>
                   {` / ${totalDays}`}
                 </Text>
               </Text>
@@ -546,12 +519,26 @@ export default function ProfileScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={CHALLENGE_CHEVRON}
-                color={colors.inkSoft}
+                color={colors.inkFaded}
                 style={styles.challengeChevron}
               />
             </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]} />
+            <View
+              style={styles.progressTrack}
+              onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+            >
+              {/* The fill clips a gradient as wide as the whole track, so
+                  the colour marks how far through the challenge you are —
+                  peach early on, lavender only near the end — the same way
+                  the ring's sweep is read off where a segment sits. */}
+              <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]}>
+                <LinearGradient
+                  colors={RING_SWEEP_COLORS}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.progressGradient, { width: trackWidth }]}
+                />
+              </View>
             </View>
           </View>
         </Card>
@@ -851,9 +838,9 @@ const styles = StyleSheet.create({
   },
   challengeCard: {
     marginTop: spacing.xl,
-  },
-  challengeGradient: {
-    ...absoluteFill,
+    // The month view's own filled-cell grey, so the card and the calendar
+    // below it read as cut from the same sheet.
+    backgroundColor: colors.surfaceSunken,
   },
   challengeBody: {
     paddingHorizontal: spacing.xl,
@@ -876,19 +863,23 @@ const styles = StyleSheet.create({
   challengeChevron: {
     marginLeft: -spacing.xs,
   },
-  // The ring's own stroke, so the bar and the ring read as the same line,
-  // bent and straight. White on the card's gradient — a gradient fill there
-  // would vanish into the colour behind it — over a see-through white track.
+  // The ring's own stroke: the bar wears the ring's sweep, so it's drawn at
+  // the ring's weight and the two read as the same line, bent and straight.
   progressTrack: {
     height: RING_STROKE,
     borderRadius: radii.pill,
-    backgroundColor: colors.onMediaTrack,
+    // White rather than a divider grey: on the ring's grey card a divider
+    // tone sits within a shade of the fill behind it and the track vanishes.
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  progressGradient: {
+    height: '100%',
   },
   daysHeader: {
     flexDirection: 'row',
