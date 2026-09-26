@@ -272,7 +272,8 @@ export default function SettingsScreen() {
           {
             key: 'edit',
             label: 'Edit',
-            icon: 'pencil',
+            // The outline cut, like the profile header's own glyphs.
+            icon: 'pencil-outline',
             onPress: () => {
               setPhotoOpen(false);
               // iOS waits for the viewer to finish fading; nowhere else

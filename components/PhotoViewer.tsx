@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
 import { IconButton } from './IconButton';
 import { Placeholder } from './Placeholder';
+import { profileActionButton, profileActionIcon } from './ProfileLayout';
 import type { PhotoSource } from './PhotoStrip';
 
 export interface PhotoViewerAction {
@@ -27,9 +28,6 @@ export interface PhotoViewerAction {
   /** Tints the glyph red — for the action that throws something away. */
   destructive?: boolean;
 }
-
-/** The action buttons' own diameter — the app's standard glass circle. */
-const ACTION_SIZE = 52;
 
 export interface PhotoViewerProps {
   /** The strip the tapped photo came from. */
@@ -113,19 +111,23 @@ export function PhotoViewer({
             width={width}
             height={height}
             onDismiss={onDismiss}
-            dotsLift={actions?.length ? ACTION_SIZE + spacing.md : 0}
+            dotsLift={actions?.length ? profileActionButton + spacing.md : 0}
           />
         )}
 
-        {/* The app's own glass circles — the same buttons that float over a
-            page everywhere else — clear of the home indicator. */}
+        {/* My Profile's own header buttons — the same white disc, size,
+            glyph and soft shadow as its QR and Settings corners — clear of
+            the home indicator, so editing your photo feels like part of the
+            profile rather than a different control set. */}
         {index !== null && actions?.length ? (
           <View style={[styles.actions, { bottom: insets.bottom + spacing.xl }]}>
             {actions.map((action) => (
               <IconButton
                 key={action.key}
                 name={action.icon}
-                size={ACTION_SIZE}
+                size={profileActionButton}
+                iconSize={profileActionIcon}
+                background={colors.surface}
                 color={action.destructive ? colors.destructive : colors.ink}
                 accessibilityLabel={action.label}
                 onPress={action.onPress}
