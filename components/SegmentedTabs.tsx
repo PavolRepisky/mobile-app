@@ -13,10 +13,12 @@ import { Text } from './Text';
 
 /** The pill switch's measurements, taken off the profile's Grid / Month
  * switch on the design canvas: a short control that sits beside a section
- * heading, not a full-height tab bar. */
-const PILL_HEIGHT = 30;
+ * heading, not a full-height tab bar. Grown a step past the canvas so the
+ * labels set in body type rather than micro: at 13pt "Grid" and "Month"
+ * read as a footnote beside the Days heading. */
+const PILL_HEIGHT = 36;
 const PILL_INSET = 3;
-const PILL_ICON = 14;
+const PILL_ICON = 17;
 
 export interface SegmentOption<T extends string = string> {
   key: T;
@@ -87,7 +89,7 @@ export function SegmentedTabs<T extends string = string>({
             />
           ) : null}
           <Text
-            variant={pill ? 'microBold' : large ? 'sectionTitle' : 'cardTitle'}
+            variant={pill ? 'bodyBold' : large ? 'sectionTitle' : 'cardTitle'}
             color={active ? colors.ink : pill ? colors.inkFaded : colors.inkGhost}
             style={
               pill

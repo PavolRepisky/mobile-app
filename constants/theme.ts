@@ -176,15 +176,6 @@ export const stickyPalette = [
 export const gradients = {
   storyRing: ['#F58529', '#DD2A7B', '#8134AF'],
   /**
-   * My Profile's own accent: lavender into rose into peach, sampled off the
-   * profile mock the ring was redrawn to — worn by the done segments of the
-   * task ring, the one thing on the profile in colour. A pastel cousin of the
-   * story ring's orange-to-purple rather than a copy of it, so the profile
-   * reads as this app's rather than Instagram's, and sits with the post-it
-   * pastels instead of shouting over them.
-   */
-  profileAccent: ['#D8C6EE', '#EFA3B7', '#F7C3A0'],
-  /**
    * The band of shade behind the day stamp on a post's photo grid: clear at
    * the top and bottom edges, darkest through the middle where the type
    * sits, so the photos keep their full brightness everywhere the lettering

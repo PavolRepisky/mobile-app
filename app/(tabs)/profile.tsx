@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Defs, LinearGradient, Mask, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 
 import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -27,7 +27,7 @@ import {
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { colors, gradients, radii, screenPadding, shadows, spacing } from '@/constants/theme';
+import { colors, radii, screenPadding, shadows, spacing } from '@/constants/theme';
 import { useApp, usePostedDays } from '@/hooks/useAppState';
 
 /** Kept out of the stylesheet because it is handed to `Image` as often as to
@@ -59,7 +59,7 @@ const PROGRESS_HEIGHT = 5;
 
 /** Wide enough for "Grid" and "Month" with their glyphs; the pill track
  * splits it evenly so the chip slides between two fixed stops. */
-const DAYS_SWITCH_WIDTH = 160;
+const DAYS_SWITCH_WIDTH = 210;
 
 /** Same hero circle the to-do ring and a friend's profile share — this is
  * the one place on the app's own profile that gets to be that big. */
@@ -122,15 +122,6 @@ function ringSegment(
     />
   );
 }
-
-/**
- * Where the accent runs across the ring's box, as fractions of it: from the
- * left edge a little above centre to the bottom-right corner. That lands the
- * lavender down the left side, the rose across the top right and the peach at
- * the bottom right — the way the mock colours its ring.
- */
-const RING_GRADIENT_FROM = { x: 0, y: 0.3 };
-const RING_GRADIENT_TO = { x: 1, y: 0.9 };
 
 /** The badge sits centred on the bottom of the ring, the way the "Day N" pill
  * sits on the story ring — sized to that overlap, not to the type scale. */
@@ -312,60 +303,19 @@ export default function ProfileScreen() {
           >
             {/* Counted, not matched to a task: the ring says how many are
                 done, filling from the top, whichever ones they were. Done
-                segments wear the profile's own warm accent; open ones take
-                the empty-day grey the story ring uses.
-
-                The gradient is laid once across the whole ring and shown
-                through the done segments as a mask. Painted onto each
-                segment instead, it would turn with that segment's own
-                rotation and every segment would come out the same hue. */}
+                segments wear the same full ink the Days calendar marks a
+                finished day and today with, so the ring and the grid below
+                it read as one record; open ones take the empty-day grey the
+                story ring uses. */}
             <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
-              <Defs>
-                <LinearGradient
-                  id="ringGradient"
-                  gradientUnits="userSpaceOnUse"
-                  x1={RING_SIZE * RING_GRADIENT_FROM.x}
-                  y1={RING_SIZE * RING_GRADIENT_FROM.y}
-                  x2={RING_SIZE * RING_GRADIENT_TO.x}
-                  y2={RING_SIZE * RING_GRADIENT_TO.y}
-                >
-                  {gradients.profileAccent.map((stop, index) => (
-                    <Stop
-                      key={stop}
-                      offset={index / (gradients.profileAccent.length - 1)}
-                      stopColor={stop}
-                    />
-                  ))}
-                </LinearGradient>
-                {/* White is what a mask lets through — the done segments'
-                    shape, not a colour anyone sees. */}
-                <Mask
-                  id="ringDone"
-                  maskUnits="userSpaceOnUse"
-                  x={0}
-                  y={0}
-                  width={RING_SIZE}
-                  height={RING_SIZE}
-                >
-                  {ringSegments(tasks.length)
-                    .slice(0, doneToday)
-                    .map((segment, index) =>
-                      ringSegment(segment, index, colors.inkInverse, tasks.length > 1),
-                    )}
-                </Mask>
-              </Defs>
-
               {ringSegments(tasks.length).map((segment, index) =>
-                index < doneToday
-                  ? null
-                  : ringSegment(segment, index, colors.inkGhost, tasks.length > 1),
+                ringSegment(
+                  segment,
+                  index,
+                  index < doneToday ? colors.ink : colors.inkGhost,
+                  tasks.length > 1,
+                ),
               )}
-              <Rect
-                width={RING_SIZE}
-                height={RING_SIZE}
-                fill="url(#ringGradient)"
-                mask="url(#ringDone)"
-              />
             </Svg>
 
             {/* The disc behind the photo is the avatar's own shape, so the
