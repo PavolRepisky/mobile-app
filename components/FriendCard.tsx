@@ -358,12 +358,10 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
       </View>
 
       {caption ? (
-        // Reading text at the `copy` level, in ink; the handle leading it
-        // steps back to the text grey — the hierarchy has no bold at this
-        // size, so colour carries the difference, and the post itself reads
-        // first.
-        <Text variant="copy" color={colors.ink} style={styles.caption}>
-          <Text variant="copy" color={colors.inkMuted}>
+        // Reading text at the `copy` level, in ink; the handle leading it is
+        // the same size a weight up, the way a caption opens on its author.
+        <Text variant="copy" style={styles.caption}>
+          <Text variant="copyBold">
             {friend.handle}{' '}
           </Text>
           {caption}

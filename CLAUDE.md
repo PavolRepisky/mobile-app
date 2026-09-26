@@ -85,7 +85,7 @@ from the rest.
 `card`/`xl` (32) is the signature card corner · `'2xl'` (44) is the friend card
 only · `lg` 20 · `md` 16 · `sm` 10.
 
-**Type hierarchy** — seven levels, defined once as `hierarchy` in `theme.ts`
+**Type hierarchy** — eight levels, defined once as `hierarchy` in `theme.ts`
 and used as `Text` variants by name. My Profile and Settings use these and
 nothing else; build other screens from them too:
 
@@ -94,14 +94,16 @@ nothing else; build other screens from them too:
 | `pageTitle` | 23 Bold | the screen's title, the profile's name |
 | `sectionHeading` | 21 Bold | "Days", sheet and dialog titles, picker values |
 | `itemTitle` | 18 Bold | one thing's name: the challenge card, the month on show |
-| `copy` | 16 SemiBold | reading text and rows: a bio, a settings row (label and value) and its group title, a switch's labels, a dialog's message and field |
+| `copy` | 16 SemiBold | reading text and rows: a bio, a settings row (label and value) and its group title, a switch's labels, a dialog's message and field, a post's caption |
+| `copyBold` | 16 Bold | the word leading reading text: a caption's author handle |
 | `meta` | 14 SemiBold | detail beside something bigger |
 | `metaBold` | 14 Bold | detail carrying a number: "Day 5 / 75", a calendar date |
 | `badge` | 12 Bold | counts on pills and tiles, weekday letters, calendar marks |
 
 The older names that meant one of these point at it (`sectionTitle` →
 `pageTitle`, `sectionTitleSm`/`sectionTitleXs` → `sectionHeading`,
-`cardTitleBold` → `itemTitle`, `bodySemi` → `copy`, `labelBold` → `meta`,
+`cardTitleBold` → `itemTitle`, `bodySemi` → `copy`, `bodyBold` → `copyBold`,
+`labelBold` → `meta`,
 `microBold` → `badge`). Prefer the level names in new code.
 
 **Spacing** — by role, defined once as `layout` in `theme.ts` on top of the

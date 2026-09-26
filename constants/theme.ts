@@ -258,7 +258,7 @@ export const fonts = {
 export const bodyTracking = -1;
 
 /**
- * The type hierarchy, settled on My Profile and Settings: seven levels, each
+ * The type hierarchy, settled on My Profile and Settings: eight levels, each
  * one a clear step from the next in size or weight, so a screen reads top
  * down instead of as a scatter of near-identical sizes. Quicksand runs light,
  * so nothing sits below SemiBold. The `type` scale below exposes each level
@@ -293,6 +293,14 @@ export const hierarchy = {
    * labels, a dialog's message. */
   copy: {
     fontFamily: fonts.bodySemi,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: bodyTracking,
+  },
+  /** `copy` a weight up, for the word inside reading text that leads it: the
+   * author's handle at the head of a post's caption. */
+  copyBold: {
+    fontFamily: fonts.bodyBold,
     fontSize: 16,
     lineHeight: 22,
     letterSpacing: bodyTracking,
@@ -336,6 +344,7 @@ export const type = {
   sectionHeading: hierarchy.sectionHeading,
   itemTitle: hierarchy.itemTitle,
   copy: hierarchy.copy,
+  copyBold: hierarchy.copyBold,
   meta: hierarchy.meta,
   metaBold: hierarchy.metaBold,
   badge: hierarchy.badge,
@@ -405,12 +414,7 @@ export const type = {
    * bullet list on the support card.
    */
   bodySemi: hierarchy.copy,
-  bodyBold: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: bodyTracking,
-  },
+  bodyBold: hierarchy.copyBold,
   /**
    * The daily-task label, which the reference sets in the heavy cut. A step
    * above `bodyBold`: the to-do row lost its check circle, and the label is
