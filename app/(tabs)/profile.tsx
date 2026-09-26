@@ -509,7 +509,7 @@ export default function ProfileScreen() {
         </Card>
 
         <View style={styles.daysHeader}>
-          <Text variant="sectionTitle">Your Days</Text>
+          <Text variant="sectionTitle">Days</Text>
           <SegmentedTabs
             variant="pill"
             options={[
