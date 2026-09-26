@@ -359,7 +359,7 @@ function Row({
       </Text>
 
       {value ? (
-        <Text variant="meta" color={colors.inkMuted} style={styles.rowValue}>
+        <Text variant="copy" color={colors.inkMuted} style={styles.rowValue}>
           {value}
         </Text>
       ) : null}
