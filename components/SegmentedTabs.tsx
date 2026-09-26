@@ -8,27 +8,22 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
 import { Text } from './Text';
 
-/** The icon row's measurements, taken off Instagram's own profile tabs: a
- * glyph big enough to carry the tab without a word under it, on a row tall
- * enough to be an easy thumb target across the whole width. */
-const ICON_TAB_GLYPH = 23;
-const ICON_TAB_HEIGHT = 44;
-/** Half the gap between neighbouring underlines, on each side of every tab
- * — the same half-gap a profile grid tile keeps (`spacing.xs / 2`), so a
- * three-up row's underlines sit exactly over the three photo columns below,
- * edge for edge and gap for gap. */
-const ICON_TAB_INSET = spacing.xs / 2;
+/** The pill switch's measurements, taken off the profile's Grid / Month
+ * switch on the design canvas: a short control that sits beside a section
+ * heading, not a full-height tab bar. Grown a step past the canvas so the
+ * labels set in body type rather than micro: at 13pt "Grid" and "Month"
+ * read as a footnote beside the Days heading. */
+const PILL_HEIGHT = 36;
+const PILL_INSET = 3;
+const PILL_ICON = 17;
 
 export interface SegmentOption<T extends string = string> {
   key: T;
   label: string;
   icon?: keyof typeof Ionicons.glyphMap;
-  /** Worn while the tab is selected — the filled cut of `icon`, the way
-   * Instagram fills in the tab you're on. Falls back to `icon`. */
-  activeIcon?: keyof typeof Ionicons.glyphMap;
 }
 
 export interface SegmentedTabsProps<T extends string = string> {
@@ -47,13 +42,12 @@ export interface SegmentedTabsProps<T extends string = string> {
    */
   dense?: boolean;
   /**
-   * `underline` is the app's default tab cut. `icons` is Instagram's profile
-   * tab row: glyphs only, each tab an even share of the width, the selected
-   * one filled in and underlined — a view switch that needs no heading of its
-   * own, like the profile's Grid / Month. `label` still names each tab to a
-   * screen reader.
+   * `underline` is the app's default tab cut. `pill` is the iOS segmented
+   * control: both options share a sunken grey track and the selected one
+   * rides a white chip inside it — a compact switch for a view toggle beside
+   * a heading, like the profile's Grid / Month.
    */
-  variant?: 'underline' | 'icons';
+  variant?: 'underline' | 'pill';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -74,39 +68,7 @@ export function SegmentedTabs<T extends string = string>({
   style,
 }: SegmentedTabsProps<T>) {
   const large = size === 'lg';
-
-  if (variant === 'icons') {
-    return (
-      <View style={[styles.row, style]}>
-        {options.map((option) => {
-          const active = option.key === value;
-          const glyph = active ? (option.activeIcon ?? option.icon) : option.icon;
-          return (
-            <Pressable
-              key={option.key}
-              accessibilityRole="tab"
-              accessibilityLabel={option.label}
-              accessibilityState={{ selected: active }}
-              onPress={() => onChange(option.key)}
-              style={styles.iconItem}
-            >
-              <View style={styles.iconGlyph}>
-                {glyph ? (
-                  <Ionicons
-                    name={glyph}
-                    size={ICON_TAB_GLYPH}
-                    color={active ? colors.ink : colors.inkFaded}
-                  />
-                ) : null}
-              </View>
-              <View style={[styles.iconUnderline, active && styles.underlineActive]} />
-            </Pressable>
-          );
-        })}
-      </View>
-    );
-  }
-
+  const pill = variant === 'pill';
   const items = options.map((option) => {
     const active = option.key === value;
     return (
@@ -115,26 +77,34 @@ export function SegmentedTabs<T extends string = string>({
         accessibilityRole="tab"
         accessibilityState={{ selected: active }}
         onPress={() => onChange(option.key)}
-        style={styles.item}
+        style={[styles.item, pill && styles.pillItem, pill && active && styles.pillActive]}
       >
         <View style={styles.itemRow}>
           {option.icon ? (
             <Ionicons
               name={option.icon}
-              size={large && !dense ? 19 : 17}
-              color={active ? colors.ink : colors.inkGhost}
-              style={[styles.icon, dense && styles.denseIcon]}
+              size={pill ? PILL_ICON : large && !dense ? 19 : 17}
+              color={active ? colors.ink : pill ? colors.inkFaded : colors.inkGhost}
+              style={[styles.icon, (dense || pill) && styles.denseIcon]}
             />
           ) : null}
           <Text
-            variant={large ? 'sectionTitle' : 'cardTitle'}
-            color={active ? colors.ink : colors.inkGhost}
-            style={large ? [styles.lgLabel, dense && styles.denseLabel] : styles.mdLabel}
+            variant={pill ? 'bodyBold' : large ? 'sectionTitle' : 'cardTitle'}
+            color={active ? colors.ink : pill ? colors.inkFaded : colors.inkGhost}
+            style={
+              pill
+                ? undefined
+                : large
+                  ? [styles.lgLabel, dense && styles.denseLabel]
+                  : styles.mdLabel
+            }
           >
             {option.label}
           </Text>
         </View>
-        <View style={[styles.underline, active && styles.underlineActive]} />
+        {pill ? null : (
+          <View style={[styles.underline, active && styles.underlineActive]} />
+        )}
       </Pressable>
     );
   });
@@ -150,6 +120,13 @@ export function SegmentedTabs<T extends string = string>({
         {items}
       </ScrollView>
     );
+  }
+
+  // The track ignores `align`: its two halves split it evenly, which is what
+  // makes the chip slide between two fixed stops rather than resize with the
+  // labels.
+  if (pill) {
+    return <View style={[styles.row, styles.pillTrack, style]}>{items}</View>;
   }
 
   return (
@@ -204,20 +181,23 @@ const styles = StyleSheet.create({
   item: {
     alignItems: 'center',
   },
-  iconItem: {
+  pillTrack: {
+    backgroundColor: colors.surfaceSunken,
+    borderRadius: radii.pill,
+    padding: PILL_INSET,
+  },
+  pillItem: {
     flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: ICON_TAB_INSET,
-  },
-  iconGlyph: {
-    height: ICON_TAB_HEIGHT,
     justifyContent: 'center',
+    height: PILL_HEIGHT,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
   },
-  iconUnderline: {
-    alignSelf: 'stretch',
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: 'transparent',
+  // White on the grey track, lifted a touch so it reads as the chip that
+  // slides rather than a hole cut in the track.
+  pillActive: {
+    backgroundColor: colors.surface,
+    ...shadows.soft,
   },
   itemRow: {
     flexDirection: 'row',
