@@ -67,6 +67,9 @@ const DAYS_SWITCH_WIDTH = 190;
 const MONTH_ARROW = 24;
 /** The ▾ beside the month name, a step under the name's own cap height. */
 const MONTH_CARET = 18;
+/** Top margin that settles the caret onto the name's optical centre — see
+ * `monthCaret` for where it was measured from. */
+const MONTH_CARET_NUDGE = 1;
 /** How far back the year picker reaches — far enough to look at the months
  * before the app. It stops at this year: there's nothing to see ahead. */
 const YEARS_BACK = 5;
@@ -588,13 +591,14 @@ export default function ProfileScreen() {
                   hitSlop={spacing.sm}
                   style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
                 >
-                  <Text variant="sectionTitleXs">
+                  <Text variant="sectionTitleXs" style={styles.monthTitleText}>
                     {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
                   </Text>
                   <Ionicons
                     name="chevron-down"
                     size={MONTH_CARET}
                     color={colors.ink}
+                    style={styles.monthCaret}
                   />
                 </Pressable>
 
@@ -905,7 +909,26 @@ const styles = StyleSheet.create({
   monthTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    // Half the usual gap: the name's own right padding below makes up the
+    // rest, so the caret still sits a full `xs` off the last digit.
+    gap: spacing.xs / 2,
+  },
+  monthTitleText: {
+    // The title's -1 tracking is applied after the last glyph too, so the
+    // measured box ends a point short of the ink and the Bold "6" of the
+    // year was clipped at its right edge. Room for that point and the
+    // glyph's overhang.
+    paddingRight: spacing.xs / 2,
+    // Android pads a line with the font's own ascent/descent on top of the
+    // line height, which sits the name lower than its box's centre.
+    includeFontPadding: false,
+  },
+  monthCaret: {
+    // Measured off the two fonts: the chevron sits dead centre in its icon
+    // box, but Quicksand's caps and digits sit ~0.5pt below the centre of a
+    // 21/27 line. In a centred row a 1pt top margin moves the caret half
+    // that, onto the same line as the name.
+    marginTop: MONTH_CARET_NUDGE,
   },
   // Edge to edge — the reference's own photo grid runs the full page width,
   // no gutter either side — the gap lives between tiles (on `postCellWrap`
