@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, layout, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
+import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
@@ -24,9 +24,7 @@ function Glyph({
   active: boolean;
   color?: string;
 }) {
-  // A step down from the label-less bar's 27, so the glyph and its label
-  // under it sit inside the tab with air above and below.
-  const size = 24;
+  const size = 27;
 
   switch (icon) {
     // Challenges you have not joined yet: the tab is a bearing to take, not a
@@ -91,9 +89,7 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
         style={[styles.tab, isFocused && styles.tabActive]}
       >
         <Glyph icon={icon} active={!!isFocused} />
-        <Text variant="tab" numberOfLines={1} style={styles.label}>
-          {label}
-        </Text>
+        <Text variant="tab">{label}</Text>
       </Pressable>
     );
   },
@@ -164,11 +160,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
   },
   tabActive: {
     backgroundColor: colors.divider,
-  },
-  label: {
-    marginTop: layout.line,
   },
 });
