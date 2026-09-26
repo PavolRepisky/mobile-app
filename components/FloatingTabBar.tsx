@@ -9,13 +9,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
+import { colors, layout, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
+import { Text } from './Text';
 
 export type TabIcon = 'discover' | 'community' | 'tasks' | 'profile';
-
-/** The filled centre tab's disc. Sized to sit inside the bar with air around it. */
-const FILLED_SIZE = 52;
 
 function Glyph({
   icon,
@@ -26,7 +24,9 @@ function Glyph({
   active: boolean;
   color?: string;
 }) {
-  const size = 27;
+  // A step down from the label-less bar's 27, so the glyph and its label
+  // under it sit inside the tab with air above and below.
+  const size = 24;
 
   switch (icon) {
     // Challenges you have not joined yet: the tab is a bearing to take, not a
@@ -69,21 +69,18 @@ function Glyph({
 export interface TabBarButtonProps extends PressableProps {
   icon: TabIcon;
   label: string;
-  /**
-   * Draw the tab as a solid ink disc with no label — the centre tab, which
-   * reads as the bar's one action rather than as another destination.
-   */
-  filled?: boolean;
   /** Injected by `TabTrigger asChild`. */
   isFocused?: boolean;
 }
 
 /**
- * One tab. The active tab sits inside a light pill; labels stay ink-black in
- * both states, which is what the reference does.
+ * One tab: its glyph with the label set under it, every tab alike — Tasks
+ * included, which used to stand apart as a filled disc. The active tab sits
+ * inside a light pill and fills its glyph in; labels stay ink-black in both
+ * states, which is what the reference does.
  */
 export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
-  function TabBarButton({ icon, label, filled, isFocused, style, ...rest }, ref) {
+  function TabBarButton({ icon, label, isFocused, style, ...rest }, ref) {
     return (
       <Pressable
         ref={ref}
@@ -91,17 +88,12 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
         accessibilityState={{ selected: !!isFocused }}
         accessibilityLabel={label}
         {...rest}
-        style={[styles.tab, !filled && isFocused && styles.tabActive]}
+        style={[styles.tab, isFocused && styles.tabActive]}
       >
-        {filled ? (
-          // The disc carries the emphasis on its own, so it looks the same
-          // focused or not — like the shutter button it is modelled on.
-          <View style={styles.disc}>
-            <Glyph icon={icon} active color={colors.inkInverse} />
-          </View>
-        ) : (
-          <Glyph icon={icon} active={!!isFocused} />
-        )}
+        <Glyph icon={icon} active={!!isFocused} />
+        <Text variant="badge" numberOfLines={1} style={styles.label}>
+          {label}
+        </Text>
       </Pressable>
     );
   },
@@ -176,12 +168,7 @@ const styles = StyleSheet.create({
   tabActive: {
     backgroundColor: colors.divider,
   },
-  disc: {
-    width: FILLED_SIZE,
-    height: FILLED_SIZE,
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
+  label: {
+    marginTop: layout.line,
   },
 });

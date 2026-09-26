@@ -13,7 +13,8 @@ import { useApp } from '@/hooks/useAppState';
  * photos used to be a Calendar tab of its own; it lives in Profile now, as
  * the Days section's Month view. Challenges and Community were one screen
  * behind a switch until they earned a tab each. Tasks is the app's real home, so it is the initial
- * route, and it is the one tab drawn as a filled disc.
+ * route; every tab, Tasks included, is drawn the same — a glyph with its
+ * label under it.
  */
 export default function TabsLayout() {
   const { tabBarHidden } = useApp();
@@ -37,7 +38,7 @@ export default function TabsLayout() {
           </TabTrigger>
 
           <TabTrigger name="tasks" href="/tasks" asChild>
-            <TabBarButton icon="tasks" label="Tasks" filled />
+            <TabBarButton icon="tasks" label="Tasks" />
           </TabTrigger>
 
           <TabTrigger name="profile" href="/profile" asChild>
