@@ -504,12 +504,17 @@ export default function ProfileScreen() {
         >
           <View style={styles.challengeBody}>
             <View style={styles.challengeRow}>
-              <Text variant="cardTitleBold" numberOfLines={1} style={styles.challengeName}>
+              <Text
+                variant="cardTitleBold"
+                color={colors.inkInverse}
+                numberOfLines={1}
+                style={styles.challengeName}
+              >
                 {challenge.name}
               </Text>
-              <Text variant="labelHeavy">
+              <Text variant="labelHeavy" color={colors.inkInverse}>
                 Day {currentDay}
-                <Text variant="labelHeavy" color={colors.inkFaded}>
+                <Text variant="labelHeavy" color={colors.onMediaSoft}>
                   {` / ${totalDays}`}
                 </Text>
               </Text>
@@ -519,7 +524,7 @@ export default function ProfileScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={CHALLENGE_CHEVRON}
-                color={colors.inkFaded}
+                color={colors.onMediaSoft}
                 style={styles.challengeChevron}
               />
             </View>
@@ -838,9 +843,10 @@ const styles = StyleSheet.create({
   },
   challengeCard: {
     marginTop: spacing.xl,
-    // The month view's own filled-cell grey, so the card and the calendar
-    // below it read as cut from the same sheet.
-    backgroundColor: colors.surfaceSunken,
+    // Solid ink, the one dark surface on the page, so the challenge — and the
+    // ring's sweep running along its bar — reads first. Everything on it
+    // takes the light-on-dark tokens a photo's overlays use.
+    backgroundColor: colors.ink,
   },
   challengeBody: {
     paddingHorizontal: spacing.xl,
@@ -868,9 +874,9 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: RING_STROKE,
     borderRadius: radii.pill,
-    // White rather than a divider grey: on the ring's grey card a divider
-    // tone sits within a shade of the fill behind it and the track vanishes.
-    backgroundColor: colors.surface,
+    // A see-through white on the black card: solid white would out-shout the
+    // gradient fill it sits behind.
+    backgroundColor: colors.onMediaTrack,
     overflow: 'hidden',
   },
   progressFill: {
