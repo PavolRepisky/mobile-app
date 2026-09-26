@@ -55,7 +55,7 @@ const HEADER_ICON = 22;
 const TILE_MARK = 22;
 
 /** Height of the challenge card's progress bar — a hairline would vanish on
- * the muted fill, anything heavier starts to read as a second button. */
+ * the dark card, anything heavier starts to read as a second button. */
 const PROGRESS_HEIGHT = 5;
 
 /** Same hero circle the to-do ring and a friend's profile share — this is
@@ -384,9 +384,10 @@ export default function ProfileScreen() {
         </View>
 
         {/* The challenge the ring is measuring, how far into it you are, and
-            a way into its page. */}
+            a way into its page. Set in the ring's own ink, so the gauge and
+            the challenge it measures read as one thing; everything on it
+            takes the light-on-dark tokens a photo's overlays use. */}
         <Card
-          muted
           flat
           padded={false}
           radius={radii.lg}
@@ -395,12 +396,17 @@ export default function ProfileScreen() {
         >
           <View style={styles.challengeBody}>
             <View style={styles.challengeRow}>
-              <Text variant="cardTitleBold" numberOfLines={1} style={styles.challengeName}>
+              <Text
+                variant="cardTitleBold"
+                color={colors.inkInverse}
+                numberOfLines={1}
+                style={styles.challengeName}
+              >
                 {challenge.name}
               </Text>
-              <Text variant="labelBold">
+              <Text variant="labelBold" color={colors.inkInverse}>
                 Day {currentDay}
-                <Text variant="labelBold" color={colors.inkFaded}>
+                <Text variant="labelBold" color={colors.onMediaSoft}>
                   {` / ${totalDays}`}
                 </Text>
               </Text>
@@ -689,6 +695,7 @@ const styles = StyleSheet.create({
   },
   challengeCard: {
     marginTop: spacing.xl,
+    backgroundColor: colors.ink,
   },
   challengeBody: {
     paddingHorizontal: spacing.lg,
@@ -706,13 +713,13 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: PROGRESS_HEIGHT,
     borderRadius: radii.pill,
-    backgroundColor: colors.dividerStrong,
+    backgroundColor: colors.onMediaTrack,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: radii.pill,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.inkInverse,
   },
   daysTabs: {
     marginTop: spacing.xl,
