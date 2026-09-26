@@ -140,7 +140,7 @@ const badgeOverhang = (badgeHeight - RING_STROKE) / 2 - spacing.xs;
 
 const DAY_MS = 86_400_000;
 
-type DaysView = 'grid' | 'month';
+type DaysView = 'grid' | 'tasks' | 'month';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -205,6 +205,22 @@ export default function ProfileScreen() {
       .filter((row): row is NonNullable<typeof row> => row !== null);
     return { key: `day-${day}`, day, rows, done: doneOn(day) };
   });
+
+  // The same posted days, turned on their side: one album per task, holding
+  // every day it got a photo, most recent first — how a single habit has
+  // gone, which neither the day grid nor the calendar shows. A task nobody
+  // has shot yet has nothing to hold, so it's left off.
+  const taskAlbums = tasks
+    .map((task) => ({
+      task,
+      shots: postedDays.flatMap((day) => {
+        const entry = progress[day]?.[task.id];
+        return entry?.photo || entry?.photoSeed
+          ? [{ day, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }]
+          : [];
+      }),
+    }))
+    .filter((album) => album.shots.length > 0);
 
   const openDay = (day: number) =>
     router.push({ pathname: '/day/[day]', params: { day: String(day) } });
@@ -401,6 +417,7 @@ export default function ProfileScreen() {
           variant="icons"
           options={[
             { key: 'grid', label: 'Grid', icon: 'apps-outline', activeIcon: 'apps' },
+            { key: 'tasks', label: 'Tasks', icon: 'albums-outline', activeIcon: 'albums' },
             {
               key: 'month',
               label: 'Month',
@@ -422,6 +439,59 @@ export default function ProfileScreen() {
               style={styles.month}
             />
           ))
+        ) : daysView === 'tasks' ? (
+          taskAlbums.length === 0 ? (
+            <EmptyState
+              icon="albums-outline"
+              title="No photos yet"
+              hint="Photograph a task to start its album."
+            />
+          ) : (
+            taskAlbums.map(({ task, shots }) => (
+              <View key={task.id} style={styles.album}>
+                {/* Inset by the grid's own half-gap, so the name starts on
+                    the first tile's edge rather than the page's. */}
+                <View style={styles.albumHeader}>
+                  <Text variant="cardTitle" numberOfLines={1} style={styles.albumTitle}>
+                    {task.label}
+                  </Text>
+                  <Text variant="label" color={colors.inkMuted}>
+                    {shots.length === 1 ? '1 photo' : `${shots.length} photos`}
+                  </Text>
+                </View>
+                <View style={styles.postGrid}>
+                  {shots.map((shot) => (
+                    <View key={shot.day} style={styles.postCellWrap}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`${task.label}, day ${shot.day}`}
+                        onPress={() => openDay(shot.day)}
+                        style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
+                      >
+                        {shot.photo ? (
+                          <Image source={shot.photo} style={DAY_CELL_PIECE} contentFit="cover" />
+                        ) : (
+                          <Placeholder
+                            seed={shot.seed ?? undefined}
+                            radius={0}
+                            style={DAY_CELL_PIECE}
+                          />
+                        )}
+                        {/* One task's photo on its own isn't the day's post,
+                            so it gets the day as a plain label, not the
+                            post's stamp. */}
+                        <View style={styles.tileCount}>
+                          <Text variant="micro" color={colors.ink}>
+                            {`Day ${shot.day}`}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))
+          )
         ) : posts.length === 0 ? (
           <EmptyState
             icon="camera-outline"
@@ -650,6 +720,21 @@ const styles = StyleSheet.create({
   },
   month: {
     marginBottom: spacing['2xl'],
+  },
+  album: {
+    marginBottom: spacing.xl,
+  },
+  albumHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs / 2,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  albumTitle: {
+    flexShrink: 1,
   },
   // Edge to edge — the reference's own photo grid runs the full page width,
   // no gutter either side — the gap lives between tiles (on `postCellWrap`

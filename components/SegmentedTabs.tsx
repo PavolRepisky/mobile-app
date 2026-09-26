@@ -16,10 +16,11 @@ import { Text } from './Text';
  * enough to be an easy thumb target across the whole width. */
 const ICON_TAB_GLYPH = 26;
 const ICON_TAB_HEIGHT = 44;
-/** The active tab's underline runs most of its slot, not all of it — the
- * reference leaves a gap between neighbours so the bar reads as marking one
- * tab rather than ruling off the row. */
-const ICON_TAB_UNDERLINE = '66%';
+/** Half the gap between neighbouring underlines, on each side of every tab
+ * — the same half-gap a profile grid tile keeps (`spacing.xs / 2`), so a
+ * three-up row's underlines sit exactly over the three photo columns below,
+ * edge for edge and gap for gap. */
+const ICON_TAB_INSET = spacing.xs / 2;
 
 export interface SegmentOption<T extends string = string> {
   key: T;
@@ -206,13 +207,14 @@ const styles = StyleSheet.create({
   iconItem: {
     flex: 1,
     alignItems: 'center',
+    paddingHorizontal: ICON_TAB_INSET,
   },
   iconGlyph: {
     height: ICON_TAB_HEIGHT,
     justifyContent: 'center',
   },
   iconUnderline: {
-    width: ICON_TAB_UNDERLINE,
+    alignSelf: 'stretch',
     height: 2,
     borderRadius: 2,
     backgroundColor: 'transparent',
