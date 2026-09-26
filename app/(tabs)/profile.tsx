@@ -25,6 +25,8 @@ import { IconButton } from '@/components/IconButton';
 import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Placeholder } from '@/components/Placeholder';
 import {
+  profileActionButton,
+  profileActionIcon,
   profileActionTop,
   profileAvatarSize,
 } from '@/components/ProfileLayout';
@@ -48,11 +50,6 @@ const POST_TILE_RADIUS = 5;
 /** Width over height for a post tile — a touch taller than square, rather
  * than the flat 1:1 an Instagram grid usually cuts its own tiles to. */
 const POST_TILE_RATIO = 0.85;
-
-/** The header's two round buttons match the corner "+" on Challenges, so
- * every tab root's title sits between buttons of the same size. */
-const HEADER_BUTTON = 46;
-const HEADER_ICON = 22;
 
 /** The "3/5" count on a partly done day's tile: small enough to leave the
  * photo the main thing, big enough to read as a mark rather than a speck. */
@@ -688,8 +685,8 @@ export default function ProfileScreen() {
           so they never scroll away. */}
       <IconButton
         name="qr-code-outline"
-        size={HEADER_BUTTON}
-        iconSize={HEADER_ICON}
+        size={profileActionButton}
+        iconSize={profileActionIcon}
         background={colors.surface}
         onPress={() => setCodeOpen(true)}
         accessibilityLabel="Show my friend code"
@@ -697,8 +694,8 @@ export default function ProfileScreen() {
       />
       <IconButton
         name="settings-outline"
-        size={HEADER_BUTTON}
-        iconSize={HEADER_ICON}
+        size={profileActionButton}
+        iconSize={profileActionIcon}
         background={colors.surface}
         onPress={() => router.push('/account/settings')}
         accessibilityLabel="Settings"
@@ -767,7 +764,7 @@ const styles = StyleSheet.create({
   // the two pinned beside it — the way Challenges lines its title up with
   // its own "+".
   header: {
-    minHeight: HEADER_BUTTON,
+    minHeight: profileActionButton,
     justifyContent: 'center',
     marginBottom: spacing.lg,
   },

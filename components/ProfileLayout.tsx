@@ -22,6 +22,11 @@ export const profileActionTop = 56;
  * it — the day's sticky note — grows around the button's centre line instead
  * of pushing it down. */
 export const profileActionHeight = 52;
+/** The round corner buttons pinned on that line — My Profile's QR and
+ * Settings, Settings' own back arrow — matched to the Challenges "+", so
+ * every one of them is the same size wherever it sits. */
+export const profileActionButton = 46;
+export const profileActionIcon = 22;
 
 export interface ProfileLayoutProps {
   /**

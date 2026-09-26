@@ -2,23 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Avatar } from '@/components/Avatar';
+import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoViewer } from '@/components/PhotoViewer';
-import { ScreenScroll } from '@/components/Screen';
+import {
+  profileActionButton,
+  profileActionIcon,
+  profileActionTop,
+} from '@/components/ProfileLayout';
+import { ScreenScroll, topPadding } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { colors, fonts, radii, screenPadding, spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 
-/** The profile screen's own settings glyph, sized on its own rather than a
- * circular button. */
-const backIconSize = 26;
-/** The outline glyph has no bold cut of its own — stacking a second copy a
- * hair off the first thickens the stroke without switching to the filled
- * icon. Matches the profile screen's settings glyph exactly. */
-const backBoldOffset = 0.6;
 
 const BIO_MAX = 120;
 
@@ -54,39 +54,25 @@ export default function SettingsScreen() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
 
+  // The line the title and the back button share — My Profile's own: the
+  // corner button's fixed offset, or the status bar's if that runs lower.
+  const insets = useSafeAreaInsets();
+  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
+  const titleOffset = headerTop - topPadding(insets.top);
+
   return (
     <View style={styles.screenRoot}>
       {/* The one screen off the white: its groups are white cards, and on a
           white page they'd dissolve into it. The cooler off-white is what
           lets each group read as its own card. */}
       <ScreenScroll tone="alt" tabBar>
-        {/* The profile screen's own header row exactly: a spacer balancing
-            the leading glyph so the title centres on the page, rather than
-            a fixed band with a button floating over the scroll content. */}
-        <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            hitSlop={spacing.md}
-            style={({ pressed }) => pressed && styles.iconPressed}
-          >
-            <View style={styles.backIconStack}>
-              <Ionicons name="chevron-back" size={backIconSize} color={colors.ink} />
-              <Ionicons
-                name="chevron-back"
-                size={backIconSize}
-                color={colors.ink}
-                style={styles.backIconOverlay}
-              />
-            </View>
-          </Pressable>
-
-          <Text variant="sectionTitle" center style={styles.headerTitle}>
+        {/* My Profile's own title line: centred, the height of the round
+            button pinned beside it and dropped to the same line, so moving
+            between the two screens nothing in the header jumps. */}
+        <View style={[styles.header, { marginTop: titleOffset }]}>
+          <Text variant="sectionTitle" center>
             Settings
           </Text>
-
-          <View style={styles.headerSpacer} />
         </View>
 
         <Group title="Profile">
@@ -143,6 +129,20 @@ export default function SettingsScreen() {
           />
         </Group>
       </ScreenScroll>
+
+      {/* The back arrow is My Profile's round corner button — the same size,
+          white disc and soft shadow — pinned over the scroll on the title's
+          line rather than scrolling off with it, so the way out stays in
+          reach however far down the settings go. */}
+      <IconButton
+        name="chevron-back"
+        size={profileActionButton}
+        iconSize={profileActionIcon}
+        background={colors.surface}
+        onPress={() => router.back()}
+        accessibilityLabel="Go back"
+        style={[styles.cornerLeft, { top: headerTop }]}
+      />
 
       <AlertDialog
         visible={nameOpen}
@@ -373,30 +373,15 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
+  // The pinned button's height, so the title centres on the same line.
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    minHeight: profileActionButton,
+    justifyContent: 'center',
     marginBottom: spacing.xl,
   },
-  headerTitle: {
-    flex: 1,
-  },
-  backIconStack: {
-    width: backIconSize + backBoldOffset,
-    height: backIconSize + backBoldOffset,
-  },
-  backIconOverlay: {
+  cornerLeft: {
     position: 'absolute',
-    left: backBoldOffset,
-    top: backBoldOffset,
-  },
-  // Balances the leading glyph, so the flexed title between them centres on
-  // the page instead of on the leftover space.
-  headerSpacer: {
-    width: backIconSize + backBoldOffset,
-  },
-  iconPressed: {
-    opacity: 0.85,
+    left: screenPadding,
   },
   group: {
     marginBottom: spacing['2xl'],
