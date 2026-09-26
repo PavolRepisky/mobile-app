@@ -382,11 +382,16 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
 
 export interface DayStampProps {
   day: number;
-  /** Letterspaced over the numeral — the challenge's name on a full post.
-   * Left off a grid tile, where it would shrink to an unreadable hairline. */
+  /** Letterspaced over the numeral — the challenge's name. */
   kicker?: string;
-  /** Tighter side clearance for a thumbnail a third of the page wide. */
-  compact?: boolean;
+  /**
+   * The width of the post this stamp was set for. Given one, the stamp lays
+   * itself out at that width and scales the whole thing — band, kicker and
+   * numeral together — down into its own box, so a profile grid tile carries
+   * a true miniature of the opened post's stamp rather than a numeral shrunk
+   * on its own inside a band sized for the tile.
+   */
+  referenceWidth?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -394,15 +399,13 @@ export interface DayStampProps {
  * "Day N" stamped across a post's photo grid, over a band of shade — shared
  * by the post itself and the profile grid's tile for it, so a day wears the
  * same stamp before it's opened as after. One line at any length: a long day
- * shrinks to fit rather than wrapping, which is also what scales the poster
- * numeral down to a thumbnail.
+ * shrinks to fit rather than wrapping.
  */
-export function DayStamp({ day, kicker, compact, style }: DayStampProps) {
-  return (
-    <View
-      style={[styles.dayStamp, compact && styles.dayStampCompact, style]}
-      pointerEvents="none"
-    >
+export function DayStamp({ day, kicker, referenceWidth, style }: DayStampProps) {
+  const [box, setBox] = useState<{ width: number; height: number } | null>(null);
+
+  const content = (
+    <>
       <LinearGradient colors={gradients.stampBand} style={styles.dayStampBand} />
       {kicker ? (
         <Text
@@ -423,6 +426,45 @@ export function DayStamp({ day, kicker, compact, style }: DayStampProps) {
       >
         Day {day}
       </Text>
+    </>
+  );
+
+  if (!referenceWidth) {
+    return (
+      <View style={[styles.dayStamp, style]} pointerEvents="none">
+        {content}
+      </View>
+    );
+  }
+
+  // Laid out at the post's own width, centred on the box, then scaled about
+  // that centre — which lands it exactly edge to edge.
+  const scale = box ? box.width / referenceWidth : 0;
+  const inner = box && scale ? { width: referenceWidth, height: box.height / scale } : null;
+  return (
+    <View
+      style={[styles.dayStampFrame, style]}
+      pointerEvents="none"
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox({ width, height });
+      }}
+    >
+      {box && inner ? (
+        <View
+          style={[
+            styles.dayStamp,
+            inner,
+            {
+              left: (box.width - inner.width) / 2,
+              top: (box.height - inner.height) / 2,
+              transform: [{ scale }],
+            },
+          ]}
+        >
+          {content}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -467,8 +509,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: screenPadding,
   },
-  dayStampCompact: {
-    paddingHorizontal: spacing.sm,
+  // The scaled stamp's own box — clipped, so the full-size layout sitting
+  // behind the scale never spills past a tile before it has shrunk.
+  dayStampFrame: {
+    ...absoluteFill,
+    overflow: 'hidden',
   },
   dayStampBand: {
     ...absoluteFill,

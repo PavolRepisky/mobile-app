@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
@@ -158,6 +158,7 @@ export default function ProfileScreen() {
     progress,
   } = useApp();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   // The line the title and the two corner buttons share — the same one every
   // other tab root uses: normally the corner button's own fixed offset,
   // dropping to meet the content on a deep safe-area inset, so switching
@@ -465,10 +466,11 @@ export default function ProfileScreen() {
                       }
                     />
 
-                    {/* The same stamp the post carries once it's opened, so
-                        the tile already reads as that post rather than a
-                        loose pile of photos. */}
-                    <DayStamp day={post.day} compact />
+                    {/* The opened post's own stamp, set at the post's width
+                        — its photos run edge to edge, so the window's — and
+                        scaled down whole, so the tile is a miniature of the
+                        post rather than a pile of photos with a label. */}
+                    <DayStamp day={post.day} kicker={challenge.name} referenceWidth={windowWidth} />
 
                     {/* Only a day that fell short says so — a finished day is
                         just its photos. */}
