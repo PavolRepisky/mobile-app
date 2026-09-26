@@ -66,6 +66,11 @@ const DAYS_SWITCH_WIDTH = 190;
 const MONTH_ARROW = 24;
 /** The ▾ beside the month name, a step under the name's own cap height. */
 const MONTH_CARET = 18;
+/** How far the year picker reaches either side of this year. Back far enough
+ * to look at the months before the app, ahead as far as the next challenge
+ * is likely to be planned. */
+const YEARS_BACK = 5;
+const YEARS_AHEAD = 1;
 
 /** The challenge card's "opens a page" chevron — a Settings row's own size. */
 const CHALLENGE_CHEVRON = 20;
@@ -229,10 +234,10 @@ export default function ProfileScreen() {
 
   const [daysView, setDaysView] = useState<DaysView>('grid');
   const [trackWidth, setTrackWidth] = useState(0);
-  // Which month the month view shows, as an index into `months`. Null until
-  // the reader pages, so it keeps landing on the latest month as the
-  // challenge rolls into a new one.
-  const [monthCursor, setMonthCursor] = useState<number | null>(null);
+  // Which month the month view shows, counted in months from this one — 0 is
+  // now, -1 last month. An offset rather than a date, so the view still opens
+  // on the current month once the calendar rolls into a new one.
+  const [monthOffset, setMonthOffset] = useState(0);
   const [yearMenu, setYearMenu] = useState<{ top: number; left: number } | null>(null);
   const yearTriggerRef = useRef<View>(null);
 
@@ -275,11 +280,13 @@ export default function ProfileScreen() {
   const openDay = (day: number) =>
     router.push({ pathname: '/day/[day]', params: { day: String(day) } });
 
-  // The challenge laid out as calendar months, from the one it started in to
-  // this one. A past day with photos opens its post, exactly as its grid tile
-  // does; today opens Tasks, where the day is actually being done; a missed
-  // day and a day still to come have nothing to open.
-  const months = useMemo(() => {
+  // The month on show, laid out day by day. Any month can be paged to —
+  // before the app, after the challenge — and a date outside the challenge is
+  // just an empty cell. Inside it, a past day with photos opens its post,
+  // exactly as its grid tile does; today opens Tasks, where the day is
+  // actually being done; a missed day and a day still to come have nothing
+  // to open.
+  const shownMonth = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -301,73 +308,59 @@ export default function ProfileScreen() {
     const doneCount = (day: number) =>
       tasks.filter((task) => progress[day]?.[task.id]?.done).length;
 
-    const out: { key: string; month: Date; days: Record<number, CalendarDay> }[] = [];
-    const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    const last = new Date(today.getFullYear(), today.getMonth(), 1);
+    const first = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+    const year = first.getFullYear();
+    const month = first.getMonth();
+    const length = new Date(year, month + 1, 0).getDate();
+    const days: Record<number, CalendarDay> = {};
 
-    while (cursor <= last) {
-      const year = cursor.getFullYear();
-      const month = cursor.getMonth();
-      const length = new Date(year, month + 1, 0).getDate();
-      const days: Record<number, CalendarDay> = {};
+    for (let date = 1; date <= length; date += 1) {
+      const on = new Date(year, month, date);
+      const day = dayNumber(on);
+      const isToday = on.getTime() === today.getTime();
+      const shots = day === null ? [] : shotsFor(day);
+      const done = day === null ? 0 : doneCount(day);
+      const cell: CalendarDay = { shots, past: on <= today, today: isToday };
 
-      for (let date = 1; date <= length; date += 1) {
-        const on = new Date(year, month, date);
-        const day = dayNumber(on);
-        const isToday = on.getTime() === today.getTime();
-        const shots = day === null ? [] : shotsFor(day);
-        const done = day === null ? 0 : doneCount(day);
-        const cell: CalendarDay = { shots, past: on <= today, today: isToday };
-
-        if (day !== null && day < currentDay) {
-          // A finished day carries no mark — its photos are the proof, the
-          // same way a finished day's grid tile is just its photos. Only a
-          // day that fell short says so.
-          if (done < tasks.length) {
-            if (shots.length) cell.mark = `${done}/${tasks.length}`;
-            else cell.missed = true;
-          }
-          if (shots.length) {
-            cell.onPress = () =>
-              router.push({ pathname: '/day/[day]', params: { day: String(day) } });
-            cell.label = `Day ${day}, ${done} of ${tasks.length} tasks. Opens this day's post.`;
-          } else {
-            cell.label = `${MONTH_NAMES[month]} ${date}, Day ${day}. Missed.`;
-          }
-        } else if (day !== null && isToday) {
-          if (done) cell.mark = `${done}/${tasks.length}`;
-          cell.onPress = () => router.push('/tasks');
-          cell.label = `Today, Day ${day}, ${done} of ${tasks.length} so far. Opens Tasks.`;
+      if (day !== null && day < currentDay) {
+        // A finished day carries no mark — its photos are the proof, the
+        // same way a finished day's grid tile is just its photos. Only a
+        // day that fell short says so.
+        if (done < tasks.length) {
+          if (shots.length) cell.mark = `${done}/${tasks.length}`;
+          else cell.missed = true;
         }
-        days[date] = cell;
+        if (shots.length) {
+          cell.onPress = () =>
+            router.push({ pathname: '/day/[day]', params: { day: String(day) } });
+          cell.label = `Day ${day}, ${done} of ${tasks.length} tasks. Opens this day's post.`;
+        } else {
+          cell.label = `${MONTH_NAMES[month]} ${date}, Day ${day}. Missed.`;
+        }
+      } else if (day !== null && isToday) {
+        if (done) cell.mark = `${done}/${tasks.length}`;
+        cell.onPress = () => router.push('/tasks');
+        cell.label = `Today, Day ${day}, ${done} of ${tasks.length} so far. Opens Tasks.`;
       }
-
-      out.push({ key: `${year}-${month}`, month: new Date(year, month, 1), days });
-      cursor.setMonth(month + 1);
+      days[date] = cell;
     }
-    return out;
-  }, [startDate, totalDays, currentDay, tasks, progress, router]);
 
-  const monthIndex = Math.min(monthCursor ?? months.length - 1, months.length - 1);
-  const shownMonth = months[monthIndex];
-  const years = [...new Set(months.map((entry) => entry.month.getFullYear()))];
+    return { month: first, days };
+  }, [monthOffset, startDate, totalDays, currentDay, tasks, progress, router]);
 
-  // A year on its own isn't a page — it lands on that year's month nearest
-  // the one being looked at, so switching year keeps you at the same time of
-  // year where the challenge allows it.
+  // The years the picker offers: a spread around this one, stretched to take
+  // in the year the challenge started should it fall outside that.
+  const thisYear = new Date().getFullYear();
+  const firstYear = Math.min(thisYear - YEARS_BACK, startDate.getFullYear());
+  const years = Array.from(
+    { length: thisYear + YEARS_AHEAD - firstYear + 1 },
+    (_, i) => firstYear + i,
+  );
+
+  // A year on its own isn't a page — it keeps the month being looked at and
+  // moves it to the chosen year.
   const jumpToYear = (year: number) => {
-    const target = shownMonth.month.getMonth();
-    let best = monthIndex;
-    let bestGap = Infinity;
-    months.forEach((entry, index) => {
-      if (entry.month.getFullYear() !== year) return;
-      const gap = Math.abs(entry.month.getMonth() - target);
-      if (gap < bestGap) {
-        best = index;
-        bestGap = gap;
-      }
-    });
-    setMonthCursor(best);
+    setMonthOffset(monthOffset + (year - shownMonth.month.getFullYear()) * 12);
   };
 
   // Drops from under the name, measured at the moment it opens rather than
@@ -568,69 +561,63 @@ export default function ProfileScreen() {
         </View>
 
         {daysView === 'month' ? (
-          shownMonth ? (
-            <CalendarMonth
-              month={shownMonth.month}
-              days={shownMonth.days}
-              filled
-              style={styles.month}
-              header={
-                // One month at a time: the arrows page to the challenge's
-                // edges and no further, and fade out once there's nothing
-                // past them.
-                <View style={styles.monthHeader}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Previous month"
-                    disabled={monthIndex === 0}
-                    onPress={() => setMonthCursor(monthIndex - 1)}
-                    hitSlop={spacing.md}
-                    style={({ pressed }) => pressed && styles.pressed}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={MONTH_ARROW}
-                      color={monthIndex === 0 ? colors.inkGhost : colors.ink}
-                    />
-                  </Pressable>
+          <CalendarMonth
+            month={shownMonth.month}
+            days={shownMonth.days}
+            filled
+            style={styles.month}
+            header={
+              // One month at a time, and the arrows go as far as anyone
+              // pages — an empty month before the app is still a month.
+              <View style={styles.monthHeader}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous month"
+                  onPress={() => setMonthOffset(monthOffset - 1)}
+                  hitSlop={spacing.md}
+                  style={({ pressed }) => pressed && styles.pressed}
+                >
+                  <Ionicons
+                    name="chevron-back"
+                    size={MONTH_ARROW}
+                    color={colors.ink}
+                  />
+                </Pressable>
 
-                  <Pressable
-                    ref={yearTriggerRef}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
-                    disabled={years.length < 2}
-                    onPress={openYearMenu}
-                    hitSlop={spacing.sm}
-                    style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
-                  >
-                    <Text variant="sectionTitleXs">
-                      {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
-                    </Text>
-                    <Ionicons
-                      name="chevron-down"
-                      size={MONTH_CARET}
-                      color={years.length < 2 ? colors.inkGhost : colors.ink}
-                    />
-                  </Pressable>
+                <Pressable
+                  ref={yearTriggerRef}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
+                  onPress={openYearMenu}
+                  hitSlop={spacing.sm}
+                  style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
+                >
+                  <Text variant="sectionTitleXs">
+                    {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
+                  </Text>
+                  <Ionicons
+                    name="chevron-down"
+                    size={MONTH_CARET}
+                    color={colors.ink}
+                  />
+                </Pressable>
 
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Next month"
-                    disabled={monthIndex === months.length - 1}
-                    onPress={() => setMonthCursor(monthIndex + 1)}
-                    hitSlop={spacing.md}
-                    style={({ pressed }) => pressed && styles.pressed}
-                  >
-                    <Ionicons
-                      name="chevron-forward"
-                      size={MONTH_ARROW}
-                      color={monthIndex === months.length - 1 ? colors.inkGhost : colors.ink}
-                    />
-                  </Pressable>
-                </View>
-              }
-            />
-          ) : null
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Next month"
+                  onPress={() => setMonthOffset(monthOffset + 1)}
+                  hitSlop={spacing.md}
+                  style={({ pressed }) => pressed && styles.pressed}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={MONTH_ARROW}
+                    color={colors.ink}
+                  />
+                </Pressable>
+              </View>
+            }
+          />
         ) : posts.length === 0 ? (
           <EmptyState
             icon="camera-outline"
