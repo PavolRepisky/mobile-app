@@ -87,7 +87,7 @@ and `*accent*` runs step the weight up from a lighter base).
 
 **Controls** · `PrimaryButton` / `SecondaryButton` / `TextLink` ·
 `IconButton` circular · `Pill` (`floating`|`glass`|`solid`|`muted`|`outline` ×
-`sm`|`md`|`lg`) · `SegmentedTabs` (`underline`|`pill`) · `BigSegmentHeader` the
+`sm`|`md`|`lg`) · `SegmentedTabs` (`underline`|`icons`) · `BigSegmentHeader` the
 two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·

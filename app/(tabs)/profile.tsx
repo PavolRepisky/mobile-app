@@ -58,10 +58,6 @@ const TILE_MARK = 22;
  * the muted fill, anything heavier starts to read as a second button. */
 const PROGRESS_HEIGHT = 5;
 
-/** Wide enough for "Grid" and "Month" with their glyphs; the pill track
- * splits it evenly so the chip slides between two fixed stops. */
-const DAYS_SWITCH_WIDTH = 190;
-
 /** Same hero circle the to-do ring and a friend's profile share — this is
  * the one place on the app's own profile that gets to be that big. */
 const avatarSize = profileAvatarSize;
@@ -399,19 +395,23 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
-        <View style={styles.daysHeader}>
-          <Text variant="sectionTitle">Days</Text>
-          <SegmentedTabs
-            variant="pill"
-            options={[
-              { key: 'grid', label: 'Grid', icon: 'grid-outline' },
-              { key: 'month', label: 'Month', icon: 'calendar-outline' },
-            ]}
-            value={daysView}
-            onChange={setDaysView}
-            style={styles.daysSwitch}
-          />
-        </View>
+        {/* No "Days" heading: the tab row is the heading, the way
+            Instagram's profile runs straight from the bio into its own. */}
+        <SegmentedTabs
+          variant="icons"
+          options={[
+            { key: 'grid', label: 'Grid', icon: 'apps-outline', activeIcon: 'apps' },
+            {
+              key: 'month',
+              label: 'Month',
+              icon: 'calendar-clear-outline',
+              activeIcon: 'calendar-clear',
+            },
+          ]}
+          value={daysView}
+          onChange={setDaysView}
+          style={styles.daysTabs}
+        />
 
         {daysView === 'month' ? (
           months.map((entry) => (
@@ -644,15 +644,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.ink,
   },
-  daysHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing['2xl'],
-    marginBottom: spacing.md,
-  },
-  daysSwitch: {
-    width: DAYS_SWITCH_WIDTH,
+  daysTabs: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.xs,
   },
   month: {
     marginBottom: spacing['2xl'],
