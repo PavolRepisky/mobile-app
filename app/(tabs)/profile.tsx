@@ -23,7 +23,6 @@ import { EmptyState } from '@/components/EmptyState';
 import { DayStamp } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
 import { MosaicArrangement } from '@/components/PhotoCollage';
-import { Pill } from '@/components/Pill';
 import { Placeholder } from '@/components/Placeholder';
 import {
   profileActionTop,
@@ -376,10 +375,14 @@ export default function ProfileScreen() {
       {/* The Profile tab breaks from the warm app shell and sits on white,
           the way the reference screen does. */}
       <ScreenScroll tabBar tone="plain">
-        {/* Holds the title's line open at the top of the scroll; the title
-            itself is the pill pinned over it below, so the page starts where
-            it always did and scrolls up underneath. */}
-        <View style={[styles.header, { marginTop: titleOffset }]} />
+        {/* The title scrolls with the page; the two buttons either side of it
+            are pinned over the scroll below, so they stay in reach however
+            far down the days go. */}
+        <View style={[styles.header, { marginTop: titleOffset }]}>
+          <Text variant="sectionTitle" center>
+            My Profile
+          </Text>
+        </View>
 
         <View style={styles.identity}>
           <View
@@ -685,17 +688,6 @@ export default function ProfileScreen() {
           buttons the size of the Challenges "+", pinned to the title's line
           and measured from the screen edge rather than the scroll content,
           so they never scroll away. */}
-      {/* The title as a white floating pill between the two buttons, pinned
-          with them rather than scrolling off — so wherever the page has got
-          to, it still says whose profile this is. Sized to the buttons'
-          height so the three sit on one line. */}
-      <View
-        pointerEvents="box-none"
-        accessibilityRole="header"
-        style={[styles.titlePill, { top: headerTop }]}
-      >
-        <Pill label="My Profile" size="lg" bold style={styles.titlePillShape} />
-      </View>
       <IconButton
         name="qr-code-outline"
         size={HEADER_BUTTON}
@@ -765,24 +757,13 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  // The pinned row's footprint — the corner buttons' height — so the page
-  // below starts clear of the title pill and the buttons beside it.
+  // Sized to the corner buttons, so the title centres on the same line as
+  // the two pinned beside it — the way Challenges lines its title up with
+  // its own "+".
   header: {
     minHeight: HEADER_BUTTON,
     justifyContent: 'center',
     marginBottom: spacing.lg,
-  },
-  titlePill: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  titlePillShape: {
-    height: HEADER_BUTTON,
-    // Pill shrink-wraps itself with `alignSelf: 'flex-start'`, which beats
-    // the row's own centring and pins it to the left edge.
-    alignSelf: 'center',
   },
   cornerLeft: {
     position: 'absolute',
