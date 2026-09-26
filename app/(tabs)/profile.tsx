@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { DayStamp } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
 import { MosaicArrangement } from '@/components/PhotoCollage';
+import { PopoverMenu } from '@/components/PopoverMenu';
 import { Placeholder } from '@/components/Placeholder';
 import {
   profileActionTop,
@@ -59,6 +60,12 @@ const TILE_MARK = 22;
 /** Wide enough for "Grid" and "Month" with their glyphs; the pill track
  * splits it evenly so the chip slides between two fixed stops. */
 const DAYS_SWITCH_WIDTH = 190;
+
+/** The month view's paging arrows — big enough to hit at the page's edges
+ * without a button shape around them. */
+const MONTH_ARROW = 24;
+/** The ▾ beside the month name, a step under the name's own cap height. */
+const MONTH_CARET = 18;
 
 /** The challenge card's "opens a page" chevron — a Settings row's own size. */
 const CHALLENGE_CHEVRON = 20;
@@ -222,6 +229,12 @@ export default function ProfileScreen() {
 
   const [daysView, setDaysView] = useState<DaysView>('grid');
   const [trackWidth, setTrackWidth] = useState(0);
+  // Which month the month view shows, as an index into `months`. Null until
+  // the reader pages, so it keeps landing on the latest month as the
+  // challenge rolls into a new one.
+  const [monthCursor, setMonthCursor] = useState<number | null>(null);
+  const [yearMenu, setYearMenu] = useState<{ top: number; left: number } | null>(null);
+  const yearTriggerRef = useRef<View>(null);
 
   const doneOn = (day: number) =>
     tasks.filter((task) => progress[day]?.[task.id]?.done).length;
@@ -334,6 +347,36 @@ export default function ProfileScreen() {
     }
     return out;
   }, [startDate, totalDays, currentDay, tasks, progress, router]);
+
+  const monthIndex = Math.min(monthCursor ?? months.length - 1, months.length - 1);
+  const shownMonth = months[monthIndex];
+  const years = [...new Set(months.map((entry) => entry.month.getFullYear()))];
+
+  // A year on its own isn't a page — it lands on that year's month nearest
+  // the one being looked at, so switching year keeps you at the same time of
+  // year where the challenge allows it.
+  const jumpToYear = (year: number) => {
+    const target = shownMonth.month.getMonth();
+    let best = monthIndex;
+    let bestGap = Infinity;
+    months.forEach((entry, index) => {
+      if (entry.month.getFullYear() !== year) return;
+      const gap = Math.abs(entry.month.getMonth() - target);
+      if (gap < bestGap) {
+        best = index;
+        bestGap = gap;
+      }
+    });
+    setMonthCursor(best);
+  };
+
+  // Drops from under the name, measured at the moment it opens rather than
+  // tracked — the page scrolls, so any stored position would be stale.
+  const openYearMenu = () => {
+    yearTriggerRef.current?.measureInWindow((x, y, _width, height) => {
+      setYearMenu({ top: y + height + spacing.xs, left: x });
+    });
+  };
 
   const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
 
@@ -525,15 +568,69 @@ export default function ProfileScreen() {
         </View>
 
         {daysView === 'month' ? (
-          months.map((entry) => (
+          shownMonth ? (
             <CalendarMonth
-              key={entry.key}
-              month={entry.month}
-              days={entry.days}
+              month={shownMonth.month}
+              days={shownMonth.days}
               filled
               style={styles.month}
+              header={
+                // One month at a time: the arrows page to the challenge's
+                // edges and no further, and fade out once there's nothing
+                // past them.
+                <View style={styles.monthHeader}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Previous month"
+                    disabled={monthIndex === 0}
+                    onPress={() => setMonthCursor(monthIndex - 1)}
+                    hitSlop={spacing.md}
+                    style={({ pressed }) => pressed && styles.pressed}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={MONTH_ARROW}
+                      color={monthIndex === 0 ? colors.inkGhost : colors.ink}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    ref={yearTriggerRef}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
+                    disabled={years.length < 2}
+                    onPress={openYearMenu}
+                    hitSlop={spacing.sm}
+                    style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
+                  >
+                    <Text variant="sectionTitleXs">
+                      {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
+                    </Text>
+                    <Ionicons
+                      name="chevron-down"
+                      size={MONTH_CARET}
+                      color={years.length < 2 ? colors.inkGhost : colors.ink}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Next month"
+                    disabled={monthIndex === months.length - 1}
+                    onPress={() => setMonthCursor(monthIndex + 1)}
+                    hitSlop={spacing.md}
+                    style={({ pressed }) => pressed && styles.pressed}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={MONTH_ARROW}
+                      color={monthIndex === months.length - 1 ? colors.inkGhost : colors.ink}
+                    />
+                  </Pressable>
+                </View>
+              }
             />
-          ))
+          ) : null
         ) : posts.length === 0 ? (
           <EmptyState
             icon="camera-outline"
@@ -622,6 +719,17 @@ export default function ProfileScreen() {
         onPress={() => router.push('/account/settings')}
         accessibilityLabel="Settings"
         style={[styles.cornerRight, { top: headerTop }]}
+      />
+
+      <PopoverMenu
+        visible={yearMenu !== null}
+        onDismiss={() => setYearMenu(null)}
+        top={yearMenu?.top ?? 0}
+        left={yearMenu?.left ?? 0}
+        items={years.map((year) => ({
+          label: String(year),
+          onPress: () => jumpToYear(year),
+        }))}
       />
 
       {/* The friend code slides up from the bottom the way the comments do:
@@ -786,6 +894,16 @@ const styles = StyleSheet.create({
   },
   month: {
     marginBottom: spacing['2xl'],
+  },
+  monthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  monthTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   // Edge to edge — the reference's own photo grid runs the full page width,
   // no gutter either side — the gap lives between tiles (on `postCellWrap`

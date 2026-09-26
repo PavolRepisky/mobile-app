@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import type { ReactNode } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -112,6 +113,9 @@ export interface CalendarMonthProps {
    * cut into pieces rather than a set of separate ones.
    */
   filled?: boolean;
+  /** Drawn in place of the month's own name — a caller that pages between
+   * months puts its arrows and year picker here. */
+  header?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -124,7 +128,7 @@ function leadingBlanks(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
 }
 
-export function CalendarMonth({ month, days, filled, style }: CalendarMonthProps) {
+export function CalendarMonth({ month, days, filled, header, style }: CalendarMonthProps) {
   const year = month.getFullYear();
   const index = month.getMonth();
 
@@ -135,7 +139,7 @@ export function CalendarMonth({ month, days, filled, style }: CalendarMonthProps
 
   return (
     <View style={style}>
-      <Text variant="sectionTitleSm">{`${MONTH_NAMES[index]} ${year}`}</Text>
+      {header ?? <Text variant="sectionTitleSm">{`${MONTH_NAMES[index]} ${year}`}</Text>}
 
       <View style={styles.weekdays}>
         {WEEKDAYS.map((name) => (
