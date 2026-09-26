@@ -158,6 +158,7 @@ export default function SettingsScreen() {
           { label: 'Cancel', onPress: () => setNameOpen(false) },
           {
             label: 'Update',
+            primary: true,
             onPress: () => {
               if (draftName.trim()) setName(draftName.trim());
               setNameOpen(false);
@@ -180,6 +181,7 @@ export default function SettingsScreen() {
           { label: 'Cancel', onPress: () => setHandleOpen(false) },
           {
             label: 'Update',
+            primary: true,
             onPress: () => {
               const next = draftHandle.trim();
               if (next) setHandle(next.startsWith('@') ? next : `@${next}`);
@@ -210,6 +212,7 @@ export default function SettingsScreen() {
           { label: 'Cancel', onPress: () => setBioOpen(false) },
           {
             label: 'Update',
+            primary: true,
             onPress: () => {
               setBio(draftBio.trim() ? draftBio.trim() : null);
               setBioOpen(false);
@@ -228,6 +231,7 @@ export default function SettingsScreen() {
           {
             label: 'Delete',
             destructive: true,
+            primary: true,
             onPress: () => {
               setDeleteOpen(false);
               resetAll();
@@ -246,6 +250,7 @@ export default function SettingsScreen() {
           {
             label: 'Log out',
             destructive: true,
+            primary: true,
             onPress: () => {
               setLogoutOpen(false);
               resetAll();

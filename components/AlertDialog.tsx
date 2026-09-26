@@ -16,6 +16,13 @@ export interface AlertAction {
   onPress: () => void;
   /** Red label — Restart, Delete. */
   destructive?: boolean;
+  /**
+   * The action the dialog is asking for — Update, Delete, Log out — set as a
+   * solid black pill with white type beside the grey chip of Cancel, so the
+   * way forward is the thing the eye lands on. Takes precedence over
+   * `destructive`: red type on the black pill would all but disappear.
+   */
+  primary?: boolean;
 }
 
 export interface AlertDialogProps {
@@ -136,6 +143,7 @@ export function AlertDialog({
                     onPress={action.onPress}
                     style={({ pressed }) => [
                       styles.action,
+                      action.primary && styles.actionPrimary,
                       actions.length > 2
                         ? styles.actionStacked
                         : styles.actionRow,
@@ -145,7 +153,11 @@ export function AlertDialog({
                     <Text
                       variant="button"
                       color={
-                        action.destructive ? colors.destructive : colors.ink
+                        action.primary
+                          ? colors.inkInverse
+                          : action.destructive
+                            ? colors.destructive
+                            : colors.ink
                       }
                     >
                       {action.label}
@@ -232,6 +244,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  actionPrimary: {
+    backgroundColor: colors.ink,
   },
   /** Side by side: the pair splits the dialog's width between them. */
   actionRow: {
