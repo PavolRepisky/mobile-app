@@ -14,14 +14,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import {
-  absoluteFill,
-  colors,
-  gradients,
-  radii,
-  screenPadding,
-  spacing,
-} from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
 import { type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';
@@ -191,7 +184,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
         </Pressable>
         <View style={styles.identityText}>
           <Text
-            variant="bodyBold"
+            variant="itemTitle"
             accessibilityRole={onPress ? 'button' : undefined}
             accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
             onPress={onPress}
@@ -200,7 +193,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
           </Text>
           <View style={styles.subtitleRow}>
             <Text
-              variant="labelBold"
+              variant="meta"
               color={colors.inkMuted}
               accessibilityRole="button"
               accessibilityLabel={`Open ${challenge.name}`}
@@ -212,7 +205,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
               {challenge.name}
             </Text>
             <View style={styles.subtitleDot} />
-            <Text variant="labelBold" color={colors.inkMuted}>
+            <Text variant="meta" color={colors.inkMuted}>
               Day {day}
             </Text>
           </View>
@@ -343,7 +336,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
               color={liked ? colors.destructive : colors.ink}
             />
           </Pressable>
-          <Text variant="bodyBold">{likeCount}</Text>
+          <Text variant="metaBold">{likeCount}</Text>
         </View>
 
         <View style={styles.actionGroup}>
@@ -356,13 +349,18 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
           >
             <Ionicons name="chatbubble-outline" size={24} color={colors.ink} />
           </Pressable>
-          <Text variant="bodyBold">{commentCount}</Text>
+          <Text variant="metaBold">{commentCount}</Text>
         </View>
       </View>
 
       {doneLabels.length ? (
-        <Text variant="body" color={colors.inkSlate} style={styles.caption}>
-          <Text variant="bodyBold">{friend.handle} </Text>
+        // Reading text at the `copy` level, in the palette's text grey; the
+        // handle leading it steps up to ink — the hierarchy has no bold at
+        // this size, so colour carries the difference.
+        <Text variant="copy" color={colors.inkMuted} style={styles.caption}>
+          <Text variant="copy" color={colors.ink}>
+            {friend.handle}{' '}
+          </Text>
           {doneLabels.join(' · ')}
         </Text>
       ) : null}
@@ -475,8 +473,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   identityText: {
-    marginLeft: spacing.sm,
+    marginLeft: layout.inline,
   },
+  // A bare step rather than a `layout` role: the air either side of the
+  // separator dot is an optical call, tighter than `inline` would set it.
   subtitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -500,14 +500,14 @@ const styles = StyleSheet.create({
   // unbled width the moment it locks, and the top gap would read as blurred
   // blank space reaching up to the subtitle instead of clear air above it.
   photoOuter: {
-    marginTop: spacing.md,
-    marginHorizontal: -screenPadding,
+    marginTop: layout.heading,
+    marginHorizontal: -layout.gutter,
   },
   dayStamp: {
     ...absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: screenPadding,
+    paddingHorizontal: layout.gutter,
   },
   // The scaled stamp's own box — clipped, so the full-size layout sitting
   // behind the scale never spills past a tile before it has shrunk.
@@ -525,16 +525,16 @@ const styles = StyleSheet.create({
   // Clear of the numeral's caps by a hair — the kicker's descenders sat on
   // the digits any closer.
   dayStampKicker: {
-    marginBottom: spacing.xs,
+    marginBottom: layout.line,
   },
   dots: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: spacing.md,
+    bottom: layout.heading,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 5,
+    gap: layout.line,
   },
   dot: {
     width: 6,
@@ -548,16 +548,16 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
+    gap: layout.inline,
+    marginTop: layout.heading,
   },
   actionGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: layout.line,
   },
   caption: {
-    marginTop: spacing.sm,
+    marginTop: layout.stack,
   },
   pressed: {
     opacity: 0.7,

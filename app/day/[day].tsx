@@ -1,20 +1,20 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/FriendCard';
+import { IconButton } from '@/components/IconButton';
+import {
+  profileActionButton,
+  profileActionIcon,
+  profileActionTop,
+} from '@/components/ProfileLayout';
 import { topPadding } from '@/components/Screen';
 import { Text } from '@/components/Text';
-import { colors, screenPadding, spacing } from '@/constants/theme';
+import { colors, layout } from '@/constants/theme';
 import { FRIENDS, type Friend } from '@/data/content';
 import { useApp, usePostedDays } from '@/hooks/useAppState';
-
-/** Matches the back chevron's own drawn size — used to reserve exactly its
- * footprint at the top of the feed, since the button itself floats above the
- * scroll rather than sitting in its flow. */
-const BACK_ICON_SIZE = 26.6;
 
 /**
  * Your own days, opened the way an Instagram post does rather than a story —
@@ -39,7 +39,10 @@ export default function DayPostScreen() {
   // it shows just itself.
   const days = postedDays.includes(openedDay) ? postedDays : [openedDay];
 
-  const headerTop = topPadding(insets.top);
+  // The line the title and the back button share — My Profile's and
+  // Settings' own: the corner button's fixed offset, or the status bar's if
+  // that runs lower.
+  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
 
   const { profile, tasks, progress, currentDay, trophies, livesLeft } = useApp();
 
@@ -129,14 +132,14 @@ export default function DayPostScreen() {
         }}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: headerTop, paddingBottom: insets.bottom + spacing.xl },
+          { paddingTop: headerTop, paddingBottom: insets.bottom + layout.section },
         ]}
       >
         {/* The feed's own title, sharing the back chevron's line the way
             every other pushed screen's title band does — not "Day N", which
             belongs to the post below it, but what this whole scroll is. */}
         <View style={styles.titleBand}>
-          <Text variant="sectionTitle" center>
+          <Text variant="pageTitle" center>
             My Days
           </Text>
         </View>
@@ -158,31 +161,18 @@ export default function DayPostScreen() {
         ))}
       </ScrollView>
 
-      {/* Floats over the feed rather than living inside one post, so
-          scrolling between days never moves it — the title band above
-          scrolls with the content, exactly the way the Community tab's own
-          header does. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
+      {/* My Profile's round corner button, as Settings has it — pinned over
+          the feed on the title's line, so scrolling between days never moves
+          it while the title band above scrolls with the content. */}
+      <IconButton
+        name="chevron-back"
+        size={profileActionButton}
+        iconSize={profileActionIcon}
+        background={colors.surface}
         onPress={() => router.back()}
-        hitSlop={spacing.md}
-        style={({ pressed }) => [
-          styles.back,
-          { top: headerTop },
-          pressed && styles.pressed,
-        ]}
-      >
-        <View style={styles.backIconStack}>
-          <Ionicons name="chevron-back" size={26} color={colors.ink} />
-          <Ionicons
-            name="chevron-back"
-            size={26}
-            color={colors.ink}
-            style={styles.backIconOverlay}
-          />
-        </View>
-      </Pressable>
+        accessibilityLabel="Go back"
+        style={[styles.back, { top: headerTop }]}
+      />
     </View>
   );
 }
@@ -202,34 +192,21 @@ const styles = StyleSheet.create({
   // the same one the Community tab's own feed sits in.
   content: {
     flexGrow: 1,
-    paddingHorizontal: screenPadding,
+    paddingHorizontal: layout.gutter,
   },
-  // Shares the back chevron's own line — same trick a pushed screen's title
-  // band always uses to line a centred title up with the button beside it.
+  // The pinned button's height, so the centred title shares its line — the
+  // same title band My Profile and Settings open with.
   titleBand: {
-    minHeight: BACK_ICON_SIZE,
+    minHeight: profileActionButton,
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: layout.title,
   },
-  // One post's clearance from the next — a feed post's own quiet break, the
-  // same role the Community list's own `gap` plays between `FriendCard`s.
+  // One post's clearance from the next: each post is a block of the page.
   post: {
-    marginBottom: spacing['3xl'],
+    marginBottom: layout.section,
   },
   back: {
     position: 'absolute',
-    left: screenPadding,
-  },
-  backIconStack: {
-    width: BACK_ICON_SIZE,
-    height: BACK_ICON_SIZE,
-  },
-  backIconOverlay: {
-    position: 'absolute',
-    left: 0.6,
-    top: 0.6,
-  },
-  pressed: {
-    opacity: 0.7,
+    left: layout.gutter,
   },
 });
