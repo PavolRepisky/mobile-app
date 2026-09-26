@@ -384,13 +384,13 @@ export default function ProfileScreen() {
         </View>
 
         {/* The challenge the ring is measuring, how far into it you are, and
-            a way into its page. Set in the grey the ring's open segments
-            wear, so the gauge and the challenge it measures read as one
-            thing. */}
+            a way into its page. Set in a lighter cut of the grey the ring's
+            open segments wear, so the gauge and the challenge it measures
+            read as one thing. */}
         <Card
           flat
           padded={false}
-          radius={radii.lg}
+          radius={radii.md}
           onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
           style={styles.challengeCard}
         >
@@ -690,11 +690,11 @@ const styles = StyleSheet.create({
   },
   challengeCard: {
     marginTop: spacing.xl,
-    backgroundColor: colors.inkGhost,
+    backgroundColor: colors.challengeCard,
   },
   challengeBody: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
     gap: spacing.sm,
   },
   challengeRow: {

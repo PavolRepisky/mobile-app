@@ -72,6 +72,10 @@ export const colors = {
    * touch heavier than a hairline. Sampled from the same screen.
    */
   inkGhost: '#D7D6D3',
+  /** My Profile's challenge card — `inkGhost`, the ring's open segments, let
+   * a shade lighter: a whole card in the ring's own grey sat too heavy under
+   * the photo for a surface that only carries a name and a bar. */
+  challengeCard: '#E1E0DD',
   /** Text on dark fills. */
   inkInverse: '#FFFFFF',
   /**
