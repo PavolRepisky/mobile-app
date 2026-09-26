@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 
 import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
-import { type Friend } from '@/data/content';
+import { REACTIONS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';
 import { Avatar } from './Avatar';
@@ -81,9 +81,21 @@ function fakeCount(key: string, min: number, max: number): number {
   return min + (Math.abs(h) % (max - min + 1));
 }
 
-/** The one reaction this card's heart toggles — matches the post-detail
- * screen's own single like, not a picker of the app's full emoji set. */
-const LIKE_EMOJI = '❤️';
+/**
+ * How each reaction is read out, and the range its made-up count is drawn
+ * from — hearts the most common, laughs the rarest, so the row reads like a
+ * real post's rather than four equal numbers.
+ */
+const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: number; max: number }> = {
+  '❤️': { name: 'Love', min: 40, max: 220 },
+  '🔥': { name: 'Fire', min: 10, max: 90 },
+  '👏': { name: 'Clap', min: 5, max: 60 },
+  '😂': { name: 'Laugh', min: 0, max: 25 },
+};
+
+/** A reaction pill's height — a thumb-sized target that still sits four
+ * across with the comment count on one row. */
+const REACTION_CHIP = 32;
 
 /**
  * A friend's day as one flat post — avatar, name and the post-detail screen's
@@ -108,8 +120,15 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
   const day = post?.day ?? friend.day;
   const postTasks = post?.tasks ?? friend.tasks;
 
-  const liked = (postReactions[postId] ?? null) === LIKE_EMOJI;
-  const likeCount = fakeCount(postId, 40, 220) + (liked ? 1 : 0);
+  // One reaction per person per post: picking another moves it, picking
+  // yours again takes it back.
+  const mine = postReactions[postId] ?? null;
+  const reactions = REACTIONS.map((emoji) => {
+    const { name, min, max } = REACTION_INFO[emoji];
+    const selected = mine === emoji;
+    const count = fakeCount(`${postId}-${emoji}`, min, max) + (selected ? 1 : 0);
+    return { emoji, name, selected, count };
+  });
 
   const comments = mergeCommentThread(
     post ? [] : friend.comments ?? [],
@@ -325,22 +344,33 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
       ) : null}
 
       <View style={styles.actions}>
-        <View style={styles.actionGroup}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={liked ? 'Unlike' : 'Like'}
-            accessibilityState={{ selected: liked }}
-            onPress={() => reactToPost(postId, LIKE_EMOJI)}
-            hitSlop={spacing.sm}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Ionicons
-              name={liked ? 'heart' : 'heart-outline'}
-              size={26}
-              color={liked ? colors.destructive : colors.ink}
-            />
-          </Pressable>
-          <Text variant="metaBold">{likeCount}</Text>
+        {/* The reactions lead the row, one pill each; the one you left is
+            set in ink. The comments sit apart at the far end. */}
+        <View style={styles.reactions}>
+          {reactions.map((reaction) => (
+            <Pressable
+              key={reaction.emoji}
+              accessibilityRole="button"
+              accessibilityLabel={`${reaction.name}, ${reaction.count}`}
+              accessibilityState={{ selected: reaction.selected }}
+              onPress={() => reactToPost(postId, reaction.emoji)}
+              style={({ pressed }) => [
+                styles.reaction,
+                reaction.selected && styles.reactionSelected,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text variant="meta">{reaction.emoji}</Text>
+              {reaction.count > 0 ? (
+                <Text
+                  variant="metaBold"
+                  color={reaction.selected ? colors.inkInverse : colors.ink}
+                >
+                  {reaction.count}
+                </Text>
+              ) : null}
+            </Pressable>
+          ))}
         </View>
 
         <View style={styles.actionGroup}>
@@ -551,11 +581,30 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: colors.surface,
   },
+  // Reactions at the start, comments pushed to the far end.
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: layout.inline,
     marginTop: layout.heading,
+  },
+  reactions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.stack,
+  },
+  reaction: {
+    height: REACTION_CHIP,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.line,
+    paddingHorizontal: layout.pill,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSunken,
+  },
+  reactionSelected: {
+    backgroundColor: colors.ink,
   },
   actionGroup: {
     flexDirection: 'row',
