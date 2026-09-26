@@ -343,7 +343,10 @@ export default function ProfileScreen() {
     return out;
   }, [startDate, totalDays, currentDay, tasks, progress, router]);
 
-  const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
+  // TEMPORARY preview: forces the bar to 70% so the gradient can be judged
+  // this early in the challenge. The real share, to restore:
+  //   Math.min(1, currentDay / Math.max(totalDays, 1))
+  const progressShare = 0.7;
 
   return (
     <View style={styles.screenRoot}>
