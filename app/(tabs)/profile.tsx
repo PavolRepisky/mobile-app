@@ -121,9 +121,10 @@ function ringSegment(
 }
 
 /**
- * The accent runs *around* the ring rather than across its box: lavender
- * where the first segment starts at 12 o'clock, rose halfway round, peach by
- * the time the last segment closes. SVG has no conic gradient, so the sweep
+ * The accent runs *around* the ring rather than across its box: peach where
+ * the first segment starts at 12 o'clock, rose halfway round, lavender by the
+ * time the last segment closes — the warm end leads, so the first task ticked
+ * off lands in the brightest colour. SVG has no conic gradient, so the sweep
  * is drawn as this many thin arcs, each one flat-coloured for its angle — at
  * a 4° step the banding is below what the eye picks out on a 6pt stroke.
  */
@@ -155,9 +156,10 @@ function accentAt(t: number): string {
 /** The sweep's slices, clockwise from 12 o'clock. */
 const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
   rotation: -90 + (i * 360) / RING_SWEEP_SLICES,
-  // Coloured at the slice's middle, so the first and last land just inside
-  // the two end stops rather than exactly on them.
-  color: accentAt((i + 0.5) / RING_SWEEP_SLICES),
+  // Read off the accent backwards, peach first. Coloured at the slice's
+  // middle, so the first and last land just inside the two end stops rather
+  // than exactly on them.
+  color: accentAt(1 - (i + 0.5) / RING_SWEEP_SLICES),
 }));
 
 /** The badge sits centred on the bottom of the ring, the way the "Day N" pill
@@ -363,7 +365,7 @@ export default function ProfileScreen() {
                 The sweep is laid once around the whole ring and shown
                 through the done segments as a mask, so a segment's colour
                 is simply where it sits on the circle — the first one
-                lavender, the last one peach, whichever tasks are done. */}
+                peach, the last one lavender, whichever tasks are done. */}
             <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
               <Defs>
                 {/* White is what a mask lets through — the done segments'
