@@ -267,9 +267,6 @@ nothing.
 **`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
 edge) · `radius`.
 
-**`WallSection`** — `title` · `items` (`WallTile`) · `editable` · `onPressItem`
-· `onRename` · `onAddPhoto`.
-
 **`FriendCard`**, **`RecipeCard`**, **`ReviewCard`** take their domain object
 plus `onPress`. **`ChallengeDetail`** is the full editor: task list with
 drag-reorder (`onReorder`), rename, delete, and `onDraggingChange` so the host

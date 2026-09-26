@@ -144,7 +144,7 @@ async function cropToCell(
  * mode — undo a task and its tile frosts over again — so retaking is undo,
  * then tap.
  *
- * Full-bleed and deliberately bare, the way `/photo/camera` already is: no
+ * Full-bleed and deliberately bare, the way a capture screen should be: no
  * day heading, no progress dots, no tab bar while it's up — the tab bar
  * switches back the moment this unmounts, which is what the close button
  * actually does: it doesn't push or pop a route, it tells the parent to swap
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   // No backing of its own — the shutter and ring float directly over the
-  // live feed, the same way `/photo/camera`'s own shutter always has. Any
+  // live feed, the way a camera app's own shutter does. Any
   // backing sized to mask the shutter's square touch target painted a
   // rectangle or a ring of its own around the button, which read worse than
   // the sliver it was meant to hide.

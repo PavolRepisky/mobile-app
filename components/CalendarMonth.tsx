@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import {
   Pressable,
@@ -8,7 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, shadows, spacing } from '@/constants/theme';
+import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';
 
@@ -62,6 +63,11 @@ const SEAM = 1;
  */
 const PIECE = { flex: 1 } as const;
 
+/** The corner mark's own drawing — a tick disc or a count pill, small enough
+ * that seven cells across still leave the photo the main thing in each. */
+const MARK_SIZE = 16;
+const MARK_ICON = 10;
+
 /** One of the day's proof photos — a real picture, or a drawn stand-in. */
 export interface DayShot {
   photo?: ImageSourcePropType | null;
@@ -81,6 +87,15 @@ export interface CalendarDay {
   today?: boolean;
   /** Read in place of the bare numeral. */
   label?: string;
+  /**
+   * How the day went, in the cell's corner: `'done'` is a tick for a day with
+   * every task finished, any other string ("3/5") is printed as a count for a
+   * day that got part of the way.
+   */
+  mark?: 'done' | string;
+  /** A challenge day that passed with nothing shot — a dash across the cell,
+   * so a gap in the record reads as missed rather than as not yet begun. */
+  missed?: boolean;
   onPress?: () => void;
 }
 
@@ -142,7 +157,7 @@ export function CalendarMonth({ month, days, style }: CalendarMonthProps) {
 }
 
 function DayCell({ date, day }: { date: number; day: CalendarDay }) {
-  const { shots, past, today, onPress } = day;
+  const { shots, past, today, mark, missed, onPress } = day;
   const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
   const hasShot = tiles.length > 0;
 
@@ -176,6 +191,20 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
     </Text>
   );
 
+  const corner = mark ? (
+    mark === 'done' ? (
+      <View style={styles.markDone}>
+        <Ionicons name="checkmark" size={MARK_ICON} color={colors.inkInverse} />
+      </View>
+    ) : (
+      <View style={styles.markCount}>
+        <Text variant="micro" color={colors.ink}>
+          {mark}
+        </Text>
+      </View>
+    )
+  ) : null;
+
   const content = (
     <>
       <Mosaic tiles={tiles} date={date} today={today} />
@@ -183,13 +212,17 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
           needs a wash under it rather than trusting the photo to be dark. */}
       <View style={[styles.scrim, today && styles.scrimToday]} />
       {numeral}
+      {corner}
     </>
   );
 
   const body = hasShot ? (
     <View style={[styles.tile, today && styles.tileToday]}>{content}</View>
   ) : (
-    <View style={[styles.plain, today && styles.plainToday]}>{numeral}</View>
+    <View style={[styles.plain, today && styles.plainToday, missed && styles.plainMissed]}>
+      {numeral}
+      {missed ? <View style={styles.missDash} /> : null}
+    </View>
   );
 
   if (!onPress) return body;
@@ -361,6 +394,45 @@ const styles = StyleSheet.create({
   plainToday: {
     borderWidth: 2,
     borderColor: colors.ink,
+  },
+  // A sunken fill under the dash, so a missed day reads as a hole in the run
+  // rather than one more quiet number.
+  plainMissed: {
+    backgroundColor: colors.surfaceSunken,
+  },
+  missDash: {
+    position: 'absolute',
+    width: MARK_SIZE,
+    height: 2,
+    bottom: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.field,
+    transform: [{ rotate: '-40deg' }],
+  },
+  // Tucked into the bottom-right corner, over the scrim, ringed in white so
+  // it holds its edge on a busy photo.
+  markDone: {
+    position: 'absolute',
+    right: spacing.xs,
+    bottom: spacing.xs,
+    width: MARK_SIZE,
+    height: MARK_SIZE,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+  },
+  markCount: {
+    position: 'absolute',
+    right: spacing.xs / 2,
+    bottom: spacing.xs,
+    height: MARK_SIZE,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.pill,
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
 });
 

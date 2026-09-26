@@ -8,8 +8,15 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
 import { Text } from './Text';
+
+/** The pill switch's measurements, taken off the profile's Grid / Month
+ * switch on the design canvas: a short control that sits beside a section
+ * heading, not a full-height tab bar. */
+const PILL_HEIGHT = 30;
+const PILL_INSET = 3;
+const PILL_ICON = 14;
 
 export interface SegmentOption<T extends string = string> {
   key: T;
@@ -34,9 +41,9 @@ export interface SegmentedTabsProps<T extends string = string> {
   dense?: boolean;
   /**
    * `underline` is the app's default tab cut. `pill` is the iOS segmented
-   * control: both options share a sunken track and the selected one rides a
-   * lighter chip inside it — for tabs that sit on a control bar rather than
-   * over the page, like the photo picker's Photos / Collections switch.
+   * control: both options share a sunken grey track and the selected one
+   * rides a white chip inside it — a compact switch for a view toggle beside
+   * a heading, like the profile's Grid / Month.
    */
   variant?: 'underline' | 'pill';
   style?: StyleProp<ViewStyle>;
@@ -44,7 +51,7 @@ export interface SegmentedTabsProps<T extends string = string> {
 
 /**
  * Underlined text tabs. Used several different ways in the reference — Most
- * Popular/Custom, Profile/My Wall, Sticker/Post-it — so it takes an icon slot
+ * Popular/Custom, Friends/Members, Sticker/Post-it — so it takes an icon slot
  * and a scrollable mode.
  */
 export function SegmentedTabs<T extends string = string>({
@@ -74,16 +81,20 @@ export function SegmentedTabs<T extends string = string>({
           {option.icon ? (
             <Ionicons
               name={option.icon}
-              size={large && !dense ? 19 : 17}
-              color={active ? colors.ink : pill ? colors.inkSoft : colors.inkGhost}
-              style={[styles.icon, dense && styles.denseIcon]}
+              size={pill ? PILL_ICON : large && !dense ? 19 : 17}
+              color={active ? colors.ink : pill ? colors.inkFaded : colors.inkGhost}
+              style={[styles.icon, (dense || pill) && styles.denseIcon]}
             />
           ) : null}
           <Text
-            variant={large ? 'sectionTitle' : 'cardTitle'}
-            color={active ? colors.ink : pill ? colors.inkSoft : colors.inkGhost}
+            variant={pill ? 'microBold' : large ? 'sectionTitle' : 'cardTitle'}
+            color={active ? colors.ink : pill ? colors.inkFaded : colors.inkGhost}
             style={
-              large ? [styles.lgLabel, dense && styles.denseLabel] : styles.mdLabel
+              pill
+                ? undefined
+                : large
+                  ? [styles.lgLabel, dense && styles.denseLabel]
+                  : styles.mdLabel
             }
           >
             {option.label}
@@ -169,19 +180,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pillTrack: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surfaceSunken,
     borderRadius: radii.pill,
-    padding: 4,
+    padding: PILL_INSET,
   },
   pillItem: {
     flex: 1,
     justifyContent: 'center',
-    height: 44,
-    paddingHorizontal: spacing.lg,
+    height: PILL_HEIGHT,
+    paddingHorizontal: spacing.md,
     borderRadius: radii.pill,
   },
+  // White on the grey track, lifted a touch so it reads as the chip that
+  // slides rather than a hole cut in the track.
   pillActive: {
-    backgroundColor: colors.divider,
+    backgroundColor: colors.surface,
+    ...shadows.soft,
   },
   itemRow: {
     flexDirection: 'row',

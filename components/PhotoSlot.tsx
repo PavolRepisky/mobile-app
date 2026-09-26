@@ -43,8 +43,8 @@ export interface PhotoSlotProps {
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   /**
-   * Empty slots on the profile wall show a `+` rather than a camera, and
-   * `'none'` leaves the tile blank — for the day's grid, where an empty tile
+   * `'add'` swaps the camera for a `+` where the slot adds something rather
+   * than shoots it, and `'none'` leaves the tile blank — for the day's grid, where an empty tile
    * is a gap in a record rather than anything to press.
    */
   emptyIcon?: 'camera' | 'add' | 'none';
@@ -52,7 +52,7 @@ export interface PhotoSlotProps {
    * Turns the empty tile from a flat grey block into an invitation: a dashed
    * field outline with this caption under the glyph. For the task rows, where
    * the slot is the only control on the row and has to say so. Slots that are
-   * merely decorative — a friend's list, the wall's own tiles — leave it off.
+   * merely decorative — a friend's list — leave it off.
    */
   emptyLabel?: string;
   /**
@@ -82,7 +82,7 @@ export interface PhotoSlotProps {
    * rather than a thumbnail placed in a grid. */
   tilt?: number;
   /**
-   * `'card'` is the diffuse lift the wall tiles use; `'hard'` is the tight,
+   * `'card'` is the diffuse lift a card uses; `'hard'` is the tight,
    * offset near-black drop the task rows use, so the photos read as prints
    * laid on the page rather than thumbnails set into it.
    */
@@ -96,8 +96,7 @@ export interface PhotoSlotProps {
 }
 
 /**
- * The rounded thumbnail attached to every task row, and the "add" tiles on the
- * profile wall. Filled state is the photo itself, optionally ticked; empty
+ * The rounded thumbnail attached to every task row. Filled state is the photo itself, optionally ticked; empty
  * state is a sunken grey tile with a glyph, or — where the slot is something
  * to press — a dashed outline captioned with what pressing it does.
  */

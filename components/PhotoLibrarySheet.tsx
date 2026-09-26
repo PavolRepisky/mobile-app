@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 // SDK 57 promoted the class-based query API to the package root. This sheet
-// wants the flat one — an `Asset` that is a plain object, so `'uri' in item`
-// still tells a photo apart from a collection tile — which now lives here.
+// wants the flat one — an `Asset` that is a plain object with its own `uri` —
+// which now lives here.
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -16,12 +16,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
-import { SegmentedTabs } from '@/components/SegmentedTabs';
+import { Text } from '@/components/Text';
 import { colors, spacing } from '@/constants/theme';
-import { WALL_COLLECTIONS, type WallItem } from '@/data/content';
 import type { TaskPhoto } from '@/hooks/useAppState';
-
-type Source = 'photos' | 'collections';
 
 /** Tiles per row, and the hairline between them. */
 const COLUMNS = 3;
@@ -30,12 +27,6 @@ const GAP = 2;
 const PAGE = 90;
 /** Share of the screen the sheet rises to. */
 const HEIGHT_RATIO = 0.9;
-
-/** Only the collection entries that actually carry a photo — the rest render
- * as seeded stand-ins on the wall, and there is nothing there to attach. */
-const COLLECTION_ITEMS = WALL_COLLECTIONS.flatMap(
-  (collection) => collection.items,
-).filter((item): item is WallItem & { photo: TaskPhoto } => !!item.photo);
 
 export interface PhotoLibrarySheetProps {
   visible: boolean;
@@ -47,10 +38,7 @@ export interface PhotoLibrarySheetProps {
 }
 
 /**
- * Photo picker: the phone's library, or the photos already pinned to the wall
- * collections. The second tab is what makes this worth building over the
- * system sheet — most of what gets picked is something already saved to the
- * app.
+ * Photo picker over the phone's library.
  *
  * A sheet rather than a page of its own: it is opened mid-flow and whatever it
  * is picking for should stay visible behind it. Note that a task's proof photo
@@ -66,7 +54,6 @@ export function PhotoLibrarySheet({
   const { width, height } = useWindowDimensions();
   const tile = (width - GAP * (COLUMNS - 1)) / COLUMNS;
 
-  const [source, setSource] = useState<Source>('photos');
   const [permission, requestPermission] = MediaLibrary.usePermissions();
   const [assets, setAssets] = useState<MediaLibrary.Asset[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
@@ -124,10 +111,6 @@ export function PhotoLibrarySheet({
     onDismiss();
   };
 
-  const photos = source === 'photos';
-  const data: readonly (MediaLibrary.Asset | (typeof COLLECTION_ITEMS)[number])[] =
-    photos ? assets : COLLECTION_ITEMS;
-
   return (
     <BottomSheet
       visible={visible}
@@ -146,20 +129,13 @@ export function PhotoLibrarySheet({
           accessibilityLabel="Close"
           background={colors.surface}
         />
-        <SegmentedTabs
-          variant="pill"
-          options={[
-            { key: 'photos', label: 'Photos' },
-            { key: 'collections', label: 'Collections' },
-          ]}
-          value={source}
-          onChange={setSource}
-          style={styles.tabs}
-        />
+        <Text variant="cardTitleBold" style={styles.title}>
+          Photos
+        </Text>
       </View>
 
       <FlatList
-        data={data}
+        data={assets}
         style={styles.grid}
         keyExtractor={(item) => item.id}
         numColumns={COLUMNS}
@@ -168,7 +144,7 @@ export function PhotoLibrarySheet({
         showsVerticalScrollIndicator={false}
         onEndReachedThreshold={0.6}
         onEndReached={() => {
-          if (photos && granted && !exhausted) loadPage(cursor);
+          if (granted && !exhausted) loadPage(cursor);
         }}
         ListEmptyComponent={
           <EmptyState
@@ -177,31 +153,28 @@ export function PhotoLibrarySheet({
             hint={
               granted
                 ? 'Photos you take will show up here.'
-                : 'Allow photo access in Settings to pick from your library, or use a collection photo instead.'
+                : 'Allow photo access in Settings to pick from your library.'
             }
           />
         }
-        renderItem={({ item }) => {
-          const isAsset = 'uri' in item;
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={isAsset ? 'Photo' : item.title}
-              onPress={() => choose(isAsset ? { uri: item.uri } : item.photo)}
-              style={({ pressed }) => [
-                { width: tile, height: tile },
-                pressed && styles.pressed,
-              ]}
-            >
-              <Image
-                source={isAsset ? { uri: item.uri } : item.photo}
-                contentFit="cover"
-                transition={120}
-                style={StyleSheet.absoluteFill}
-              />
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Photo"
+            onPress={() => choose({ uri: item.uri })}
+            style={({ pressed }) => [
+              { width: tile, height: tile },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Image
+              source={{ uri: item.uri }}
+              contentFit="cover"
+              transition={120}
+              style={StyleSheet.absoluteFill}
+            />
+          </Pressable>
+        )}
       />
     </BottomSheet>
   );
@@ -216,8 +189,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
   },
-  /** Takes the rest of the row, so the track ends flush with the right edge. */
-  tabs: {
+  title: {
     flex: 1,
   },
   /** Takes the height the header leaves, so the grid scrolls inside the

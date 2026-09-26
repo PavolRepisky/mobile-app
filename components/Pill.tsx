@@ -101,24 +101,23 @@ export function Pill({
     </>
   );
 
-  const body =
-    tone === 'glass' ? (
-      <GlassSurface radius={radii.pill} style={[styles.glassOuter, style]}>
-        <View style={[styles.base, SIZES[size]]}>{content}</View>
-      </GlassSurface>
-    ) : (
-      <View
-        style={[
-          styles.base,
-          SIZES[size],
-          TONES[tone],
-          tone === 'floating' && shadows.soft,
-          style,
-        ]}
-      >
-        {content}
-      </View>
-    );
+  const body = tone === 'glass' ? (
+    <GlassSurface radius={radii.pill} style={[styles.glassOuter, style]}>
+      <View style={[styles.base, SIZES[size]]}>{content}</View>
+    </GlassSurface>
+  ) : (
+    <View
+      style={[
+        styles.base,
+        SIZES[size],
+        TONES[tone],
+        tone === 'floating' && shadows.soft,
+        style,
+      ]}
+    >
+      {content}
+    </View>
+  );
 
   if (!onPress) return body;
 

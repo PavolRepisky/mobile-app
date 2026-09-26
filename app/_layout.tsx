@@ -72,50 +72,11 @@ export default function RootLayout() {
               }}
             />
             {/* Opened from inside the friend sheet, so it has to cover the
-                whole screen the way that sheet does — the same rule
-                `wall/[id]` follows, and for the same reason. */}
-            <Stack.Screen
-              name="friend/post/[id]"
-              options={{ presentation: 'fullScreenModal' }}
-            />
-            <Stack.Screen
-              name="post/[id]"
-              options={{
-                presentation: 'transparentModal',
-                animation: 'fade',
-                // Without this the stack's own opaque `contentStyle` paints
-                // over the feed, and the blurred backdrop has nothing left
-                // to show.
-                contentStyle: { backgroundColor: 'transparent' },
-              }}
-            />
-            {/* Opened from inside the friend sheet, so it has to cover the
                 whole screen the way that sheet does — otherwise it reads as
                 a panel over the profile rather than a page of its own. */}
             <Stack.Screen
-              name="wall/[id]"
+              name="friend/post/[id]"
               options={{ presentation: 'fullScreenModal' }}
-            />
-            {/* Reached from the profile, but also from the pin screen above,
-                which is itself a full-screen modal — and a card pushed on top
-                of one comes up as a page sheet: inset, corners rounded, the
-                screen behind still showing over it. Declaring the same
-                presentation is what keeps it a page from both directions. */}
-            <Stack.Screen
-              name="wall/create"
-              options={{ presentation: 'fullScreenModal' }}
-            />
-            {/* The viewfinder rises from the bottom the way a capture screen
-                should. A push rather than a modal: on the root stack it covers
-                the tabs anyway, and it is opened from a dialog, where
-                presenting a view controller on top of one still dismissing is
-                what drops the screen on iOS. */}
-            <Stack.Screen
-              name="photo/camera"
-              options={{
-                animation: 'slide_from_bottom',
-                contentStyle: { backgroundColor: colors.mediaBackdrop },
-              }}
             />
             <Stack.Screen name="feed/[id]" />
             <Stack.Screen name="challenge/create" />

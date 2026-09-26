@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
+import { Avatar } from '@/components/Avatar';
+import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
+import { PhotoViewer } from '@/components/PhotoViewer';
 import { ScreenScroll } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
@@ -19,9 +22,25 @@ const backBoldOffset = 0.6;
 
 const BIO_MAX = 120;
 
+/** The photo row's thumbnail — a row-height glance at the current photo, not
+ * a second hero circle. */
+const PHOTO_THUMB = 32;
+
 export default function SettingsScreen() {
   const router = useRouter();
-  const { profile, setName, setBio, setHandle, resetAll } = useApp();
+  const { profile, setName, setBio, setHandle, setAvatarPhoto, setAvatarSeed, resetAll } =
+    useApp();
+
+  // Changing the photo lives here rather than on the profile, where a tap on
+  // the photo plays today's story instead. With a photo set, the row opens it
+  // full-screen with Edit and Remove; without one it goes straight to the
+  // library. Edit opens the library once the viewer is gone — on iOS a sheet
+  // presented over a modal that is still fading out never shows.
+  const avatarSource = profile.avatar ?? profile.avatarSeed;
+  const hasAvatar = Boolean(avatarSource);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const libraryAfterViewer = useRef(false);
 
   const [nameOpen, setNameOpen] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
@@ -68,6 +87,11 @@ export default function SettingsScreen() {
         </View>
 
         <Group title="Profile">
+          <Row
+            label="Profile photo"
+            accessory={<Avatar source={avatarSource} size={PHOTO_THUMB} />}
+            onPress={() => (hasAvatar ? setPhotoOpen(true) : setLibraryOpen(true))}
+          />
           <Row
             label="Your name"
             value={profile.name}
@@ -226,6 +250,48 @@ export default function SettingsScreen() {
           },
         ]}
       />
+
+      <PhotoViewer
+        photos={avatarSource ? [avatarSource] : []}
+        index={photoOpen ? 0 : null}
+        onDismiss={() => setPhotoOpen(false)}
+        onDismissed={() => {
+          if (!libraryAfterViewer.current) return;
+          libraryAfterViewer.current = false;
+          setLibraryOpen(true);
+        }}
+        actions={[
+          {
+            key: 'edit',
+            label: 'Edit',
+            icon: 'pencil',
+            onPress: () => {
+              setPhotoOpen(false);
+              // iOS waits for the viewer to finish fading; nowhere else
+              // loses a sheet presented straight away.
+              if (Platform.OS === 'ios') libraryAfterViewer.current = true;
+              else setLibraryOpen(true);
+            },
+          },
+          {
+            key: 'remove',
+            label: 'Remove',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => {
+              setAvatarPhoto(null);
+              setAvatarSeed(null);
+              setPhotoOpen(false);
+            },
+          },
+        ]}
+      />
+
+      <PhotoLibrarySheet
+        visible={libraryOpen}
+        onPick={setAvatarPhoto}
+        onDismiss={() => setLibraryOpen(false)}
+      />
     </View>
   );
 }
@@ -250,6 +316,7 @@ function Group({
 function Row({
   label,
   value,
+  accessory,
   onPress,
   destructive,
   icon,
@@ -257,6 +324,8 @@ function Row({
 }: {
   label: string;
   value?: string;
+  /** Drawn where the value text would sit — the photo row's thumbnail. */
+  accessory?: React.ReactNode;
   onPress?: () => void;
   destructive?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
@@ -285,6 +354,8 @@ function Row({
           {value}
         </Text>
       ) : null}
+
+      {accessory ? <View style={styles.rowValue}>{accessory}</View> : null}
 
       <Ionicons
         name={icon ?? 'chevron-forward'}

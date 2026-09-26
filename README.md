@@ -2,7 +2,7 @@
 
 An iOS + Android app built with Expo (SDK 57), React Native and TypeScript,
 using Expo Router. It rebuilds the flows in `reference/` — a 75-day challenge
-tracker with a social layer and an aesthetic profile wall.
+tracker with a social layer.
 
 ## Running
 
@@ -80,8 +80,8 @@ headlines use them together.
 
 ```
 app/                     routes (Expo Router)
-  (tabs)/                Discover · Friends · To do · Calendar · Profile
-  account/ challenge/ feed/ friend/ post/   pushed + modal routes
+  (tabs)/                Challenges · Community · Tasks · Calendar · Profile
+  account/ challenge/ day/ feed/ friend/   pushed + modal routes
 components/              shared UI
 constants/theme.ts       design tokens
 data/                    mock challenges, friends, feed content

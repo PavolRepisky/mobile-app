@@ -141,7 +141,7 @@ export default function TasksScreen() {
   return (
     <>
       {showCamera ? (
-        // Full-bleed and bare, the way `/photo/camera` already is — no day
+        // Full-bleed and bare, the way a capture screen should be — no day
         // heading, no settings menu, no tab bar. Restart/End/Change Challenge
         // stay reachable from the calm view's settings glyph below, not from here.
         <TaskCameraGrid

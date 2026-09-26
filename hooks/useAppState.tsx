@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from 'react';
 
-import type { CollageCell } from '@/components/PhotoCollage';
 import {
   CHALLENGES,
   CUSTOM_CHALLENGE,
@@ -17,7 +16,7 @@ import {
   type Challenge,
   type ChallengeTask,
 } from '@/data/challenges';
-import { FEED_POSTS, WALL_SECTIONS } from '@/data/content';
+import { FEED_POSTS } from '@/data/content';
 import { TROPHIES } from '@/data/trophies';
 import { addDays, timeStamp } from '@/lib/format';
 import type { ImageSourcePropType } from 'react-native';
@@ -56,30 +55,6 @@ export interface Profile {
   avatar: TaskPhoto | null;
 }
 
-/** One thing pinned to a wall collection from the phone's photo library. */
-export interface WallPin {
-  id: string;
-  title: string;
-  /** A hand-picked photo — a book cover, a recipe, a wishlist find. */
-  photo?: TaskPhoto;
-  /**
-   * A saved friend's day instead of one photo: the same mosaic cut their card
-   * on the Friends tab uses, so a pin reads as a day grid rather than a single
-   * print wherever it turns up. Mutually exclusive with `photo`.
-   */
-  cells?: readonly CollageCell[];
-  /** The note written under the title on the pin's own screen. */
-  note?: string;
-  link?: string;
-}
-
-/** A collection on your own wall: a name you can rename, and what is on it. */
-export interface WallBoard {
-  id: string;
-  title: string;
-  pins: WallPin[];
-}
-
 /**
  * The signed-in account's own reply on a friend's post. `parentId` nests it
  * one level under a seeded or own top-level comment, the way Instagram's own
@@ -94,16 +69,6 @@ export interface FriendComment {
 
 interface AppState {
   profile: Profile;
-
-  /** Your own wall, in the order the collections are shown. */
-  wall: WallBoard[];
-  /**
-   * The photo chosen for a pin that is still being written, held here rather
-   * than passed through route params: a picked photo is an image source, which
-   * is a bundled module as often as it is a URI, and neither survives being
-   * turned into a string and back.
-   */
-  pinDraft: { boardId: string; photo: TaskPhoto } | null;
 
   /**
    * The day the app was first opened. The calendar runs from this month to the
@@ -123,9 +88,8 @@ interface AppState {
   paused: boolean;
   /**
    * The floating tab bar is drawn once, at the `(tabs)` layout, so a screen
-   * wanting it gone — the to-do tab's live camera grid, full-bleed like the
-   * avatar camera route — has no view of its own to hide it on. This is that
-   * switch.
+   * wanting it gone — the to-do tab's live camera grid, full-bleed — has no
+   * view of its own to hide it on. This is that switch.
    */
   tabBarHidden: boolean;
 
@@ -137,8 +101,6 @@ interface AppState {
    * id, oldest first — the seeded ones already on a post live in `Friend`
    * itself, not here. */
   friendComments: Record<string, FriendComment[]>;
-  /** A friend's day, saved to your Pins — friend id to the pin it made. */
-  savedPosts: Record<string, string>;
   inviteCode: string;
 
   /** Challenges carried to the last day. One trophy, one finish. */
@@ -205,19 +167,6 @@ interface AppActions {
   /** The other half of that bargain: the tick goes, and the proof goes with it. */
   undoTask: (taskId: string, day?: number) => void;
 
-  renameWallBoard: (boardId: string, title: string) => void;
-  /** Opens a pin for `boardId` on the picked photo, for the Create Pin screen. */
-  startPinDraft: (boardId: string, photo: TaskPhoto) => void;
-  setPinDraftPhoto: (photo: TaskPhoto) => void;
-  clearPinDraft: () => void;
-  /** Commits the draft to its board. Nothing to commit is a no-op. */
-  addWallPin: (pin: { title: string; note?: string; link?: string }) => void;
-  /** Rewrites a pin already on the wall, found by id across every board. */
-  updateWallPin: (
-    pinId: string,
-    patch: { title: string; note?: string; link?: string; photo?: TaskPhoto },
-  ) => void;
-
   /** Tapping the emoji already on a post takes it back off. */
   reactToPost: (postId: string, emoji: string) => void;
   /** Appends a comment to a friend's post — a reply to `parentId` if given,
@@ -226,13 +175,6 @@ interface AppActions {
     friendId: string,
     text: string,
     parentId?: string | null,
-  ) => void;
-  /** Pins a friend's day grid to your Pins, or takes it back off if it is
-   * already there. */
-  toggleSavePost: (
-    friendId: string,
-    title: string,
-    cells: readonly CollageCell[],
   ) => void;
   resetAll: () => void;
 }
@@ -262,37 +204,11 @@ const SEED_INSTALLED_DAYS_AGO = 40;
  */
 const LIVES_PER_CHALLENGE = 3;
 
-/**
- * Pin ids only have to be unique within a session; there is no backend. They
- * carry no board name: a board is identified by its title, titles have spaces
- * in them, and the id travels as a URL segment when a pin is opened.
- */
-let pinSeq = 0;
-
-/**
- * The board a saved friend's day files into. Kept off the end of the row
- * rather than the front: the "+" tile on your own Pins always files a
- * hand-picked photo into `wall[0]`, and a saved post landing there first
- * would steal that slot from "My Wishlist".
- */
-const SAVED_POSTS_BOARD_ID = 'saved-posts';
-
-/**
- * Every collection the wall offers starts named but empty — a heading
- * waiting to be filled by hand, not a seeded gallery of stock photos. The
- * saved-posts board is the one exception: it exists to be filled from the
- * Friends tab rather than the library, so it carries no name of its own on
- * your own Pins page.
- */
-const seedWall = (): WallBoard[] => [
-  ...WALL_SECTIONS.map((title) => ({ id: title, title, pins: [] })),
-  { id: SAVED_POSTS_BOARD_ID, title: 'Saved Posts', pins: [] },
-];
 const SEED_CHALLENGE = CHALLENGES[0];
 
 /**
  * The history behind today, day -> task id -> shot. Photos already bundled for
- * the wall, the feed and the challenge tiles are reused here rather than
+ * the feed and the challenge tiles are reused here rather than
  * shipping a second copy of the same kind of picture: what each one shows
  * matches the task it is filed under, which is what the drawn stand-ins could
  * never do. Days list three of the five tasks, the way a real week looks.
@@ -395,12 +311,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [totalDays, setTotalDays] = useState(SEED_CHALLENGE.defaultDays);
   const [paused, setPaused] = useState(false);
   const [tabBarHidden, setTabBarHidden] = useState(false);
-  // Every collection the wall offers starts named but empty; the reference
-  // wall is a set of headings waiting to be filled, not a seeded gallery.
-  const [wall, setWall] = useState<WallBoard[]>(seedWall);
-  const [pinDraft, setPinDraft] = useState<
-    { boardId: string; photo: TaskPhoto } | null
-  >(null);
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
   );
@@ -413,7 +323,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ),
   );
   const [friendComments, setFriendComments] = useState<Record<string, FriendComment[]>>({});
-  const [savedPosts, setSavedPosts] = useState<Record<string, string>>({});
   const [inviteCode] = useState(makeInviteCode);
   // Challenges the seeded account has already finished — see data/trophies.
   // Nothing increments this yet: reaching the last day is not an event the
@@ -681,68 +590,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay],
   );
 
-  const renameWallBoard = useCallback((boardId: string, title: string) => {
-    setWall((prev) =>
-      prev.map((board) =>
-        board.id === boardId ? { ...board, title } : board,
-      ),
-    );
-  }, []);
-
-  const startPinDraft = useCallback((boardId: string, photo: TaskPhoto) => {
-    setPinDraft({ boardId, photo });
-  }, []);
-
-  const setPinDraftPhoto = useCallback((photo: TaskPhoto) => {
-    setPinDraft((prev) => (prev ? { ...prev, photo } : prev));
-  }, []);
-
-  const clearPinDraft = useCallback(() => setPinDraft(null), []);
-
-  const addWallPin = useCallback(
-    (pin: { title: string; note?: string; link?: string }) => {
-      setPinDraft((draft) => {
-        if (!draft) return null;
-        const entry: WallPin = {
-          id: `pin-${pinSeq++}`,
-          title: pin.title,
-          photo: draft.photo,
-          note: pin.note,
-          link: pin.link,
-        };
-        setWall((prev) =>
-          prev.map((board) =>
-            board.id === draft.boardId
-              ? { ...board, pins: [...board.pins, entry] }
-              : board,
-          ),
-        );
-        return null;
-      });
-    },
-    [],
-  );
-
-  const updateWallPin = useCallback(
-    (
-      pinId: string,
-      patch: { title: string; note?: string; link?: string; photo?: TaskPhoto },
-    ) => {
-      setWall((prev) =>
-        prev.map((board) => {
-          if (!board.pins.some((pin) => pin.id === pinId)) return board;
-          return {
-            ...board,
-            pins: board.pins.map((pin) =>
-              pin.id === pinId ? { ...pin, ...patch } : pin,
-            ),
-          };
-        }),
-      );
-    },
-    [],
-  );
-
   const reactToPost = useCallback((postId: string, emoji: string) => {
     setPostReactions((map) => {
       if (map[postId] === emoji) {
@@ -772,35 +619,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const toggleSavePost = useCallback(
-    (friendId: string, title: string, cells: readonly CollageCell[]) => {
-      setSavedPosts((saved) => {
-        const existingId = saved[friendId];
-        if (existingId) {
-          setWall((prev) =>
-            prev.map((board) => ({
-              ...board,
-              pins: board.pins.filter((pin) => pin.id !== existingId),
-            })),
-          );
-          const { [friendId]: _removed, ...rest } = saved;
-          return rest;
-        }
-
-        const id = `pin-saved-${pinSeq++}`;
-        setWall((prev) =>
-          prev.map((board) =>
-            board.id === SAVED_POSTS_BOARD_ID
-              ? { ...board, pins: [...board.pins, { id, title, cells }] }
-              : board,
-          ),
-        );
-        return { ...saved, [friendId]: id };
-      });
-    },
-    [],
-  );
-
   const resetAll = useCallback(() => {
     setChallenge(SEED_CHALLENGE);
     setTasksState(tinted(SEED_CHALLENGE.tasks));
@@ -816,10 +634,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // reads as "you" without colliding with a friend's or an author's photo.
       avatar: require('../assets/ambassadors/amb-3.jpg'),
     });
-    setWall(seedWall());
-    setPinDraft(null);
     setFriendComments({});
-    setSavedPosts({});
   }, []);
 
   const value = useMemo<AppContextValue>(
@@ -835,7 +650,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       progress,
       postReactions,
       friendComments,
-      savedPosts,
       inviteCode,
       trophies,
       currentDay,
@@ -844,8 +658,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       livesTotal: LIVES_PER_CHALLENGE,
       livesLeft,
       hasPhotographedTask,
-      wall,
-      pinDraft,
       customChallenges,
 
       setName,
@@ -869,27 +681,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTaskPhoto,
       completeTaskWithPhoto,
       undoTask,
-      renameWallBoard,
-      startPinDraft,
-      setPinDraftPhoto,
-      clearPinDraft,
-      addWallPin,
-      updateWallPin,
       reactToPost,
       addFriendComment,
-      toggleSavePost,
       resetAll,
     }),
     [
       profile, installedAt, challenge, tasks, startDate, totalDays,
-      paused, tabBarHidden, progress, postReactions, friendComments, savedPosts, inviteCode, trophies,
-      currentDay, endDate, missedDays, livesLeft, hasPhotographedTask, wall, pinDraft, customChallenges,
+      paused, tabBarHidden, progress, postReactions, friendComments, inviteCode, trophies,
+      currentDay, endDate, missedDays, livesLeft, hasPhotographedTask, customChallenges,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
       setTabBarHidden, toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
-      reactToPost, addFriendComment, toggleSavePost, resetAll,
-      renameWallBoard, startPinDraft, setPinDraftPhoto, clearPinDraft,
-      addWallPin, updateWallPin,
+      reactToPost, addFriendComment, resetAll,
     ],
   );
 

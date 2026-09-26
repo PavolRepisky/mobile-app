@@ -37,7 +37,7 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 
 Every screen in the app sits on the same white, `Screen`/`ScreenScroll`'s
 default `plain` tone (`backgroundPlain` `#FFFFFF`) — the tab roots, the
-settings stack, a challenge's feed, a wall day, all of it. `app`
+settings stack, a challenge's feed, a friend's day, all of it. `app`
 (`background` `#F8F5F0`), `alt` (`backgroundAlt` `#F8F6F5`) and `warm`
 (`backgroundWarm` `#FBF6F3`) remain available tones on the component for a
 screen that deliberately wants to break from the white, but nothing in the
@@ -50,7 +50,7 @@ split a screen off from the rest.
 | --- | --- |
 | `card` | cards resting on the page |
 | `soft` | icon buttons, floating pills, photo tiles |
-| `hard` | things lifted *off* the page: avatar, "Day N" badge, task photos, wall tiles |
+| `hard` | things lifted *off* the page: avatar, "Day N" badge, task photos |
 | `floating` | sheets and bars floating over content |
 | `lifted` | surfaces sitting on top of a screen: tilted friend card, invite panel |
 | `deep` | the two badges crowning the challenge feed — heaviest in the set |
@@ -99,7 +99,7 @@ pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
 `DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
 `Polaroid` one instant print · `PhotoCollage` a pile of them ·
 `StickerText` die-cut display word · `PhotoStrip` ·
-`WallSection` · `FriendCard` · `ReviewCard` · `ChallengeDetail`
+`FriendCard` · `ReviewCard` · `ChallengeDetail`
 · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 
