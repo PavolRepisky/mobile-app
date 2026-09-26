@@ -94,11 +94,14 @@ nothing else; build other screens from them too:
 | `pageTitle` | 23 Bold | the screen's title, the profile's name |
 | `sectionHeading` | 21 Bold | "Days", sheet and dialog titles, picker values |
 | `itemTitle` | 18 Bold | one thing's name: the challenge card, the month on show |
-| `copy` | 16 SemiBold | reading text and rows: a bio, a settings row (label and value) and its group title, a switch's labels, a dialog's message and field, a post's caption |
+| `copy` | 16 SemiBold | reading text and rows: a bio, a settings row (label and value) and its group title, a switch's labels, a dialog's message and field |
 | `copyBold` | 16 Bold | the word leading reading text: a caption's author handle |
 | `meta` | 14 SemiBold | detail beside something bigger |
 | `metaBold` | 14 Bold | detail carrying a number: "Day 5 / 75", a calendar date |
 | `badge` | 12 Bold | counts on pills and tiles, weekday letters, calendar marks |
+
+A post's caption itself is running prose at `copy`'s size in Medium (`body`),
+so the bold handle leading it stands clear.
 
 The older names that meant one of these point at it (`sectionTitle` →
 `pageTitle`, `sectionTitleSm`/`sectionTitleXs` → `sectionHeading`,

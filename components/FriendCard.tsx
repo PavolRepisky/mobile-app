@@ -358,9 +358,11 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
       </View>
 
       {caption ? (
-        // Reading text at the `copy` level, in ink; the handle leading it is
-        // the same size a weight up, the way a caption opens on its author.
-        <Text variant="copy" style={styles.caption}>
+        // Plain reading text at `copy`'s size, set in Medium — the weight the
+        // app's running prose sits on — so the handle leading it at
+        // `copyBold` stands clear two steps up, the way a caption opens on
+        // its author.
+        <Text variant="body" style={styles.caption}>
           <Text variant="copyBold">
             {friend.handle}{' '}
           </Text>
