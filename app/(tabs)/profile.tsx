@@ -474,7 +474,7 @@ export default function ProfileScreen() {
             <Text variant="pageTitle" center>
               {profile.name}
             </Text>
-            <Text variant="meta" color={colors.inkGhost} center>
+            <Text variant="metaBold" color={colors.inkGhost} center>
               {profile.handle}
             </Text>
             {profile.bio ? (
