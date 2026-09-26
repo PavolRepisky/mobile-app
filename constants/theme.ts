@@ -11,12 +11,31 @@
 // Colour
 // ---------------------------------------------------------------------------
 
+/**
+ * The app's core five, settled on My Profile: black and white, one grey for
+ * secondary text people still have to read, one lighter grey for what isn't
+ * there yet or can't be used, and one grey for fills. A page built from these
+ * alone matches the profile; the semantic tokens below point at them rather
+ * than repeating the codes, so a change here moves every screen at once.
+ */
+export const palette = {
+  black: '#141414',
+  white: '#FFFFFF',
+  /** Secondary text and icons: a handle, a caption, a date that has passed. */
+  greyDark: '#9C9C9C',
+  /** Not yet or not available: a date still to come, an unfinished segment,
+   * a disabled arrow, the rows a picker hasn't landed on. */
+  greyLight: '#D7D6D3',
+  /** Fills: cards, calendar cells, tracks, a picker's selection band. */
+  greyFill: '#F2F2F2',
+} as const;
+
 export const colors = {
   /** Warm off-white behind the logged-in app (home, friends, profile, settings). */
   background: '#F8F5F0',
   /** Pure white — a deliberate split from the warm app shell. Own profile,
    * a friend's profile and a wall day all sit on it. */
-  backgroundPlain: '#FFFFFF',
+  backgroundPlain: palette.white,
   /** Slightly cooler off-white used by the settings stack. */
   backgroundAlt: '#F8F6F5',
   /**
@@ -26,7 +45,7 @@ export const colors = {
   backgroundWarm: '#FBF6F3',
 
   /** Cards, the tab bar, circular icon buttons. */
-  surface: '#FFFFFF',
+  surface: palette.white,
   /** The reaction strip's circles, which sit directly on a friend's photo —
    * held just off full white so the picture underneath still reads through. */
   surfaceOnPhoto: 'rgba(255,255,255,0.92)',
@@ -39,7 +58,7 @@ export const colors = {
   /** Inset panels: the invite card, "Create Daily Task+" well. */
   surfaceMuted: '#F1F0EA',
   /** Empty photo slots and "add" tiles on the wall. */
-  surfaceSunken: '#F2F2F2',
+  surfaceSunken: palette.greyFill,
   /**
    * A search field's own fill, sitting straight on the page's own white
    * rather than the warm shell `surfaceSunken` was tuned against — held to a
@@ -54,11 +73,11 @@ export const colors = {
   undeveloped: '#EBE7DF',
 
   /** Primary text and the solid pill buttons. */
-  ink: '#141414',
+  ink: palette.black,
   /** Softer body copy. */
   inkSoft: '#3A3A3A',
   /** Timestamps, placeholders, inactive tab labels, review bodies. */
-  inkMuted: '#9C9C9C',
+  inkMuted: palette.greyDark,
   /** A step darker than `inkMuted` — meta rows that want to stay quiet but
    * still read at a glance, like the days/tasks line on the Discover list. */
   inkFaded: '#7E7E7E',
@@ -71,9 +90,9 @@ export const colors = {
    * The greyed-out half of the Discover/Friends switch — barely there, but a
    * touch heavier than a hairline. Sampled from the same screen.
    */
-  inkGhost: '#D7D6D3',
+  inkGhost: palette.greyLight,
   /** Text on dark fills. */
-  inkInverse: '#FFFFFF',
+  inkInverse: palette.white,
   /**
    * A solid badge's own fill where it sits on a photo rather than the page —
    * held translucent so the shot underneath still shows through instead of a
@@ -103,7 +122,7 @@ export const colors = {
 
   /** Disabled primary button fill / label. */
   disabled: '#EDEBE6',
-  disabledInk: '#9C9C9C',
+  disabledInk: palette.greyDark,
 
   /** Pastels — exact values from the 75-day post-it grid. */
   sage: '#D4E5C4',

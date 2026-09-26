@@ -12,6 +12,14 @@ it takes, and how the pieces compose into a screen. Tokens are defined in
 
 Semantic names only — nothing is called `pink` or `grey200`.
 
+Underneath them sits `palette`, the five codes My Profile is built from:
+`black` #141414 · `white` #FFFFFF · `greyDark` #9C9C9C · `greyLight`
+#D7D6D3 · `greyFill` #F2F2F2. The tokens that share those codes point at
+the palette rather than repeating them (`ink`, `surface`, `backgroundPlain`,
+`inkInverse`, `inkMuted`, `disabledInk`, `inkGhost`, `surfaceSunken`), so
+one edit there moves every screen. `palette` is only read inside `theme.ts`;
+everywhere else keeps to the semantic names.
+
 | group | tokens |
 | --- | --- |
 | Backgrounds | `background` `backgroundPlain` `backgroundAlt` `backgroundWarm` |

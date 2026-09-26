@@ -33,6 +33,22 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 
 ## Choosing tokens
 
+**Colour** — five codes carry a page, defined once as `palette` in
+`theme.ts` and reached through the semantic tokens that point at them:
+
+| palette | code | token | for |
+| --- | --- | --- | --- |
+| `black` | `#141414` | `ink` | primary text, active icons, today |
+| `white` | `#FFFFFF` | `surface` · `backgroundPlain` · `inkInverse` | page, cards, type on photos |
+| `greyDark` | `#9C9C9C` | `inkMuted` | secondary text people still read: handles, captions, past dates |
+| `greyLight` | `#D7D6D3` | `inkGhost` | not yet / not available: future dates, unfinished segments, disabled arrows |
+| `greyFill` | `#F2F2F2` | `surfaceSunken` | fills: cards, calendar cells, tracks, a picker's band |
+
+My Profile uses these and nothing else. Reach for them first on any page; the
+older in-between greys (`inkFaded`, `inkSoft`, `field`, `divider`) remain for
+screens that already use them. Never use `palette` outside `theme.ts` — code
+names the role (`inkMuted`), not the shade (`greyDark`).
+
 **Background** — `Screen tone`:
 
 Every screen in the app sits on the same white, `Screen`/`ScreenScroll`'s
