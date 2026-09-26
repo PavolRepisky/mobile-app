@@ -17,11 +17,13 @@ import { Text } from './Text';
 /** One row of the wheel; also the snap interval. The height iOS gives its own
  * date wheel's rows, so the drum reads at the size people know it at. */
 const ROW_HEIGHT = 40;
-/** Rows in view at once — the selected one and two either side, the way the
- * native wheel shows its neighbours curling away. */
-const VISIBLE_ROWS = 5;
+/** Rows in view at once — the selected one and a neighbour either side. Five
+ * left two blank rows under the last value (this year, where the wheel
+ * usually sits), padding the sheet out with nothing; three is enough to read
+ * as a drum and leaves at most one. */
+const VISIBLE_ROWS = 3;
 /** How far each step away from the centre fades a row. */
-const ROW_FADE = [1, 0.45, 0.2];
+const ROW_FADE = [1, 0.35];
 
 export interface WheelPickerProps<T extends string | number> {
   values: readonly T[];
