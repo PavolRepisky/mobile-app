@@ -459,9 +459,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* The challenge the ring is measuring, how far into it you are, and
-            a way into its page. Set in a lighter cut of the grey the ring's
-            open segments wear, so the gauge and the challenge it measures
-            read as one thing. */}
+            a way into its page. */}
         <Card
           flat
           padded={false}
@@ -733,7 +731,9 @@ const styles = StyleSheet.create({
   },
   challengeCard: {
     marginTop: spacing.xl,
-    backgroundColor: colors.challengeCard,
+    // The month view's own filled-cell grey, so the card and the calendar
+    // below it read as cut from the same sheet.
+    backgroundColor: colors.surfaceSunken,
   },
   challengeBody: {
     paddingHorizontal: spacing.xl,
