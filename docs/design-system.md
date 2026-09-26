@@ -30,7 +30,10 @@ everywhere else keeps to the semantic names.
 | Pastels | `sage` `butter` `blush` `gold`, rotated by `stickyPalette` |
 | Scrims | `scrim` · `scrimLight` |
 
-`gradients.storyRing` is the one true linear gradient in the app.
+`gradients.storyRing` is the friends' story ring. `gradients.accent` —
+peach #F7C3A0 into rose #EFA3B7 into lavender #D8C6EE, in drawing order — is
+the app's one accent beside the palette, the colour of progress: My
+Profile's task ring (swept round it) and the challenge card's bar.
 
 ### Type scale
 

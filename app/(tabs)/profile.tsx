@@ -164,26 +164,20 @@ function mixHex(a: string, b: string, t: number): string {
     .join('')}`;
 }
 
-/** The accent at `t` of the way round the ring, spread evenly over its stops. */
+/** The accent at `t` of the way along it, spread evenly over its stops. */
 function accentAt(t: number): string {
-  const stops = gradients.profileAccent;
+  const stops = gradients.accent;
   const scaled = Math.min(Math.max(t, 0), 1) * (stops.length - 1);
   const i = Math.min(Math.floor(scaled), stops.length - 2);
   return mixHex(stops[i], stops[i + 1], scaled - i);
 }
 
-/** The accent in the order the sweep runs it, peach first — shared with the
- * challenge card's progress bar, which reads left to right the way the ring
- * reads clockwise. */
-const RING_SWEEP_COLORS = [...gradients.profileAccent].reverse() as [string, string, string];
-
 /** The sweep's slices, clockwise from 12 o'clock. */
 const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
   rotation: -90 + (i * 360) / RING_SWEEP_SLICES,
-  // Read off the accent backwards, peach first. Coloured at the slice's
-  // middle, so the first and last land just inside the two end stops rather
-  // than exactly on them.
-  color: accentAt(1 - (i + 0.5) / RING_SWEEP_SLICES),
+  // Coloured at the slice's middle, so the first and last land just inside
+  // the two end stops rather than exactly on them.
+  color: accentAt((i + 0.5) / RING_SWEEP_SLICES),
 }));
 
 /** The badge sits centred on the bottom of the ring, the way the "Day N" pill
@@ -536,7 +530,7 @@ export default function ProfileScreen() {
                   the ring's sweep is read off where a segment sits. */}
               <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]}>
                 <LinearGradient
-                  colors={RING_SWEEP_COLORS}
+                  colors={gradients.accent}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={[styles.progressGradient, { width: trackWidth }]}

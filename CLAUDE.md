@@ -44,6 +44,10 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 | `greyLight` | `#D7D6D3` | `inkGhost` | not yet / not available: future dates, unfinished segments, disabled arrows |
 | `greyFill` | `#F2F2F2` | `surfaceSunken` | fills: cards, calendar cells, tracks, a picker's band |
 
+Beside them sits one accent, `gradients.accent` — peach `#F7C3A0` into rose
+`#EFA3B7` into lavender `#D8C6EE`, stored in the order it is drawn. It is the
+colour of progress: the profile's task ring and challenge bar.
+
 My Profile uses these and nothing else. Reach for them first on any page; the
 older in-between greys (`inkFaded`, `inkSoft`, `field`, `divider`) remain for
 screens that already use them. Never use `palette` outside `theme.ts` — code
