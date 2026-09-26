@@ -55,7 +55,7 @@ const HEADER_ICON = 22;
 const TILE_MARK = 22;
 
 /** Height of the challenge card's progress bar — a hairline would vanish on
- * the dark card, anything heavier starts to read as a second button. */
+ * the grey card, anything heavier starts to read as a second button. */
 const PROGRESS_HEIGHT = 5;
 
 /** Same hero circle the to-do ring and a friend's profile share — this is
@@ -384,9 +384,9 @@ export default function ProfileScreen() {
         </View>
 
         {/* The challenge the ring is measuring, how far into it you are, and
-            a way into its page. Set in the ring's own ink, so the gauge and
-            the challenge it measures read as one thing; everything on it
-            takes the light-on-dark tokens a photo's overlays use. */}
+            a way into its page. Set in the grey the ring's open segments
+            wear, so the gauge and the challenge it measures read as one
+            thing. */}
         <Card
           flat
           padded={false}
@@ -396,17 +396,12 @@ export default function ProfileScreen() {
         >
           <View style={styles.challengeBody}>
             <View style={styles.challengeRow}>
-              <Text
-                variant="cardTitleBold"
-                color={colors.inkInverse}
-                numberOfLines={1}
-                style={styles.challengeName}
-              >
+              <Text variant="cardTitleBold" numberOfLines={1} style={styles.challengeName}>
                 {challenge.name}
               </Text>
-              <Text variant="labelBold" color={colors.inkInverse}>
+              <Text variant="labelBold">
                 Day {currentDay}
-                <Text variant="labelBold" color={colors.onMediaSoft}>
+                <Text variant="labelBold" color={colors.inkFaded}>
                   {` / ${totalDays}`}
                 </Text>
               </Text>
@@ -695,7 +690,7 @@ const styles = StyleSheet.create({
   },
   challengeCard: {
     marginTop: spacing.xl,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.inkGhost,
   },
   challengeBody: {
     paddingHorizontal: spacing.lg,
@@ -713,13 +708,15 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: PROGRESS_HEIGHT,
     borderRadius: radii.pill,
-    backgroundColor: colors.onMediaTrack,
+    // White rather than a divider grey: on the ring's grey card a divider
+    // tone sits within a shade of the fill behind it and the track vanishes.
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: radii.pill,
-    backgroundColor: colors.inkInverse,
+    backgroundColor: colors.ink,
   },
   daysTabs: {
     marginTop: spacing.xl,
