@@ -211,7 +211,9 @@ export default function AddFriendsScreen() {
       {/* The code at full size slides up from the bottom the way the
           comments do: something to hold out to a friend for a moment, and
           swiped or tapped away once they've scanned it. */}
-      <BottomSheet visible={codeOpen} onDismiss={() => setCodeOpen(false)}>
+      {/* No gap past the safe area: the text is the sheet's last word, and
+          the default room left for a button under it read as empty space. */}
+      <BottomSheet visible={codeOpen} onDismiss={() => setCodeOpen(false)} bottomGap={0}>
         <View style={styles.codeSheet}>
           <Text variant="sectionHeading" center>
             Join my challenge
@@ -228,10 +230,10 @@ export default function AddFriendsScreen() {
               the friend holding the camera, since the sheet is held out to
               them. */}
           <View style={styles.codeSheetText}>
-            <Text variant="copyBold" center>
+            <Text variant="itemTitle" center>
               {challenge.name}
             </Text>
-            <Text variant="meta" color={colors.inkMuted} center>
+            <Text variant="copy" color={colors.inkMuted} center>
               Scan with your phone's camera to join me.
             </Text>
           </View>
@@ -278,7 +280,6 @@ const styles = StyleSheet.create({
   codeSheet: {
     alignItems: 'center',
     gap: layout.block,
-    paddingBottom: layout.block,
   },
   // Lifted off the sheet on the card shadow, with a quiet white margin round
   // the code for the scanner.
