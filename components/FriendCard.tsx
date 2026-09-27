@@ -390,7 +390,7 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
         <View style={styles.photoOuter}>
           <LockedOverlay
             locked={!!locked}
-            radius={radii.md}
+            radius={0}
             title="Unlocks when you post"
             onPress={() => router.push('/(tabs)/tasks')}
           >
@@ -402,10 +402,7 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
               {carouselHeight > 0 ? (
                 <>
                   <FlatList
-                    // Rounded on the carousel alone, not on the view around
-                    // it: that also holds the double-tap heart, which has to
-                    // fly out past the photo's edge into the ❤️ pill below.
-                    style={[styles.carousel, { height: carouselHeight }]}
+                    style={{ height: carouselHeight }}
                     data={slides}
                     horizontal
                     pagingEnabled
@@ -662,18 +659,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.inkMuted,
   },
-  // The gap before the photo lives here, kept outside `LockedOverlay`:
-  // inside it, the top gap would read as blurred blank space reaching up to
-  // the subtitle instead of clear air above it. The photo keeps to the
-  // page's gutter, the canvas's cut, rather than running edge to edge.
+  // The gap before the photo and the full-bleed width both live here, kept
+  // outside `LockedOverlay`: bled *inside* it, the overlay's own
+  // `overflow: hidden` would clip the bleed straight back to this view's
+  // unbled width the moment it locks, and the top gap would read as blurred
+  // blank space reaching up to the subtitle instead of clear air above it.
   photoOuter: {
     zIndex: 1,
     marginTop: layout.heading,
-  },
-  // The canvas's corner on the photo — `md`, the profile card's own.
-  carousel: {
-    borderRadius: radii.md,
-    overflow: 'hidden',
+    marginHorizontal: -layout.gutter,
   },
   dayStamp: {
     ...absoluteFill,
