@@ -43,9 +43,11 @@ const ROW_AVATAR = 48;
 
 /**
  * Finding people to do it with, opened from Community's corner button and
- * laid out the way the canvas's "Find friends" board is: a search, your own
- * friend code, then suggestions. Inviting someone is the code card's Share,
- * which opens the system share sheet — where every messaging app already is.
+ * laid out the way the canvas's "Find friends" board is: a search, a code
+ * that invites someone into your challenge, then suggestions. The code and
+ * the card's Share both carry a link to the challenge's own page, where its
+ * Join button is; Share opens the system share sheet, where every messaging
+ * app already is.
  *
  * Built on My Profile and Settings' own parts — the pinned round back button
  * on the title's line, the fill-grey card, the type levels and `layout`
@@ -57,7 +59,7 @@ const ROW_AVATAR = 48;
 export default function AddFriendsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile } = useApp();
+  const { challenge } = useApp();
   const [query, setQuery] = useState('');
   const [requested, setRequested] = useState<ReadonlySet<string>>(new Set());
   const [codeOpen, setCodeOpen] = useState(false);
@@ -66,13 +68,14 @@ export default function AddFriendsScreen() {
   const headerTop = Math.max(profileActionTop, topPadding(insets.top));
   const titleOffset = headerTop - topPadding(insets.top);
 
-  const handle = profile.handle.replace(/^@/, '');
-  const friendCodeUrl = Linking.createURL(`add-friend/${handle}`);
+  // The challenge's own page, where its Join button is — what a scan or a
+  // tapped invite opens.
+  const joinUrl = Linking.createURL(`feed/${challenge.id}`);
   // The invite goes to the system share sheet, which is where each
   // messaging app actually lives.
   const invite = () =>
     Share.share({
-      message: `Do 75 days with me on Her 75 — add me as @${handle}: ${friendCodeUrl}`,
+      message: `Join me in ${challenge.name} on Her 75: ${joinUrl}`,
     }).catch(() => {});
 
   const suggestions = useMemo(() => {
@@ -101,20 +104,20 @@ export default function AddFriendsScreen() {
           style={styles.search}
         />
 
-        {/* Your own code, for a friend standing next to you — My Profile's
-            challenge card, the same grey and corner. */}
+        {/* Your challenge's code, for a friend standing next to you — My
+            Profile's challenge card, the same grey and corner. */}
         <Card flat padded={false} radius={radii.md} style={styles.codeCard}>
           <View style={styles.codeBody}>
             {/* Small here to sit beside its title; a tap holds it up big
                 enough to scan from across a table. */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Show my friend code"
+              accessibilityLabel="Show the code to join my challenge"
               onPress={() => setCodeOpen(true)}
               style={({ pressed }) => [styles.codeTile, pressed && styles.pressed]}
             >
               <QRCode
-                value={friendCodeUrl}
+                value={joinUrl}
                 size={CODE_SIZE}
                 color={colors.ink}
                 backgroundColor={colors.surface}
@@ -122,9 +125,9 @@ export default function AddFriendsScreen() {
             </Pressable>
             <View style={styles.codeText}>
               <View style={styles.codeLines}>
-                <Text variant="itemTitle">Your friend code</Text>
+                <Text variant="itemTitle">Invite to your challenge</Text>
                 <Text variant="meta" color={colors.inkMuted}>
-                  Friends scan it to add you.
+                  {`Friends scan it to join ${challenge.name}.`}
                 </Text>
               </View>
               <Pill tone="solid" icon="share-outline" label="Share" bold onPress={invite} />
@@ -211,24 +214,25 @@ export default function AddFriendsScreen() {
       <BottomSheet visible={codeOpen} onDismiss={() => setCodeOpen(false)}>
         <View style={styles.codeSheet}>
           <Text variant="sectionHeading" center>
-            Your QR code
+            Join my challenge
           </Text>
           <View style={styles.codeSheetTile}>
             <QRCode
-              value={friendCodeUrl}
+              value={joinUrl}
               size={CODE_SHEET_SIZE}
               color={colors.ink}
               backgroundColor={colors.surface}
             />
           </View>
-          {/* Whose code it is, for the friend holding the camera, and what
-              to do with it. */}
+          {/* Which challenge it joins, and what to do with it — written to
+              the friend holding the camera, since the sheet is held out to
+              them. */}
           <View style={styles.codeSheetText}>
             <Text variant="copyBold" center>
-              {profile.handle}
+              {challenge.name}
             </Text>
             <Text variant="meta" color={colors.inkMuted} center>
-              Have a friend scan this with their phone's camera to add you.
+              Scan with your phone's camera to join me.
             </Text>
           </View>
         </View>
