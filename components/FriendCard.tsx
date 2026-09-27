@@ -225,25 +225,26 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
         flightScale.setValue(1);
         heartOpacity.setValue(1);
         Animated.sequence([
-          Animated.spring(pop, { toValue: 1, friction: 4, tension: 90, useNativeDriver: true }),
-          Animated.delay(120),
+          // A stiffer spring: still a bounce, but settled fast enough that the
+          // heart doesn't hang on the photo before it flies.
+          Animated.spring(pop, { toValue: 1, friction: 6, tension: 160, useNativeDriver: true }),
           Animated.parallel([
             Animated.timing(flight, {
               toValue: to,
-              duration: 380,
+              duration: 300,
               easing: Easing.inOut(Easing.cubic),
               useNativeDriver: true,
             }),
             Animated.timing(flightScale, {
               toValue: HEART_LANDED,
-              duration: 380,
+              duration: 300,
               easing: Easing.in(Easing.cubic),
               useNativeDriver: true,
             }),
             Animated.timing(heartOpacity, {
               toValue: 0,
-              duration: 120,
-              delay: 260,
+              duration: 100,
+              delay: 200,
               useNativeDriver: true,
             }),
           ]),
