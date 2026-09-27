@@ -10,7 +10,7 @@ import {
   type TextInput as RNTextInput,
 } from 'react-native';
 
-import { bodyTracking, colors, fonts, radii, spacing } from '@/constants/theme';
+import { colors, radii, spacing, type } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
 import { BottomSheet } from './BottomSheet';
 import { Text } from './Text';
@@ -118,7 +118,7 @@ export function CommentsSheet({
       bottomGap={0}
       style={{ height: Math.round(height * HEIGHT_RATIO) }}
     >
-      <Text variant="cardTitleBold" center style={styles.title}>
+      <Text variant="sectionHeading" center style={styles.title}>
         Comments
       </Text>
 
@@ -130,7 +130,7 @@ export function CommentsSheet({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <Text variant="body" color={colors.inkMuted} center style={styles.empty}>
+          <Text variant="copy" color={colors.inkMuted} center style={styles.empty}>
             No comments yet — be the first to say something.
           </Text>
         }
@@ -138,8 +138,10 @@ export function CommentsSheet({
           <View style={[styles.row, item.depth > 0 && { marginLeft: item.depth * INDENT }]}>
             <Avatar source={item.comment.avatar} size={item.depth > 0 ? 22 : 28} />
             <View style={styles.rowBody}>
-              <Text variant="body" color={colors.inkSlate}>
-                <Text variant="bodyBold">{item.comment.author} </Text>
+              {/* Set like a post's caption: prose in Medium, the author
+                  leading it a weight up. */}
+              <Text variant="body" color={colors.ink}>
+                <Text variant="copyBold">{item.comment.author} </Text>
                 {item.comment.text}
               </Text>
               <Pressable
@@ -148,7 +150,7 @@ export function CommentsSheet({
                 hitSlop={spacing.sm}
                 style={styles.replyButton}
               >
-                <Text variant="label" color={colors.inkMuted}>
+                <Text variant="meta" color={colors.inkMuted}>
                   Reply
                 </Text>
               </Pressable>
@@ -159,7 +161,7 @@ export function CommentsSheet({
 
       {replyTarget ? (
         <View style={styles.replyBanner}>
-          <Text variant="label" color={colors.inkMuted}>
+          <Text variant="meta" color={colors.inkMuted}>
             Replying to {replyTarget.author}
           </Text>
           <Pressable
@@ -189,7 +191,7 @@ export function CommentsSheet({
         </View>
         {draft.trim() ? (
           <Pressable accessibilityRole="button" onPress={submit} hitSlop={spacing.sm}>
-            <Text variant="bodyBold" color={colors.inkSlate}>
+            <Text variant="copyBold" color={colors.ink}>
               Post
             </Text>
           </Pressable>
@@ -200,8 +202,6 @@ export function CommentsSheet({
 }
 
 const styles = StyleSheet.create({
-  // A true Bold cut rather than `cardTitle`'s Semi — the one thing this
-  // sheet asks to carry more weight than every other small heading in it.
   title: {
     marginBottom: spacing.lg,
   },
@@ -244,7 +244,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
+    // The palette's fill grey rather than the warmer `divider`, the rule
+    // Settings draws between its rows.
+    borderTopColor: colors.surfaceSunken,
   },
   // The pill field itself, `SearchBar`'s own cut — sunken on the sheet's
   // white the way Instagram's own comment field sits on its feed, rather
@@ -257,10 +259,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSunken,
     paddingHorizontal: spacing.md,
   },
+  // `copy`, the level a dialog's field is set in — face, size and tracking
+  // only: a line height on a single-line field shifts the text off centre.
   input: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    letterSpacing: bodyTracking,
+    fontFamily: type.copy.fontFamily,
+    fontSize: type.copy.fontSize,
+    letterSpacing: type.copy.letterSpacing,
     color: colors.ink,
     padding: 0,
   },

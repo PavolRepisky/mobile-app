@@ -64,11 +64,11 @@ export function LockedOverlay({
         style={[absoluteFill, styles.message]}
       >
         <Ionicons name="lock-closed" size={28} color={colors.inkInverse} />
-        <Text variant="cardTitleBold" color={colors.inkInverse} center style={styles.title}>
+        <Text variant="itemTitle" color={colors.inkInverse} center style={styles.title}>
           {title}
         </Text>
         {hint ? (
-          <Text variant="body" color={colors.onMediaSoft} center style={styles.hint}>
+          <Text variant="copy" color={colors.onMediaSoft} center style={styles.hint}>
             {hint}
           </Text>
         ) : null}

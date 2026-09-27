@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
+import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { Text } from './Text';
 
 /** The pill switch's measurements, taken off the profile's Grid / Month
@@ -84,20 +84,17 @@ export function SegmentedTabs<T extends string = string>({
             <Ionicons
               name={option.icon}
               size={pill ? PILL_ICON : large && !dense ? 19 : 17}
-              color={active ? colors.ink : pill ? colors.inkMuted : colors.inkGhost}
+              color={active ? colors.ink : colors.inkMuted}
               style={[styles.icon, (dense || pill) && styles.denseIcon]}
             />
           ) : null}
+          {/* The tab not on show is still one tap away and still read, so
+              it takes `inkMuted` the way the pill's off half does — `inkGhost`
+              is for what can't be used yet. */}
           <Text
-            variant={pill ? 'copy' : large ? 'sectionTitle' : 'cardTitle'}
-            color={active ? colors.ink : pill ? colors.inkMuted : colors.inkGhost}
-            style={
-              pill
-                ? undefined
-                : large
-                  ? [styles.lgLabel, dense && styles.denseLabel]
-                  : styles.mdLabel
-            }
+            variant={pill ? 'copy' : large ? 'sectionTitle' : 'itemTitle'}
+            color={active ? colors.ink : colors.inkMuted}
+            style={large && !pill ? [styles.lgLabel, dense && styles.denseLabel] : undefined}
           >
             {option.label}
           </Text>
@@ -162,10 +159,6 @@ const styles = StyleSheet.create({
   denseLabel: {
     fontSize: 17,
     lineHeight: 23,
-  },
-  /** The two-up rows set a step heavier than the card-title cut they scale from. */
-  mdLabel: {
-    fontFamily: fonts.bodyBold,
   },
   center: {
     justifyContent: 'center',

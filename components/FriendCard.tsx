@@ -488,7 +488,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
               <Text variant="meta">{reaction.emoji}</Text>
               {reaction.count > 0 ? (
                 <Text
-                  variant="metaBold"
+                  variant="badge"
                   color={reaction.selected ? colors.inkInverse : colors.ink}
                 >
                   {reaction.count}
