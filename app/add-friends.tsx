@@ -221,6 +221,16 @@ export default function AddFriendsScreen() {
               backgroundColor={colors.surface}
             />
           </View>
+          {/* Whose code it is, for the friend holding the camera, and what
+              to do with it. */}
+          <View style={styles.codeSheetText}>
+            <Text variant="copyBold" center>
+              {profile.handle}
+            </Text>
+            <Text variant="meta" color={colors.inkMuted} center>
+              Have a friend scan this with their phone's camera to add you.
+            </Text>
+          </View>
         </View>
       </BottomSheet>
     </View>
@@ -273,6 +283,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     ...shadows.card,
+  },
+  codeSheetText: {
+    alignItems: 'center',
+    gap: layout.line,
+    paddingHorizontal: layout.card,
   },
   codeText: {
     flex: 1,
