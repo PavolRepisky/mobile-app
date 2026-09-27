@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, tabBar, tabBarBottom } from '@/constants/theme';
+import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
@@ -126,10 +126,7 @@ export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
       >
         {/* The lens takes its height from the row inside it, so the bar's own
             height lives on that row rather than on the surface. */}
-        {/* The lens casts its own `glass` shadow — the lock pill's, tighter
-            than a floating sheet's — so the bar reads as the same piece of
-            glass as the buttons pinned at the top of the screen. */}
-        <GlassSurface radius={radii.pill} style={styles.lens}>
+        <GlassSurface radius={radii.pill} shadow={false} style={styles.lens}>
           <View style={styles.row}>{children}</View>
         </GlassSurface>
       </View>
@@ -143,6 +140,7 @@ const styles = StyleSheet.create({
     left: tabBar.horizontalInset,
     right: tabBar.horizontalInset,
     borderRadius: radii.pill,
+    ...shadows.floating,
   },
   barHidden: {
     opacity: 0,
