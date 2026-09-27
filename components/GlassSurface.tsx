@@ -2,7 +2,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { absoluteFill, glass, radii, shadows } from '@/constants/theme';
+import { absoluteFill, colors, glass, radii, shadows } from '@/constants/theme';
 
 /**
  * Android had no cheap backdrop blur before API 31 (Android 12). Below that the
@@ -14,6 +14,14 @@ export const CAN_BLUR = Platform.OS !== 'android' || Number(Platform.Version) >=
 
 export interface GlassSurfaceProps {
   radius?: number;
+  /**
+   * `lens` is the full liquid glass below. `frost` is the lock pill's simpler
+   * cut, taken up by the tab bar and the pinned header buttons: the same
+   * backdrop blur under a flat frosted white and a solid bright rim, with no
+   * sheen — it reads as frosted plastic laid over the page rather than a
+   * lens bending it.
+   */
+  tone?: 'lens' | 'frost';
   /** Dropped when the surface sits inside something already casting one. */
   shadow?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -38,11 +46,37 @@ export interface GlassSurfaceProps {
  */
 export function GlassSurface({
   radius = radii.pill,
+  tone = 'lens',
   shadow = true,
   style,
   children,
 }: GlassSurfaceProps) {
   const innerRadius = Math.max(0, radius - glass.rimWidth);
+
+  if (tone === 'frost') {
+    // Without a backdrop blur the page would read straight through a 42%
+    // white, so the surface goes solid white under the frost instead.
+    return (
+      <View style={[shadow && shadows.glass, { borderRadius: radius }, style]}>
+        <View style={[styles.frost, { borderRadius: radius }]}>
+          {CAN_BLUR ? (
+            <BlurView
+              intensity={glass.blur}
+              tint={glass.tint}
+              experimentalBlurMethod={
+                Platform.OS === 'android' ? 'dimezisBlurView' : undefined
+              }
+              style={absoluteFill}
+            />
+          ) : (
+            <View style={[absoluteFill, styles.frostSolid]} />
+          )}
+          <View style={[absoluteFill, styles.frostFill]} />
+          {children}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[shadow && shadows.glass, { borderRadius: radius }, style]}>
@@ -94,6 +128,19 @@ const styles = StyleSheet.create({
   },
   fallback: {
     backgroundColor: glass.fallback,
+  },
+  // The rim is a plain border here, drawn round the clip, where the lens
+  // paints a gradient behind an inset body.
+  frost: {
+    overflow: 'hidden',
+    borderWidth: glass.rimWidth,
+    borderColor: colors.frostRim,
+  },
+  frostSolid: {
+    backgroundColor: colors.surface,
+  },
+  frostFill: {
+    backgroundColor: colors.frost,
   },
 });
 

@@ -675,7 +675,7 @@ export default function ProfileScreen() {
         name="qr-code-outline"
         size={profileActionButton}
         iconSize={profileActionIcon}
-        background={colors.surface}
+        frost
         onPress={() => setCodeOpen(true)}
         accessibilityLabel="Show my friend code"
         style={[styles.cornerLeft, { top: headerTop }]}
@@ -684,7 +684,7 @@ export default function ProfileScreen() {
         name="settings-outline"
         size={profileActionButton}
         iconSize={profileActionIcon}
-        background={colors.surface}
+        frost
         onPress={() => router.push('/account/settings')}
         accessibilityLabel="Settings"
         style={[styles.cornerRight, { top: headerTop }]}

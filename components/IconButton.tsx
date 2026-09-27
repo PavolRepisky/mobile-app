@@ -21,6 +21,9 @@ export interface IconButtonProps {
    * into the page rather than float over it.
    */
   background?: string;
+  /** The tab bar's frost instead of the lens — the buttons pinned over a
+   * tab root's header, so they read as cut from the same sheet as the bar. */
+  frost?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   shadow?: boolean;
@@ -38,6 +41,7 @@ export function IconButton({
   iconSize,
   color = colors.ink,
   background,
+  frost,
   style,
   accessibilityLabel,
   shadow = true,
@@ -65,7 +69,7 @@ export function IconButton({
       {glyph}
     </View>
   ) : (
-    <GlassSurface radius={radius} shadow={shadow}>
+    <GlassSurface radius={radius} tone={frost ? 'frost' : 'lens'} shadow={shadow}>
       <View style={[styles.base, box]}>{glyph}</View>
     </GlassSurface>
   );

@@ -138,7 +138,7 @@ export default function SettingsScreen() {
         name="chevron-back"
         size={profileActionButton}
         iconSize={profileActionIcon}
-        background={colors.surface}
+        frost
         onPress={() => router.back()}
         accessibilityLabel="Go back"
         style={[styles.cornerLeft, { top: headerTop }]}

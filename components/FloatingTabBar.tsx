@@ -1,8 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { forwardRef } from 'react';
-import { BlurView } from 'expo-blur';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -11,20 +9,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  absoluteFill,
-  colors,
-  glass,
-  radii,
-  shadows,
-  tabBar,
-  tabBarBottom,
-} from '@/constants/theme';
-import { CAN_BLUR } from './GlassSurface';
+import { colors, radii, tabBar, tabBarBottom } from '@/constants/theme';
+import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
-
-/** The lock pill's rim width, so the bar and the pill wear one edge. */
-const FROST_RIM = 1.5;
 
 export type TabIcon = 'discover' | 'community' | 'tasks' | 'profile';
 
@@ -137,25 +124,12 @@ export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
           hidden && styles.barHidden,
         ]}
       >
-        {/* The lock pill's frost: a blur of the page passing underneath, the
-            flat frosted white over it and the bright rim round the edge. The
-            frame clips while the host above casts the shadow — on iOS one
-            view can't do both. Without a backdrop blur the page would read
-            straight through the white, so it gets a solid one instead. */}
-        <View style={styles.frame}>
-          {CAN_BLUR ? (
-            <BlurView
-              intensity={glass.blur}
-              tint={glass.tint}
-              experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
-              style={absoluteFill}
-            />
-          ) : (
-            <View style={[absoluteFill, styles.solid]} />
-          )}
-          <View style={[absoluteFill, styles.frost]} />
+        {/* The lock pill's frost, which the pinned header buttons wear too.
+            It takes its height from the row inside it, so the bar's own
+            height lives on that row rather than on the surface. */}
+        <GlassSurface tone="frost" radius={radii.pill}>
           <View style={styles.row}>{children}</View>
-        </View>
+        </GlassSurface>
       </View>
     );
   },
@@ -167,22 +141,9 @@ const styles = StyleSheet.create({
     left: tabBar.horizontalInset,
     right: tabBar.horizontalInset,
     borderRadius: radii.pill,
-    ...shadows.glass,
   },
   barHidden: {
     opacity: 0,
-  },
-  frame: {
-    borderRadius: radii.pill,
-    borderWidth: FROST_RIM,
-    borderColor: colors.frostRim,
-    overflow: 'hidden',
-  },
-  solid: {
-    backgroundColor: colors.surface,
-  },
-  frost: {
-    backgroundColor: colors.frost,
   },
   row: {
     height: tabBar.height,
