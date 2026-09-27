@@ -90,8 +90,10 @@ export default function CommunityScreen() {
     livesLeft,
   } = useApp();
   const [tab, setTab] = useState<Tab>('friends');
-  // Added from the Members feed — held here the way Add Friends holds its
-  // own, since there is no friend graph to write to yet.
+  // Friend requests sent from the Members feed — a stranger has to accept,
+  // so the pill says the request went, not that they're a friend. Held here
+  // the way Add Friends holds its own, since there is no friend graph to
+  // write to yet.
   const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
   const [trackWidth, setTrackWidth] = useState(0);
 
@@ -391,7 +393,7 @@ export default function CommunityScreen() {
               </View>
             </Card>
 
-            <SectionHeading title="Finished today" meta="newest first" />
+            <SectionHeading title="Finished today" meta={String(membersFinished.length)} />
 
             {membersFinished.length ? (
               <View style={styles.posts}>
@@ -404,7 +406,7 @@ export default function CommunityScreen() {
                       size="sm"
                       bold
                       icon={isAdded ? 'checkmark' : 'person-add'}
-                      label={isAdded ? 'Added' : 'Add'}
+                      label={isAdded ? 'Request sent' : 'Add'}
                       onPress={
                         isAdded
                           ? undefined
