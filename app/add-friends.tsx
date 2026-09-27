@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -39,26 +38,14 @@ const CODE_SIZE = 78;
 /** The same code held up in its sheet: big enough to scan from a phone
  * held across a table, with room left for the title above it. */
 const CODE_SHEET_SIZE = 220;
-/** One invite channel's round tile, and its glyph. */
-const CHANNEL_TILE = 52;
-const CHANNEL_ICON = 22;
-/** A wide enough column that "Instagram" sits under its tile on one line. */
-const CHANNEL_WIDTH = 60;
 /** A suggestion's face — a step over a post's, since the row is the person. */
 const ROW_AVATAR = 48;
-
-const INVITE_CHANNELS = [
-  { key: 'messages', label: 'Messages', icon: 'chatbubble-outline' as const },
-  { key: 'whatsapp', label: 'WhatsApp', icon: 'logo-whatsapp' as const },
-  { key: 'instagram', label: 'Instagram', icon: 'logo-instagram' as const },
-  { key: 'email', label: 'Email', icon: 'mail-outline' as const },
-  { key: 'more', label: 'More', icon: 'ellipsis-horizontal' as const },
-];
 
 /**
  * Finding people to do it with, opened from Community's corner button and
  * laid out the way the canvas's "Find friends" board is: a search, your own
- * friend code, a row of ways to invite someone, then suggestions.
+ * friend code, then suggestions. Inviting someone is the code card's Share,
+ * which opens the system share sheet — where every messaging app already is.
  *
  * Built on My Profile and Settings' own parts — the pinned round back button
  * on the title's line, the fill-grey card, the type levels and `layout`
@@ -81,8 +68,8 @@ export default function AddFriendsScreen() {
 
   const handle = profile.handle.replace(/^@/, '');
   const friendCodeUrl = Linking.createURL(`add-friend/${handle}`);
-  // Every channel hands the same invite to the system share sheet, which is
-  // where each app actually lives — the tiles are shortcuts into it.
+  // The invite goes to the system share sheet, which is where each
+  // messaging app actually lives.
   const invite = () =>
     Share.share({
       message: `Do 75 days with me on Her 75 — add me as @${handle}: ${friendCodeUrl}`,
@@ -144,25 +131,6 @@ export default function AddFriendsScreen() {
             </View>
           </View>
         </Card>
-
-        <View style={styles.channels}>
-          {INVITE_CHANNELS.map((channel) => (
-            <Pressable
-              key={channel.key}
-              accessibilityRole="button"
-              accessibilityLabel={`Invite with ${channel.label}`}
-              onPress={invite}
-              style={({ pressed }) => [styles.channel, pressed && styles.pressed]}
-            >
-              <View style={styles.channelTile}>
-                <Ionicons name={channel.icon} size={CHANNEL_ICON} color={colors.ink} />
-              </View>
-              <Text variant="badge" numberOfLines={1} center>
-                {channel.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
 
         <Text variant="sectionHeading" style={styles.heading}>
           Suggested for you
@@ -313,24 +281,6 @@ const styles = StyleSheet.create({
   },
   codeLines: {
     gap: layout.line,
-  },
-  channels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: layout.section,
-  },
-  channel: {
-    width: CHANNEL_WIDTH,
-    alignItems: 'center',
-    gap: layout.stack,
-  },
-  channelTile: {
-    width: CHANNEL_TILE,
-    height: CHANNEL_TILE,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceSunken,
   },
   heading: {
     marginBottom: layout.heading,
