@@ -44,7 +44,7 @@ const GRID_CELL_PIECE = { flex: 1 } as const;
  * web or older Android. Soft enough that the day's colours still show
  * through under `LockedOverlay`'s light wash, too soft to make out the shot.
  */
-const LOCK_BLUR_RADIUS = 32;
+const LOCK_BLUR_RADIUS = 50;
 
 /** Blur on the day stamp's drop shadow — wide and soft, so it lifts the
  * white type off a bright shot without drawing an edge around the letters. */
