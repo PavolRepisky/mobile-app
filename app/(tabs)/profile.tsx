@@ -351,6 +351,8 @@ export default function ProfileScreen() {
   };
 
   const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
+  const daysLeft = Math.max(0, totalDays - currentDay);
+  const startedLabel = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   return (
     <View style={styles.screenRoot}>
@@ -484,42 +486,47 @@ export default function ProfileScreen() {
           accessibilityHint="Opens the challenge"
           style={styles.challengeCard}
         >
+          {/* Laid out as Community's Members card is — name and chevron,
+              the challenge's start and size, then the bar with the day
+              spelled out under it — so the two read as one card. */}
           <View style={styles.challengeBody}>
-            <View style={styles.challengeRow}>
-              <Text variant="itemTitle" numberOfLines={1} style={styles.challengeName}>
-                {challenge.name}
-              </Text>
-              <Text variant="metaBold">
-                Day {currentDay}
-                <Text variant="metaBold" color={colors.inkMuted}>
-                  {` / ${totalDays}`}
+            <View>
+              <View style={styles.challengeRow}>
+                <Text variant="itemTitle" numberOfLines={1} style={styles.challengeName}>
+                  {challenge.name}
                 </Text>
+                {/* The same chevron a Settings row ends on — the one cue the
+                    app already uses for "this opens a page", where a flat
+                    card on its own reads as information rather than a way in. */}
+                <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
+              </View>
+              <Text variant="meta" color={colors.inkMuted}>
+                {`Started ${startedLabel} · ${challenge.joined.toLocaleString('en-US')} members`}
               </Text>
-              {/* The same chevron a Settings row ends on — the one cue the
-                  app already uses for "this opens a page", where a flat
-                  card on its own reads as information rather than a way in. */}
-              <Ionicons
-                name="chevron-forward"
-                size={CHALLENGE_CHEVRON}
-                color={colors.inkMuted}
-                style={styles.challengeChevron}
-              />
             </View>
-            <View
-              style={styles.progressTrack}
-              onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-            >
-              {/* The fill clips a gradient as wide as the whole track, so
-                  the colour marks how far through the challenge you are —
-                  peach early on, lavender only near the end — the same way
-                  the ring's sweep is read off where a segment sits. */}
-              <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]}>
-                <LinearGradient
-                  colors={gradients.accent}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.progressGradient, { width: trackWidth }]}
-                />
+            <View style={styles.progressBlock}>
+              <View
+                style={styles.progressTrack}
+                onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+              >
+                {/* The fill clips a gradient as wide as the whole track, so
+                    the colour marks how far through the challenge you are —
+                    peach early on, lavender only near the end — the same way
+                    the ring's sweep is read off where a segment sits. */}
+                <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]}>
+                  <LinearGradient
+                    colors={gradients.accent}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.progressGradient, { width: trackWidth }]}
+                  />
+                </View>
+              </View>
+              <View style={styles.progressLabels}>
+                <Text variant="metaBold">{`Day ${currentDay} of ${totalDays}`}</Text>
+                <Text variant="meta" color={colors.inkMuted}>
+                  {daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}
+                </Text>
               </View>
             </View>
           </View>
@@ -831,11 +838,11 @@ const styles = StyleSheet.create({
     // below it read as cut from the same sheet.
     backgroundColor: colors.surfaceSunken,
   },
-  // The card role on every side — the bar gets the same room under it as
-  // the title has over it, so it no longer reads as clipped by the edge.
+  // The card role on every side, and a block's gap between the title and
+  // the bar — Community's Members card, role for role.
   challengeBody: {
     padding: layout.card,
-    gap: layout.stack,
+    gap: layout.block,
   },
   challengeRow: {
     flexDirection: 'row',
@@ -845,10 +852,12 @@ const styles = StyleSheet.create({
   challengeName: {
     flex: 1,
   },
-  // Pulled in toward "Day N / 75" — the glyph carries its own side bearing,
-  // so the row's full gap left it floating apart from the text it ends.
-  challengeChevron: {
-    marginLeft: -spacing.xs,
+  progressBlock: {
+    gap: layout.stack,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   // The ring's own stroke: the bar wears the ring's sweep, so it's drawn at
   // the ring's weight and the two read as the same line, bent and straight.
