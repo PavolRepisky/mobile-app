@@ -6,16 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
-import { IconButton } from '@/components/IconButton';
 import { PhotoStrip } from '@/components/PhotoStrip';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { PrimaryButton } from '@/components/Buttons';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileActionTop,
-} from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { DateRange } from '@/components/DateRange';
 import { CheckCircle } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
@@ -86,13 +81,6 @@ export default function FeedScreen() {
   // Only a round you can still join has anything to dock at the bottom.
   const hasDock = state.kind === 'upcoming';
 
-  /**
-   * The line the title and the back button share — My Profile's corner
-   * offset, or the status bar's if that runs lower.
-   */
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
-
   // The same gap the floating tab bar keeps off the bottom edge, above and
   // below, so the dock reads as that bar filled in rather than a button
   // adrift over a long stretch of safe area.
@@ -102,15 +90,13 @@ export default function FeedScreen() {
     // Absolute overlays need a positioned parent, otherwise their offsets
     // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
-      <ScreenScroll bottomExtra={hasDock ? Math.max(0, dockHeight - insets.bottom) : 0}>
-        {/* Settings' own title line: centred, the height of the round
-            button pinned beside it and dropped to the same line. */}
-        <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="pageTitle" center>
-            {challenge.name}
-          </Text>
-        </View>
-
+      {/* The title and the way back share the scroll's fixed header, so the
+          back button stays level with the name instead of floating over the
+          photos once they scroll up under it. */}
+      <ScreenScroll
+        bottomExtra={hasDock ? Math.max(0, dockHeight - insets.bottom) : 0}
+        header={<ScreenHeader bar plainTitle={challenge.name} />}
+      >
         <PhotoStrip
           photos={section.photos}
           height={170}
@@ -157,18 +143,6 @@ export default function FeedScreen() {
           )}
         </View>
       </ScreenScroll>
-
-      {/* My Profile's round corner button — the same size, white disc and
-          soft shadow — pinned over the scroll so the way out stays put. */}
-      <IconButton
-        name="chevron-back"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.back()}
-        accessibilityLabel="Go back"
-        style={[styles.back, { top: headerTop }]}
-      />
 
       {hasDock ? (
         <View
@@ -433,19 +407,6 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
     backgroundColor: colors.backgroundPlain,
-  },
-  back: {
-    position: 'absolute',
-    left: layout.gutter,
-  },
-  // The pinned button's height, so the title centres on its line. Inset by
-  // the button and a row's gap on both sides, so a long name wraps before it
-  // runs under the button — and stays centred on the page while it does.
-  header: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    paddingHorizontal: profileActionButton + layout.inline,
-    marginBottom: layout.title,
   },
   strip: {
     marginBottom: layout.section,

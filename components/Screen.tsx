@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
@@ -10,11 +13,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   colors,
+  layout,
   screenPadding,
   screenTopGap,
   spacing,
   tabBarClearance,
 } from '@/constants/theme';
+
+/**
+ * The line every screen's title row sits on, measured from the very top of
+ * the display — the corner buttons of the tab roots and the round back button
+ * of a pushed page all share it, so moving between screens never makes the
+ * header jump.
+ */
+export const headerLineTop = 56;
 
 interface CommonProps {
   children: React.ReactNode;
@@ -98,6 +110,14 @@ export interface ScreenScrollProps
   /** The scroller itself, for a screen that scrolls to something on its own
    * — Community landing on a post a story linked to. */
   ref?: React.Ref<ScrollView>;
+  /**
+   * A title row that stays put while the page scrolls under it — usually a
+   * `ScreenHeader bar`. It sits on the header line on the page's own tone,
+   * so its buttons never float over content the way a button pinned beside
+   * a scrolling title does; a hairline appears under it once anything has
+   * scrolled beneath.
+   */
+  header?: React.ReactNode;
 }
 
 /** Scrolling screen that keeps content clear of the floating tab bar. */
@@ -110,6 +130,8 @@ export function ScreenScroll({
   style,
   bottomExtra = 0,
   contentContainerStyle,
+  header,
+  onScroll,
   // React Native's default here is `never`, which puts a *capture* responder
   // on the scroller: while a keyboard is up it eats the first tap anywhere
   // below it and only dismisses the keys. A Modal is a React child of the
@@ -120,16 +142,27 @@ export function ScreenScroll({
   ...rest
 }: ScreenScrollProps) {
   const insets = useSafeAreaInsets();
+  const [scrolled, setScrolled] = useState(false);
 
-  return (
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = event.nativeEvent.contentOffset.y > 0;
+    if (next !== scrolled) setScrolled(next);
+    onScroll?.(event);
+  };
+
+  const scroller = (
     <ScrollView
       ref={ref}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+      scrollEventThrottle={header ? 16 : rest.scrollEventThrottle}
       {...rest}
+      onScroll={header ? handleScroll : onScroll}
       style={[styles.flex, { backgroundColor: TONES[tone] }, style]}
       contentContainerStyle={[
-        { paddingTop: topPadding(insets.top, topGap) },
+        // Under a fixed header the page starts a title's gap below the bar,
+        // not below the status bar — the bar has already cleared that.
+        { paddingTop: header ? layout.title : topPadding(insets.top, topGap) },
         padded && styles.padded,
         {
           paddingBottom:
@@ -142,6 +175,27 @@ export function ScreenScroll({
       {children}
     </ScrollView>
   );
+
+  if (!header) return scroller;
+
+  return (
+    <View style={[styles.flex, { backgroundColor: TONES[tone] }]}>
+      <View
+        style={[
+          styles.headerBar,
+          padded && styles.padded,
+          {
+            backgroundColor: TONES[tone],
+            paddingTop: Math.max(headerLineTop, topPadding(insets.top)),
+          },
+          scrolled && styles.headerBarScrolled,
+        ]}
+      >
+        {header}
+      </View>
+      {scroller}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -150,6 +204,16 @@ const styles = StyleSheet.create({
   },
   padded: {
     paddingHorizontal: screenPadding,
+  },
+  // A stack's gap under the row, so the hairline that appears on scroll sits
+  // clear of the buttons rather than touching their shadows.
+  headerBar: {
+    paddingBottom: layout.stack,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'transparent',
+  },
+  headerBarScrolled: {
+    borderBottomColor: colors.inkGhost,
   },
 });
 

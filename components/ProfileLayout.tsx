@@ -3,7 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { screenPadding, spacing } from '@/constants/theme';
-import { ScreenScroll, topPadding } from './Screen';
+import { headerLineTop, ScreenScroll, topPadding } from './Screen';
 
 /**
  * Diameter of the circle at the top of a profile — the friend's avatar, and
@@ -17,7 +17,7 @@ export const profileAvatarSize = 120;
  * measured from the screen edge rather than from the safe-area inset because
  * the button floats over the scroll view rather than sitting inside it.
  */
-export const profileActionTop = 56;
+export const profileActionTop = headerLineTop;
 /** The corner row is pinned to the button's height so anything taller beside
  * it — the day's sticky note — grows around the button's centre line instead
  * of pushing it down. */

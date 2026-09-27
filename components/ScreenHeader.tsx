@@ -7,9 +7,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, spacing } from '@/constants/theme';
+import { colors, layout, spacing } from '@/constants/theme';
 import { Headline } from './Headline';
 import { IconButton } from './IconButton';
+import { profileActionButton, profileActionIcon } from './ProfileLayout';
 import { Text, type TextProps } from './Text';
 
 export interface ScreenHeaderProps {
@@ -29,7 +30,17 @@ export interface ScreenHeaderProps {
   /** Circle X on the right instead of a back chevron on the left. */
   onClose?: () => void;
   showBack?: boolean;
+  /** Something in the leading corner in place of the back button — a tab
+   * root's own action, which has nowhere to go back to. */
+  left?: React.ReactNode;
   right?: React.ReactNode;
+  /**
+   * The row a `ScreenScroll`'s fixed `header` holds: exactly the round
+   * corner buttons' height, no margin under it, the title set one line at
+   * page-title size and inset clear of both corners, and the back button the
+   * same white disc every tab root's corner button is.
+   */
+  bar?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -42,23 +53,33 @@ export function ScreenHeader({
   title,
   subtitle,
   plainTitle,
-  plainTitleVariant = 'sectionTitle',
+  plainTitleVariant,
   plainTitleStyle,
   subtitleVariant = 'body',
   onBack,
   onClose,
   showBack = true,
+  left,
   right,
+  bar,
   style,
 }: ScreenHeaderProps) {
   const router = useRouter();
   const goBack = onBack ?? (() => router.back());
+  const cornerButton = bar
+    ? { size: profileActionButton, iconSize: profileActionIcon, background: colors.surface }
+    : {};
 
   return (
-    <View style={[styles.wrap, style]}>
-      <View style={styles.titleBlock}>
+    <View style={[bar ? styles.barWrap : styles.wrap, style]}>
+      <View style={bar ? styles.barTitle : styles.titleBlock}>
         {plainTitle ? (
-          <Text variant={plainTitleVariant} center style={plainTitleStyle}>
+          <Text
+            variant={plainTitleVariant ?? (bar ? 'pageTitle' : 'sectionTitle')}
+            center
+            numberOfLines={bar ? 1 : undefined}
+            style={plainTitleStyle}
+          >
             {plainTitle}
           </Text>
         ) : null}
@@ -75,9 +96,12 @@ export function ScreenHeader({
         ) : null}
       </View>
 
-      {showBack && !onClose ? (
+      {left ? (
+        <View style={styles.left}>{left}</View>
+      ) : showBack && !onClose ? (
         <IconButton
           name="chevron-back"
+          {...cornerButton}
           onPress={goBack}
           accessibilityLabel="Go back"
           style={styles.left}
@@ -87,6 +111,7 @@ export function ScreenHeader({
       {onClose ? (
         <IconButton
           name="close"
+          {...cornerButton}
           onPress={onClose}
           accessibilityLabel="Close"
           style={styles.right}
@@ -106,6 +131,15 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     paddingHorizontal: 64,
+  },
+  barWrap: {
+    minHeight: profileActionButton,
+    justifyContent: 'center',
+  },
+  // Inset by a corner button and a row's gap on both sides, so a long name
+  // stops short of the buttons and still centres on the page.
+  barTitle: {
+    paddingHorizontal: profileActionButton + layout.inline,
   },
   sub: {
     marginTop: 2,

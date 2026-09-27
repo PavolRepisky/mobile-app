@@ -216,6 +216,12 @@ export const gradients = {
    * isn't.
    */
   stampBand: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.32)', 'rgba(0,0,0,0)'],
+  /**
+   * The shade rising from the foot of a cover photo — Challenges' featured
+   * card — clear through the top half so the picture keeps its colour, dark
+   * enough at the bottom for white type to hold on any shot.
+   */
+  coverShade: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.68)'],
 } as const;
 
 // ---------------------------------------------------------------------------
