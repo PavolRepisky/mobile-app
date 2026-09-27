@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.block,
     borderRadius: radii.pill,
     borderWidth: PILL_RIM,
-    borderColor: colors.lockPillRim,
-    backgroundColor: colors.lockPill,
+    borderColor: colors.frostRim,
+    backgroundColor: colors.frost,
     ...shadows.glass,
   },
 });

@@ -157,10 +157,14 @@ export const colors = {
    * as this app's own shadow and not a generic overlay.
    */
   scrimLock: 'rgba(20,20,20,0.45)',
-  /** The lock pill's frosted fill over a blurred photo — the canvas's own. */
-  lockPill: 'rgba(255,255,255,0.42)',
+  /**
+   * Frosted white — the canvas's lock pill, taken up by the tab bar too: a
+   * flat 42% white over whatever is behind it, where `glass` builds a lens
+   * from a sheen gradient.
+   */
+  frost: 'rgba(255,255,255,0.42)',
   /** Its rim, brighter than the fill so the edge holds on a pale shot. */
-  lockPillRim: 'rgba(255,255,255,0.8)',
+  frostRim: 'rgba(255,255,255,0.8)',
 
   /** The barely-there dim behind a popover; the lens does the rest. */
   frostBackdrop: 'rgba(0,0,0,0.04)',
