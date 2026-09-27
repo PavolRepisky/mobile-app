@@ -127,7 +127,7 @@ export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
         {/* The lock pill's frost, which the pinned header buttons wear too.
             It takes its height from the row inside it, so the bar's own
             height lives on that row rather than on the surface. */}
-        <GlassSurface tone="frost" radius={radii.pill}>
+        <GlassSurface radius={radii.pill}>
           <View style={styles.row}>{children}</View>
         </GlassSurface>
       </View>

@@ -127,7 +127,6 @@ export function PhotoLibrarySheet({
           name="close"
           onPress={onDismiss}
           accessibilityLabel="Close"
-          background={colors.surface}
         />
         <Text variant="cardTitleBold" style={styles.title}>
           Photos

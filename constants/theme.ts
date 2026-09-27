@@ -53,12 +53,6 @@ export const colors = {
   /** The reaction strip's circles, which sit directly on a friend's photo —
    * held just off full white so the picture underneath still reads through. */
   surfaceOnPhoto: 'rgba(255,255,255,0.92)',
-  /**
-   * The white counterpart to `inkOnPhoto`, held to the same translucency —
-   * the my-challenge card's days-left badge, paired against the dark category
-   * chip so the two read as a matched set rather than two different fills.
-   */
-  surfaceOnPhotoDim: 'rgba(255,255,255,0.55)',
   /** Inset panels: the invite card, "Create Daily Task+" well. */
   surfaceMuted: '#F1F0EA',
   /** Empty photo slots and "add" tiles on the wall. */
@@ -97,12 +91,6 @@ export const colors = {
   inkGhost: palette.greyLight,
   /** Text on dark fills. */
   inkInverse: palette.white,
-  /**
-   * A solid badge's own fill where it sits on a photo rather than the page —
-   * held translucent so the shot underneath still shows through instead of a
-   * flat block sitting on top of it. The my-challenge card's category chip.
-   */
-  inkOnPhoto: 'rgba(20,20,20,0.55)',
 
   /** Text input fills and unselected control strokes. */
   field: '#CDCDCD',
@@ -722,27 +710,15 @@ export const shadows = {
 // ---------------------------------------------------------------------------
 
 /**
- * The iOS 26 "liquid glass" material — a live lens rather than a tinted card.
- * Three layers stack to make it read as a physical piece of glass:
- *
- *   1. a real backdrop blur, so whatever sits behind melts and shows through,
- *   2. a vertical body wash that is brightest at the lit top edge, thinnest
- *      through the middle, and lifts again at the bottom where light bounces
- *      back up off the surface underneath,
- *   3. a specular rim that catches light on the top-left and bottom-right
- *      corners and dims across the middle of each edge.
- *
- * Every value is alpha-only on white: the material has no colour of its own,
- * it borrows whatever it floats over. That is what keeps it looking like glass
- * over a dark photo *and* over a light one.
+ * The frosted material everything floating over the page wears — see
+ * `GlassSurface`. Its two whites are `colors.frost` and `colors.frostRim`;
+ * these are the blur under them and the width of the rim.
  */
 export const glass = {
   /**
    * Backdrop blur strength. Enough that the photo behind smears into colour
    * fields, not so much that it flattens to a single tone — you should still
-   * be able to tell a dark card edge from a bright tortilla through the lens.
-   * On web this also sets the tint opacity (expo-blur couples the two), which
-   * is why `sheen` below stays restrained.
+   * be able to tell a dark card edge from a bright tortilla through the frost.
    */
   blur: 46,
   /**
@@ -752,24 +728,8 @@ export const glass = {
    * free win on iOS.
    */
   tint: 'systemUltraThinMaterialLight',
-  /** Thickness of the specular edge, in px. Below ~1.5 it stops reading. */
+  /** Thickness of the bright rim, in px. Below ~1.5 it stops reading. */
   rimWidth: 1.5,
-  /** Body wash, top to bottom. */
-  sheen: [
-    'rgba(255,255,255,0.42)',
-    'rgba(255,255,255,0.12)',
-    'rgba(255,255,255,0.28)',
-  ],
-  /**
-   * Specular edge, run corner-to-corner so the highlight travels around the
-   * rim: hot at top-left, falling away through the middle, catching again at
-   * bottom-right. A flat white border reads as a stroke; this reads as glass.
-   */
-  rim: [
-    'rgba(255,255,255,0.95)',
-    'rgba(255,255,255,0.30)',
-    'rgba(255,255,255,0.85)',
-  ],
   /**
    * Flat stand-in for the blur. Android below API 31 and any platform where
    * the backdrop cannot be sampled falls back to this, so the badge stays

@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native';
 
-import { colors, radii, shadows, spacing, type } from '@/constants/theme';
+import { colors, glass, radii, shadows, spacing, type } from '@/constants/theme';
+import { FrostLayer } from './GlassSurface';
 import { Text } from './Text';
 
 export interface AlertAction {
@@ -54,8 +55,8 @@ export interface AlertDialogProps {
 /**
  * The iOS-style centred dialog used by "Today's Photo", "Restart Challenge"
  * and "Update Username": title, message, optional field, then pills. The
- * panel is a plain white card rather than the tab bar's liquid glass — an
- * alert reads a decision, not a surface floating over a photo.
+ * panel wears the app's frost, the same as the tab bar and the sheets, over
+ * a light dim of the page.
  *
  * Two actions sit side by side; a third will not read as a pair, so past that
  * the pills stack full-width the way iOS does with its own alerts.
@@ -89,81 +90,87 @@ export function AlertDialog({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.centre}
         >
-          <View style={[styles.panel, shadows.floating]}>
-            <View style={styles.dialog}>
-              <Text variant="sectionHeading">
-                {title}
-              </Text>
-
-              {message ? (
-                <Text
-                  variant="copy"
-                  color={colors.inkMuted}
-                  style={styles.message}
-                >
-                  {message}
+          {/* The frost, like everything else floating over the page: the
+              shadow on this host, the clip and rim on the panel inside it —
+              on iOS one view can't do both. */}
+          <View style={[styles.panelHost, shadows.glass]}>
+            <View style={styles.panel}>
+              <FrostLayer />
+              <View style={styles.dialog}>
+                <Text variant="sectionHeading">
+                  {title}
                 </Text>
-              ) : null}
-
-              {input ? (
-                <>
-                  <TextInput
-                    value={input.value}
-                    onChangeText={input.onChangeText}
-                    placeholder={input.placeholder}
-                    placeholderTextColor={colors.inkMuted}
-                    autoFocus={input.autoFocus}
-                    multiline={input.multiline}
-                    maxLength={input.maxLength}
-                    style={[styles.input, input.multiline && styles.inputMultiline]}
-                  />
-
-                  {input.multiline && input.maxLength ? (
-                    <Text
-                      variant="label"
-                      color={colors.inkMuted}
-                      style={styles.counter}
-                    >
-                      {input.value.length}/{input.maxLength}
-                    </Text>
-                  ) : null}
-                </>
-              ) : null}
-
-              <View
-                style={[
-                  styles.actions,
-                  actions.length > 2 && styles.actionsStacked,
-                ]}
-              >
-                {actions.map((action) => (
-                  <Pressable
-                    key={action.label}
-                    accessibilityRole="button"
-                    onPress={action.onPress}
-                    style={({ pressed }) => [
-                      styles.action,
-                      action.primary && styles.actionPrimary,
-                      actions.length > 2
-                        ? styles.actionStacked
-                        : styles.actionRow,
-                      pressed && styles.pressed,
-                    ]}
+  
+                {message ? (
+                  <Text
+                    variant="copy"
+                    color={colors.inkMuted}
+                    style={styles.message}
                   >
-                    <Text
-                      variant="button"
-                      color={
-                        action.primary
-                          ? colors.inkInverse
-                          : action.destructive
-                            ? colors.destructive
-                            : colors.ink
-                      }
+                    {message}
+                  </Text>
+                ) : null}
+  
+                {input ? (
+                  <>
+                    <TextInput
+                      value={input.value}
+                      onChangeText={input.onChangeText}
+                      placeholder={input.placeholder}
+                      placeholderTextColor={colors.inkMuted}
+                      autoFocus={input.autoFocus}
+                      multiline={input.multiline}
+                      maxLength={input.maxLength}
+                      style={[styles.input, input.multiline && styles.inputMultiline]}
+                    />
+  
+                    {input.multiline && input.maxLength ? (
+                      <Text
+                        variant="label"
+                        color={colors.inkMuted}
+                        style={styles.counter}
+                      >
+                        {input.value.length}/{input.maxLength}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : null}
+  
+                <View
+                  style={[
+                    styles.actions,
+                    actions.length > 2 && styles.actionsStacked,
+                  ]}
+                >
+                  {actions.map((action) => (
+                    <Pressable
+                      key={action.label}
+                      accessibilityRole="button"
+                      onPress={action.onPress}
+                      style={({ pressed }) => [
+                        styles.action,
+                        action.primary && styles.actionPrimary,
+                        actions.length > 2
+                          ? styles.actionStacked
+                          : styles.actionRow,
+                        pressed && styles.pressed,
+                      ]}
                     >
-                      {action.label}
-                    </Text>
-                  </Pressable>
-                ))}
+                      <Text
+                        variant="button"
+                        color={
+                          action.primary
+                            ? colors.inkInverse
+                            : action.destructive
+                              ? colors.destructive
+                              : colors.ink
+                        }
+                      >
+                        {action.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             </View>
           </View>
@@ -183,9 +190,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing['2xl'],
   },
+  panelHost: {
+    borderRadius: radii.xl,
+  },
   panel: {
     borderRadius: radii.xl,
-    backgroundColor: colors.surface,
+    borderWidth: glass.rimWidth,
+    borderColor: colors.frostRim,
     overflow: 'hidden',
   },
   dialog: {

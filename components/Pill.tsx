@@ -7,16 +7,16 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { colors, radii, spacing } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
 export interface PillProps {
   label: string;
   /**
-   * `floating` is the white overlay pill ("+10,000 joined", "Day 5"). `glass`
-   * is the liquid-glass lens used for prep times, which needs something worth
-   * refracting behind it — over a flat background it reads as a plain tint.
+   * `floating` and `glass` are both the frost now — a pill over a photo
+   * ("+10,000 joined", a challenge's length, prep times). `floating` stays as
+   * a name so existing call sites keep meaning "the pill that floats".
    */
   tone?: 'floating' | 'glass' | 'solid' | 'muted' | 'outline';
   size?: 'sm' | 'md' | 'lg';
@@ -101,7 +101,7 @@ export function Pill({
     </>
   );
 
-  const body = tone === 'glass' ? (
+  const body = tone === 'glass' || tone === 'floating' ? (
     <GlassSurface radius={radii.pill} style={[styles.glassOuter, style]}>
       <View style={[styles.base, SIZES[size]]}>{content}</View>
     </GlassSurface>
@@ -111,7 +111,6 @@ export function Pill({
         styles.base,
         SIZES[size],
         TONES[tone],
-        tone === 'floating' && shadows.soft,
         style,
       ]}
     >
@@ -146,8 +145,8 @@ const SIZES = StyleSheet.create({
 });
 
 const TONES = StyleSheet.create({
-  floating: { backgroundColor: colors.surface },
-  /** Painted by GlassSurface, not by a fill. */
+  /** Both painted by GlassSurface's frost, not by a fill. */
+  floating: { backgroundColor: 'transparent' },
   glass: { backgroundColor: 'transparent' },
   solid: { backgroundColor: colors.ink },
   muted: { backgroundColor: colors.surfaceMuted },

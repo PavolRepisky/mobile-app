@@ -409,7 +409,6 @@ export default function CommunityScreen() {
         name="person-add-outline"
         size={profileActionButton}
         iconSize={profileActionIcon}
-        frost
         onPress={() => router.push('/add-friends')}
         accessibilityLabel="Find friends"
         style={[styles.cornerRight, { top: headerTop }]}

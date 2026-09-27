@@ -1,5 +1,4 @@
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { absoluteFill, colors, glass, radii, shadows } from '@/constants/theme';
@@ -12,16 +11,35 @@ import { absoluteFill, colors, glass, radii, shadows } from '@/constants/theme';
  */
 export const CAN_BLUR = Platform.OS !== 'android' || Number(Platform.Version) >= 31;
 
+/**
+ * The frost's body without its edge: a blur of whatever passes behind, and
+ * the flat frosted white over it. Absolutely filled, so it lays under the
+ * content of any surface that clips it to its own shape — the sheet's
+ * top-rounded panel and the dialog's card, as well as `GlassSurface` itself.
+ *
+ * Without a backdrop blur the page would read straight through a 42% white,
+ * so it goes solid white underneath the frost instead.
+ */
+export function FrostLayer() {
+  return (
+    <>
+      {CAN_BLUR ? (
+        <BlurView
+          intensity={glass.blur}
+          tint={glass.tint}
+          experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+          style={absoluteFill}
+        />
+      ) : (
+        <View style={[absoluteFill, styles.solid]} />
+      )}
+      <View style={[absoluteFill, styles.fill]} />
+    </>
+  );
+}
+
 export interface GlassSurfaceProps {
   radius?: number;
-  /**
-   * `lens` is the full liquid glass below. `frost` is the lock pill's simpler
-   * cut, taken up by the tab bar and the pinned header buttons: the same
-   * backdrop blur under a flat frosted white and a solid bright rim, with no
-   * sheen — it reads as frosted plastic laid over the page rather than a
-   * lens bending it.
-   */
-  tone?: 'lens' | 'frost';
   /** Dropped when the surface sits inside something already casting one. */
   shadow?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -29,117 +47,43 @@ export interface GlassSurfaceProps {
 }
 
 /**
- * The liquid-glass material: a live lens over whatever sits behind it.
+ * The app's frosted material, taken off the canvas's lock pill and worn by
+ * everything that floats over the page: the tab bar, the pinned buttons, the
+ * pills over photos, the popover. A blur of what passes behind, a flat
+ * frosted white over it and a solid bright rim round the edge, lifted on the
+ * `glass` shadow — frosted plastic laid over the page rather than a lens
+ * bending it.
  *
- * Layer order matters, and matches how the light actually works —
- *
- *   rim gradient   the specular edge; drawn as the outermost view with the
- *                  body inset by `rimWidth`, so it reads as the *thickness*
- *                  of the glass rather than a stroke painted on top of it
- *   backdrop blur  the lens itself
- *   body sheen     bright at the lit top edge, thin through the middle,
- *                  lifting again where light bounces back off the surface below
- *   children       content, which must sit above all three
- *
- * `overflow: 'hidden'` has to live on the inner body rather than the shadow
+ * `overflow: 'hidden'` has to live on the inner view rather than the shadow
  * host: on iOS a view cannot both clip its children and cast a shadow.
  */
 export function GlassSurface({
   radius = radii.pill,
-  tone = 'lens',
   shadow = true,
   style,
   children,
 }: GlassSurfaceProps) {
-  const innerRadius = Math.max(0, radius - glass.rimWidth);
-
-  if (tone === 'frost') {
-    // Without a backdrop blur the page would read straight through a 42%
-    // white, so the surface goes solid white under the frost instead.
-    return (
-      <View style={[shadow && shadows.glass, { borderRadius: radius }, style]}>
-        <View style={[styles.frost, { borderRadius: radius }]}>
-          {CAN_BLUR ? (
-            <BlurView
-              intensity={glass.blur}
-              tint={glass.tint}
-              experimentalBlurMethod={
-                Platform.OS === 'android' ? 'dimezisBlurView' : undefined
-              }
-              style={absoluteFill}
-            />
-          ) : (
-            <View style={[absoluteFill, styles.frostSolid]} />
-          )}
-          <View style={[absoluteFill, styles.frostFill]} />
-          {children}
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={[shadow && shadows.glass, { borderRadius: radius }, style]}>
-      <LinearGradient
-        colors={glass.rim}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.rim, { borderRadius: radius, padding: glass.rimWidth }]}
-      >
-        <View style={[styles.body, { borderRadius: innerRadius }]}>
-          {CAN_BLUR ? (
-            <BlurView
-              intensity={glass.blur}
-              tint={glass.tint}
-              experimentalBlurMethod={
-                Platform.OS === 'android' ? 'dimezisBlurView' : undefined
-              }
-              // The radius is repeated here rather than left to the parent's
-              // clip: Chrome does not clip a backdrop-filter to a rounded
-              // ancestor, so without it the lens leaks out as a rectangle.
-              style={[absoluteFill, { borderRadius: innerRadius }]}
-            />
-          ) : (
-            <View
-              style={[absoluteFill, styles.fallback, { borderRadius: innerRadius }]}
-            />
-          )}
-
-          <LinearGradient
-            colors={glass.sheen}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={[absoluteFill, { borderRadius: innerRadius }]}
-          />
-
-          {children}
-        </View>
-      </LinearGradient>
+      <View style={[styles.body, { borderRadius: radius }]}>
+        <FrostLayer />
+        {children}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  rim: {
-    overflow: 'hidden',
-  },
+  // The rim is a plain border, drawn round the clip.
   body: {
-    overflow: 'hidden',
-  },
-  fallback: {
-    backgroundColor: glass.fallback,
-  },
-  // The rim is a plain border here, drawn round the clip, where the lens
-  // paints a gradient behind an inset body.
-  frost: {
     overflow: 'hidden',
     borderWidth: glass.rimWidth,
     borderColor: colors.frostRim,
   },
-  frostSolid: {
+  solid: {
     backgroundColor: colors.surface,
   },
-  frostFill: {
+  fill: {
     backgroundColor: colors.frost,
   },
 });

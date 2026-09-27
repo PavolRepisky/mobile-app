@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, shadows } from '@/constants/theme';
+import { colors, glass, shadows } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 
 export interface IconButtonProps {
@@ -17,13 +17,10 @@ export interface IconButtonProps {
   iconSize?: number;
   color?: string;
   /**
-   * A flat fill instead of the lens — for the buttons that have to disappear
-   * into the page rather than float over it.
+   * A flat fill instead of the frost — for the buttons that are an action in
+   * their own right (the solid ink "+") or have to disappear into the page.
    */
   background?: string;
-  /** The tab bar's frost instead of the lens — the buttons pinned over a
-   * tab root's header, so they read as cut from the same sheet as the bar. */
-  frost?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   shadow?: boolean;
@@ -31,8 +28,8 @@ export interface IconButtonProps {
 
 /**
  * The circular button used for back / close / edit throughout the app. It is
- * liquid glass by default: these sit *over* the page rather than in it, so
- * they take the same lens as the reaction bubbles.
+ * frosted by default: these sit *over* the page rather than in it, so they
+ * wear the same frost as the tab bar.
  */
 export function IconButton({
   name,
@@ -41,7 +38,6 @@ export function IconButton({
   iconSize,
   color = colors.ink,
   background,
-  frost,
   style,
   accessibilityLabel,
   shadow = true,
@@ -55,8 +51,12 @@ export function IconButton({
 
   const glyph = <Ionicons name={name} size={iconSize ?? size * 0.44} color={color} />;
 
-  // The lens sizes itself to its content, so the dimensions live on the inner
-  // view rather than on the surface.
+  // The frost sizes itself to its content and adds its rim outside it, so the
+  // inner view gives the rim back — the button comes out `size` across either
+  // way.
+  const inner = size - glass.rimWidth * 2;
+  const frostBox: ViewStyle = { width: inner, height: inner, borderRadius: inner / 2 };
+
   const body = background ? (
     <View
       style={[
@@ -69,8 +69,8 @@ export function IconButton({
       {glyph}
     </View>
   ) : (
-    <GlassSurface radius={radius} tone={frost ? 'frost' : 'lens'} shadow={shadow}>
-      <View style={[styles.base, box]}>{glyph}</View>
+    <GlassSurface radius={radius} shadow={shadow}>
+      <View style={[styles.base, frostBox]}>{glyph}</View>
     </GlassSurface>
   );
 

@@ -188,11 +188,11 @@ export default function DiscoverScreen() {
                     {card.category ? (
                       <Pill
                         label={card.category}
-                        tone="solid"
+                        tone="glass"
                         icon={icon}
                         size="sm"
                         bold
-                        style={[styles.categoryBadge, styles.categoryBadgeFill]}
+                        style={styles.categoryBadge}
                       />
                     ) : null}
                     <Pill
@@ -200,7 +200,7 @@ export default function DiscoverScreen() {
                       tone="floating"
                       size="sm"
                       bold
-                      style={[styles.durationBadge, styles.durationBadgeFill]}
+                      style={styles.durationBadge}
                     />
                   </View>
 
@@ -299,20 +299,10 @@ const styles = StyleSheet.create({
     top: spacing.md,
     left: spacing.md,
   },
-  // A translucent fill rather than the shared solid-tone pill: sitting
-  // straight on the challenge photo, it reads as a flat block at full ink —
-  // pulled back so the picture underneath still shows through.
-  categoryBadgeFill: {
-    backgroundColor: colors.inkOnPhoto,
-  },
   durationBadge: {
     position: 'absolute',
     top: spacing.md,
     right: spacing.md,
-  },
-  // Matches the category chip's own translucency, in white rather than ink.
-  durationBadgeFill: {
-    backgroundColor: colors.surfaceOnPhotoDim,
   },
   cardBody: {
     paddingHorizontal: spacing.xl,
