@@ -82,7 +82,16 @@ export function LockedOverlay({
             </Text>
           </>
         ) : (
-          <Pill tone="glass" icon="lock-closed" label={title} bold color={colors.inkInverse} />
+          // `Pill` shrink-wraps its label by aligning itself to the start,
+          // which beats the message's own centring — so it's re-centred here.
+          <Pill
+            tone="glass"
+            icon="lock-closed"
+            label={title}
+            bold
+            color={colors.inkInverse}
+            style={styles.pill}
+          />
         )}
       </Pressable>
     </View>
@@ -106,6 +115,9 @@ const styles = StyleSheet.create({
   },
   hint: {
     marginTop: spacing.xs,
+  },
+  pill: {
+    alignSelf: 'center',
   },
 });
 

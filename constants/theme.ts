@@ -149,12 +149,13 @@ export const colors = {
    */
   scrimPhoto: 'rgba(0,0,0,0.34)',
   /**
-   * A locked photo's own scrim — near-opaque rather than a reading wash, so
-   * the shot underneath is actually hidden rather than just dimmed. `ink`'s
-   * own tone rather than flat black, so it still reads as this app's own
-   * shadow and not a generic overlay.
+   * A locked photo's own scrim — a light dim, the canvas's own quarter. The
+   * hiding is done by the photo's blur, which a locked post applies to the
+   * image itself on every platform; this only settles the blur back so the
+   * white lock pill reads over it. `ink`'s own tone rather than flat black,
+   * so it still reads as this app's own shadow and not a generic overlay.
    */
-  scrimLock: 'rgba(20,20,20,0.88)',
+  scrimLock: 'rgba(20,20,20,0.25)',
 
   /** The barely-there dim behind a popover; the lens does the rest. */
   frostBackdrop: 'rgba(0,0,0,0.04)',
