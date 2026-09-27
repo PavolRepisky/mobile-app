@@ -18,7 +18,7 @@ import {
 } from '@/data/challenges';
 import { FEED_POSTS } from '@/data/content';
 import { TROPHIES } from '@/data/trophies';
-import { addDays, timeStamp } from '@/lib/format';
+import { addDays, isoDay, timeStamp } from '@/lib/format';
 import type { ImageSourcePropType } from 'react-native';
 
 /**
@@ -146,6 +146,7 @@ interface AppActions {
     photos: readonly TaskPhoto[];
     tasks: readonly string[];
     days: number;
+    startDate: Date;
   }) => Challenge;
   setTasks: (tasks: ChallengeTask[]) => void;
   updateTaskLabel: (taskId: string, label: string) => void;
@@ -427,6 +428,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       photos: readonly TaskPhoto[];
       tasks: readonly string[];
       days: number;
+      startDate: Date;
     }) => {
       const built: Challenge = {
         id: `custom-${Date.now()}`,
@@ -437,6 +439,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         photoSeeds: [],
         photos: input.photos,
         defaultDays: input.days,
+        startDate: isoDay(input.startDate),
         tasks: tinted(
           input.tasks.map((label, i) => ({ id: `ct${Date.now()}-${i}`, label })),
         ),

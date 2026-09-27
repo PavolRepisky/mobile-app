@@ -150,9 +150,13 @@ export function TextLink({
   );
 }
 
+/** Outer height of the primary and secondary pills. Exported for a screen
+ * that pins one over its scroll and has to leave the content room under it. */
+export const buttonHeight = 58;
+
 const styles = StyleSheet.create({
   base: {
-    height: 58,
+    height: buttonHeight,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',

@@ -37,6 +37,12 @@ export interface Challenge {
   photos?: readonly ImageSourcePropType[];
   tasks: readonly ChallengeTask[];
   defaultDays: number;
+  /**
+   * Day 1, ISO `YYYY-MM-DD`, picked on the create form so friends have until
+   * then to join. Only a custom challenge carries one here — the presets'
+   * rounds keep theirs on `DiscoverSection`.
+   */
+  startDate?: string;
 }
 
 const task = (id: string, label: string): ChallengeTask => ({ id, label });

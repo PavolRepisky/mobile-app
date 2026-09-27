@@ -11,77 +11,118 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PrimaryButton } from '@/components/Buttons';
-import { MAX_DAYS, MIN_DAYS } from '@/components/ChallengeLengthSheet';
+import { BottomSheet } from '@/components/BottomSheet';
+import { buttonHeight, PrimaryButton } from '@/components/Buttons';
+import { ChallengeLengthSheet } from '@/components/ChallengeLengthSheet';
 import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
-import { profileActionTop } from '@/components/ProfileLayout';
+import { Pill, pillHeights } from '@/components/Pill';
+import {
+  profileActionButton,
+  profileActionIcon,
+  profileActionTop,
+} from '@/components/ProfileLayout';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { CheckCircle } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
+import { WheelPicker } from '@/components/WheelPicker';
 import {
   colors,
+  layout,
   radii,
-  screenPadding,
   shadows,
   spacing,
+  tabBarBottom,
   type as typeScale,
 } from '@/constants/theme';
 import { useApp, type TaskPhoto } from '@/hooks/useAppState';
+import { addDays, longDate } from '@/lib/format';
 
-/** Matches the corner "+" and the feed's back button — every floating action
- * button in the app is the same size. */
-const ACTION_SIZE = 46;
+/** The four photos that stand for a challenge everywhere else — its strip on
+ * Challenges and on its preview are drawn from exactly this many. */
+const PHOTO_COUNT = 4;
 
-/** Same height the preview page gives its own stacked strip. */
-const PHOTO_STRIP_HEIGHT = 190;
+/** One print in the pile, sampled off the design: a portrait a little taller
+ * than a phone photo's thumbnail, framed in white like something printed. */
+const PRINT_WIDTH = 96;
+const PRINT_HEIGHT = 132;
+const PRINT_FRAME = 3;
 
-/**
- * How far each tile laps over the next, as a % of the strip's width, and the
- * degrees each is nudged off square — copied from `PhotoStrip`'s own stacked
- * layout so the photos cover each other exactly the way they do there.
- */
-const TILE_LAP = 3;
-const TILE_TILTS = [-1.2, 1.4, -0.9, 1.6];
+/** Degrees each print sits off square, alternating so the pile reads as laid
+ * down by hand rather than set in a row. */
+const PRINT_TILTS = [-6, 3, -3, 5];
 
-/** Same length options the settings ruler picks from. */
-const DAY_OPTIONS = MAX_DAYS - MIN_DAYS + 1;
+/** The outline round Name and Description — heavier than a hairline so an
+ * empty field still reads as somewhere to type. */
+const FIELD_RULE = 1.5;
 
-/** Where a fresh draft starts the ruler — the length every preset defaults to. */
+/** The dashed edge of "Add task": the same weight as the add-photo card's own
+ * dash, so the two invitations on the page read as one kind of thing. */
+const DASH_RULE = 2;
+
+/** The tick leading each task row, and the tap target for its X. */
+const TASK_CHECK = 24;
+const TASK_DELETE = 36;
+
+/** Where a fresh draft sets the length — the length every preset defaults to. */
 const DEFAULT_DAYS = 75;
+
+/** How far ahead a start date can be picked. Long enough to plan a season,
+ * short enough that the wheel stays a quick flick. */
+const START_WINDOW_DAYS = 90;
+
+/** How long a new challenge stays open to join before Day 1, at the least. */
+const JOIN_WINDOW_DAYS = 7;
+
+const MONDAY = 1;
 
 interface DraftTask {
   id: string;
   label: string;
 }
 
+function startOfToday(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/** The first Monday at least a week out: a week for friends to join, and
+ * every challenge's Day 1 lands at the start of a week. */
+function defaultStartOffset(today: Date): number {
+  const weekOut = addDays(today, JOIN_WINDOW_DAYS).getDay();
+  return JOIN_WINDOW_DAYS + ((MONDAY - weekOut + 7) % 7);
+}
+
 /**
- * Build-your-own challenge: name, description, the four photos that stand for
- * it everywhere else, and the daily tasks. Saving adds it to the picker's
- * Custom tab rather than making it the active challenge outright — picking it
- * from there is what starts it, same as a preset.
+ * Build-your-own challenge on one scroll: the photos that stand for it, its
+ * name and description, the day it starts and how long it runs, then the
+ * daily tasks. Every challenge has one Day 1 that everyone in it shares, so a
+ * created one gets a start date too — friends join before it. Saving adds it
+ * to the picker's Custom tab rather than making it the active challenge.
  */
 export default function CreateChallengeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addChallenge } = useApp();
 
+  const [today] = useState(startOfToday);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [photos, setPhotos] = useState<(TaskPhoto | null)[]>([
-    null,
-    null,
-    null,
-    null,
-  ]);
+  const [photos, setPhotos] = useState<TaskPhoto[]>([]);
+  // The print being replaced, or the next free one when adding.
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [dayIndex, setDayIndex] = useState(DEFAULT_DAYS - MIN_DAYS);
+  const [startOffset, setStartOffset] = useState(() => defaultStartOffset(today));
+  const [pendingOffset, setPendingOffset] = useState(startOffset);
+  const [startOpen, setStartOpen] = useState(false);
+  const [days, setDays] = useState(DEFAULT_DAYS);
+  const [lengthOpen, setLengthOpen] = useState(false);
   const [tasks, setTasks] = useState<DraftTask[]>([
     { id: 'draft-task-0', label: '' },
   ]);
 
-  const days = MIN_DAYS + dayIndex;
+  const startDate = addDays(today, startOffset);
+  const startOffsets = Array.from({ length: START_WINDOW_DAYS }, (_, i) => i + 1);
 
   const addTaskRow = () =>
     setTasks((list) => [
@@ -97,33 +138,31 @@ export default function CreateChallengeScreen() {
 
   const canSave =
     name.trim().length > 0 &&
-    photos.every((p) => p !== null) &&
+    photos.length === PHOTO_COUNT &&
     tasks.some((t) => t.label.trim().length > 0);
 
   const save = () => {
     addChallenge({
       name: name.trim(),
       description: description.trim(),
-      photos: photos.filter((p): p is TaskPhoto => p !== null),
+      photos,
       tasks: tasks.map((t) => t.label.trim()).filter(Boolean),
       days,
+      startDate,
     });
     router.back();
   };
 
-  /**
-   * The shared line the title and both corner buttons sit on — same
-   * accommodation the feed and Discover make for a deep safe-area inset.
-   */
+  // The line the title and the back button share — My Profile's and
+  // Settings' own, so moving between them nothing in the header jumps.
   const headerTop = Math.max(profileActionTop, topPadding(insets.top));
   const titleOffset = headerTop - topPadding(insets.top);
 
-  // The strip only ever shows what's filled plus one open slot to fill next —
-  // the rest stay off until the reader reaches them, so it visibly builds
-  // itself the way the preview page's own photos read as laid down one at a
-  // time rather than four wells waiting at once.
-  const filledCount = photos.filter((p) => p !== null).length;
-  const visibleCount = Math.min(photos.length, filledCount + 1);
+  const missing = PHOTO_COUNT - photos.length;
+
+  // The Join dock's own gap: what the floating tab bar keeps off the bottom
+  // edge, so the band reads as that bar filled in.
+  const dockGap = tabBarBottom(insets.bottom);
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -131,198 +170,226 @@ export default function CreateChallengeScreen() {
     <View style={styles.screenRoot}>
       <ScreenScroll
         tone="plain"
+        // Room for the dock, so the last task clears it. The scroll already
+        // pads for the safe area, which the dock's own gap covers.
+        bottomExtra={layout.block + buttonHeight + dockGap - insets.bottom}
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <View style={[styles.titleBand, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
-            Create Challenge
+        <View style={[styles.header, { marginTop: titleOffset }]}>
+          <Text variant="pageTitle" center>
+            New challenge
           </Text>
         </View>
 
-        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
-          Details
-        </Text>
-        <Field label="Name">
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Name your challenge"
-            placeholderTextColor={colors.inkMuted}
-            style={styles.input}
-          />
-        </Field>
-
-        <Field label="Description" style={[styles.fieldGap, styles.tall]}>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="What's it about, and who's it for?"
-            placeholderTextColor={colors.inkMuted}
-            multiline
-            style={[styles.input, styles.multiline]}
-          />
-        </Field>
-
-        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
-          Duration
-        </Text>
-        <View style={styles.stepperRow}>
-          <IconButton
-            name="remove"
-            size={48}
-            iconSize={20}
-            background={colors.surfaceSunken}
-            shadow={false}
-            onPress={() => setDayIndex((i) => Math.max(0, i - 1))}
-            accessibilityLabel="Fewer days"
-          />
-          <Text variant="sectionTitleSm" center style={styles.stepperValue}>
-            {days} days
-          </Text>
-          <IconButton
-            name="add"
-            size={48}
-            iconSize={20}
-            background={colors.surfaceSunken}
-            shadow={false}
-            onPress={() => setDayIndex((i) => Math.min(DAY_OPTIONS - 1, i + 1))}
-            accessibilityLabel="More days"
-          />
+        {/* The photos as a small pile of prints rather than four empty
+            wells: each photo picked lands on the pile, tilted, and the card
+            that adds the next one trails it until there are four. */}
+        <View style={styles.prints}>
+          {photos.map((photo, i) => (
+            <View
+              key={i}
+              style={[
+                styles.print,
+                i > 0 && styles.printLapped,
+                { transform: [{ rotate: `${PRINT_TILTS[i % PRINT_TILTS.length]}deg` }] },
+              ]}
+            >
+              <PhotoSlot
+                photo={photo}
+                width={PRINT_WIDTH - PRINT_FRAME * 2}
+                height={PRINT_HEIGHT - PRINT_FRAME * 2}
+                radius={radii.md - PRINT_FRAME}
+                shadow={false}
+                onPress={() => setActiveSlot(i)}
+                accessibilityLabel={`Change photo ${i + 1}`}
+              />
+            </View>
+          ))}
+          {missing > 0 ? (
+            <PhotoSlot
+              photo={null}
+              width={PRINT_WIDTH}
+              height={PRINT_HEIGHT}
+              radius={radii.md}
+              shadow={false}
+              emptyIcon="add"
+              emptyLabel={
+                photos.length === 0 ? 'Add photos' : `Add ${missing} more`
+              }
+              tilt={PRINT_TILTS[photos.length % PRINT_TILTS.length]}
+              style={photos.length > 0 && styles.printLapped}
+              onPress={() => setActiveSlot(photos.length)}
+              accessibilityLabel="Add photos"
+            />
+          ) : null}
         </View>
 
-        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
-          Photos
-        </Text>
-        <View style={{ height: PHOTO_STRIP_HEIGHT }}>
-          {photos.map((photo, i) => {
-            if (i >= visibleCount) return null;
-            // Sized against the full four-up layout, not against how many
-            // are showing yet — a lone photo keeps the width it will end up
-            // with rather than stretching to fill the empty strip and then
-            // shrinking as the rest arrive.
-            const share = 100 / photos.length;
-            const left = i * share;
-            const right =
-              i === photos.length - 1 ? 100 : (i + 1) * share + TILE_LAP;
-            return (
-              <View
-                key={i}
-                style={[
-                  styles.photoTile,
-                  {
-                    left: `${left}%`,
-                    width: `${right - left}%`,
-                    transform: [
-                      { rotate: `${TILE_TILTS[i % TILE_TILTS.length]}deg` },
-                    ],
-                  },
-                ]}
-              >
-                <PhotoSlot
-                  photo={photo}
-                  width="100%"
-                  height={PHOTO_STRIP_HEIGHT}
-                  radius={radii.md}
-                  shadow={false}
-                  emptyLabel={photo ? undefined : 'Add photo'}
-                  onPress={() => setActiveSlot(i)}
-                  accessibilityLabel={
-                    photo ? `Change photo ${i + 1}` : `Add photo ${i + 1}`
-                  }
-                />
-              </View>
-            );
-          })}
+        <View style={styles.fields}>
+          <Field label="Name">
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Name your challenge"
+              placeholderTextColor={colors.inkMuted}
+              style={styles.input}
+            />
+          </Field>
+          <Field label="Description">
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="What's it about, and who's it for?"
+              placeholderTextColor={colors.inkMuted}
+              multiline
+              style={[styles.input, styles.multiline]}
+            />
+          </Field>
         </View>
 
-        <Text variant="sectionTitleSm" style={styles.sectionLabel}>
-          Tasks
+        <View style={styles.settings}>
+          <View style={styles.settingRow}>
+            <Text variant="itemTitle">Starts</Text>
+            <Pill
+              label={longDate(startDate)}
+              icon="calendar-outline"
+              tone="muted"
+              labelVariant="metaBold"
+              onPress={() => {
+                setPendingOffset(startOffset);
+                setStartOpen(true);
+              }}
+              style={styles.settingPill}
+            />
+          </View>
+          <View style={styles.settingRow}>
+            <Text variant="itemTitle">Length</Text>
+            <Pill
+              label={`${days} days`}
+              trailingIcon="chevron-down"
+              tone="muted"
+              labelVariant="metaBold"
+              onPress={() => setLengthOpen(true)}
+              style={styles.settingPill}
+            />
+          </View>
+        </View>
+
+        <Text variant="itemTitle" style={styles.tasksHeading}>
+          Daily tasks
         </Text>
         <View style={styles.taskList}>
           {tasks.map((task, i) => (
             <View key={task.id} style={styles.taskRow}>
-              <CheckCircle checked />
-              <View style={styles.taskField}>
-                <TextInput
-                  value={task.label}
-                  onChangeText={(label) => updateTaskLabel(task.id, label)}
-                  placeholder={`Task ${i + 1}`}
-                  placeholderTextColor={colors.inkMuted}
-                  style={styles.taskInput}
-                />
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Delete task ${i + 1}`}
+              {/* Ticked, the way the task will look once it's done each
+                  day — the row previews the list rather than numbering it. */}
+              <CheckCircle checked size={TASK_CHECK} />
+              <TextInput
+                value={task.label}
+                onChangeText={(label) => updateTaskLabel(task.id, label)}
+                placeholder={`Task ${i + 1}`}
+                placeholderTextColor={colors.inkMuted}
+                style={styles.taskInput}
+              />
+              <IconButton
+                name="close"
+                size={TASK_DELETE}
+                iconSize={18}
+                color={colors.inkMuted}
+                background={colors.surfaceSunken}
+                shadow={false}
                 onPress={() => deleteTaskRow(task.id)}
-                style={({ pressed }) => [
-                  styles.deleteButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.ink} />
-              </Pressable>
+                accessibilityLabel={`Delete task ${i + 1}`}
+              />
             </View>
           ))}
 
-          <PrimaryButton
-            label="Add Task"
-            icon="add"
+          <Pressable
+            accessibilityRole="button"
             onPress={addTaskRow}
-            style={styles.addButton}
-          />
+            style={({ pressed }) => [styles.addTask, pressed && styles.pressed]}
+          >
+            <Ionicons name="add" size={18} color={colors.ink} />
+            <Text variant="copyBold">Add task</Text>
+          </Pressable>
         </View>
-
-        <PhotoLibrarySheet
-          visible={activeSlot !== null}
-          onPick={(photo) => {
-            if (activeSlot === null) return;
-            const slot = activeSlot;
-            setPhotos((list) => list.map((p, i) => (i === slot ? photo : p)));
-            setActiveSlot(null);
-          }}
-          onDismiss={() => setActiveSlot(null)}
-        />
       </ScreenScroll>
 
-      {/* Pinned to the same line as every other tab root's corner button,
-          measured from the screen edge rather than from the scroll content —
-          solid ink like the "+" on Discover, not the glass lens, so it reads
-          as a control rather than another surface. */}
+      {/* Settings' back arrow: My Profile's round corner button, pinned on
+          the title's line so the way out stays in reach. */}
       <IconButton
         name="chevron-back"
-        size={ACTION_SIZE}
-        iconSize={20}
-        background={colors.ink}
-        color={colors.inkInverse}
-        shadow={false}
+        size={profileActionButton}
+        iconSize={profileActionIcon}
+        background={colors.surface}
         onPress={() => router.back()}
-        accessibilityLabel="Back"
-        style={[styles.back, { top: headerTop }, shadows.floating]}
+        accessibilityLabel="Go back"
+        style={[styles.cornerLeft, { top: headerTop }]}
       />
-      <IconButton
-        name="checkmark"
-        size={ACTION_SIZE}
-        iconSize={20}
-        background={colors.ink}
-        color={colors.inkInverse}
-        shadow={false}
-        onPress={canSave ? save : undefined}
-        accessibilityLabel="Save challenge"
-        style={[
-          styles.save,
-          { top: headerTop },
-          shadows.floating,
-          !canSave && styles.disabled,
-        ]}
+
+      {/* Docked on a white band like Join on a challenge's preview, so the
+          tasks scroll away under it rather than showing through. */}
+      <View style={[styles.dock, { paddingBottom: dockGap }]}>
+        <PrimaryButton
+          label="Create"
+          disabled={!canSave}
+          onPress={save}
+        />
+      </View>
+
+      <PhotoLibrarySheet
+        visible={activeSlot !== null}
+        onPick={(photo) => {
+          if (activeSlot === null) return;
+          const slot = activeSlot;
+          setPhotos((list) =>
+            slot < list.length
+              ? list.map((p, i) => (i === slot ? photo : p))
+              : [...list, photo],
+          );
+          setActiveSlot(null);
+        }}
+        onDismiss={() => setActiveSlot(null)}
+      />
+
+      {/* The start day on the iPhone's own date-wheel drum, the way My
+          Profile picks a year. Done sets it; tapping away leaves it. */}
+      <BottomSheet visible={startOpen} onDismiss={() => setStartOpen(false)}>
+        <Text variant="sectionHeading" center>
+          Starts
+        </Text>
+        <WheelPicker
+          // Remounted on every open, so the drum starts on the day already
+          // picked rather than wherever it was last left.
+          key={startOpen ? 'open' : 'closed'}
+          values={startOffsets}
+          value={pendingOffset}
+          onChange={setPendingOffset}
+          format={(offset) => longDate(addDays(today, offset))}
+          style={styles.wheel}
+        />
+        <PrimaryButton
+          label="Done"
+          onPress={() => {
+            setStartOffset(pendingOffset);
+            setStartOpen(false);
+          }}
+        />
+      </BottomSheet>
+
+      <ChallengeLengthSheet
+        visible={lengthOpen}
+        onDismiss={() => setLengthOpen(false)}
+        days={days}
+        startDate={startDate}
+        onConfirm={setDays}
       />
     </View>
   );
 }
 
-/** One outlined box: its name in the heavy cut, the field under it. */
+/** One outlined box: its name in the small bold cut, the field under it. */
 function Field({
   label,
   children,
@@ -334,7 +401,7 @@ function Field({
 }) {
   return (
     <View style={[styles.field, style]}>
-      <Text variant="bodyBold">{label}</Text>
+      <Text variant="metaBold">{label}</Text>
       {children}
     </View>
   );
@@ -344,106 +411,121 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  back: {
-    position: 'absolute',
-    left: screenPadding,
-  },
-  save: {
-    position: 'absolute',
-    right: screenPadding,
-  },
-  titleBand: {
-    minHeight: ACTION_SIZE,
+  // The pinned button's height, so the title centres on the same line.
+  header: {
+    minHeight: profileActionButton,
     justifyContent: 'center',
+    marginBottom: layout.title,
   },
-  disabled: {
-    opacity: 0.35,
+  cornerLeft: {
+    position: 'absolute',
+    left: layout.gutter,
+  },
+  // Centred as a pile; the vertical padding is room for the tilted corners,
+  // which a rotation pushes past the row's own bounds.
+  prints: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    marginBottom: layout.section,
+  },
+  print: {
+    padding: PRINT_FRAME,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    ...shadows.hard,
+  },
+  // Each print laps the one before it a little, so four fit across the
+  // page and they read as one pile rather than a row of tiles.
+  printLapped: {
+    marginLeft: -spacing.md,
+  },
+  fields: {
+    gap: layout.inline,
   },
   field: {
-    borderWidth: 1,
-    borderColor: colors.divider,
+    gap: layout.line,
+    borderWidth: FIELD_RULE,
+    borderColor: colors.inkGhost,
     borderRadius: radii.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  // Only between Name and Description — there's no title between the two to
-  // carry the gap the way sectionLabel does for every other field/section.
-  fieldGap: {
-    marginTop: spacing['2xl'],
-  },
-  tall: {
-    minHeight: 148,
+    paddingVertical: layout.inline,
+    paddingHorizontal: layout.block,
   },
   input: {
-    marginTop: spacing.xs,
-    ...typeScale.bodySemi,
+    ...typeScale.copy,
     color: colors.ink,
     padding: 0,
   },
+  // Two lines tall before anything is typed, so it reads as the field to
+  // say more in.
   multiline: {
-    flex: 1,
+    minHeight: typeScale.copy.lineHeight * 2,
     textAlignVertical: 'top',
   },
-  sectionLabel: {
-    marginTop: spacing['3xl'],
-    marginBottom: spacing.lg,
+  settings: {
+    marginTop: layout.section,
+    gap: layout.inline,
   },
-  stepperRow: {
+  settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xl,
-    marginBottom: spacing['2xl'],
+    justifyContent: 'space-between',
   },
-  stepperValue: {
-    minWidth: 96,
+  // Flat, in the palette's fill grey rather than `muted`'s warmer one — the
+  // same as the task rows under it.
+  settingPill: {
+    backgroundColor: colors.surfaceSunken,
   },
-  photoTile: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    ...shadows.soft,
+  tasksHeading: {
+    marginTop: layout.section,
+    marginBottom: layout.heading,
   },
   taskList: {
-    // No margin of its own — ScreenScroll's own bottom padding is already
-    // the page's closing air; stacking this on top of it was what read as a
-    // dead gap under the last button.
+    gap: layout.stack,
   },
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  taskField: {
-    flex: 1,
-    minHeight: 54,
-    justifyContent: 'center',
-    borderRadius: radii.md,
+    gap: layout.inline,
+    minHeight: pillHeights.lg,
+    borderRadius: radii.pill,
     backgroundColor: colors.surfaceSunken,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingLeft: layout.inline,
+    paddingRight: layout.line,
   },
   taskInput: {
-    ...typeScale.taskLabel,
+    flex: 1,
+    ...typeScale.copy,
     color: colors.ink,
     padding: 0,
   },
-  deleteButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surfaceSunken,
+  // An outline rather than a fill: it's where the next row will go, not a
+  // row yet.
+  addTask: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: layout.line,
+    height: pillHeights.lg,
+    borderRadius: radii.pill,
+    borderWidth: DASH_RULE,
+    borderStyle: 'dashed',
+    borderColor: colors.inkGhost,
   },
-  // Matches "Join Challenge" on the preview page's dock — that button
-  // overrides PrimaryButton's own full pill down to this softer corner.
-  addButton: {
-    marginTop: spacing.lg,
-    borderRadius: radii.md,
+  dock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: layout.block,
+    paddingHorizontal: layout.gutter,
+    backgroundColor: colors.surface,
+    ...shadows.floating,
+  },
+  wheel: {
+    marginVertical: layout.block,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.7,
   },
 });

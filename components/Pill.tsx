@@ -9,7 +9,7 @@ import {
 
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
-import { Text } from './Text';
+import { Text, type TextProps } from './Text';
 
 export interface PillProps {
   label: string;
@@ -39,6 +39,12 @@ export interface PillProps {
    * to hold their own over a photograph rather than over the page.
    */
   bold?: boolean;
+  /**
+   * The label's type, when the pill's size and tone don't pick the right one
+   * on their own — the Challenges cards' photo badges set theirs a size up
+   * from the small bold default, to read at a glance over the photo.
+   */
+  labelVariant?: TextProps['variant'];
 }
 
 /**
@@ -56,6 +62,7 @@ export function Pill({
   icon,
   trailingIcon,
   bold,
+  labelVariant,
 }: PillProps) {
   const content = (
     <>
@@ -69,7 +76,8 @@ export function Pill({
       ) : null}
       <Text
         variant={
-          bold
+          labelVariant ??
+          (bold
             ? size === 'sm'
               ? // `solid` and `floating` size=sm bold pills are, today, the
                 // my-challenge card's two photo badges — they earn the
@@ -84,7 +92,7 @@ export function Pill({
               ? 'label'
               : size === 'lg'
                 ? 'button'
-                : 'bodyStrong'
+                : 'bodyStrong')
         }
         color={color ?? (tone === 'solid' ? colors.inkInverse : colors.ink)}
       >

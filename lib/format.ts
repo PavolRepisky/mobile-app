@@ -52,6 +52,15 @@ export function timeStamp(date: Date): string {
   return `${display}:${minutes}${suffix}`;
 }
 
+/** Local calendar day as ISO `YYYY-MM-DD` — the form a round's start date is
+ * stored in. Built from the local fields, not `toISOString`, which is UTC and
+ * east of Greenwich hands back the day before. */
+export function isoDay(date: Date): string {
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${m}-${d}`;
+}
+
 export function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() + days);

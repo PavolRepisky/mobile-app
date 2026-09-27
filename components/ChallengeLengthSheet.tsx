@@ -31,6 +31,15 @@ const indexFor = (days: number) =>
 export interface ChallengeLengthSheetProps {
   visible: boolean;
   onDismiss: () => void;
+  /**
+   * A length that isn't the running challenge's: the create form's draft,
+   * which has its own start date and nothing saved yet. Given together with
+   * `onConfirm`, the sheet opens on these and hands the pick back instead of
+   * writing it to the challenge in progress.
+   */
+  days?: number;
+  startDate?: Date;
+  onConfirm?: (days: number) => void;
 }
 
 /**
@@ -41,9 +50,15 @@ export interface ChallengeLengthSheetProps {
 export function ChallengeLengthSheet({
   visible,
   onDismiss,
+  days: draftDays,
+  startDate: draftStart,
+  onConfirm,
 }: ChallengeLengthSheetProps) {
   const { height } = useWindowDimensions();
-  const { startDate, totalDays, setTotalDays } = useApp();
+  const app = useApp();
+  const startDate = draftStart ?? app.startDate;
+  const totalDays = draftDays ?? app.totalDays;
+  const setTotalDays = onConfirm ?? app.setTotalDays;
   const [index, setIndex] = useState(() => indexFor(totalDays));
   // The sheet stays mounted through its exit animation, so the ruler holds
   // whatever it was last scrolled to. Opening counts as a fresh start: the
