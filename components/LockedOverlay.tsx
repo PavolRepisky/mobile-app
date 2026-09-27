@@ -1,22 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { absoluteFill, colors, glass, radii, spacing } from '@/constants/theme';
-import { CAN_BLUR } from './GlassSurface';
-import { Pill } from './Pill';
+import { absoluteFill, colors, layout, radii, shadows } from '@/constants/theme';
 import { Text } from './Text';
 
-/** The padlock over the full message — big enough to read as the subject of
- * the block, not a bullet beside its title. */
-const LOCK_ICON = 28;
+/** The lock pill's height and glyph, taken off the canvas's locked post. */
+const PILL_HEIGHT = 40;
+const PILL_ICON = 16;
+/** The pill's white rim — the canvas's inset ring, drawn as a border. */
+const PILL_RIM = 1.5;
 
 export interface LockedOverlayProps {
   /** `false` renders `children` plain — the gate this wraps hasn't shut. */
   locked: boolean;
   title: string;
-  hint?: string;
-  /** Tapping the lock's own message, not the blurred content under it. */
+  /** Tapping the lock's own pill, not the blurred content under it. */
   onPress?: () => void;
   radius?: number;
   style?: StyleProp<ViewStyle>;
@@ -24,16 +22,19 @@ export interface LockedOverlayProps {
 }
 
 /**
- * Blurs out whatever it wraps and reads a lock's message over it instead —
- * the Community feed before a single task has been proven with a photo, so
- * far. The content stays mounted underneath, unblurred state intact for the
- * moment it unlocks, but `pointerEvents="none"` while locked: none of its
- * own taps — a like, a profile, the carousel — should fire through the glass.
+ * Dims whatever it wraps and sets a frosted pill naming the lock over the
+ * middle of it — the Community feed's posts before a single task has been
+ * proven with a photo. Drawn the way the canvas's locked post is: the photo
+ * blurs itself (the caller sets it on the image, so it holds on every
+ * platform, backdrop blur or not), a light ink wash settles it back, and the
+ * pill sits dead centre. The content stays mounted underneath, its state
+ * intact for the moment it unlocks, but `pointerEvents="none"` while locked:
+ * none of its own taps — a like, a profile, the carousel — should fire
+ * through the lock.
  */
 export function LockedOverlay({
   locked,
   title,
-  hint,
   onPress,
   radius = radii.lg,
   style,
@@ -45,22 +46,7 @@ export function LockedOverlay({
     <View style={[styles.root, { borderRadius: radius }, style]}>
       <View pointerEvents="none">{children}</View>
 
-      {/* A near-opaque dark wash first, always drawn — `BlurView` has no
-          real backdrop blur on web and on Android short of the experimental
-          method, and a lock the photo still shows plainly through is no
-          lock at all. The `BlurView` on top adds real blur texture where
-          the platform actually supports it; the wash alone is what actually
-          hides the shot everywhere else. */}
       <View style={[absoluteFill, styles.wash]} />
-
-      {CAN_BLUR ? (
-        <BlurView
-          intensity={glass.blur}
-          tint="dark"
-          experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
-          style={absoluteFill}
-        />
-      ) : null}
 
       <Pressable
         accessibilityRole={onPress ? 'button' : undefined}
@@ -68,31 +54,12 @@ export function LockedOverlay({
         onPress={onPress}
         style={[absoluteFill, styles.message]}
       >
-        {/* A hint gets the full message; without one, the lock is just the
-            glass pill naming it — the Community feed says the rest once, in
-            the card at its top, rather than again on every post. */}
-        {hint ? (
-          <>
-            <Ionicons name="lock-closed" size={LOCK_ICON} color={colors.inkInverse} />
-            <Text variant="itemTitle" color={colors.inkInverse} center style={styles.title}>
-              {title}
-            </Text>
-            <Text variant="copy" color={colors.onMediaSoft} center style={styles.hint}>
-              {hint}
-            </Text>
-          </>
-        ) : (
-          // `Pill` shrink-wraps its label by aligning itself to the start,
-          // which beats the message's own centring — so it's re-centred here.
-          <Pill
-            tone="glass"
-            icon="lock-closed"
-            label={title}
-            bold
-            color={colors.inkInverse}
-            style={styles.pill}
-          />
-        )}
+        <View style={styles.pill}>
+          <Ionicons name="lock-closed" size={PILL_ICON} color={colors.inkInverse} />
+          <Text variant="copyBold" color={colors.inkInverse}>
+            {title}
+          </Text>
+        </View>
       </Pressable>
     </View>
   );
@@ -108,16 +75,20 @@ const styles = StyleSheet.create({
   message: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
   },
-  title: {
-    marginTop: spacing.sm,
-  },
-  hint: {
-    marginTop: spacing.xs,
-  },
+  // Frosted white over the blurred shot, rimmed brighter than its fill so
+  // its edge holds against a pale photo, and lifted on the glass shadow.
   pill: {
-    alignSelf: 'center',
+    height: PILL_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.stack,
+    paddingHorizontal: layout.block,
+    borderRadius: radii.pill,
+    borderWidth: PILL_RIM,
+    borderColor: colors.lockPillRim,
+    backgroundColor: colors.lockPill,
+    ...shadows.glass,
   },
 });
 

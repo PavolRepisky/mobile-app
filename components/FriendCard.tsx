@@ -37,14 +37,13 @@ const CAROUSEL_RATIO = 1;
 const GRID_CELL_PIECE = { flex: 1 } as const;
 
 /**
- * Applied to the photo itself while locked — `LockedOverlay`'s own wash and
- * `BlurView` sit on top of the whole block, but `BlurView` has no real
- * backdrop blur on web and on Android short of the experimental method.
- * `Image`'s own `blurRadius` blurs the pixels directly, so the shot reads
- * as genuinely soft-focus everywhere, not just wherever the platform's
- * compositor happens to support a blurred backdrop.
+ * Applied to the photo itself while locked — the canvas's own 18. This is
+ * the whole of the lock's blur: `Image`'s `blurRadius` blurs the pixels
+ * directly, so it holds on every platform, where a backdrop blur has none on
+ * web or older Android. Soft enough that the day's colours still show
+ * through under `LockedOverlay`'s light wash, too soft to make out the shot.
  */
-const LOCK_BLUR_RADIUS = 60;
+const LOCK_BLUR_RADIUS = 18;
 
 /** Blur on the day stamp's drop shadow — wide and soft, so it lifts the
  * white type off a bright shot without drawing an edge around the letters. */
