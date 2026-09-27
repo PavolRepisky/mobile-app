@@ -161,7 +161,8 @@ the iOS date-wheel drum.
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
 **Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
-pill, and `DayPill` on its own · `StickyNote` · `CalendarMonth` month grid ·
+pill, and `DayPill` on its own · `TaskRing` a face in the split task ring
+with its "3/5" badge · `StickyNote` · `CalendarMonth` month grid ·
 `WeekTracker` task × weekday habit grid ·
 `DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
 `Polaroid` one instant print · `PhotoCollage` a pile of them ·

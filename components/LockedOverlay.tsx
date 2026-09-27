@@ -4,7 +4,12 @@ import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle }
 
 import { absoluteFill, colors, glass, radii, spacing } from '@/constants/theme';
 import { CAN_BLUR } from './GlassSurface';
+import { Pill } from './Pill';
 import { Text } from './Text';
+
+/** The padlock over the full message — big enough to read as the subject of
+ * the block, not a bullet beside its title. */
+const LOCK_ICON = 28;
 
 export interface LockedOverlayProps {
   /** `false` renders `children` plain — the gate this wraps hasn't shut. */
@@ -63,15 +68,22 @@ export function LockedOverlay({
         onPress={onPress}
         style={[absoluteFill, styles.message]}
       >
-        <Ionicons name="lock-closed" size={28} color={colors.inkInverse} />
-        <Text variant="itemTitle" color={colors.inkInverse} center style={styles.title}>
-          {title}
-        </Text>
+        {/* A hint gets the full message; without one, the lock is just the
+            glass pill naming it — the Community feed says the rest once, in
+            the card at its top, rather than again on every post. */}
         {hint ? (
-          <Text variant="copy" color={colors.onMediaSoft} center style={styles.hint}>
-            {hint}
-          </Text>
-        ) : null}
+          <>
+            <Ionicons name="lock-closed" size={LOCK_ICON} color={colors.inkInverse} />
+            <Text variant="itemTitle" color={colors.inkInverse} center style={styles.title}>
+              {title}
+            </Text>
+            <Text variant="copy" color={colors.onMediaSoft} center style={styles.hint}>
+              {hint}
+            </Text>
+          </>
+        ) : (
+          <Pill tone="glass" icon="lock-closed" label={title} bold color={colors.inkInverse} />
+        )}
       </Pressable>
     </View>
   );

@@ -145,9 +145,24 @@ export const FRIENDS: readonly Friend[] = [
         // Already bundled for the water task elsewhere in the app's history.
         photo: require('../assets/challenges/medium/infused-water.jpg'),
       },
-      { label: CHALLENGE_TASKS[2], done: false },
-      { label: CHALLENGE_TASKS[3], done: false },
-      { label: CHALLENGE_TASKS[4], done: false },
+      {
+        label: CHALLENGE_TASKS[2],
+        done: true,
+        time: '6:05 PM',
+        photo: require('../assets/feed/posts/canal-dog-walk.jpg'),
+      },
+      {
+        label: CHALLENGE_TASKS[3],
+        done: true,
+        time: '7:20 PM',
+        photo: require('../assets/challenges/hard/dumbbells-overhead.jpg'),
+      },
+      {
+        label: CHALLENGE_TASKS[4],
+        done: true,
+        time: '10:10 PM',
+        photo: require('../assets/feed/posts/studying-in-bed.jpg'),
+      },
     ],
     pastPosts: [
       {
@@ -405,7 +420,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
       { time: '8:45 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
       { time: '7:30 PM', photo: require('../assets/feed/posts/mountain-hike.jpg') },
       { time: '9:50 PM', photo: require('../assets/challenges/hard/dumbbells-overhead.jpg') },
-      null,
+      { time: '10:15 PM', photo: require('../assets/feed/posts/park-bench-reading.jpg') },
     ]),
     pastPosts: [
       {
@@ -503,7 +518,7 @@ export const FEED_AUTHORS: readonly Friend[] = [
       { time: '8:30 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
       { time: '12:00 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
       { time: '5:15 PM', photo: require('../assets/feed/posts/golden-retriever-garden.jpg') },
-      null,
+      { time: '6:30 PM', photo: require('../assets/challenges/medium/outdoor-run.jpg') },
       { time: '9:00 PM', photo: require('../assets/challenges/medium/book-in-bed.jpg') },
     ]),
     pastPosts: [

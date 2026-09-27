@@ -57,6 +57,8 @@ export interface FriendCardProps {
    * has proven today with its own photographed task. Everything else on the
    * post (identity, actions, caption) stays plain and tappable. */
   locked?: boolean;
+  /** Drawn at the far end of the identity row — the Members feed's Add. */
+  accessory?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   /**
    * Renders one of the friend's earlier days instead of their current one —
@@ -134,7 +136,7 @@ const CAROUSEL_DOT = 6;
  * Only the avatar and the name lead to their profile — the photo itself is
  * just the post's own image, not a control.
  */
-export function FriendCard({ friend, onPress, locked, style, post }: FriendCardProps) {
+export function FriendCard({ friend, onPress, locked, accessory, style, post }: FriendCardProps) {
   const router = useRouter();
   const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
     useApp();
@@ -372,6 +374,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
             </Text>
           </View>
         </View>
+        {accessory}
       </View>
 
       {slides.length ? (
@@ -384,8 +387,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
           <LockedOverlay
             locked={!!locked}
             radius={0}
-            title="Take a photo to unlock"
-            hint="Finish one task with a photo and the feed opens up."
+            title="Unlocks when you post"
             onPress={() => router.push('/(tabs)/tasks')}
           >
             <View
@@ -633,6 +635,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   identityText: {
+    flex: 1,
     marginLeft: layout.inline,
   },
   // A bare step rather than a `layout` role: the air either side of the

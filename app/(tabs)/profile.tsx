@@ -32,6 +32,7 @@ import {
 } from '@/components/ProfileLayout';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
+import { accentAt } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
 import {
   colors,
@@ -155,26 +156,6 @@ const RING_SWEEP_SLICES = 90;
 /** How far each slice overlaps the next, along the ring — butted edge to
  * edge, anti-aliasing leaves a hairline seam of background between them. */
 const RING_SWEEP_OVERLAP = 0.6;
-
-/** Blends two `#RRGGBB` colours, `t` of the way from `a` to `b`. */
-function mixHex(a: string, b: string, t: number): string {
-  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
-  return `#${[0, 1, 2]
-    .map((i) =>
-      Math.round(channel(a, i) + (channel(b, i) - channel(a, i)) * t)
-        .toString(16)
-        .padStart(2, '0'),
-    )
-    .join('')}`;
-}
-
-/** The accent at `t` of the way along it, spread evenly over its stops. */
-function accentAt(t: number): string {
-  const stops = gradients.accent;
-  const scaled = Math.min(Math.max(t, 0), 1) * (stops.length - 1);
-  const i = Math.min(Math.floor(scaled), stops.length - 2);
-  return mixHex(stops[i], stops[i + 1], scaled - i);
-}
 
 /** The sweep's slices, clockwise from 12 o'clock. */
 const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
