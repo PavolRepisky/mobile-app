@@ -7,6 +7,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { BottomSheet } from '@/components/BottomSheet';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
@@ -19,7 +20,7 @@ import {
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SearchBar } from '@/components/SearchBar';
 import { Text } from '@/components/Text';
-import { colors, layout, radii } from '@/constants/theme';
+import { colors, layout, radii, shadows } from '@/constants/theme';
 import { FEED_AUTHORS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
@@ -35,6 +36,9 @@ function fakeCount(key: string, min: number, max: number): number {
 /** The friend code in its card: big enough to scan off a phone held out,
  * small enough to sit beside its title rather than above it. */
 const CODE_SIZE = 78;
+/** The same code held up in its sheet: big enough to scan from a phone
+ * held across a table, with room left for the title above it. */
+const CODE_SHEET_SIZE = 220;
 /** One invite channel's round tile, and its glyph. */
 const CHANNEL_TILE = 52;
 const CHANNEL_ICON = 22;
@@ -69,6 +73,7 @@ export default function AddFriendsScreen() {
   const { profile } = useApp();
   const [query, setQuery] = useState('');
   const [requested, setRequested] = useState<ReadonlySet<string>>(new Set());
+  const [codeOpen, setCodeOpen] = useState(false);
 
   // The title and the pinned back button share one line — Settings' own.
   const headerTop = Math.max(profileActionTop, topPadding(insets.top));
@@ -113,14 +118,21 @@ export default function AddFriendsScreen() {
             challenge card, the same grey and corner. */}
         <Card flat padded={false} radius={radii.md} style={styles.codeCard}>
           <View style={styles.codeBody}>
-            <View style={styles.codeTile}>
+            {/* Small here to sit beside its title; a tap holds it up big
+                enough to scan from across a table. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Show my friend code"
+              onPress={() => setCodeOpen(true)}
+              style={({ pressed }) => [styles.codeTile, pressed && styles.pressed]}
+            >
               <QRCode
                 value={friendCodeUrl}
                 size={CODE_SIZE}
                 color={colors.ink}
                 backgroundColor={colors.surface}
               />
-            </View>
+            </Pressable>
             <View style={styles.codeText}>
               <View style={styles.codeLines}>
                 <Text variant="itemTitle">Your friend code</Text>
@@ -224,6 +236,25 @@ export default function AddFriendsScreen() {
         accessibilityLabel="Go back"
         style={[styles.cornerLeft, { top: headerTop }]}
       />
+
+      {/* The code at full size slides up from the bottom the way the
+          comments do: something to hold out to a friend for a moment, and
+          swiped or tapped away once they've scanned it. */}
+      <BottomSheet visible={codeOpen} onDismiss={() => setCodeOpen(false)}>
+        <View style={styles.codeSheet}>
+          <Text variant="sectionHeading" center>
+            Your QR code
+          </Text>
+          <View style={styles.codeSheetTile}>
+            <QRCode
+              value={friendCodeUrl}
+              size={CODE_SHEET_SIZE}
+              color={colors.ink}
+              backgroundColor={colors.surface}
+            />
+          </View>
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -261,6 +292,19 @@ const styles = StyleSheet.create({
     padding: layout.stack,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
+  },
+  codeSheet: {
+    alignItems: 'center',
+    gap: layout.block,
+    paddingBottom: layout.block,
+  },
+  // Lifted off the sheet on the card shadow, with a quiet white margin round
+  // the code for the scanner.
+  codeSheetTile: {
+    padding: layout.block,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    ...shadows.card,
   },
   codeText: {
     flex: 1,

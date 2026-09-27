@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
@@ -173,9 +171,6 @@ const badgeRingWidth = 2;
 /** Where the photo sits inside the ring's box: clear of the stroke and the
  * gap between them. */
 const AVATAR_INSET = RING_STROKE + RING_GAP;
-/** The friend code in its sheet: big enough to scan from a phone held across
- * a table, with room left for the title and caption above and below it. */
-const FRIEND_CODE_SIZE = 220;
 
 /** How far the badge hangs below the ring: centred on the stroke, then lifted
  * a step so more of it sits on the photo than under it. The name under it
@@ -207,11 +202,10 @@ export default function ProfileScreen() {
   const headerTop = Math.max(profileActionTop, topPadding(insets.top));
   const titleOffset = headerTop - topPadding(insets.top);
 
-  // The header's QR button opens the friend code full-screen, big enough to
-  // scan. The photo itself is edited in Settings now, not from here.
-  const [codeOpen, setCodeOpen] = useState(false);
+  // The photo itself is edited in Settings now, not from here — and the
+  // friend code lives on Find friends, with everything else about adding
+  // people.
   const avatarSource = profile.avatar ?? profile.avatarSeed;
-  const friendCodeUrl = Linking.createURL(`add-friend/${profile.handle.replace(/^@/, '')}`);
 
   const [daysView, setDaysView] = useState<DaysView>('grid');
   const [trackWidth, setTrackWidth] = useState(0);
@@ -674,19 +668,9 @@ export default function ProfileScreen() {
         )}
       </ScreenScroll>
 
-      {/* Your friend code on one side, settings on the other: two round
-          buttons the size of the Challenges "+", pinned to the title's line
-          and measured from the screen edge rather than the scroll content,
-          so they never scroll away. */}
-      <IconButton
-        name="qr-code-outline"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => setCodeOpen(true)}
-        accessibilityLabel="Show my friend code"
-        style={[styles.cornerLeft, { top: headerTop }]}
-      />
+      {/* Settings in the corner: a round button the size of the Challenges
+          "+", pinned to the title's line and measured from the screen edge
+          rather than the scroll content, so it never scrolls away. */}
       <IconButton
         name="settings-outline"
         size={profileActionButton}
@@ -723,28 +707,6 @@ export default function ProfileScreen() {
           }}
         />
       </BottomSheet>
-
-      {/* The friend code slides up from the bottom the way the comments do:
-          something to hold out to a friend for a moment, over the profile,
-          and swiped or tapped away when they've scanned it. */}
-      <BottomSheet
-        visible={codeOpen}
-        onDismiss={() => setCodeOpen(false)}
-      >
-        <View style={styles.codeSheet}>
-          <Text variant="sectionHeading" center>
-            Your QR code
-          </Text>
-          <View style={styles.codeTile}>
-            <QRCode
-              value={friendCodeUrl}
-              size={FRIEND_CODE_SIZE}
-              color={colors.ink}
-              backgroundColor={colors.surface}
-            />
-          </View>
-        </View>
-      </BottomSheet>
     </View>
   );
 }
@@ -760,10 +722,6 @@ const styles = StyleSheet.create({
     minHeight: profileActionButton,
     justifyContent: 'center',
     marginBottom: layout.title,
-  },
-  cornerLeft: {
-    position: 'absolute',
-    left: layout.gutter,
   },
   cornerRight: {
     position: 'absolute',
@@ -783,19 +741,6 @@ const styles = StyleSheet.create({
   },
   ringSvg: {
     position: 'absolute',
-  },
-  codeSheet: {
-    alignItems: 'center',
-    gap: layout.block,
-    paddingBottom: layout.block,
-  },
-  // A solid white square under the code, lifted off the sheet: a scanner
-  // needs the code on flat white with a quiet margin round it.
-  codeTile: {
-    padding: layout.block,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    ...shadows.card,
   },
   avatarDisc: {
     position: 'absolute',
