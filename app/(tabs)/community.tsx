@@ -165,6 +165,19 @@ export default function CommunityScreen() {
   const membersGoing = challenge.joined - membersDone;
   const started = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+  // The lock card speaks to the tab it's on: your friends, or everyone else
+  // in the challenge — counted across all of it, the same number the
+  // Members card below shows, with faces from the members in the feed.
+  const onFriends = tab === 'friends';
+  const lockFaces = onFriends ? friendsGoing : FEED_AUTHORS.filter((person) => !finished(person));
+  const lockCount = onFriends ? friendsGoing.length : membersGoing;
+  const lockGoing = `${lockCount.toLocaleString('en-US')} ${onFriends ? 'friend' : 'member'}${
+    lockCount === 1 ? '' : 's'
+  } still going`;
+  const lockHint = onFriends
+    ? "Take a photo of any task to see your friends' days."
+    : "Take a photo of any task to see other members' days.";
+
   const renderPost = (person: Friend, accessory?: React.ReactNode) => (
     <FriendCard
       key={person.id}
@@ -207,26 +220,24 @@ export default function CommunityScreen() {
                 <View style={styles.lockText}>
                   <Text variant="itemTitle">Post to unlock</Text>
                   <Text variant="meta" color={colors.inkMuted}>
-                    Take a photo of any task to see your friends' days.
+                    {lockHint}
                   </Text>
                 </View>
               </View>
               <View style={styles.lockFooter}>
                 <View style={styles.lockGoing}>
                   <View style={styles.miniStack}>
-                    {friendsGoing.slice(0, 3).map((friend, i) => (
+                    {lockFaces.slice(0, 3).map((person, i) => (
                       <Avatar
-                        key={friend.id}
-                        source={friend.avatar}
+                        key={person.id}
+                        source={person.avatar}
                         size={MINI_AVATAR}
                         style={[styles.miniAvatar, i > 0 && styles.miniTucked]}
                       />
                     ))}
                   </View>
                   <Text variant="meta" color={colors.inkMuted} numberOfLines={2} style={styles.flex}>
-                    {friendsGoing.length === 1
-                      ? '1 friend still going'
-                      : `${friendsGoing.length} friends still going`}
+                    {lockGoing}
                   </Text>
                 </View>
                 <Pill
