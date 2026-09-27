@@ -6,6 +6,8 @@ import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { DayStamp } from '@/components/FriendCard';
+import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Pill } from '@/components/Pill';
 import { Placeholder } from '@/components/Placeholder';
 import { Text } from '@/components/Text';
@@ -15,6 +17,10 @@ import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /** How long a story holds before it moves on. */
 const STORY_MS = 5000;
+
+/** Handed to `Image` as often as to a `View`, so it's kept out of the
+ * stylesheet the way the post's own grid cell is. */
+const SUMMARY_CELL = { flex: 1 } as const;
 
 /**
  * Full-bleed story viewer over a day's proof photos. One story per task with a
@@ -31,15 +37,15 @@ const STORY_MS = 5000;
  * alike: the face and name up top, the photos in checklist order.
  *
  * Once every task on the day is done, the day is a post as well as a story,
- * and the last photo carries a "View post" link to it the way an Instagram
- * story links the post it came from. It replaces the story rather than
- * stacking on it, so the story's own timer can't run out behind the post and
- * close it.
+ * and the story ends on one more frame: the post's own photo grid, "Day N"
+ * stamped across it, the way an Instagram story carries the post it came
+ * from. Tapping it opens the post — replacing the story rather than stacking
+ * on it, so the story's own timer can't run out behind the post and close it.
  */
 export default function StoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, currentDay } = useApp();
+  const { profile, challenge, currentDay } = useApp();
   const { day, friend } = useLocalSearchParams<{ day?: string; friend?: string }>();
 
   /** Whose story this is — someone else's when opened with `friend`. */
@@ -86,13 +92,17 @@ export default function StoryScreen() {
     : rows.length > 0 && rows.every((row) => row.done);
 
   // A day with nothing on it gets one empty frame rather than a blank screen,
-  // so the viewer still opens and closes the way it always does.
+  // so the viewer still opens and closes the way it always does. A finished
+  // one ends on its post.
   const frames = stories.length
-    ? stories
-    : [{ key: 'empty', photo: null, seed: 'story-empty', time: null }];
+    ? [
+        ...stories.map((story) => ({ ...story, summary: false })),
+        ...(finished
+          ? [{ key: 'post', photo: null, seed: '', time: null, summary: true }]
+          : []),
+      ]
+    : [{ key: 'empty', photo: null, seed: 'story-empty', time: null, summary: false }];
   const current = frames[Math.min(index, frames.length - 1)];
-  const onLast = index >= frames.length - 1;
-  const showPostLink = finished && stories.length > 0 && onLast;
 
   const openPost = () =>
     person
@@ -138,7 +148,44 @@ export default function StoryScreen() {
 
   return (
     <View style={styles.root}>
-      {current.photo ? (
+      {current.summary ? (
+        // The post's own grid, as it opens in Community — only the tasks
+        // that got a photo, cut edge to edge, with the day stamped over it.
+        <View style={styles.summary} pointerEvents="box-none">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Day ${viewing} post. Opens the post`}
+            onPress={openPost}
+            style={({ pressed }) => [styles.summaryGrid, pressed && styles.pressed]}
+          >
+            <MosaicArrangement
+              cells={stories}
+              seam={0}
+              renderCell={(story) =>
+                story.photo ? (
+                  <Image
+                    key={story.key}
+                    source={story.photo}
+                    style={SUMMARY_CELL}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Placeholder key={story.key} seed={story.seed} radius={0} style={SUMMARY_CELL} />
+                )
+              }
+            />
+            <DayStamp day={viewing} kicker={challenge.name} />
+          </Pressable>
+          <Pill
+            tone="floating"
+            icon="albums-outline"
+            trailingIcon="chevron-forward"
+            label="View post"
+            bold
+            onPress={openPost}
+          />
+        </View>
+      ) : current.photo ? (
         <Image
           source={current.photo}
           contentFit="cover"
@@ -203,7 +250,8 @@ export default function StoryScreen() {
       </View>
 
       {/* Tap zones sit under the chrome so the close button still wins, and
-          under the post link for the same reason. */}
+          under the post frame's grid for the same reason — the page either
+          side of it still steps back and forward. */}
       <View style={styles.zones} pointerEvents="box-none">
         <Pressable
           accessibilityLabel="Previous"
@@ -216,22 +264,6 @@ export default function StoryScreen() {
           onPress={() => advance(1)}
         />
       </View>
-
-      {showPostLink ? (
-        <View
-          style={[styles.postLink, { paddingBottom: insets.bottom + spacing['2xl'] }]}
-          pointerEvents="box-none"
-        >
-          <Pill
-            tone="floating"
-            icon="albums-outline"
-            trailingIcon="chevron-forward"
-            label="View post"
-            bold
-            onPress={openPost}
-          />
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -295,15 +327,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     zIndex: 1,
   },
-  // Centred along the bottom, above the tap zones so tapping it opens the
-  // post rather than skipping the story.
-  postLink: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+  // Above the tap zones, so tapping the grid opens the post rather than
+  // skipping the story.
+  summary: {
+    ...absoluteFill,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    gap: spacing['2xl'],
     zIndex: 2,
+  },
+  // Square, like the post's own grid in the feed.
+  summaryGrid: {
+    alignSelf: 'stretch',
+    aspectRatio: 1,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+  },
+  pressed: {
+    opacity: 0.85,
   },
   zone: {
     flex: 1,
