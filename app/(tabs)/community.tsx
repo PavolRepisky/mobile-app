@@ -293,7 +293,10 @@ export default function CommunityScreen() {
                       avatar={friend.avatar}
                       done={doneCount(friend)}
                       total={friend.tasks.length}
-                      onPress={() => openProfile(friend.id)}
+                      // The same story viewer yours opens in.
+                      onPress={() =>
+                        router.push({ pathname: '/story', params: { friend: friend.id } })
+                      }
                     />
                   ))}
                 </ScrollView>
