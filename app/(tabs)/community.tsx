@@ -5,19 +5,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
-import { profileActionHeight, profileActionTop } from '@/components/ProfileLayout';
+import {
+  profileActionButton,
+  profileActionIcon,
+  profileActionTop,
+} from '@/components/ProfileLayout';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { colors, screenPadding, spacing } from '@/constants/theme';
+import { colors, layout } from '@/constants/theme';
 import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
 type Tab = 'friends' | 'members';
-
-/** Matches the corner "+" on Challenges, so every tab root's corner button
- * is the same size. */
-const CORNER_SIZE = 46;
 
 /**
  * The people you're doing it with: your own friends' days in one feed, and
@@ -97,8 +97,8 @@ export default function CommunityScreen() {
     // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
       <ScreenScroll tabBar>
-        <View style={[styles.titleBand, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
+        <View style={[styles.header, { marginTop: titleOffset }]}>
+          <Text variant="pageTitle" center>
             Community
           </Text>
         </View>
@@ -115,14 +115,13 @@ export default function CommunityScreen() {
         />
 
         <View style={styles.sections}>
-          {myPost ? <FriendCard friend={myPost} locked={false} style={styles.friendCard} /> : null}
+          {myPost ? <FriendCard friend={myPost} locked={false} /> : null}
           {posts.map((person) => (
             <FriendCard
               key={person.id}
               friend={person}
               onPress={() => openProfile(person.id)}
               locked={!hasPhotographedTask}
-              style={styles.friendCard}
             />
           ))}
         </View>
@@ -130,12 +129,12 @@ export default function CommunityScreen() {
 
       <IconButton
         name="person-add-outline"
-        size={CORNER_SIZE}
-        iconSize={20}
+        size={profileActionButton}
+        iconSize={profileActionIcon}
         background={colors.surface}
         onPress={() => router.push('/add-friends')}
         accessibilityLabel="Find friends"
-        style={[styles.corner, { top: headerTop }]}
+        style={[styles.cornerRight, { top: headerTop }]}
       />
     </View>
   );
@@ -145,22 +144,25 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  corner: {
-    position: 'absolute',
-    right: screenPadding,
-  },
-  titleBand: {
-    minHeight: profileActionHeight,
+  // Sized to the corner button, so the title centres on the same line as the
+  // button pinned beside it — the way My Profile lines up its own two.
+  header: {
+    minHeight: profileActionButton,
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: layout.title,
   },
+  cornerRight: {
+    position: 'absolute',
+    right: layout.gutter,
+  },
+  // The tabs switch the whole feed under them, so they sit a section apart
+  // from it rather than a heading's distance.
   tabs: {
-    marginBottom: spacing['2xl'],
+    marginBottom: layout.section,
   },
+  // Each post is one of the page's big blocks, spaced the way My Profile
+  // spaces its challenge card from "Days".
   sections: {
-    gap: spacing['3xl'],
-  },
-  friendCard: {
-    marginBottom: 0,
+    gap: layout.section,
   },
 });

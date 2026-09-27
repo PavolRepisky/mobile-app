@@ -111,6 +111,17 @@ const HEART_LANDED = 0.16;
  * across with the comment count on one row. */
 const REACTION_CHIP = 32;
 
+/** The poster's avatar beside their name — the same height as a reaction
+ * pill, so the identity row and the action row sit on one scale. */
+const POST_AVATAR = 32;
+/** The comment glyph, a step over the emoji in the pills beside it so the
+ * outline reads at the same visual weight as a filled emoji. */
+const COMMENT_ICON = 24;
+/** The drawn dot between the challenge and "Day N". */
+const SUBTITLE_DOT = 3;
+/** One carousel page marker riding the photo's bottom edge. */
+const CAROUSEL_DOT = 6;
+
 /**
  * A friend's day as one flat post — avatar, name and the post-detail screen's
  * own subtitle (the challenge, linked, then "Day N" — no relative timestamp)
@@ -331,7 +342,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
           accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
           onPress={onPress}
         >
-          <Avatar source={friend.avatar} size={32} />
+          <Avatar source={friend.avatar} size={POST_AVATAR} />
         </Pressable>
         <View style={styles.identityText}>
           <Text
@@ -495,7 +506,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
             hitSlop={spacing.sm}
             style={({ pressed }) => pressed && styles.pressed}
           >
-            <Ionicons name="chatbubble-outline" size={24} color={colors.ink} />
+            <Ionicons name="chatbubble-outline" size={COMMENT_ICON} color={colors.ink} />
           </Pressable>
           <Text variant="metaBold">{commentCount}</Text>
         </View>
@@ -639,8 +650,8 @@ const styles = StyleSheet.create({
   // separator, so its size and either gap is its own to set, not whatever a
   // character happens to render at.
   subtitleDot: {
-    width: 3,
-    height: 3,
+    width: SUBTITLE_DOT,
+    height: SUBTITLE_DOT,
     borderRadius: radii.pill,
     backgroundColor: colors.inkMuted,
   },
@@ -688,8 +699,8 @@ const styles = StyleSheet.create({
     gap: layout.line,
   },
   dot: {
-    width: 6,
-    height: 6,
+    width: CAROUSEL_DOT,
+    height: CAROUSEL_DOT,
     borderRadius: radii.pill,
     backgroundColor: colors.onMediaTrack,
   },
