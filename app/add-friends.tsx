@@ -20,7 +20,7 @@ import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SearchBar } from '@/components/SearchBar';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, shadows } from '@/constants/theme';
-import { FEED_AUTHORS } from '@/data/content';
+import { FEED_AUTHORS, FRIENDS, PEOPLE, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
 /** Stable per key rather than random, so a row's mutual count doesn't
@@ -52,9 +52,11 @@ const ROW_AVATAR = 48;
  * Built on My Profile and Settings' own parts — the pinned round back button
  * on the title's line, the fill-grey card, the type levels and `layout`
  * spacing. Suggestions read off `FEED_AUTHORS` — people in the same
- * challenge who aren't a friend yet — and the search filters them by name or
- * handle. Adding one sends a request, exactly as the Members feed does: the
- * pill turns to "Request sent" and a second tap takes it back.
+ * challenge who aren't a friend yet. A search is separate from them: while
+ * something is typed, the page is only "Results", matched by name or handle
+ * across everyone, friends marked as such. Adding someone sends a request,
+ * exactly as the Members feed does: the pill turns to "Request sent" and a
+ * second tap takes it back.
  */
 export default function AddFriendsScreen() {
   const router = useRouter();
@@ -78,15 +80,69 @@ export default function AddFriendsScreen() {
       message: `Join me in ${challenge.name} on Her 75: ${joinUrl}`,
     }).catch(() => {});
 
-  const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase().replace(/^@/, '');
-    if (!q) return FEED_AUTHORS;
-    return FEED_AUTHORS.filter(
-      (person) =>
-        person.name.toLowerCase().includes(q) ||
-        person.handle.toLowerCase().replace(/^@/, '').includes(q),
+  // A search is its own list, not a filter on the suggestions: it looks
+  // through everyone — friends included, so a name you already have still
+  // turns up — and while it's running the page is only its results.
+  const searchTerm = query.trim().toLowerCase().replace(/^@/, '');
+  const results = useMemo(
+    () =>
+      searchTerm
+        ? PEOPLE.filter(
+            (person) =>
+              person.name.toLowerCase().includes(searchTerm) ||
+              person.handle.toLowerCase().replace(/^@/, '').includes(searchTerm),
+          )
+        : [],
+    [searchTerm],
+  );
+
+  const renderPerson = (person: Friend) => {
+    const isFriend = FRIENDS.some((friend) => friend.id === person.id);
+    const isRequested = requested.has(person.id);
+    return (
+      <View key={person.id} style={styles.row}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${person.name}'s profile`}
+          onPress={() => router.push({ pathname: '/friend/[id]', params: { id: person.id } })}
+          style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+        >
+          <Avatar source={person.avatar} size={ROW_AVATAR} />
+          <View style={styles.personText}>
+            <Text variant="copyBold" numberOfLines={1}>
+              {person.name}
+            </Text>
+            <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+              {isFriend
+                ? person.handle
+                : `${person.handle} · ${fakeCount(person.id, 1, 4)} mutual`}
+            </Text>
+          </View>
+        </Pressable>
+        {isFriend ? (
+          <Pill tone="muted" size="sm" bold icon="people-outline" label="Friends" />
+        ) : (
+          // The Members feed's own pill: a request, not a friend yet, so a
+          // clock rather than a check, and a second tap takes it back.
+          <Pill
+            tone={isRequested ? 'muted' : 'solid'}
+            size="sm"
+            bold
+            icon={isRequested ? 'time-outline' : 'person-add'}
+            label={isRequested ? 'Request sent' : 'Add'}
+            onPress={() =>
+              setRequested((prev) => {
+                const next = new Set(prev);
+                if (isRequested) next.delete(person.id);
+                else next.add(person.id);
+                return next;
+              })
+            }
+          />
+        )}
+      </View>
     );
-  }, [query]);
+  };
 
   return (
     <View style={styles.screenRoot}>
@@ -104,94 +160,62 @@ export default function AddFriendsScreen() {
           style={styles.search}
         />
 
-        {/* Your challenge's code, for a friend standing next to you — My
-            Profile's challenge card, the same grey and corner. */}
-        <Card flat padded={false} radius={radii.md} style={styles.codeCard}>
-          <View style={styles.codeBody}>
-            {/* Small here to sit beside its title; a tap holds it up big
-                enough to scan from across a table. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Show the code to join my challenge"
-              onPress={() => setCodeOpen(true)}
-              style={({ pressed }) => [styles.codeTile, pressed && styles.pressed]}
-            >
-              <QRCode
-                value={joinUrl}
-                size={CODE_SIZE}
-                color={colors.ink}
-                backgroundColor={colors.surface}
-              />
-            </Pressable>
-            <View style={styles.codeText}>
-              <View style={styles.codeLines}>
-                <Text variant="itemTitle">Invite to your challenge</Text>
-                <Text variant="meta" color={colors.inkMuted}>
-                  {`Friends scan it to join ${challenge.name}.`}
-                </Text>
-              </View>
-              <Pill tone="solid" icon="share-outline" label="Share" bold onPress={invite} />
+        {searchTerm ? (
+          <>
+            <View style={styles.sectionHeading}>
+              <Text variant="sectionHeading">Results</Text>
+              <Text variant="metaBold" color={colors.inkMuted}>
+                {String(results.length)}
+              </Text>
             </View>
-          </View>
-        </Card>
-
-        <Text variant="sectionHeading" style={styles.heading}>
-          Suggested for you
-        </Text>
-
-        {suggestions.length ? (
-          <View style={styles.list}>
-            {suggestions.map((person) => {
-              const mutual = fakeCount(person.id, 1, 4);
-              const isRequested = requested.has(person.id);
-              return (
-                <View key={person.id} style={styles.row}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${person.name}'s profile`}
-                    onPress={() =>
-                      router.push({ pathname: '/friend/[id]', params: { id: person.id } })
-                    }
-                    style={({ pressed }) => [styles.person, pressed && styles.pressed]}
-                  >
-                    <Avatar source={person.avatar} size={ROW_AVATAR} />
-                    <View style={styles.personText}>
-                      <Text variant="copyBold" numberOfLines={1}>
-                        {person.name}
-                      </Text>
-                      <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-                        {`${person.handle} · ${mutual} mutual`}
-                      </Text>
-                    </View>
-                  </Pressable>
-                  {/* The Members feed's own pill: a request, not a friend yet,
-                      so a clock rather than a check, and a second tap takes it
-                      back. */}
-                  <Pill
-                    tone={isRequested ? 'muted' : 'solid'}
-                    size="sm"
-                    bold
-                    icon={isRequested ? 'time-outline' : 'person-add'}
-                    label={isRequested ? 'Request sent' : 'Add'}
-                    onPress={() =>
-                      setRequested((prev) => {
-                        const next = new Set(prev);
-                        if (isRequested) next.delete(person.id);
-                        else next.add(person.id);
-                        return next;
-                      })
-                    }
-                  />
-                </View>
-              );
-            })}
-          </View>
+            {results.length ? (
+              <View style={styles.list}>{results.map(renderPerson)}</View>
+            ) : (
+              <EmptyState
+                icon="search-outline"
+                title="No one by that name"
+                hint="Try a username or another spelling."
+              />
+            )}
+          </>
         ) : (
-          <EmptyState
-            icon="search-outline"
-            title="No one by that name"
-            hint="Try a username or another spelling."
-          />
+          <>
+            {/* Your challenge's code, for a friend standing next to you — My
+                Profile's challenge card, the same grey and corner. */}
+            <Card flat padded={false} radius={radii.md} style={styles.codeCard}>
+              <View style={styles.codeBody}>
+                {/* Small here to sit beside its title; a tap holds it up big
+                    enough to scan from across a table. */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Show the code to join my challenge"
+                  onPress={() => setCodeOpen(true)}
+                  style={({ pressed }) => [styles.codeTile, pressed && styles.pressed]}
+                >
+                  <QRCode
+                    value={joinUrl}
+                    size={CODE_SIZE}
+                    color={colors.ink}
+                    backgroundColor={colors.surface}
+                  />
+                </Pressable>
+                <View style={styles.codeText}>
+                  <View style={styles.codeLines}>
+                    <Text variant="itemTitle">Invite to your challenge</Text>
+                    <Text variant="meta" color={colors.inkMuted}>
+                      {`Friends scan it to join ${challenge.name}.`}
+                    </Text>
+                  </View>
+                  <Pill tone="solid" icon="share-outline" label="Share" bold onPress={invite} />
+                </View>
+              </View>
+            </Card>
+
+            <Text variant="sectionHeading" style={styles.heading}>
+              Suggested for you
+            </Text>
+            <View style={styles.list}>{FEED_AUTHORS.map(renderPerson)}</View>
+          </>
         )}
       </ScreenScroll>
 
@@ -303,6 +327,14 @@ const styles = StyleSheet.create({
     gap: layout.line,
   },
   heading: {
+    marginBottom: layout.heading,
+  },
+  // A heading with its quiet count at the far end — Community's "Finished
+  // today".
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: layout.heading,
   },
   list: {
