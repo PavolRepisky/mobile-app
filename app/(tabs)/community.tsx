@@ -207,7 +207,7 @@ export default function CommunityScreen() {
                 <View style={styles.lockText}>
                   <Text variant="itemTitle">Post to unlock</Text>
                   <Text variant="meta" color={colors.inkMuted}>
-                    Photograph any one task to unlock your friends' days.
+                    Take a photo of any task to see your friends' days.
                   </Text>
                 </View>
               </View>
@@ -397,7 +397,7 @@ export default function CommunityScreen() {
             ) : (
               <EmptyState
                 icon="flag-outline"
-                title="No one has finished yet"
+                title="No one has finished today yet"
                 hint="Finished days land here, newest first."
               />
             )}
