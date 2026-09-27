@@ -205,7 +205,7 @@ export default function CommunityScreen() {
                   <Ionicons name="lock-closed" size={CARD_DISC_ICON} color={colors.inkInverse} />
                 </View>
                 <View style={styles.lockText}>
-                  <Text variant="itemTitle">Post today to see today</Text>
+                  <Text variant="itemTitle">Post to unlock</Text>
                   <Text variant="meta" color={colors.inkMuted}>
                     Photograph any one task to unlock your friends' days.
                   </Text>
@@ -225,8 +225,8 @@ export default function CommunityScreen() {
                   </View>
                   <Text variant="meta" color={colors.inkMuted} numberOfLines={2} style={styles.flex}>
                     {friendsGoing.length === 1
-                      ? '1 friend going today'
-                      : `${friendsGoing.length} friends going today`}
+                      ? '1 friend still going'
+                      : `${friendsGoing.length} friends still going`}
                   </Text>
                 </View>
                 <Pill
