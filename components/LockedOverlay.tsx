@@ -55,8 +55,8 @@ export function LockedOverlay({
         style={[absoluteFill, styles.message]}
       >
         <View style={styles.pill}>
-          <Ionicons name="lock-closed" size={PILL_ICON} color={colors.ink} />
-          <Text variant="copyBold" color={colors.ink}>
+          <Ionicons name="lock-closed" size={PILL_ICON} color={colors.inkInverse} />
+          <Text variant="copyBold" color={colors.inkInverse}>
             {title}
           </Text>
         </View>
@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.block,
     borderRadius: radii.pill,
     borderWidth: PILL_RIM,
-    borderColor: colors.frostRim,
-    backgroundColor: colors.frost,
+    borderColor: colors.lockPillRim,
+    backgroundColor: colors.lockPill,
     ...shadows.glass,
   },
 });

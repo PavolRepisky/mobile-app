@@ -127,6 +127,7 @@ export function PhotoViewer({
                 name={action.icon}
                 size={profileActionButton}
                 iconSize={profileActionIcon}
+                background={colors.surface}
                 color={action.destructive ? colors.destructive : colors.ink}
                 accessibilityLabel={action.label}
                 onPress={action.onPress}

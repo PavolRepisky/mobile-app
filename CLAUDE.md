@@ -78,7 +78,7 @@ from the rest.
 | `floating` | sheets and bars floating over content |
 | `lifted` | surfaces sitting on top of a screen: tilted friend card, invite panel |
 | `deep` | the two badges crowning the challenge feed — heaviest in the set |
-| `glass` | frosted surfaces floating over the page: tab bar, pinned buttons, sheets, dialog, pills on photos |
+| `glass` | liquid-glass surfaces sitting on a photo |
 | `sticky` | sticky notes only (tight and directional) |
 
 **Radius**: `pill` (999) for anything fully rounded — buttons, chips, tab bar ·
@@ -168,8 +168,7 @@ with its "3/5" badge · `StickyNote` · `CalendarMonth` month grid ·
 `Polaroid` one instant print · `PhotoCollage` a pile of them ·
 `StickerText` die-cut display word · `PhotoStrip` ·
 `FriendCard` · `ReviewCard` · `ChallengeDetail`
-· `Avatar` · `DateRange` · `GlassSurface` the frost (and `FrostLayer`, its
-body alone) ·
+· `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 
 ## Conventions

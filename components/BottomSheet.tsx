@@ -16,16 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  absoluteFill,
-  colors,
-  glass,
-  radii,
-  screenPadding,
-  shadows,
-  spacing,
-} from '@/constants/theme';
-import { FrostLayer } from './GlassSurface';
+import { absoluteFill, colors, radii, screenPadding, shadows, spacing } from '@/constants/theme';
 
 /** Share of the screen the tall sheet occupies. */
 const TALL_RATIO = 0.78;
@@ -275,12 +266,6 @@ export function BottomSheet({
             { transform: [{ translateY }] },
           ]}
         >
-          {/* The app's frost, laid under everything in the sheet and clipped
-              to its top-rounded shape here, since the sheet itself casts the
-              shadow and on iOS one view can't do both. */}
-          <View pointerEvents="none" style={[absoluteFill, styles.frost]}>
-            <FrostLayer />
-          </View>
           {handle ? <View style={styles.handle} /> : null}
           {body}
         </Animated.View>
@@ -295,20 +280,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
+    backgroundColor: colors.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     paddingTop: spacing.md,
-    ...shadows.glass,
-  },
-  // The rim runs round the top and down the sides; the bottom edge is the
-  // screen's.
-  frost: {
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    borderWidth: glass.rimWidth,
-    borderBottomWidth: 0,
-    borderColor: colors.frostRim,
-    overflow: 'hidden',
+    ...shadows.floating,
   },
   padded: {
     paddingHorizontal: screenPadding,

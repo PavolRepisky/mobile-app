@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, tabBar, tabBarBottom } from '@/constants/theme';
+import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
@@ -97,8 +97,8 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
 
 /**
  * The pill that floats above the content near the bottom edge. Content scrolls
- * beneath it, so it blurs what passes and frosts it over in the lock pill's
- * own white, rather than sitting on the page as a solid fill.
+ * beneath it, so it is the liquid-glass lens rather than a tinted fill — the
+ * page melts through it as it passes.
  */
 export interface FloatingTabBarProps {
   children?: React.ReactNode;
@@ -124,10 +124,9 @@ export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
           hidden && styles.barHidden,
         ]}
       >
-        {/* The lock pill's frost, which the pinned header buttons wear too.
-            It takes its height from the row inside it, so the bar's own
+        {/* The lens takes its height from the row inside it, so the bar's own
             height lives on that row rather than on the surface. */}
-        <GlassSurface radius={radii.pill}>
+        <GlassSurface radius={radii.pill} shadow={false} style={styles.lens}>
           <View style={styles.row}>{children}</View>
         </GlassSurface>
       </View>
@@ -141,9 +140,13 @@ const styles = StyleSheet.create({
     left: tabBar.horizontalInset,
     right: tabBar.horizontalInset,
     borderRadius: radii.pill,
+    ...shadows.floating,
   },
   barHidden: {
     opacity: 0,
+  },
+  lens: {
+    borderRadius: radii.pill,
   },
   row: {
     height: tabBar.height,

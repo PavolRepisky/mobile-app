@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
-import { FrostLayer } from '@/components/GlassSurface';
 import { IconButton } from '@/components/IconButton';
 import { PhotoStrip } from '@/components/PhotoStrip';
 import { PhotoViewer } from '@/components/PhotoViewer';
@@ -18,7 +17,6 @@ import { TaskRow } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
 import {
   colors,
-  glass,
   radii,
   screenPadding,
   shadows,
@@ -255,13 +253,11 @@ export default function FeedScreen() {
         style={[styles.back, { top: headerTop }, shadows.floating]}
       />
 
-      {/* A strip anchored to the bottom edge, not a pill floating over the
-          content — in the app's frost, so the feed blurs away under it the
-          way it does under the tab bar. Padded and sized to read as a
-          filled-in version of that bar rather than a shrunken button adrift
-          in its own space. */}
+      {/* A solid strip of page background anchored to the bottom edge, not a
+          pill floating over the content. Padded and sized to read as a filled-in
+          version of the floating tab bar rather than a shrunken button
+          adrift in its own space. */}
       <View style={[styles.dock, { paddingTop: dockGap, paddingBottom: dockGap }]}>
-        <FrostLayer />
         <PrimaryButton
           label="Join Challenge"
           onPress={() => {
@@ -359,8 +355,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: screenPadding,
-    borderTopWidth: glass.rimWidth,
-    borderTopColor: colors.frostRim,
+    backgroundColor: colors.backgroundPlain,
   },
   // Squared off against the app's fully-round default, matching the
   // challenge editor's Validate button this dock is modelled on, and the

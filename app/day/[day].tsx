@@ -168,6 +168,7 @@ export default function DayPostScreen() {
         name="chevron-back"
         size={profileActionButton}
         iconSize={profileActionIcon}
+        background={colors.surface}
         onPress={() => router.back()}
         accessibilityLabel="Go back"
         style={[styles.back, { top: headerTop }]}
