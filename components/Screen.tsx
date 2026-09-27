@@ -95,6 +95,9 @@ export interface ScreenScrollProps
     Omit<ScrollViewProps, 'style' | 'children'> {
   /** Extra bottom padding on top of the safe-area / tab-bar allowance. */
   bottomExtra?: number;
+  /** The scroller itself, for a screen that scrolls to something on its own
+   * — Community landing on a post a story linked to. */
+  ref?: React.Ref<ScrollView>;
 }
 
 /** Scrolling screen that keeps content clear of the floating tab bar. */
@@ -113,12 +116,14 @@ export function ScreenScroll({
   // screen that opened it, so that swallowed everything inside a sheet too —
   // its backdrop and its buttons both needed tapping twice.
   keyboardShouldPersistTaps = 'handled',
+  ref,
   ...rest
 }: ScreenScrollProps) {
   const insets = useSafeAreaInsets();
 
   return (
     <ScrollView
+      ref={ref}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       {...rest}

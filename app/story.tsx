@@ -39,8 +39,8 @@ const SUMMARY_CELL = { flex: 1 } as const;
  * Once every task on the day is done, the day is a post as well as a story,
  * and the story ends on one more frame: the post's own photo grid, "Day N"
  * stamped across it, the way an Instagram story carries the post it came
- * from. Tapping it opens the post — replacing the story rather than stacking
- * on it, so the story's own timer can't run out behind the post and close it.
+ * from. Tapping it closes the story and lands on the post in the Community
+ * feed — stories only last the day, the post stays there.
  */
 export default function StoryScreen() {
   const router = useRouter();
@@ -104,13 +104,20 @@ export default function StoryScreen() {
     : [{ key: 'empty', photo: null, seed: 'story-empty', time: null, summary: false }];
   const current = frames[Math.min(index, frames.length - 1)];
 
-  const openPost = () =>
-    person
-      ? router.replace({
-          pathname: '/friend/post/[id]',
-          params: { id: person.id, day: String(viewing) },
-        })
-      : router.replace({ pathname: '/day/[day]', params: { day: String(viewing) } });
+  // Stories only last the day, so the post they link lands in the Community
+  // feed, where it stays — back down the stack to the tabs rather than a new
+  // screen on top, with the feed opening on the post. Your own story of an
+  // earlier day has no place in today's feed, so it opens that day's post.
+  const openPost = () => {
+    if (!person && viewing !== currentDay) {
+      router.replace({ pathname: '/day/[day]', params: { day: String(viewing) } });
+      return;
+    }
+    router.dismissTo({
+      pathname: '/(tabs)/community',
+      params: { post: person ? person.id : `day-${viewing}` },
+    });
+  };
 
   const advance = (delta: number) => {
     const next = index + delta;

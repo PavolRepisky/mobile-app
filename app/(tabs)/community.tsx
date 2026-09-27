@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -97,6 +97,44 @@ export default function CommunityScreen() {
   const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
   const [trackWidth, setTrackWidth] = useState(0);
 
+  // A story's last frame links the post it became: `post` names it, and the
+  // feed opens on the tab it's in and scrolls it up under the title. Stories
+  // only last the day, so the link lands here in the feed, where the post
+  // stays. Positions are measured as the posts lay out — each post's offset
+  // inside its tab's list, plus that list's offset in the scroll — and the
+  // param is cleared once used, so coming back to the tab doesn't jump again.
+  const { post: focusPost } = useLocalSearchParams<{ post?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const listY = useRef<Partial<Record<Tab, number>>>({});
+  const postY = useRef<Record<string, number>>({});
+  const focusTab: Tab | null = focusPost
+    ? FEED_AUTHORS.some((person) => person.id === focusPost)
+      ? 'members'
+      : 'friends'
+    : null;
+
+  useEffect(() => {
+    if (focusTab) setTab(focusTab);
+  }, [focusPost, focusTab]);
+
+  const scrollToFocus = () => {
+    if (!focusPost || !focusTab || tab !== focusTab) return;
+    const list = listY.current[focusTab];
+    const item = postY.current[focusPost];
+    if (list === undefined || item === undefined) return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, list + item - layout.section), animated: true });
+    router.setParams({ post: undefined });
+  };
+
+  const onListLayout = (which: Tab) => (y: number) => {
+    listY.current[which] = y;
+    scrollToFocus();
+  };
+  const onPostLayout = (id: string) => (y: number) => {
+    postY.current[id] = y;
+    scrollToFocus();
+  };
+
   const locked = !hasPhotographedTask;
 
   // The shared line the title and the corner button sit on — see Challenges.
@@ -185,20 +223,21 @@ export default function CommunityScreen() {
     : "Take a photo of any task to see other members' days.";
 
   const renderPost = (person: Friend, accessory?: React.ReactNode) => (
-    <FriendCard
-      key={person.id}
-      friend={person}
-      onPress={() => openProfile(person.id)}
-      locked={locked}
-      accessory={accessory}
-    />
+    <View key={person.id} onLayout={(e) => onPostLayout(person.id)(e.nativeEvent.layout.y)}>
+      <FriendCard
+        friend={person}
+        onPress={() => openProfile(person.id)}
+        locked={locked}
+        accessory={accessory}
+      />
+    </View>
   );
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
     // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
-      <ScreenScroll tabBar>
+      <ScreenScroll tabBar ref={scrollRef}>
         <View style={[styles.header, { marginTop: titleOffset }]}>
           <Text variant="pageTitle" center>
             Community
@@ -309,8 +348,15 @@ export default function CommunityScreen() {
             />
 
             {myPost || friendsFinished.length ? (
-              <View style={styles.posts}>
-                {myPost ? <FriendCard friend={myPost} locked={false} /> : null}
+              <View
+                style={styles.posts}
+                onLayout={(e) => onListLayout('friends')(e.nativeEvent.layout.y)}
+              >
+                {myPost ? (
+                  <View onLayout={(e) => onPostLayout(myPost.id)(e.nativeEvent.layout.y)}>
+                    <FriendCard friend={myPost} locked={false} />
+                  </View>
+                ) : null}
                 {friendsFinished.map((friend) => renderPost(friend))}
               </View>
             ) : (
@@ -399,7 +445,10 @@ export default function CommunityScreen() {
             <SectionHeading title="Finished today" meta={String(membersFinished.length)} />
 
             {membersFinished.length ? (
-              <View style={styles.posts}>
+              <View
+                style={styles.posts}
+                onLayout={(e) => onListLayout('members')(e.nativeEvent.layout.y)}
+              >
                 {membersFinished.map((person) => {
                   const isAdded = added.has(person.id);
                   return renderPost(
