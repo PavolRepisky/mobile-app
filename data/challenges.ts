@@ -49,7 +49,7 @@ export const CHALLENGES: readonly Challenge[] = [
     description:
       'A friendlier 75-day reset: clean eating, daily movement, and no alcohol — built for getting summer-ready without burning out.',
     category: 'Fitness',
-    joined: 1842,
+    joined: 248,
     photoSeeds: ['her75-a', 'her75-b', 'her75-c', 'her75-d'],
     defaultDays: 75,
     tasks: [
@@ -67,7 +67,7 @@ export const CHALLENGES: readonly Challenge[] = [
     description:
       '75 days, zero cheat days. Two workouts, a strict diet, and a daily progress photo — the original mental-toughness challenge.',
     category: 'Health',
-    joined: 1127,
+    joined: 163,
     photoSeeds: ['hard-a', 'hard-b', 'hard-c', 'hard-d'],
     defaultDays: 75,
     tasks: [
@@ -85,7 +85,7 @@ export const CHALLENGES: readonly Challenge[] = [
     description:
       '75 days of steady, sustainable habits: one flexible meal a week, daily movement, and a nightly read.',
     category: 'Mindset',
-    joined: 638,
+    joined: 104,
     photoSeeds: ['med-a', 'med-b', 'med-c', 'med-d'],
     defaultDays: 75,
     tasks: [
@@ -103,7 +103,7 @@ export const CHALLENGES: readonly Challenge[] = [
     description:
       'A gentler 75 days: clean eating with a little room to breathe, daily walks, and time to unwind with a podcast.',
     category: 'Lifestyle',
-    joined: 904,
+    joined: 131,
     photoSeeds: ['soft-a', 'soft-b', 'soft-c', 'soft-d'],
     defaultDays: 75,
     tasks: [
