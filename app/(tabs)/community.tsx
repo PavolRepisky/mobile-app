@@ -21,7 +21,7 @@ import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { TaskRing } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
-import { colors, gradients, layout, radii, spacing } from '@/constants/theme';
+import { colors, gradients, layout, radii } from '@/constants/theme';
 import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
@@ -167,6 +167,7 @@ export default function CommunityScreen() {
   const membersGoing = challenge.joined - membersDone;
   const started = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
+  const daysLeft = Math.max(0, totalDays - currentDay);
 
   // The lock card speaks to the tab it's on: your friends, or everyone else
   // in the challenge — counted across all of it, the same number the
@@ -339,10 +340,9 @@ export default function CommunityScreen() {
           </>
         ) : (
           <>
-            {/* The challenge everyone here shares, drawn the way My Profile
-                draws it: its name, how far into it you are, and a way into
-                its page — the day, not a count of who finished, so it can't
-                be read as a second "Finished today". */}
+            {/* The challenge everyone here shares, and how far into it you
+                are — the day, not a count of who finished, so it can't be
+                read as a second "Finished today". */}
             <Card
               flat
               padded={false}
@@ -352,43 +352,40 @@ export default function CommunityScreen() {
               accessibilityHint="Opens the challenge"
               style={styles.sunkenCard}
             >
-              <View style={styles.challengeBody}>
+              <View style={styles.cardBody}>
                 <View>
                   <View style={styles.challengeRow}>
                     <Text variant="itemTitle" numberOfLines={1} style={styles.flex}>
                       {challenge.name}
                     </Text>
-                    <Text variant="metaBold">
-                      Day {currentDay}
-                      <Text variant="metaBold" color={colors.inkMuted}>
-                        {` / ${totalDays}`}
-                      </Text>
-                    </Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={CHEVRON}
-                      color={colors.inkMuted}
-                      style={styles.challengeChevron}
-                    />
+                    <Ionicons name="chevron-forward" size={CHEVRON} color={colors.inkMuted} />
                   </View>
                   <Text variant="meta" color={colors.inkMuted}>
                     {`Started ${started} · ${challenge.joined.toLocaleString('en-US')} members`}
                   </Text>
                 </View>
-                <View
-                  style={styles.barTrack}
-                  onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-                >
-                  {/* The fill clips a gradient as wide as the whole track, so
-                      the colour marks how far through the challenge you are
-                      — Profile's own bar, the same way. */}
-                  <View style={[styles.barFill, { width: `${progressShare * 100}%` }]}>
-                    <LinearGradient
-                      colors={gradients.accent}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.barGradient, { width: trackWidth }]}
-                    />
+                <View style={styles.barBlock}>
+                  <View
+                    style={styles.barTrack}
+                    onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+                  >
+                    {/* The fill clips a gradient as wide as the whole track,
+                        so the colour marks how far through the challenge you
+                        are — Profile's own bar, the same way. */}
+                    <View style={[styles.barFill, { width: `${progressShare * 100}%` }]}>
+                      <LinearGradient
+                        colors={gradients.accent}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[styles.barGradient, { width: trackWidth }]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.barLabels}>
+                    <Text variant="metaBold">{`Day ${currentDay} of ${totalDays}`}</Text>
+                    <Text variant="meta" color={colors.inkMuted}>
+                      {daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -659,21 +656,13 @@ const styles = StyleSheet.create({
   segmentDone: {
     backgroundColor: colors.ink,
   },
-  // My Profile's challenge card, role for role: the card padding on every
-  // side and a stack's gap between the title block and the bar.
-  challengeBody: {
-    padding: layout.card,
-    gap: layout.stack,
-  },
   challengeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.inline,
   },
-  // Pulled in toward "Day N / 75" — the glyph carries its own side bearing,
-  // so the row's full gap left it floating apart from the text it ends.
-  challengeChevron: {
-    marginLeft: -spacing.xs,
+  barBlock: {
+    gap: layout.stack,
   },
   // White rather than a divider grey: on the card's grey a divider tone sits
   // within a shade of the fill and the track vanishes.
@@ -690,5 +679,9 @@ const styles = StyleSheet.create({
   },
   barGradient: {
     height: '100%',
+  },
+  barLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });
