@@ -1,10 +1,11 @@
 import { BlurView } from 'expo-blur';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
   Keyboard,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -22,6 +23,11 @@ import { absoluteFill, colors, radii, screenPadding, shadows, spacing } from '@/
 const TALL_RATIO = 0.78;
 
 const DURATION = 280;
+
+/** How far the grabber has to pull the sheet down before letting go closes
+ * it, and how fast a flick has to be to close it from any distance. */
+const DISMISS_DRAG = 100;
+const DISMISS_VELOCITY = 0.8;
 
 /** Blur strength of the backdrop once fully open. Also sets its dim: the tint
  * expo-blur lays over the blur scales with the intensity. */
@@ -207,11 +213,49 @@ export function BottomSheet({
     return () => animation.stop();
   }, [visible, progress]);
 
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    // Full screen height covers the sheet whatever it measures out at.
-    outputRange: [screenHeight, 0],
-  });
+  // How far the grabber has pulled the sheet down, on top of where the
+  // open/close animation has it. Zeroed on every open, so a sheet dragged
+  // away last time comes back up to its full height.
+  const drag = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) drag.setValue(0);
+  }, [visible, drag]);
+
+  // The grabber is a handle in the literal sense: the sheet follows the
+  // finger down (never up past where it rests), and letting go far enough
+  // down — or flicking — dismisses it; anything less springs it back. The
+  // close animation then runs on from wherever the drag left it.
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+  const grab = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > DISMISS_DRAG || g.vy > DISMISS_VELOCITY) {
+          onDismissRef.current();
+        } else {
+          Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+      onPanResponderTerminate: () =>
+        Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(),
+    }),
+  ).current;
+
+  const translateY = useMemo(
+    () =>
+      Animated.add(
+        progress.interpolate({
+          inputRange: [0, 1],
+          // Full screen height covers the sheet whatever it measures out at.
+          outputRange: [screenHeight, 0],
+        }),
+        drag,
+      ),
+    [progress, drag, screenHeight],
+  );
 
   const body = tall ? (
     <ScrollView
@@ -266,7 +310,21 @@ export function BottomSheet({
             { transform: [{ translateY }] },
           ]}
         >
-          {handle ? <View style={styles.handle} /> : null}
+          {handle ? (
+            // A full-width strip around the grabber, so it's caught without
+            // having to land on the thin line itself. Left out of the
+            // accessibility tree: a screen reader can't drag, and the
+            // backdrop's own "Dismiss" already closes the sheet.
+            <View
+              {...grab.panHandlers}
+              hitSlop={{ top: spacing.md }}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+              style={styles.handleZone}
+            >
+              <View style={styles.handle} />
+            </View>
+          ) : null}
           {body}
         </Animated.View>
       </View>
@@ -289,14 +347,19 @@ const styles = StyleSheet.create({
   padded: {
     paddingHorizontal: screenPadding,
   },
+  // The grabber's own gap below it lives on the zone, so the space between
+  // the line and the sheet's content is part of what can be grabbed.
+  handleZone: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingBottom: spacing.lg,
+  },
   handle: {
-    alignSelf: 'center',
     width: 42,
     height: 5,
     borderRadius: radii.pill,
     // The palette's fill grey — every sheet's grabber, on every screen.
     backgroundColor: colors.surfaceSunken,
-    marginBottom: spacing.lg,
   },
 });
 
