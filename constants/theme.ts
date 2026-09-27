@@ -149,13 +149,14 @@ export const colors = {
    */
   scrimPhoto: 'rgba(0,0,0,0.34)',
   /**
-   * A locked photo's own scrim — a white wash rather than a dark one, so a
-   * locked post fades back into the white page instead of sitting on it as
-   * a dark block, and the frosted pill's ink label reads over it. The hiding
-   * is done by the photo's blur, which a locked post applies to the image
-   * itself on every platform; this only pales it back.
+   * A locked photo's own scrim — past the canvas's quarter, which read too
+   * light on a phone. The hiding is done by
+   * the photo's blur, which a locked post applies to the image itself on
+   * every platform; this only settles the blur back so the white lock pill
+   * reads over it. `ink`'s own tone rather than flat black, so it still reads
+   * as this app's own shadow and not a generic overlay.
    */
-  scrimLock: 'rgba(255,255,255,0.45)',
+  scrimLock: 'rgba(20,20,20,0.45)',
   /**
    * Frosted white — the canvas's lock pill, taken up by the tab bar too: a
    * flat 42% white over whatever is behind it, where `glass` builds a lens
