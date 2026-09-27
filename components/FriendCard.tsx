@@ -95,8 +95,10 @@ function fakeCount(key: string, min: number, max: number): number {
 const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: number; max: number }> = {
   '❤️': { name: 'Love', min: 4, max: 28 },
   '🔥': { name: 'Fire', min: 1, max: 12 },
-  '👏': { name: 'Clap', min: 0, max: 8 },
-  '😂': { name: 'Laugh', min: 0, max: 4 },
+  // At least one of each: a pill with a bare emoji and no count reads as a
+  // button waiting to be pressed rather than a reaction someone left.
+  '👏': { name: 'Clap', min: 1, max: 8 },
+  '😂': { name: 'Laugh', min: 1, max: 4 },
 };
 
 /** How close two taps have to land to count as a double tap — the window
@@ -118,9 +120,9 @@ const REACTION_CHIP = 32;
 /** The poster's avatar beside their name — the same height as a reaction
  * pill, so the identity row and the action row sit on one scale. */
 const POST_AVATAR = 32;
-/** The comment glyph, a step over the emoji in the pills beside it so the
- * outline reads at the same visual weight as a filled emoji. */
-const COMMENT_ICON = 24;
+/** The comment glyph in its pill, drawn to the emoji's own size beside it so
+ * the comment pill reads as one more of the reactions' row. */
+const COMMENT_ICON = 16;
 /** The drawn dot between the challenge and "Day N". */
 const SUBTITLE_DOT = 3;
 /** One carousel page marker riding the photo's bottom edge. */
@@ -490,30 +492,27 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
               ]}
             >
               <Text variant="meta">{reaction.emoji}</Text>
-              {reaction.count > 0 ? (
-                <Text
-                  variant="badge"
-                  color={reaction.selected ? colors.inkInverse : colors.ink}
-                >
-                  {reaction.count}
-                </Text>
-              ) : null}
+              <Text
+                variant="badge"
+                color={reaction.selected ? colors.inkInverse : colors.ink}
+              >
+                {reaction.count}
+              </Text>
             </Pressable>
           ))}
         </View>
 
-        <View style={styles.actionGroup}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View comments"
-            onPress={() => setCommentsOpen(true)}
-            hitSlop={spacing.sm}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Ionicons name="chatbubble-outline" size={COMMENT_ICON} color={colors.ink} />
-          </Pressable>
-          <Text variant="metaBold">{commentCount}</Text>
-        </View>
+        {/* The comments in a pill of their own, cut like the reactions' —
+            one more chip on the row rather than a bare icon beside it. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Comments, ${commentCount}`}
+          onPress={() => setCommentsOpen(true)}
+          style={({ pressed }) => [styles.reaction, pressed && styles.pressed]}
+        >
+          <Ionicons name="chatbubble-outline" size={COMMENT_ICON} color={colors.ink} />
+          <Text variant="badge">{commentCount}</Text>
+        </Pressable>
       </View>
 
       {caption ? (
@@ -736,11 +735,6 @@ const styles = StyleSheet.create({
   },
   reactionSelected: {
     backgroundColor: colors.ink,
-  },
-  actionGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.line,
   },
   caption: {
     marginTop: layout.stack,
