@@ -387,8 +387,7 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
           <LockedOverlay
             locked={!!locked}
             radius={0}
-            title="Take a photo to unlock"
-            hint="Finish one task with a photo and the feed opens up."
+            title="Unlocks when you post"
             onPress={() => router.push('/(tabs)/tasks')}
           >
             <View
