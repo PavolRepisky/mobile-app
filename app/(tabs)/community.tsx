@@ -405,12 +405,18 @@ export default function CommunityScreen() {
                       tone={isAdded ? 'muted' : 'solid'}
                       size="sm"
                       bold
-                      icon={isAdded ? 'checkmark' : 'person-add'}
+                      // A clock rather than a check: the request is waiting
+                      // on them, not done.
+                      icon={isAdded ? 'time-outline' : 'person-add'}
                       label={isAdded ? 'Request sent' : 'Add'}
-                      onPress={
-                        isAdded
-                          ? undefined
-                          : () => setAdded((prev) => new Set(prev).add(person.id))
+                      // A second tap takes the request back.
+                      onPress={() =>
+                        setAdded((prev) => {
+                          const next = new Set(prev);
+                          if (isAdded) next.delete(person.id);
+                          else next.add(person.id);
+                          return next;
+                        })
                       }
                     />,
                   );
