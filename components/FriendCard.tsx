@@ -37,13 +37,14 @@ const CAROUSEL_RATIO = 1;
 const GRID_CELL_PIECE = { flex: 1 } as const;
 
 /**
- * Applied to the photo itself while locked — the canvas's own 18. This is
+ * Applied to the photo itself while locked — heavier than the canvas's 18,
+ * which left too much of the shot readable on a phone. This is
  * the whole of the lock's blur: `Image`'s `blurRadius` blurs the pixels
  * directly, so it holds on every platform, where a backdrop blur has none on
  * web or older Android. Soft enough that the day's colours still show
  * through under `LockedOverlay`'s light wash, too soft to make out the shot.
  */
-const LOCK_BLUR_RADIUS = 18;
+const LOCK_BLUR_RADIUS = 32;
 
 /** Blur on the day stamp's drop shadow — wide and soft, so it lifts the
  * white type off a bright shot without drawing an edge around the letters. */
