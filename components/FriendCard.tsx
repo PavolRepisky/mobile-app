@@ -88,13 +88,15 @@ function fakeCount(key: string, min: number, max: number): number {
 /**
  * How each reaction is read out, and the range its made-up count is drawn
  * from — hearts the most common, laughs the rarest, so the row reads like a
- * real post's rather than four equal numbers.
+ * real post's rather than four equal numbers. Sized to a challenge of a
+ * couple of hundred people, where a day gets a handful of hearts, not
+ * hundreds.
  */
 const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: number; max: number }> = {
-  '❤️': { name: 'Love', min: 40, max: 220 },
-  '🔥': { name: 'Fire', min: 10, max: 90 },
-  '👏': { name: 'Clap', min: 5, max: 60 },
-  '😂': { name: 'Laugh', min: 0, max: 25 },
+  '❤️': { name: 'Love', min: 4, max: 28 },
+  '🔥': { name: 'Fire', min: 1, max: 12 },
+  '👏': { name: 'Clap', min: 0, max: 8 },
+  '😂': { name: 'Laugh', min: 0, max: 4 },
 };
 
 /** How close two taps have to land to count as a double tap — the window

@@ -88,7 +88,7 @@ export default function FriendProfileScreen() {
             key: `${friend.id}-day${day}`,
             day,
             rows,
-            likes: fakeCount(`${friend.id}-day${day}`, 40, 220),
+            likes: fakeCount(`${friend.id}-day${day}`, 4, 28),
             comments: fakeCount(`${friend.id}-day${day}-c`, 1, 12),
           }
         : null;
