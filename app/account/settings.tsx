@@ -108,11 +108,6 @@ export default function SettingsScreen() {
           />
         </Group>
 
-        <Group title="Legal">
-          <Row label="Privacy Policy" onPress={() => {}} />
-          <Row label="Terms of Service" onPress={() => {}} last />
-        </Group>
-
         <Group title="Account">
           <Row
             label="Delete account"
@@ -128,6 +123,13 @@ export default function SettingsScreen() {
             last
           />
         </Group>
+
+        {/* The fine print under everything, as links rather than rows: they
+            are documents to read, not settings with a value to change. */}
+        <View style={styles.legal}>
+          <LegalLink label="Privacy Policy" onPress={() => {}} />
+          <LegalLink label="Terms of Service" onPress={() => {}} />
+        </View>
       </ScreenScroll>
 
       {/* The back arrow is My Profile's round corner button — the same size,
@@ -322,6 +324,21 @@ function Group({
   );
 }
 
+function LegalLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      hitSlop={layout.stack}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <Text variant="metaBold" color={colors.inkMuted}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function Row({
   label,
   value,
@@ -420,6 +437,13 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     marginRight: layout.inline,
+  },
+  // Centred side by side under the last group, which already leaves a
+  // section's room above them.
+  legal: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: layout.card,
   },
   pressed: {
     opacity: 0.7,
