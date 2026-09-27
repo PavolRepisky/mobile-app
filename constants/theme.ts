@@ -483,6 +483,16 @@ export const type = {
    * its cover word. Leading pulled in to the size so the kicker above tucks
    * against it rather than floating.
    */
+  /**
+   * The ❤️ that pops over a post on a double tap. An emoji draws taller than
+   * a line of text at the same size, so the line is opened well past the
+   * size — at a text leading the heart's top was clipped off its own box.
+   */
+  burst: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 44,
+    lineHeight: 60,
+  },
   poster: {
     fontFamily: fonts.poster,
     fontSize: 68,

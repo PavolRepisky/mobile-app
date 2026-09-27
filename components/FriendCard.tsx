@@ -99,9 +99,9 @@ const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: num
  * iOS itself gives a double tap. */
 const DOUBLE_TAP_MS = 300;
 /**
- * The ❤️ that pops over the photo on a double tap: set at the biggest type
- * level (`hero`, 44) and drawn twice that, since an emoji only takes its
- * size from its type. Lands at `HEART_LANDED` of that — about the 14pt of
+ * The ❤️ that pops over the photo on a double tap: set in the `burst` type
+ * (44, on a line tall enough that the emoji isn't clipped) and drawn twice
+ * that, since an emoji only takes its size from its type. Lands at `HEART_LANDED` of that — about the 14pt of
  * the ❤️ in the pill it drops into.
  */
 const HEART_SCALE = 2;
@@ -433,7 +433,7 @@ export function FriendCard({ friend, onPress, locked, style, post }: FriendCardP
                       },
                     ]}
                   >
-                    <Text variant="hero">{LOVE}</Text>
+                    <Text variant="burst">{LOVE}</Text>
                   </Animated.View>
 
                   {/* Instagram's own multi-photo tell, the post-detail
