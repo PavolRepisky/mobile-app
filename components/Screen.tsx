@@ -1,10 +1,7 @@
-import { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
@@ -114,8 +111,7 @@ export interface ScreenScrollProps
    * A title row that stays put while the page scrolls under it — usually a
    * `ScreenHeader bar`. It sits on the header line on the page's own tone,
    * so its buttons never float over content the way a button pinned beside
-   * a scrolling title does; a hairline appears under it once anything has
-   * scrolled beneath.
+   * a scrolling title does.
    */
   header?: React.ReactNode;
 }
@@ -131,7 +127,6 @@ export function ScreenScroll({
   bottomExtra = 0,
   contentContainerStyle,
   header,
-  onScroll,
   // React Native's default here is `never`, which puts a *capture* responder
   // on the scroller: while a keyboard is up it eats the first tap anywhere
   // below it and only dismisses the keys. A Modal is a React child of the
@@ -142,22 +137,13 @@ export function ScreenScroll({
   ...rest
 }: ScreenScrollProps) {
   const insets = useSafeAreaInsets();
-  const [scrolled, setScrolled] = useState(false);
-
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = event.nativeEvent.contentOffset.y > 0;
-    if (next !== scrolled) setScrolled(next);
-    onScroll?.(event);
-  };
 
   const scroller = (
     <ScrollView
       ref={ref}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-      scrollEventThrottle={header ? 16 : rest.scrollEventThrottle}
       {...rest}
-      onScroll={header ? handleScroll : onScroll}
       style={[styles.flex, { backgroundColor: TONES[tone] }, style]}
       contentContainerStyle={[
         // Under a fixed header the page starts a title's gap below the bar,
@@ -188,7 +174,6 @@ export function ScreenScroll({
             backgroundColor: TONES[tone],
             paddingTop: Math.max(headerLineTop, topPadding(insets.top)),
           },
-          scrolled && styles.headerBarScrolled,
         ]}
       >
         {header}
@@ -205,15 +190,10 @@ const styles = StyleSheet.create({
   padded: {
     paddingHorizontal: screenPadding,
   },
-  // A stack's gap under the row, so the hairline that appears on scroll sits
-  // clear of the buttons rather than touching their shadows.
+  // A stack's gap under the row, so content scrolling up under the bar is cut
+  // off clear of the buttons' shadows rather than against them.
   headerBar: {
     paddingBottom: layout.stack,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'transparent',
-  },
-  headerBarScrolled: {
-    borderBottomColor: colors.inkGhost,
   },
 });
 
