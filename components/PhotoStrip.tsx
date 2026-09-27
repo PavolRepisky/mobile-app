@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { glass, radii, shadows, spacing } from '@/constants/theme';
+import { colors, glass, radii, shadows, spacing } from '@/constants/theme';
 import { Pill, pillHeights } from './Pill';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';
@@ -33,13 +33,19 @@ export interface PhotoStripProps {
   /**
    * `stacked` is the tilted, overlapping hand-laid look every other strip
    * uses. `flat` squares the tiles up and gives them a little air instead —
-   * the Challenges list's own card.
+   * the Challenges list's own card. `scattered` drops them as loose prints,
+   * each at its own height and angle — a challenge's preview.
    */
-  layout?: 'stacked' | 'flat';
+  layout?: 'stacked' | 'flat' | 'scattered';
   /** Corner radius of the individual cards. */
   radius?: number;
   /** Gap between tiles, `flat` layout only. Defaults to a hairline seam. */
   gap?: number;
+  /**
+   * A white border round each tile, `stacked` and `scattered` layouts only —
+   * the frame is what sets each print apart from the one it laps over.
+   */
+  framed?: boolean;
   onPress?: () => void;
   /**
    * Makes each tile its own control instead of the whole strip being one —
@@ -62,6 +68,28 @@ const TILE_LAP = 3;
  * a hand-laid stack rather than a mistake.
  */
 const TILE_TILTS = [-1.2, 1.4, -0.9, 1.6];
+
+/**
+ * Where each print lands in a `scattered` strip, copied off the canvas the
+ * preview was drawn in (a 390pt screen, prints 118 × 160). `left` and `width`
+ * are shares of the strip's width, measured from the page gutter, so the
+ * first print hangs a little past it and the last runs a little past the
+ * other; `top` is how far the print drops from the strip's top edge, and the
+ * strip is that much taller than a print. Deliberately uneven — the point is
+ * a handful of photos put down by hand.
+ */
+const SCATTER = [
+  { left: -1.7, top: 0, tilt: -7 },
+  { left: 22.3, top: 8, tilt: 3 },
+  { left: 45.1, top: 0, tilt: -3 },
+  { left: 68, top: 10, tilt: 6 },
+];
+const SCATTER_WIDTH = 33.7;
+const SCATTER_DROP = 10;
+
+/** Width of a framed tile's white border — a print's paper edge, sampled off
+ * the canvas the preview was drawn in. */
+const FRAME_WIDTH = 3;
 
 /**
  * Outer height of the joined badge: the pill itself plus the glass rim it
@@ -87,6 +115,7 @@ export function PhotoStrip({
   layout = 'stacked',
   radius = radii.md,
   gap = spacing.xs / 2,
+  framed,
   onPress,
   onPressPhoto,
   style,
@@ -108,7 +137,17 @@ export function PhotoStrip({
         ]}
       >
         {photos.map((photo, i) =>
-          layout === 'flat' ? (
+          layout === 'scattered' ? (
+            <ScatteredTile
+              key={i}
+              photo={photo}
+              index={i}
+              stripHeight={height}
+              radius={radius}
+              framed={framed}
+              onPress={onPressPhoto && (() => onPressPhoto(i))}
+            />
+          ) : layout === 'flat' ? (
             <FlatTile
               key={i}
               photo={photo}
@@ -124,6 +163,7 @@ export function PhotoStrip({
               index={i}
               count={photos.length}
               radius={radius}
+              framed={framed}
               onPress={onPressPhoto && (() => onPressPhoto(i))}
             />
           ),
@@ -178,12 +218,14 @@ function Tile({
   index,
   count,
   radius,
+  framed,
   onPress,
 }: {
   photo: PhotoSource;
   index: number;
   count: number;
   radius: number;
+  framed?: boolean;
   onPress?: () => void;
 }) {
   const share = 100 / count;
@@ -199,18 +241,22 @@ function Tile({
       width: `${right - left}%`,
       transform: [{ rotate: `${TILE_TILTS[index % TILE_TILTS.length]}deg` }],
     },
+    framed && [styles.frame, { borderRadius: radius }],
   ];
+  // The photo sits inside the frame, so its corners follow the frame's inner
+  // edge rather than the outer one.
+  const photoRadius = framed ? radius - FRAME_WIDTH : radius;
 
   const content = (
     <>
       {typeof photo === 'string' ? (
-        <Placeholder seed={photo} radius={radius} style={StyleSheet.absoluteFill} />
+        <Placeholder seed={photo} radius={photoRadius} style={StyleSheet.absoluteFill} />
       ) : (
         <Image
           source={photo}
           contentFit="cover"
           transition={200}
-          style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+          style={[StyleSheet.absoluteFill, { borderRadius: photoRadius }]}
         />
       )}
     </>
@@ -218,6 +264,67 @@ function Tile({
 
   // The shadow lives out here: a rounded clip on the same view would cut it
   // off, so the photo inside carries the corners.
+  if (!onPress) return <View style={tileStyle}>{content}</View>;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Open photo"
+      onPress={onPress}
+      style={tileStyle}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
+/**
+ * One loose print of a `scattered` strip, set down at its own place, height
+ * and angle from `SCATTER`. A drawn shadow rather than `Tile`'s soft one:
+ * these are lifted off the page, not laid in a row on it.
+ */
+function ScatteredTile({
+  photo,
+  index,
+  stripHeight,
+  radius,
+  framed,
+  onPress,
+}: {
+  photo: PhotoSource;
+  index: number;
+  stripHeight: number;
+  radius: number;
+  framed?: boolean;
+  onPress?: () => void;
+}) {
+  const spot = SCATTER[index % SCATTER.length];
+  const tileStyle: StyleProp<ViewStyle> = [
+    styles.scatteredTile,
+    {
+      left: `${spot.left}%`,
+      top: spot.top,
+      width: `${SCATTER_WIDTH}%`,
+      height: stripHeight - SCATTER_DROP,
+      borderRadius: radius,
+      transform: [{ rotate: `${spot.tilt}deg` }],
+    },
+    framed && styles.frame,
+  ];
+  const photoRadius = framed ? radius - FRAME_WIDTH : radius;
+
+  const content =
+    typeof photo === 'string' ? (
+      <Placeholder seed={photo} radius={photoRadius} style={StyleSheet.absoluteFill} />
+    ) : (
+      <Image
+        source={photo}
+        contentFit="cover"
+        transition={200}
+        style={[StyleSheet.absoluteFill, { borderRadius: photoRadius }]}
+      />
+    );
+
   if (!onPress) return <View style={tileStyle}>{content}</View>;
 
   return (
@@ -354,6 +461,15 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     ...shadows.soft,
+  },
+  scatteredTile: {
+    position: 'absolute',
+    ...shadows.hard,
+  },
+  frame: {
+    borderWidth: FRAME_WIDTH,
+    borderColor: colors.surface,
+    backgroundColor: colors.surface,
   },
   flatRow: {
     flexDirection: 'row',

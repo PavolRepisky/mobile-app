@@ -10,18 +10,24 @@ import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
 import { PhotoStrip, type PhotoSource } from '@/components/PhotoStrip';
-import { profileActionTop } from '@/components/ProfileLayout';
+import {
+  profileActionButton,
+  profileActionIcon,
+  profileActionTop,
+} from '@/components/ProfileLayout';
 import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SearchBar } from '@/components/SearchBar';
+import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { colors, radii, screenPadding, shadows, spacing } from '@/constants/theme';
+import { bodyTracking, colors, layout, radii, spacing } from '@/constants/theme';
 import { challengeById, type ChallengeCategory } from '@/data/challenges';
 import { challengeStrip, DISCOVER, FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
-import { memberCountLabel } from '@/lib/format';
+import { localDay, roundState } from '@/lib/round';
 
-/** Matches the "+" corner button's own size. */
-const ADD_SIZE = 46;
+/** The photo band across the top of each card — kept short so a card is a
+ * row to scan past rather than a page to scroll through. */
+const CARD_PHOTO_HEIGHT = 156;
 
 /** The browse filters, "All" plus one per `ChallengeCategory`. */
 const CATEGORIES = ['All', 'Fitness', 'Health', 'Mindset', 'Lifestyle', 'Study'] as const;
@@ -48,9 +54,61 @@ interface ChallengeCard {
   /** Undefined for a custom challenge with no Discover listing of its own —
    * the members row drops out rather than showing a count nothing backs. */
   members?: number;
-  /** "N days left" for the one you're on, "N days" — its plain length — for
-   * everything else, since only your own run has a "left" to speak of. */
-  durationLabel: string;
+  /** How many days the challenge runs, shown under its name. */
+  days: number;
+  /**
+   * Where it stands, on the white badge in the photo's top-right corner:
+   * "in 4 days" before a round starts, "Day 25 of 75" while it runs,
+   * "Finished" after — and "N days left" on a custom challenge of your own,
+   * which has no shared round to count from.
+   */
+  statusLabel: string;
+  /** Which of the three tabs the card sits under. */
+  phase: Phase;
+}
+
+/**
+ * The list is split by where each round stands, because what someone is
+ * looking for depends on it: a round they can still join, one under way, or
+ * one that's over. Starting soon comes first — it's the only kind anyone can
+ * join.
+ */
+type Phase = 'upcoming' | 'active' | 'finished';
+
+const PHASES: readonly { key: Phase; label: string }[] = [
+  { key: 'upcoming', label: 'Starting soon' },
+  { key: 'active', label: 'Active' },
+  { key: 'finished', label: 'Finished' },
+];
+
+/** What an empty tab says when no search or category is narrowing it. */
+const EMPTY: Record<Phase, { title: string; hint: string }> = {
+  upcoming: {
+    title: 'Nothing starting soon',
+    hint: 'Start your own with the + button.',
+  },
+  active: { title: 'No active challenges', hint: 'Join one that starts soon.' },
+  finished: { title: 'No finished challenges yet', hint: 'Check back when one ends.' },
+};
+
+/** Faces in each card's who's-in stack — as many friends as there are, up
+ * to three; everyone else is counted beside them. */
+const CARD_FACES = FRIENDS.slice(0, 3);
+
+/** A round's tab and its corner badge, off where it stands today. */
+function roundStatus(startDate: string, days: number): { phase: Phase; label: string } {
+  const state = roundState(localDay(startDate), days);
+  if (state.kind === 'upcoming') {
+    return {
+      phase: 'upcoming',
+      label:
+        state.daysUntil === 1 ? 'Starts tomorrow' : `Starts in ${state.daysUntil} days`,
+    };
+  }
+  if (state.kind === 'running') {
+    return { phase: 'active', label: `Day ${state.day} of ${days}` };
+  }
+  return { phase: 'finished', label: 'Finished' };
 }
 
 /**
@@ -68,6 +126,7 @@ export default function DiscoverScreen() {
   const { challenge, tasks, currentDay, totalDays } = useApp();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryFilter>('All');
+  const [phase, setPhase] = useState<Phase>('upcoming');
 
   /**
    * The shared line the title and the button both sit on: normally the
@@ -85,20 +144,30 @@ export default function DiscoverScreen() {
   // option, off the static table the way the picker itself reads it.
   const cards = useMemo<ChallengeCard[]>(() => {
     const daysLeft = Math.max(totalDays - currentDay, 0);
+    const listing = DISCOVER.find((section) => section.id === challenge.id);
+    // Filed by its listing's round like every other card, so a round that has
+    // ended sits under Finished even while it's the one you're on. A custom
+    // challenge has no listing, so it counts from the day you started it.
+    const mineStatus = listing
+      ? roundStatus(listing.startDate, totalDays)
+      : { phase: 'active' as const, label: `${daysLeft} days left` };
     const mine: ChallengeCard = {
       id: challenge.id,
       title: challenge.name,
       photos: challengeStrip(challenge.id),
       category: challenge.category,
       tasksCount: tasks.length,
-      members: DISCOVER.find((section) => section.id === challenge.id)?.members,
-      durationLabel: `${daysLeft} days left`,
+      members: listing?.members,
+      days: totalDays,
+      statusLabel: mineStatus.label,
+      phase: mineStatus.phase,
     };
 
     const browse: ChallengeCard[] = DISCOVER.filter(
       (section) => section.id !== challenge.id,
     ).map((section) => {
       const info = challengeById(section.id);
+      const status = roundStatus(section.startDate, info.defaultDays);
       return {
         id: section.id,
         title: section.title,
@@ -106,7 +175,9 @@ export default function DiscoverScreen() {
         category: info.category,
         tasksCount: info.tasks.length,
         members: section.members,
-        durationLabel: `${info.defaultDays} days`,
+        days: info.defaultDays,
+        statusLabel: status.label,
+        phase: status.phase,
       };
     });
 
@@ -118,12 +189,13 @@ export default function DiscoverScreen() {
     // each word has to appear somewhere in the title, in any order.
     const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return cards.filter((card) => {
+      if (card.phase !== phase) return false;
       if (category !== 'All' && card.category !== category) return false;
       if (terms.length === 0) return true;
       const title = card.title.toLowerCase();
       return terms.every((term) => title.includes(term));
     });
-  }, [cards, query, category]);
+  }, [cards, query, category, phase]);
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -131,10 +203,19 @@ export default function DiscoverScreen() {
     <View style={styles.screenRoot}>
       <ScreenScroll tabBar bottomExtra={spacing.lg}>
         <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="sectionTitle" center>
+          <Text variant="pageTitle" center>
             Challenges
           </Text>
         </View>
+
+        {/* Community's own tab switch, under the title the same way. */}
+        <SegmentedTabs
+          options={PHASES}
+          value={phase}
+          onChange={setPhase}
+          align="fill"
+          style={styles.tabs}
+        />
 
         <SearchBar
           value={query}
@@ -166,8 +247,18 @@ export default function DiscoverScreen() {
         {filteredCards.length === 0 ? (
           <EmptyState
             icon="search"
-            title="No challenges found"
-            hint={query.trim() ? 'Try a different search.' : 'Try a different category.'}
+            title={
+              query.trim() || category !== 'All'
+                ? 'No challenges found'
+                : EMPTY[phase].title
+            }
+            hint={
+              query.trim()
+                ? 'Try a different search.'
+                : category !== 'All'
+                  ? 'Try a different category.'
+                  : EMPTY[phase].hint
+            }
             style={styles.empty}
           />
         ) : (
@@ -184,56 +275,72 @@ export default function DiscoverScreen() {
                   }
                 >
                   <View style={styles.cardPhotoWrap}>
-                    <PhotoStrip photos={card.photos} height={196} layout="flat" radius={0} />
+                    <PhotoStrip photos={card.photos} height={CARD_PHOTO_HEIGHT} layout="flat" radius={0} />
                     {card.category ? (
                       <Pill
                         label={card.category}
-                        tone="solid"
+                        tone="floating"
                         icon={icon}
                         size="sm"
                         bold
-                        style={[styles.categoryBadge, styles.categoryBadgeFill]}
+                        labelVariant="metaBold"
+                        style={[styles.categoryBadge, styles.badgeFill]}
                       />
                     ) : null}
                     <Pill
-                      label={card.durationLabel}
+                      label={card.statusLabel}
                       tone="floating"
                       size="sm"
                       bold
-                      style={[styles.durationBadge, styles.durationBadgeFill]}
+                      labelVariant="metaBold"
+                      style={[styles.durationBadge, styles.badgeFill]}
                     />
                   </View>
 
+                  {/* The name, then a line under it: its length and daily
+                      tasks on the left, the faces of who's in and a count of
+                      everyone else on the right. */}
                   <View style={styles.cardBody}>
-                    <View style={styles.cardTitleColumn}>
-                      <Text variant="sectionTitleXs" numberOfLines={1}>
-                        {card.title}
+                    <Text variant="itemTitle" numberOfLines={1}>
+                      {card.title}
+                    </Text>
+                    <View style={styles.cardFacts}>
+                      <Text
+                        variant="metaBold"
+                        color={colors.inkMuted}
+                        numberOfLines={1}
+                        style={styles.trackedEnd}
+                      >
+                        {card.days} days · {card.tasksCount} tasks
                       </Text>
-                      <Text variant="labelBold" color={colors.inkMuted}>
-                        {card.tasksCount} tasks daily
-                      </Text>
-                    </View>
 
-                    {card.members !== undefined ? (
-                      <View style={styles.cardMembersRow}>
-                        <View style={styles.memberStack}>
-                          {FRIENDS.slice(0, 3).map((friend, i) => (
-                            <Avatar
-                              key={friend.id}
-                              source={friend.avatar}
-                              size={28}
-                              style={[
-                                styles.memberAvatar,
-                                i > 0 && styles.memberAvatarOverlap,
-                              ]}
-                            />
-                          ))}
+                      {card.members !== undefined ? (
+                        <View style={styles.cardMembers}>
+                          <View style={styles.memberStack}>
+                            {CARD_FACES.map((friend, i) => (
+                              <Avatar
+                                key={friend.id}
+                                source={friend.avatar}
+                                size={28}
+                                style={[
+                                  styles.memberAvatar,
+                                  i > 0 && styles.memberAvatarOverlap,
+                                ]}
+                              />
+                            ))}
+                          </View>
+                          <Text
+                            variant="metaBold"
+                            color={colors.inkMuted}
+                            style={styles.trackedEnd}
+                          >
+                            and{' '}
+                            {Math.max(card.members - CARD_FACES.length, 0).toLocaleString('en-US')}{' '}
+                            others
+                          </Text>
                         </View>
-                        <Text variant="labelBold" color={colors.inkMuted}>
-                          {memberCountLabel(card.members)}
-                        </Text>
-                      </View>
-                    ) : null}
+                      ) : null}
+                    </View>
                   </View>
                 </Card>
               );
@@ -242,18 +349,17 @@ export default function DiscoverScreen() {
         )}
       </ScreenScroll>
 
-      {/* Pinned to the same line as every other tab root's corner button,
-          measured from the screen edge rather than from the scroll content. */}
+      {/* My Profile's and Community's corner button — the same size, white
+          disc and soft shadow — pinned to the title's line and measured from
+          the screen edge rather than the scroll content. */}
       <IconButton
         name="add"
-        size={ADD_SIZE}
-        iconSize={20}
-        background={colors.ink}
-        color={colors.inkInverse}
-        shadow={false}
+        size={profileActionButton}
+        iconSize={profileActionIcon}
+        background={colors.surface}
         onPress={() => router.push('/challenge/create')}
         accessibilityLabel="Create a challenge"
-        style={[styles.corner, { top: headerTop }, shadows.floating]}
+        style={[styles.cornerRight, { top: headerTop }]}
       />
     </View>
   );
@@ -263,19 +369,19 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  // Sized to its own text, exactly like Community's header, rather than
-  // padded out to the corner button's own height and centred inside that —
-  // the button's `top` already lines up with this row's own top edge via
-  // `titleOffset`, so the extra box only pushed the title down without
-  // buying any alignment.
+  // Sized to the corner button, so the title centres on the same line as the
+  // button pinned beside it — the way My Profile and Community line up theirs.
   header: {
-    minHeight: ADD_SIZE,
+    minHeight: profileActionButton,
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: layout.title,
   },
-  corner: {
+  cornerRight: {
     position: 'absolute',
-    right: screenPadding,
+    right: layout.gutter,
+  },
+  tabs: {
+    marginBottom: layout.section,
   },
   search: {
     marginBottom: spacing.xl,
@@ -299,37 +405,43 @@ const styles = StyleSheet.create({
     top: spacing.md,
     left: spacing.md,
   },
-  // A translucent fill rather than the shared solid-tone pill: sitting
-  // straight on the challenge photo, it reads as a flat block at full ink —
-  // pulled back so the picture underneath still shows through.
-  categoryBadgeFill: {
-    backgroundColor: colors.inkOnPhoto,
-  },
   durationBadge: {
     position: 'absolute',
     top: spacing.md,
     right: spacing.md,
   },
-  // Matches the category chip's own translucency, in white rather than ink.
-  durationBadgeFill: {
+  // Both corner badges in one material: the canvas's white badge, held
+  // translucent so the photo underneath still shows through.
+  badgeFill: {
     backgroundColor: colors.surfaceOnPhotoDim,
   },
+  // A row's padding rather than a card's full `card` on every side: this is
+  // a name and one line of facts under a photo, and the full inset stood it
+  // up as a block of its own. No gap between the two: the name's own
+  // leading already sets the facts line apart.
   cardBody: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    // A shade under the top padding: with no progress row left to balance,
-    // the full `xl` on both edges read as a gap left behind rather than a
-    // deliberate one.
-    paddingBottom: spacing.lg,
+    paddingHorizontal: layout.card,
+    paddingVertical: layout.block,
   },
-  cardTitleColumn: {
-    flex: 1,
-  },
-  cardMembersRow: {
+  cardFacts: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
+    justifyContent: 'space-between',
+    gap: layout.inline,
+  },
+  // Tight, so the faces and the count read as one phrase: "(faces) and 160
+  // others".
+  // The type's negative tracking is applied after the last letter too, so
+  // the text's box ends a point short of the glyph it holds — and native
+  // clips a Text to its box, shaving the end off a bold "s". Handing that
+  // point back as padding lets the last letter finish.
+  trackedEnd: {
+    paddingRight: -bodyTracking,
+  },
+  cardMembers: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.line,
   },
   memberStack: {
     flexDirection: 'row',

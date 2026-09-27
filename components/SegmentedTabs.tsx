@@ -32,8 +32,10 @@ export interface SegmentedTabsProps<T extends string = string> {
   onChange: (key: T) => void;
   /** A row too long for the screen scrolls sideways; two-up tabs do not. */
   scrollable?: boolean;
-  /** `justify` spreads the row across its container on even gaps. */
-  align?: 'center' | 'left' | 'justify';
+  /** `justify` spreads the row across its container on even gaps. `fill`
+   * splits the whole width into equal tabs, each underline as wide as its
+   * share. */
+  align?: 'center' | 'left' | 'justify' | 'fill';
   size?: 'md' | 'lg';
   /**
    * Squeezes a large row a step further. The Saved sheet runs the same five
@@ -77,7 +79,12 @@ export function SegmentedTabs<T extends string = string>({
         accessibilityRole="tab"
         accessibilityState={{ selected: active }}
         onPress={() => onChange(option.key)}
-        style={[styles.item, pill && styles.pillItem, pill && active && styles.pillActive]}
+        style={[
+          styles.item,
+          align === 'fill' && styles.fillItem,
+          pill && styles.pillItem,
+          pill && active && styles.pillActive,
+        ]}
       >
         <View style={styles.itemRow}>
           {option.icon ? (
@@ -171,8 +178,13 @@ const styles = StyleSheet.create({
   justify: {
     justifyContent: 'space-between',
   },
+  /** Laid out by its items, which share the width between them. */
+  fill: {},
   item: {
     alignItems: 'center',
+  },
+  fillItem: {
+    flex: 1,
   },
   pillTrack: {
     backgroundColor: colors.surfaceSunken,

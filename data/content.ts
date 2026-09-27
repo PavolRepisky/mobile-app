@@ -561,10 +561,18 @@ export interface DiscoverSection {
   photos: readonly PhotoSource[];
   members: number;
   /**
-   * When this round started, ISO `YYYY-MM-DD`. The card's own end date is
+   * Day 1 of this round, ISO `YYYY-MM-DD`. Everyone in a round starts on it
+   * together and joining closes once it has passed, so it is what splits the
+   * preview into "starts in N days" and "already running". The end date is
    * this plus the matching `Challenge.defaultDays` — never stored twice.
    */
   startDate: string;
+  /**
+   * How many of `members` are still in the running — no day missed past
+   * what the rules allow. Only means anything once the round has started,
+   * so it is left off a round that hasn't.
+   */
+  stillGoing?: number;
   /** Who started this round. An id into `PEOPLE`, so the preview's "Created
    * by" row opens the same profile screen the Friends tab does. */
   creatorId: string;
@@ -594,7 +602,8 @@ export const DISCOVER: readonly DiscoverSection[] = [
       require('../assets/challenges/hard/study-desk.jpg'),
     ],
     members: 163,
-    startDate: '2026-07-14',
+    stillGoing: 131,
+    startDate: '2026-09-03',
     creatorId: 'elena',
   },
   {
@@ -607,7 +616,7 @@ export const DISCOVER: readonly DiscoverSection[] = [
       require('../assets/challenges/medium/book-in-bed.jpg'),
     ],
     members: 104,
-    startDate: '2026-08-01',
+    startDate: '2026-10-01',
     creatorId: 'sofia',
   },
   {
@@ -620,7 +629,7 @@ export const DISCOVER: readonly DiscoverSection[] = [
       require('../assets/challenges/soft/evening-reading.jpg'),
     ],
     members: 131,
-    startDate: '2026-08-20',
+    startDate: '2026-10-12',
     creatorId: 'camila',
   },
 ];

@@ -54,11 +54,12 @@ export const colors = {
    * held just off full white so the picture underneath still reads through. */
   surfaceOnPhoto: 'rgba(255,255,255,0.92)',
   /**
-   * The white counterpart to `inkOnPhoto`, held to the same translucency —
-   * the my-challenge card's days-left badge, paired against the dark category
-   * chip so the two read as a matched set rather than two different fills.
+   * The Challenges cards' two corner badges — the category and where the
+   * round stands — laid straight on the photo. Mostly white, so their dark
+   * type holds on a busy shot, but short of `surfaceOnPhoto` so the picture
+   * still shows through them.
    */
-  surfaceOnPhotoDim: 'rgba(255,255,255,0.55)',
+  surfaceOnPhotoDim: 'rgba(255,255,255,0.75)',
   /** Inset panels: the invite card, "Create Daily Task+" well. */
   surfaceMuted: '#F1F0EA',
   /** Empty photo slots and "add" tiles on the wall. */
