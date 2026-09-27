@@ -256,21 +256,14 @@ export default function CommunityScreen() {
         />
 
         {locked ? (
-          // Set in ink rather than the page's fill grey: the one card on the
-          // tab that's asking you to do something, so it stands apart from
-          // the feed it's holding back. Everything on it flips to suit — a
-          // white lock disc and a white button, which would sink into the
-          // black otherwise.
-          <Card flat padded={false} radius={radii.md} style={styles.lockCard}>
+          <Card flat padded={false} radius={radii.md} style={styles.sunkenCard}>
             <View style={styles.cardBody}>
               <View style={styles.lockRow}>
-                <View style={[styles.disc, styles.discWhite]}>
-                  <Ionicons name="lock-closed" size={CARD_DISC_ICON} color={colors.ink} />
+                <View style={[styles.disc, styles.discInk]}>
+                  <Ionicons name="lock-closed" size={CARD_DISC_ICON} color={colors.inkInverse} />
                 </View>
                 <View style={styles.lockText}>
-                  <Text variant="itemTitle" color={colors.inkInverse}>
-                    Post to unlock
-                  </Text>
+                  <Text variant="itemTitle">Post to unlock</Text>
                   <Text variant="meta" color={colors.inkMuted}>
                     {lockHint}
                   </Text>
@@ -293,7 +286,7 @@ export default function CommunityScreen() {
                   </Text>
                 </View>
                 <Pill
-                  tone="floating"
+                  tone="solid"
                   icon="camera-outline"
                   label="Shoot a task"
                   bold
@@ -605,10 +598,6 @@ const styles = StyleSheet.create({
     marginBottom: layout.section,
     backgroundColor: colors.surfaceSunken,
   },
-  lockCard: {
-    marginBottom: layout.section,
-    backgroundColor: colors.ink,
-  },
   cardBody: {
     padding: layout.card,
     gap: layout.block,
@@ -619,6 +608,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  discInk: {
+    backgroundColor: colors.ink,
   },
   discWhite: {
     backgroundColor: colors.surface,
@@ -646,11 +638,11 @@ const styles = StyleSheet.create({
   miniStack: {
     flexDirection: 'row',
   },
-  // Ringed in the lock card's own ink, so each face reads as tucked behind
-  // the next rather than merged into it.
+  // Ringed in the card's own grey, so each face reads as tucked behind the
+  // next rather than merged into it.
   miniAvatar: {
     borderWidth: MINI_RING,
-    borderColor: colors.ink,
+    borderColor: colors.surfaceSunken,
     borderRadius: radii.pill,
   },
   miniTucked: {
