@@ -1,17 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, Share, StyleSheet, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { IconButton } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
-import { ScreenScroll } from '@/components/Screen';
+import {
+  profileActionButton,
+  profileActionIcon,
+  profileActionTop,
+} from '@/components/ProfileLayout';
+import { ScreenScroll, topPadding } from '@/components/Screen';
 import { SearchBar } from '@/components/SearchBar';
-import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { colors, radii, spacing } from '@/constants/theme';
-import { FEED_AUTHORS, FRIENDS } from '@/data/content';
+import { colors, layout, radii } from '@/constants/theme';
+import { FEED_AUTHORS } from '@/data/content';
+import { useApp } from '@/hooks/useAppState';
 
 /** Stable per key rather than random, so a row's mutual count doesn't
  * reshuffle on every render — the same trick the profile screen's own fake
@@ -22,20 +32,16 @@ function fakeCount(key: string, min: number, max: number): number {
   return min + (Math.abs(h) % (max - min + 1));
 }
 
-/** A bare glyph, sized on its own rather than the circular IconButton's —
- * the profile screen's own header convention. */
-const headerIconSize = 26;
-/** The outline glyph has no bold cut of its own — stacking a second copy a
- * hair off the first thickens the stroke without switching to the filled
- * icon. */
-const headerBoldOffset = 0.6;
-
-/** The little overlapping avatars under a suggestion's name. */
-const mutualAvatarSize = 20;
-const mutualAvatarOverlap = 10;
-
-/** The square tile behind each invite channel's glyph. */
-const channelTileSize = 64;
+/** The friend code in its card: big enough to scan off a phone held out,
+ * small enough to sit beside its title rather than above it. */
+const CODE_SIZE = 78;
+/** One invite channel's round tile, and its glyph. */
+const CHANNEL_TILE = 52;
+const CHANNEL_ICON = 22;
+/** A wide enough column that "Instagram" sits under its tile on one line. */
+const CHANNEL_WIDTH = 60;
+/** A suggestion's face — a step over a post's, since the row is the person. */
+const ROW_AVATAR = 48;
 
 const INVITE_CHANNELS = [
   { key: 'messages', label: 'Messages', icon: 'chatbubble-outline' as const },
@@ -45,58 +51,55 @@ const INVITE_CHANNELS = [
   { key: 'more', label: 'More', icon: 'ellipsis-horizontal' as const },
 ];
 
-type Tab = 'suggestions' | 'find';
-
 /**
- * The full-page suggestion list raised by the `+` on the profile screen,
- * replacing the invite-code panel that used to open there. Suggestions read
- * off `FEED_AUTHORS` — people posting in the same challenge who aren't a
- * friend yet — and the mutual-friends preview reads off the real `FRIENDS`
- * list, so both are actual app data rather than invented names.
+ * Finding people to do it with, opened from Community's corner button and
+ * laid out the way the canvas's "Find friends" board is: a search, your own
+ * friend code, a row of ways to invite someone, then suggestions.
+ *
+ * Built on My Profile and Settings' own parts — the pinned round back button
+ * on the title's line, the fill-grey card, the type levels and `layout`
+ * spacing. Suggestions read off `FEED_AUTHORS` — people in the same
+ * challenge who aren't a friend yet — and the search filters them by name or
+ * handle. Adding one sends a request, exactly as the Members feed does: the
+ * pill turns to "Request sent" and a second tap takes it back.
  */
 export default function AddFriendsScreen() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('suggestions');
+  const insets = useSafeAreaInsets();
+  const { profile } = useApp();
   const [query, setQuery] = useState('');
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [requested, setRequested] = useState<ReadonlySet<string>>(new Set());
 
-  const suggestions = useMemo(
-    () => FEED_AUTHORS.filter((person) => !dismissed.has(person.id)),
-    [dismissed],
-  );
+  // The title and the pinned back button share one line — Settings' own.
+  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
+  const titleOffset = headerTop - topPadding(insets.top);
 
-  // Real friends standing in for "people you both know" — there's no mutual
-  // graph to read one off, and every row shares the same small preview.
-  const mutualPreview = FRIENDS.slice(0, 3);
+  const handle = profile.handle.replace(/^@/, '');
+  const friendCodeUrl = Linking.createURL(`add-friend/${handle}`);
+  // Every channel hands the same invite to the system share sheet, which is
+  // where each app actually lives — the tiles are shortcuts into it.
+  const invite = () =>
+    Share.share({
+      message: `Do 75 days with me on Her 75 — add me as @${handle}: ${friendCodeUrl}`,
+    }).catch(() => {});
+
+  const suggestions = useMemo(() => {
+    const q = query.trim().toLowerCase().replace(/^@/, '');
+    if (!q) return FEED_AUTHORS;
+    return FEED_AUTHORS.filter(
+      (person) =>
+        person.name.toLowerCase().includes(q) ||
+        person.handle.toLowerCase().replace(/^@/, '').includes(q),
+    );
+  }, [query]);
 
   return (
     <View style={styles.screenRoot}>
       <ScreenScroll tone="plain">
-        <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            hitSlop={spacing.md}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <View style={styles.headerIconStack}>
-              <Ionicons name="chevron-back" size={headerIconSize} color={colors.ink} />
-              <Ionicons
-                name="chevron-back"
-                size={headerIconSize}
-                color={colors.ink}
-                style={styles.headerIconOverlay}
-              />
-            </View>
-          </Pressable>
-
-          <Text variant="sectionTitle" center style={styles.headerTitle}>
-            Add Friends
+        <View style={[styles.header, { marginTop: titleOffset }]}>
+          <Text variant="pageTitle" center>
+            Find friends
           </Text>
-
-          <View style={styles.headerIconStack} />
         </View>
 
         <SearchBar
@@ -106,113 +109,121 @@ export default function AddFriendsScreen() {
           style={styles.search}
         />
 
-        <SegmentedTabs
-          options={[
-            { key: 'suggestions', label: 'Suggestions' },
-            { key: 'find', label: 'Find friends' },
-          ]}
-          value={tab}
-          onChange={setTab}
-          align="left"
-          style={styles.tabs}
-        />
+        {/* Your own code, for a friend standing next to you — My Profile's
+            challenge card, the same grey and corner. */}
+        <Card flat padded={false} radius={radii.md} style={styles.codeCard}>
+          <View style={styles.codeBody}>
+            <View style={styles.codeTile}>
+              <QRCode
+                value={friendCodeUrl}
+                size={CODE_SIZE}
+                color={colors.ink}
+                backgroundColor={colors.surface}
+              />
+            </View>
+            <View style={styles.codeText}>
+              <View style={styles.codeLines}>
+                <Text variant="itemTitle">Your friend code</Text>
+                <Text variant="meta" color={colors.inkMuted}>
+                  Friends scan it to add you.
+                </Text>
+              </View>
+              <Pill tone="solid" icon="share-outline" label="Share" bold onPress={invite} />
+            </View>
+          </View>
+        </Card>
 
-        {tab === 'find' ? (
+        <View style={styles.channels}>
+          {INVITE_CHANNELS.map((channel) => (
+            <Pressable
+              key={channel.key}
+              accessibilityRole="button"
+              accessibilityLabel={`Invite with ${channel.label}`}
+              onPress={invite}
+              style={({ pressed }) => [styles.channel, pressed && styles.pressed]}
+            >
+              <View style={styles.channelTile}>
+                <Ionicons name={channel.icon} size={CHANNEL_ICON} color={colors.ink} />
+              </View>
+              <Text variant="badge" numberOfLines={1} center>
+                {channel.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text variant="sectionHeading" style={styles.heading}>
+          Suggested for you
+        </Text>
+
+        {suggestions.length ? (
+          <View style={styles.list}>
+            {suggestions.map((person) => {
+              const mutual = fakeCount(person.id, 1, 4);
+              const isRequested = requested.has(person.id);
+              return (
+                <View key={person.id} style={styles.row}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${person.name}'s profile`}
+                    onPress={() =>
+                      router.push({ pathname: '/friend/[id]', params: { id: person.id } })
+                    }
+                    style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+                  >
+                    <Avatar source={person.avatar} size={ROW_AVATAR} />
+                    <View style={styles.personText}>
+                      <Text variant="copyBold" numberOfLines={1}>
+                        {person.name}
+                      </Text>
+                      <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+                        {`${person.handle} · ${mutual} mutual`}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {/* The Members feed's own pill: a request, not a friend yet,
+                      so a clock rather than a check, and a second tap takes it
+                      back. */}
+                  <Pill
+                    tone={isRequested ? 'muted' : 'solid'}
+                    size="sm"
+                    bold
+                    icon={isRequested ? 'time-outline' : 'person-add'}
+                    label={isRequested ? 'Request sent' : 'Add'}
+                    onPress={() =>
+                      setRequested((prev) => {
+                        const next = new Set(prev);
+                        if (isRequested) next.delete(person.id);
+                        else next.add(person.id);
+                        return next;
+                      })
+                    }
+                  />
+                </View>
+              );
+            })}
+          </View>
+        ) : (
           <EmptyState
             icon="search-outline"
-            title="Find friends"
-            hint="Search a username or name above to find people."
+            title="No one by that name"
+            hint="Try a username or another spelling."
           />
-        ) : (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text variant="cardTitleBold">Suggested for you</Text>
-              <Text variant="bodyBold" color={colors.accent}>
-                See all
-              </Text>
-            </View>
-
-            <View style={styles.list}>
-              {suggestions.map((person, index) => {
-                const mutualCount = fakeCount(person.id, 1, 4);
-                const isAdded = added.has(person.id);
-
-                return (
-                  <View key={person.id} style={[styles.row, index > 0 && styles.rowDivider]}>
-                    <Avatar source={person.avatar} size={56} />
-
-                    <View style={styles.rowBody}>
-                      <Text variant="cardTitleBold">{person.name}</Text>
-                      <Text variant="label" color={colors.inkMuted}>
-                        {person.handle}
-                      </Text>
-
-                      <View style={styles.mutualRow}>
-                        <View style={styles.mutualStack}>
-                          {mutualPreview.map((friend, i) => (
-                            <Avatar
-                              key={friend.id}
-                              source={friend.avatar}
-                              size={mutualAvatarSize}
-                              style={[
-                                styles.mutualAvatar,
-                                i > 0 && styles.mutualAvatarOverlap,
-                              ]}
-                            />
-                          ))}
-                        </View>
-                        <Text variant="caption" color={colors.inkMuted}>
-                          {mutualCount} mutual friend{mutualCount === 1 ? '' : 's'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.rowActions}>
-                      <Pill
-                        label={isAdded ? 'Added' : 'Add'}
-                        tone={isAdded ? 'solid' : 'outline'}
-                        onPress={
-                          isAdded
-                            ? undefined
-                            : () =>
-                                setAdded((prev) => new Set(prev).add(person.id))
-                        }
-                      />
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Dismiss ${person.name}`}
-                        hitSlop={spacing.sm}
-                        onPress={() =>
-                          setDismissed((prev) => new Set(prev).add(person.id))
-                        }
-                      >
-                        <Ionicons name="close" size={20} color={colors.inkMuted} />
-                      </Pressable>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-
-            <Text variant="cardTitleBold" style={styles.inviteTitle}>
-              Invite your friends
-            </Text>
-
-            <View style={styles.channelsRow}>
-              {INVITE_CHANNELS.map((channel) => (
-                <View key={channel.key} style={styles.channel}>
-                  <View style={styles.channelTile}>
-                    <Ionicons name={channel.icon} size={24} color={colors.ink} />
-                  </View>
-                  <Text variant="caption" color={colors.inkMuted}>
-                    {channel.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </>
         )}
       </ScreenScroll>
+
+      {/* Settings' back button — the round corner button pinned on the
+          title's line, so the way out stays in reach however far down the
+          page goes. */}
+      <IconButton
+        name="chevron-back"
+        size={profileActionButton}
+        iconSize={profileActionIcon}
+        background={colors.surface}
+        onPress={() => router.back()}
+        accessibilityLabel="Go back"
+        style={[styles.cornerLeft, { top: headerTop }]}
+      />
     </View>
   );
 }
@@ -221,94 +232,84 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
+  // The pinned button's height, so the title centres on the same line.
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xl,
+    minHeight: profileActionButton,
+    justifyContent: 'center',
+    marginBottom: layout.title,
   },
-  headerTitle: {
-    flex: 1,
-  },
-  headerIconStack: {
-    width: headerIconSize + headerBoldOffset,
-    height: headerIconSize + headerBoldOffset,
-  },
-  headerIconOverlay: {
+  cornerLeft: {
     position: 'absolute',
-    left: headerBoldOffset,
-    top: headerBoldOffset,
-  },
-  pressed: {
-    opacity: 0.85,
+    left: layout.gutter,
   },
   search: {
-    marginBottom: spacing.xl,
+    marginBottom: layout.section,
   },
-  tabs: {
-    marginBottom: spacing['2xl'],
+  codeCard: {
+    marginBottom: layout.section,
+    backgroundColor: colors.surfaceSunken,
   },
-  sectionHeader: {
+  codeBody: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: layout.block,
+    padding: layout.card,
+  },
+  // A white square under the code with a quiet margin round it — a scanner
+  // needs the code on flat white, as the profile's own code sheet sets it.
+  codeTile: {
+    padding: layout.stack,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+  },
+  codeText: {
+    flex: 1,
+    alignItems: 'flex-start',
+    gap: layout.heading,
+  },
+  codeLines: {
+    gap: layout.line,
+  },
+  channels: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: layout.section,
+  },
+  channel: {
+    width: CHANNEL_WIDTH,
+    alignItems: 'center',
+    gap: layout.stack,
+  },
+  channelTile: {
+    width: CHANNEL_TILE,
+    height: CHANNEL_TILE,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceSunken,
+  },
+  heading: {
+    marginBottom: layout.heading,
   },
   list: {
-    marginBottom: spacing['3xl'],
+    gap: layout.block,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.lg,
+    gap: layout.inline,
   },
-  rowDivider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-  },
-  rowBody: {
+  person: {
     flex: 1,
-  },
-  mutualRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xs,
-    gap: spacing.xs,
+    gap: layout.inline,
   },
-  mutualStack: {
-    flexDirection: 'row',
+  personText: {
+    flex: 1,
+    gap: layout.line,
   },
-  mutualAvatar: {
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  mutualAvatarOverlap: {
-    marginLeft: -mutualAvatarOverlap,
-  },
-  rowActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  inviteTitle: {
-    marginBottom: spacing.lg,
-  },
-  channelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing['3xl'],
-  },
-  channel: {
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  channelTile: {
-    width: channelTileSize,
-    height: channelTileSize,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+  pressed: {
+    opacity: 0.7,
   },
 });
