@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { Avatar } from '@/components/Avatar';
@@ -25,10 +24,10 @@ import { Placeholder } from '@/components/Placeholder';
 import {
   profileActionButton,
   profileActionIcon,
-  profileActionTop,
   profileAvatarSize,
 } from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { accentAt } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
@@ -193,15 +192,7 @@ export default function ProfileScreen() {
     tasks,
     progress,
   } = useApp();
-  const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  // The line the title and the two corner buttons share — the same one every
-  // other tab root uses: normally the corner button's own fixed offset,
-  // dropping to meet the content on a deep safe-area inset, so switching
-  // tabs never jumps the title up or down.
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
-
   // The photo itself is edited in Settings now, not from here — and the
   // friend code lives on Find friends, with everything else about adding
   // people.
@@ -352,15 +343,29 @@ export default function ProfileScreen() {
     <View style={styles.screenRoot}>
       {/* The Profile tab breaks from the warm app shell and sits on white,
           the way the reference screen does. */}
-      <ScreenScroll tabBar tone="plain">
-        {/* The title scrolls with the page; the two buttons either side of it
-            are pinned over the scroll below, so they stay in reach however
-            far down the days go. */}
-        <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="pageTitle" center>
-            My Profile
-          </Text>
-        </View>
+      {/* Every tab root's fixed title row: the title on the gutter and
+          Settings at the end, in reach however far down the days go. */}
+      <ScreenScroll
+        tabBar
+        tone="plain"
+        header={
+          <ScreenHeader
+            bar
+            plainTitle="My Profile"
+            showBack={false}
+            right={
+              <IconButton
+                name="settings-outline"
+                size={profileActionButton}
+                iconSize={profileActionIcon}
+                background={colors.surface}
+                onPress={() => router.push('/account/settings')}
+                accessibilityLabel="Settings"
+              />
+            }
+          />
+        }
+      >
 
         <View style={styles.identity}>
           <View
@@ -668,19 +673,6 @@ export default function ProfileScreen() {
         )}
       </ScreenScroll>
 
-      {/* Settings in the corner: a round button the size of the Challenges
-          "+", pinned to the title's line and measured from the screen edge
-          rather than the scroll content, so it never scrolls away. */}
-      <IconButton
-        name="settings-outline"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.push('/account/settings')}
-        accessibilityLabel="Settings"
-        style={[styles.cornerRight, { top: headerTop }]}
-      />
-
       {/* The year, picked on the iPhone's own date-wheel drum from a sheet
           at the bottom. Done moves the calendar; tapping away leaves it. */}
       <BottomSheet
@@ -714,18 +706,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  // Sized to the corner buttons, so the title centres on the same line as
-  // the two pinned beside it — the way Challenges lines its title up with
-  // its own "+".
-  header: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    marginBottom: layout.title,
-  },
-  cornerRight: {
-    position: 'absolute',
-    right: layout.gutter,
   },
   identity: {
     alignItems: 'center',

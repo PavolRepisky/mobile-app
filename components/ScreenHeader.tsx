@@ -30,15 +30,16 @@ export interface ScreenHeaderProps {
   /** Circle X on the right instead of a back chevron on the left. */
   onClose?: () => void;
   showBack?: boolean;
-  /** Something in the leading corner in place of the back button — a tab
-   * root's own action, which has nowhere to go back to. */
+  /** Bar only: something in the leading slot in place of the back button. */
   left?: React.ReactNode;
+  /** The trailing actions — in a bar, grouped side by side at the end. */
   right?: React.ReactNode;
   /**
    * The row a `ScreenScroll`'s fixed `header` holds: exactly the round
-   * corner buttons' height, no margin under it, the title set one line at
-   * page-title size and inset clear of both corners, and the back button the
-   * same white disc every tab root's corner button is.
+   * corner buttons' height, no margin under it, the back button (the same
+   * white disc every corner button is) then the title one line at page-title
+   * size, left-aligned, then the actions. A tab root passes
+   * `showBack={false}` and its title sits on the gutter.
    */
   bar?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -70,14 +71,45 @@ export function ScreenHeader({
     ? { size: profileActionButton, iconSize: profileActionIcon, background: colors.surface }
     : {};
 
+  // The bar reads left to right, the way the page under it does: the way
+  // back first, where a thumb and the edge swipe both expect it, the title
+  // straight after it on the gutter, and every action grouped at the end —
+  // one place to reach for them however many a screen has.
+  if (bar) {
+    const back =
+      showBack && !left ? (
+        <IconButton name="chevron-back" {...cornerButton} onPress={goBack} accessibilityLabel="Go back" />
+      ) : null;
+    return (
+      <View style={[styles.barRow, style]}>
+        {left ?? back}
+        <View style={styles.barTitle}>
+          {plainTitle ? (
+            <Text variant={plainTitleVariant ?? 'pageTitle'} numberOfLines={1} style={plainTitleStyle}>
+              {plainTitle}
+            </Text>
+          ) : null}
+          {subtitle ? (
+            <Text variant={subtitleVariant} color={colors.inkMuted} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        {right ? <View style={styles.barActions}>{right}</View> : null}
+        {onClose ? (
+          <IconButton name="close" {...cornerButton} onPress={onClose} accessibilityLabel="Close" />
+        ) : null}
+      </View>
+    );
+  }
+
   return (
-    <View style={[bar ? styles.barWrap : styles.wrap, style]}>
-      <View style={bar ? styles.barTitle : styles.titleBlock}>
+    <View style={[styles.wrap, style]}>
+      <View style={styles.titleBlock}>
         {plainTitle ? (
           <Text
-            variant={plainTitleVariant ?? (bar ? 'pageTitle' : 'sectionTitle')}
+            variant={plainTitleVariant ?? 'sectionTitle'}
             center
-            numberOfLines={bar ? 1 : undefined}
             style={plainTitleStyle}
           >
             {plainTitle}
@@ -96,9 +128,7 @@ export function ScreenHeader({
         ) : null}
       </View>
 
-      {left ? (
-        <View style={styles.left}>{left}</View>
-      ) : showBack && !onClose ? (
+      {showBack && !onClose ? (
         <IconButton
           name="chevron-back"
           {...cornerButton}
@@ -132,14 +162,21 @@ const styles = StyleSheet.create({
   titleBlock: {
     paddingHorizontal: 64,
   },
-  barWrap: {
+  // Exactly a corner button's height, so a screen with no buttons in its bar
+  // still puts its title on the same line as one that has them.
+  barRow: {
     minHeight: profileActionButton,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
   },
-  // Inset by a corner button and a row's gap on both sides, so a long name
-  // stops short of the buttons and still centres on the page.
   barTitle: {
-    paddingHorizontal: profileActionButton + layout.inline,
+    flex: 1,
+  },
+  barActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.stack,
   },
   sub: {
     marginTop: 2,

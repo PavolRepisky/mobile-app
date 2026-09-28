@@ -2,19 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Avatar } from '@/components/Avatar';
-import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoViewer } from '@/components/PhotoViewer';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileActionTop,
-} from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
 import { colors, layout, radii } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
@@ -54,27 +48,18 @@ export default function SettingsScreen() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
 
-  // The line the title and the back button share — My Profile's own: the
-  // corner button's fixed offset, or the status bar's if that runs lower.
-  const insets = useSafeAreaInsets();
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
-
   return (
     <View style={styles.screenRoot}>
       {/* The one screen off the white: its groups are white cards, and on a
           white page they'd dissolve into it. The cooler off-white is what
           lets each group read as its own card. */}
-      <ScreenScroll tone="alt" tabBar>
-        {/* My Profile's own title line: centred, the height of the round
-            button pinned beside it and dropped to the same line, so moving
-            between the two screens nothing in the header jumps. */}
-        <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="pageTitle" center>
-            Settings
-          </Text>
-        </View>
-
+      <ScreenScroll
+        tone="alt"
+        tabBar
+        // The back arrow and the title in the fixed bar, in reach however
+        // far down the settings go.
+        header={<ScreenHeader bar plainTitle="Settings" />}
+      >
         <Group title="Profile">
           <Row
             label="Profile photo"
@@ -131,20 +116,6 @@ export default function SettingsScreen() {
           <LegalLink label="Terms of Service" onPress={() => {}} />
         </View>
       </ScreenScroll>
-
-      {/* The back arrow is My Profile's round corner button — the same size,
-          white disc and soft shadow — pinned over the scroll on the title's
-          line rather than scrolling off with it, so the way out stays in
-          reach however far down the settings go. */}
-      <IconButton
-        name="chevron-back"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.back()}
-        accessibilityLabel="Go back"
-        style={[styles.cornerLeft, { top: headerTop }]}
-      />
 
       <AlertDialog
         visible={nameOpen}
@@ -395,16 +366,6 @@ function Row({
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  // The pinned button's height, so the title centres on the same line.
-  header: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    marginBottom: layout.title,
-  },
-  cornerLeft: {
-    position: 'absolute',
-    left: layout.gutter,
   },
   group: {
     marginBottom: layout.section,

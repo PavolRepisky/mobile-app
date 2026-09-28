@@ -42,9 +42,9 @@ const DOT_ACTIVE = 18;
  * "See all" and the search button open the same filtered list, where the
  * long tail lives; this page stays short however many challenges there are.
  *
- * The title row is the scroll's fixed header: search, title and "+" stay put
- * together while the page moves under them, so the "+" never floats over a
- * cover the way it did pinned beside a title that scrolled away.
+ * The title row is the scroll's fixed header: the title on the gutter, search
+ * and "+" together at the end, all staying put while the page moves under
+ * them, so neither button ever floats over a cover.
  */
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -91,25 +91,26 @@ export default function DiscoverScreen() {
         <ScreenHeader
           bar
           plainTitle="Challenges"
-          left={
-            <IconButton
-              name="search"
-              size={profileActionButton}
-              iconSize={profileActionIcon}
-              background={colors.surface}
-              onPress={() => openList('all', true)}
-              accessibilityLabel="Search challenges"
-            />
-          }
+          showBack={false}
           right={
-            <IconButton
-              name="add"
-              size={profileActionButton}
-              iconSize={profileActionIcon}
-              background={colors.surface}
-              onPress={() => router.push('/challenge/create')}
-              accessibilityLabel="Create a challenge"
-            />
+            <>
+              <IconButton
+                name="search"
+                size={profileActionButton}
+                iconSize={profileActionIcon}
+                background={colors.surface}
+                onPress={() => openList('all', true)}
+                accessibilityLabel="Search challenges"
+              />
+              <IconButton
+                name="add"
+                size={profileActionButton}
+                iconSize={profileActionIcon}
+                background={colors.surface}
+                onPress={() => router.push('/challenge/create')}
+                accessibilityLabel="Create a challenge"
+              />
+            </>
           }
         />
       }
