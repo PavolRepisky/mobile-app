@@ -16,7 +16,7 @@ export type Phase = 'upcoming' | 'active' | 'finished';
 
 export const PHASES: readonly { key: Phase; label: string }[] = [
   { key: 'upcoming', label: 'Starting soon' },
-  { key: 'active', label: 'Active' },
+  { key: 'active', label: 'Under way' },
   { key: 'finished', label: 'Finished' },
 ];
 
@@ -38,6 +38,33 @@ export const CATEGORY_ICONS: Record<ChallengeCategory, keyof typeof Ionicons.gly
   Study: 'book',
 };
 
+/** A topic's one line under its name on the topic page — what kind of days
+ * a challenge filed there asks for, so the photo isn't left to explain it. */
+export const CATEGORY_BLURBS: Record<ChallengeCategory, string> = {
+  Fitness: 'Workouts, steps and moving every day',
+  Health: 'Eating well, water and sleep',
+  Mindset: 'Journaling, reading and quiet time',
+  Lifestyle: 'Routines, rest and small daily habits',
+  Study: 'Reading, revision and focus time',
+};
+
+/**
+ * The lengths people choose between, as the search page offers them:
+ * nobody weighs 28 days against 30, only a few weeks against a month
+ * against the full 75.
+ */
+export type LengthBucket = 'weeks' | 'month' | 'long';
+
+export const LENGTHS: readonly { key: LengthBucket; label: string }[] = [
+  { key: 'weeks', label: '1–3 weeks' },
+  { key: 'month', label: '30 days' },
+  { key: 'long', label: '75 days' },
+];
+
+export function lengthBucket(days: number): LengthBucket {
+  return days <= 21 ? 'weeks' : days <= 45 ? 'month' : 'long';
+}
+
 /** One challenge as the browse screens show it — the one you're on and every
  * listed round in the same shape, so nothing marks yours out as a different
  * kind of thing. */
@@ -47,9 +74,17 @@ export interface ChallengeCard {
   photos: readonly PhotoSource[];
   category?: ChallengeCategory;
   tasksCount: number;
+  /** The daily tasks' labels, so a search for "walk" finds the challenge
+   * that has you walking even when its name doesn't say so. */
+  tasks: readonly string[];
+  /** The challenge you're on — shown as yours rather than as one to join. */
+  mine: boolean;
   /** Undefined for a custom challenge with no listing of its own — the
    * members count drops out rather than showing a number nothing backs. */
   members?: number;
+  /** Of `members`, how many are still in the running — only once it's under
+   * way, and only where the listing counts it. */
+  stillGoing?: number;
   /** How many days the challenge runs. */
   days: number;
   /** Day 1 of the round; undefined for a custom challenge, which has no
@@ -116,7 +151,10 @@ export function useChallengeCards(): readonly ChallengeCard[] {
       photos: challengeStrip(challenge.id),
       category: challenge.category,
       tasksCount: tasks.length,
+      tasks: tasks.map((t) => t.label),
+      mine: true,
       members: listing?.members,
+      stillGoing: listing?.stillGoing,
       days: totalDays,
       start: mineStart,
       ...mineStatus,
@@ -132,7 +170,10 @@ export function useChallengeCards(): readonly ChallengeCard[] {
           photos: section.photos,
           category: info.category,
           tasksCount: info.tasks.length,
+          tasks: info.tasks.map((t) => t.label),
+          mine: false,
           members: section.members,
+          stillGoing: section.stillGoing,
           days: info.defaultDays,
           start,
           ...roundStatus(start, info.defaultDays),
@@ -141,13 +182,28 @@ export function useChallengeCards(): readonly ChallengeCard[] {
     );
 
     return [mine, ...listed];
-  }, [challenge, tasks.length, currentDay, totalDays]);
+  }, [challenge, tasks, currentDay, totalDays]);
 }
 
-/** Each word of the query has to appear somewhere in the title, in any
- * order — "excuses no" still finds "No Excuses Challenge". */
+const terms = (query: string) => query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+/** Each word of the query has to appear somewhere in the name, the topic or
+ * one of the tasks, in any order — "excuses no" still finds "No Excuses
+ * Challenge", and "walk" finds every challenge with a walk in its day. */
 export function matchesQuery(card: ChallengeCard, query: string): boolean {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const haystack = [card.title, card.category ?? '', ...card.tasks].join(' ').toLowerCase();
+  return terms(query).every((term) => haystack.includes(term));
+}
+
+/**
+ * The task a search found a challenge by, when its name alone wouldn't have
+ * — shown under the row, so a result for "walk" called "Fresh Start" says
+ * why it's there.
+ */
+export function matchedTask(card: ChallengeCard, query: string): string | undefined {
+  const words = terms(query);
+  if (words.length === 0) return undefined;
   const title = card.title.toLowerCase();
-  return terms.every((term) => title.includes(term));
+  if (words.every((term) => title.includes(term))) return undefined;
+  return card.tasks.find((task) => words.some((term) => task.toLowerCase().includes(term)));
 }

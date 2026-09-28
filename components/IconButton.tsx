@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { createContext, useContext } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -9,6 +10,13 @@ import {
 
 import { colors, shadows } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
+
+/**
+ * Set by `ScreenHeader`'s bar, so every button in it — its own back button
+ * and whatever a screen passes as `right` — takes the header's tighter
+ * shadow without each caller having to ask for it.
+ */
+export const InHeaderBar = createContext(false);
 
 export interface IconButtonProps {
   name: keyof typeof Ionicons.glyphMap;
@@ -42,6 +50,7 @@ export function IconButton({
   accessibilityLabel,
   shadow = true,
 }: IconButtonProps) {
+  const inHeader = useContext(InHeaderBar);
   const radius = size / 2;
   const box: ViewStyle = {
     width: size,
@@ -59,7 +68,7 @@ export function IconButton({
         styles.base,
         box,
         { backgroundColor: background },
-        shadow && shadows.soft,
+        shadow && (inHeader ? shadows.header : shadows.soft),
       ]}
     >
       {glyph}

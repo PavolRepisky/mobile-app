@@ -21,6 +21,14 @@ export interface SearchBarProps {
   /** Opens with the keyboard up — for a list reached from a search button,
    * where typing is the whole reason the screen was opened. */
   autoFocus?: boolean;
+  /** Fired on the keyboard's search key — where a query is worth keeping. */
+  onSubmit?: () => void;
+  /**
+   * `outline` is the hairline field on the warm-era lists. `sunken` is the
+   * palette's own fill with no rim — the field heading the Challenges search,
+   * which sits on white beside grey chips and wants to match them.
+   */
+  tone?: 'outline' | 'sunken';
 }
 
 /**
@@ -38,9 +46,11 @@ export function SearchBar({
   rightIcon,
   onRightIconPress,
   autoFocus,
+  onSubmit,
+  tone = 'outline',
 }: SearchBarProps) {
   return (
-    <View style={[styles.root, style]}>
+    <View style={[styles.root, tone === 'sunken' && styles.sunken, style]}>
       <Ionicons name="search" size={19} color={colors.inkMuted} />
       <TextInput
         value={value}
@@ -49,6 +59,7 @@ export function SearchBar({
         placeholderTextColor={colors.inkMuted}
         returnKeyType="search"
         autoFocus={autoFocus}
+        onSubmitEditing={onSubmit}
         style={styles.input}
       />
       {rightIcon ? (
@@ -79,6 +90,10 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
     backgroundColor: colors.surfaceInput,
     paddingHorizontal: spacing.lg,
+  },
+  sunken: {
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSunken,
   },
   input: {
     flex: 1,

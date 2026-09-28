@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -17,7 +16,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { TaskRing } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
-import { colors, gradients, layout, radii } from '@/constants/theme';
+import { colors, layout, radii } from '@/constants/theme';
 import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
@@ -46,8 +45,6 @@ const ROW_NAME = 56;
 const BAR_HEIGHT = 6;
 /** The cut between one task's segment and the next on a progress row. */
 const BAR_SEGMENT_GAP = 3;
-/** The Members card's chevron — a Settings row's own size. */
-const CHEVRON = 20;
 
 const doneCount = (person: Friend) => person.tasks.filter((task) => task.done).length;
 const finished = (person: Friend) =>
@@ -61,9 +58,8 @@ const finished = (person: Friend) =>
  * post in "Finished today" once every task is done. Until someone finishes,
  * that section says so and shows how far along everyone is instead.
  *
- * Members: your challenge as a whole — how many have finished today — and
- * the finishers' posts, each with an Add so a stranger doing the same thing
- * can become a friend.
+ * Members: the finishers' posts from your challenge as a whole, each with
+ * an Add so a stranger doing the same thing can become a friend.
  *
  * Both sit behind the lock until the account has proven today with one
  * photographed task of its own: the card at the top says what to do, and
@@ -75,14 +71,13 @@ export default function CommunityScreen() {
     hasPhotographedTask,
     profile,
     challenge,
-    startDate,
     tasks,
     progress,
     captions,
     currentDay,
-    totalDays,
     trophies,
     livesLeft,
+    watchedStories,
   } = useApp();
   const [tab, setTab] = useState<Tab>('friends');
   // Friend requests sent from the Members feed — a stranger has to accept,
@@ -90,7 +85,6 @@ export default function CommunityScreen() {
   // the way Add Friends holds its own, since there is no friend graph to
   // write to yet.
   const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
-  const [trackWidth, setTrackWidth] = useState(0);
 
   // A story's last frame links the post it became: `post` names it, and the
   // feed opens on the tab it's in and scrolls it up under the title. Stories
@@ -175,6 +169,16 @@ export default function CommunityScreen() {
   }, [myFinished, myAvatar, profile, tasks, progress, captions, currentDay, trophies, livesLeft]);
 
   const friendsGoing = FRIENDS.filter((friend) => !finished(friend));
+
+  // The "Still going today" row as the story viewer plays it through: you,
+  // then everyone after you, skipping faces with no photo yet — there's no
+  // story there to land on. `me` is the viewer's name for yours.
+  const storyQueue = [
+    ...(!myFinished && hasStoryToday ? ['me'] : []),
+    ...friendsGoing
+      .filter((friend) => friend.tasks.some((task) => task.photo || task.photoSeed))
+      .map((friend) => friend.id),
+  ].join(',');
   const friendsFinished = FRIENDS.filter(finished);
   const membersFinished = FEED_AUTHORS.filter(finished);
 
@@ -196,13 +200,10 @@ export default function CommunityScreen() {
   const finishedShare = FEED_AUTHORS.length ? membersFinished.length / FEED_AUTHORS.length : 0;
   const membersDone = Math.round(challenge.joined * finishedShare);
   const membersGoing = challenge.joined - membersDone;
-  const started = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
-  const daysLeft = Math.max(0, totalDays - currentDay);
 
   // The lock card speaks to the tab it's on: your friends, or everyone else
-  // in the challenge — counted across all of it, the same number the
-  // Members card below shows, with faces from the members in the feed.
+  // in the challenge — counted across all of it, with faces from the
+  // members in the feed.
   const onFriends = tab === 'friends';
   const lockFaces = onFriends ? friendsGoing : FEED_AUTHORS.filter((person) => !finished(person));
   const lockCount = onFriends ? friendsGoing.length : membersGoing;
@@ -210,8 +211,8 @@ export default function CommunityScreen() {
     lockCount === 1 ? '' : 's'
   } still going`;
   const lockHint = onFriends
-    ? "Take a photo of any task to see your friends' days."
-    : "Take a photo of any task to see other members' days.";
+    ? "Finish any of today's tasks to see how your friends are doing."
+    : "Finish any of today's tasks to see how other members are doing.";
 
   const renderPost = (person: Friend, accessory?: React.ReactNode) => (
     <View key={person.id} onLayout={(e) => onPostLayout(person.id)(e.nativeEvent.layout.y)}>
@@ -251,15 +252,17 @@ export default function CommunityScreen() {
       >
 
         <SegmentedTabs
+          variant="pill"
+          dense
           options={[
             { key: 'friends', label: 'Friends' },
             { key: 'members', label: 'Members' },
           ]}
           value={tab}
           onChange={setTab}
-          align="left"
           style={styles.tabs}
         />
+
 
         {locked ? (
           <Card flat padded={false} radius={radii.md} style={styles.sunkenCard}>
@@ -269,7 +272,7 @@ export default function CommunityScreen() {
                   <Ionicons name="lock-closed" size={CARD_DISC_ICON} color={colors.inkInverse} />
                 </View>
                 <View style={styles.lockText}>
-                  <Text variant="itemTitle">Post to unlock</Text>
+                  <Text variant="itemTitle">Complete a task to unlock</Text>
                   <Text variant="meta" color={colors.inkMuted}>
                     {lockHint}
                   </Text>
@@ -324,9 +327,13 @@ export default function CommunityScreen() {
                       avatar={myAvatar}
                       done={myDone}
                       total={tasks.length}
+                      watched={watchedStories[`me-${currentDay}`]?.length ?? 0}
                       onPress={() =>
                         hasStoryToday
-                          ? router.push({ pathname: '/story', params: { day: String(currentDay) } })
+                          ? router.push({
+                              pathname: '/story',
+                              params: { day: String(currentDay), queue: storyQueue },
+                            })
                           : openTasks()
                       }
                     />
@@ -338,9 +345,13 @@ export default function CommunityScreen() {
                       avatar={friend.avatar}
                       done={doneCount(friend)}
                       total={friend.tasks.length}
+                      watched={watchedStories[friend.id]?.length ?? 0}
                       // The same story viewer yours opens in.
                       onPress={() =>
-                        router.push({ pathname: '/story', params: { friend: friend.id } })
+                        router.push({
+                          pathname: '/story',
+                          params: { friend: friend.id, queue: storyQueue },
+                        })
                       }
                     />
                   ))}
@@ -348,10 +359,9 @@ export default function CommunityScreen() {
               </View>
             ) : null}
 
-            <SectionHeading
-              title="Finished today"
-              meta={String(friendsFinished.length + (myPost ? 1 : 0))}
-            />
+            <Text variant="sectionHeading" style={styles.sectionHeading}>
+              Finished today
+            </Text>
 
             {myPost || friendsFinished.length ? (
               <View
@@ -397,58 +407,9 @@ export default function CommunityScreen() {
           </>
         ) : (
           <>
-            {/* The challenge everyone here shares, and how far into it you
-                are — the day, not a count of who finished, so it can't be
-                read as a second "Finished today". */}
-            <Card
-              flat
-              padded={false}
-              radius={radii.md}
-              onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-              accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
-              accessibilityHint="Opens the challenge"
-              style={styles.sunkenCard}
-            >
-              <View style={styles.cardBody}>
-                <View>
-                  <View style={styles.challengeRow}>
-                    <Text variant="itemTitle" numberOfLines={1} style={styles.flex}>
-                      {challenge.name}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={CHEVRON} color={colors.inkMuted} />
-                  </View>
-                  <Text variant="meta" color={colors.inkMuted}>
-                    {`Started ${started} · ${challenge.joined.toLocaleString('en-US')} members`}
-                  </Text>
-                </View>
-                <View style={styles.barBlock}>
-                  <View
-                    style={styles.barTrack}
-                    onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-                  >
-                    {/* The fill clips a gradient as wide as the whole track,
-                        so the colour marks how far through the challenge you
-                        are — Profile's own bar, the same way. */}
-                    <View style={[styles.barFill, { width: `${progressShare * 100}%` }]}>
-                      <LinearGradient
-                        colors={gradients.accent}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[styles.barGradient, { width: trackWidth }]}
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.barLabels}>
-                    <Text variant="metaBold">{`Day ${currentDay} of ${totalDays}`}</Text>
-                    <Text variant="meta" color={colors.inkMuted}>
-                      {daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </Card>
-
-            <SectionHeading title="Finished today" meta={String(membersFinished.length)} />
+            <Text variant="sectionHeading" style={styles.sectionHeading}>
+              Finished today
+            </Text>
 
             {membersFinished.length ? (
               <View
@@ -494,30 +455,19 @@ export default function CommunityScreen() {
   );
 }
 
-/** A section's title with its quiet count or note at the far end — the way
- * My Profile sets "Days" against its switch. */
-function SectionHeading({ title, meta }: { title: string; meta: string }) {
-  return (
-    <View style={styles.sectionHeading}>
-      <Text variant="sectionHeading">{title}</Text>
-      <Text variant="metaBold" color={colors.inkMuted}>
-        {meta}
-      </Text>
-    </View>
-  );
-}
-
 function StoryFace({
   name,
   avatar,
   done,
   total,
+  watched,
   onPress,
 }: {
   name: string;
   avatar: AvatarSource;
   done: number;
   total: number;
+  watched: number;
   onPress: () => void;
 }) {
   return (
@@ -526,6 +476,7 @@ function StoryFace({
         avatar={avatar}
         done={done}
         total={total}
+        watched={watched}
         size={STORY_RING}
         onPress={onPress}
         accessibilityLabel={`${name}, ${done} of ${total} done`}
@@ -659,9 +610,6 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   sectionHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     marginBottom: layout.heading,
   },
   posts: {
@@ -700,33 +648,5 @@ const styles = StyleSheet.create({
   },
   segmentDone: {
     backgroundColor: colors.ink,
-  },
-  challengeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-  },
-  barBlock: {
-    gap: layout.stack,
-  },
-  // White rather than a divider grey: on the card's grey a divider tone sits
-  // within a shade of the fill and the track vanishes.
-  barTrack: {
-    height: BAR_HEIGHT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-  },
-  barGradient: {
-    height: '100%',
-  },
-  barLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
 });

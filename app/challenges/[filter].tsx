@@ -1,170 +1,194 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChallengeRow, challengeDetail } from '@/components/ChallengeRow';
 import { EmptyState } from '@/components/EmptyState';
-import { Pill } from '@/components/Pill';
-import { ScreenScroll } from '@/components/Screen';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { SearchBar } from '@/components/SearchBar';
+import { IconButton } from '@/components/IconButton';
+import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { headerLineTop, ScreenScroll, topPadding } from '@/components/Screen';
+import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
-import { colors, layout, radii } from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, spacing } from '@/constants/theme';
 import type { ChallengeCategory } from '@/data/challenges';
 import {
   CATEGORIES,
-  matchesQuery,
+  CATEGORY_BLURBS,
   PHASES,
   useChallengeCards,
+  type ChallengeCard,
   type Phase,
 } from '@/hooks/useChallengeCards';
 
-/** A row's photo: big enough to recognise a challenge by, small enough that
- * a screen holds seven of them. */
-const THUMB = 56;
+/** The topic's photo band: tall enough to hold the back button, the name and
+ * its line, short enough that the first rows sit above the fold. */
+const BAND_HEIGHT = 230;
 
 /**
- * The long list behind Challenges — every challenge, or one category's, as
- * compact rows under a search field and a chip per phase with its count. It
- * is where the catalogue's long tail lives, so the Challenges tab itself can
- * stay a cover and a handful of tiles however many rounds there are.
+ * One topic — Fitness, Study — opened from its tile on the Challenges tab.
+ * The topic's photo heads the page with its name and what it covers, then a
+ * switch between rounds starting soon, under way and finished. It always
+ * opens on starting soon, the only rounds anyone can join; when there are
+ * none it says so, offers to start one, and lists what's under way below so
+ * the page is never a dead end.
+ *
+ * The All topics tile opens it with no topic (`all`): the same page over
+ * every challenge, each row naming its topic.
  */
-export default function ChallengeListScreen() {
+export default function TopicScreen() {
   const router = useRouter();
-  const { filter, search } = useLocalSearchParams<{ filter: string; search?: string }>();
+  const insets = useSafeAreaInsets();
+  const { filter } = useLocalSearchParams<{ filter: string }>();
   const cards = useChallengeCards();
-  const category = CATEGORIES.find((name) => name === filter) as ChallengeCategory | undefined;
-  const [query, setQuery] = useState('');
+  const topic = CATEGORIES.find((name) => name === filter) as ChallengeCategory | undefined;
+  const [phase, setPhase] = useState<Phase>('upcoming');
 
-  const inScope = useMemo(
-    () => cards.filter((card) => !category || card.category === category),
-    [cards, category],
+  const inTopic = useMemo(
+    () => cards.filter((card) => !topic || card.category === topic),
+    [cards, topic],
   );
-  const counts = useMemo(() => {
-    const byPhase: Record<Phase, number> = { upcoming: 0, active: 0, finished: 0 };
-    for (const card of inScope) {
-      if (matchesQuery(card, query)) byPhase[card.phase] += 1;
-    }
-    return byPhase;
-  }, [inScope, query]);
+  const byPhase = (p: Phase) =>
+    inTopic
+      .filter((card) => card.phase === p)
+      .sort((a, b) =>
+        p === 'upcoming'
+          ? (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0)
+          : (b.start?.getTime() ?? 0) - (a.start?.getTime() ?? 0),
+      );
+  const rows = byPhase(phase);
+  const name = topic ?? 'All challenges';
+  const blurb = topic ? CATEGORY_BLURBS[topic] : 'Every topic, every round';
 
-  // Opens on the rounds you can still join, unless there are none here.
-  const [phase, setPhase] = useState<Phase>(
-    () => PHASES.find((p) => inScope.some((card) => card.phase === p.key))?.key ?? 'upcoming',
-  );
+  const open = (card: ChallengeCard) =>
+    router.push({ pathname: '/feed/[id]', params: { id: card.id } });
 
-  const rows = useMemo(
-    () =>
-      inScope
-        .filter((card) => card.phase === phase && matchesQuery(card, query))
-        .sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0)),
-    [inScope, phase, query],
-  );
+  const list = (items: readonly ChallengeCard[]) =>
+    items.map((card) => (
+      <ChallengeRow
+        key={card.id}
+        card={card}
+        detail={challengeDetail(card, !topic)}
+        onPress={() => open(card)}
+      />
+    ));
+
+  const underWay = phase === 'upcoming' && rows.length === 0 ? byPhase('active') : [];
 
   return (
-    <ScreenScroll
-      header={<ScreenHeader bar plainTitle={category ?? 'All challenges'} />}
-    >
-      <SearchBar
-        value={query}
-        onChangeText={setQuery}
-        placeholder={category ? `Search ${category.toLowerCase()}` : 'Search challenges'}
-        autoFocus={search === '1'}
-        style={styles.search}
-      />
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipsBleed}
-        contentContainerStyle={styles.chips}
-      >
-        {PHASES.map((p) => (
-          <Pill
-            key={p.key}
-            label={`${p.label} ${counts[p.key]}`}
-            tone={p.key === phase ? 'solid' : 'muted'}
-            bold
-            onPress={() => setPhase(p.key)}
-          />
-        ))}
-      </ScrollView>
-
-      {rows.length === 0 ? (
-        <EmptyState
-          icon="search"
-          title="No challenges found"
-          hint={query.trim() ? 'Try a different search.' : 'Try another tab.'}
-          style={styles.empty}
+    <ScreenScroll padded={false} contentContainerStyle={styles.page}>
+      <View style={styles.band}>
+        {inTopic[0] ? (
+          <Image source={inTopic[0].photos[0]} style={absoluteFill} contentFit="cover" />
+        ) : null}
+        <LinearGradient colors={gradients.coverShade} style={absoluteFill} />
+        <IconButton
+          name="chevron-back"
+          size={profileActionButton}
+          iconSize={profileActionIcon}
+          background={colors.surface}
+          onPress={() => router.back()}
+          accessibilityLabel="Go back"
+          style={[
+            styles.back,
+            { top: Math.max(headerLineTop, topPadding(insets.top)) },
+          ]}
         />
-      ) : (
-        <View style={styles.rows}>
-          {rows.map((card) => (
-            <Pressable
-              key={card.id}
-              accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/feed/[id]', params: { id: card.id } })}
-              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-            >
-              <Image source={card.photos[0]} style={styles.thumb} contentFit="cover" />
-              <View style={styles.rowText}>
-                <Text variant="copyBold" numberOfLines={1}>
-                  {card.title}
-                </Text>
-                <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-                  {[
-                    card.category,
-                    `${card.days} days`,
-                    card.members !== undefined ? `${card.members.toLocaleString('en-US')} in` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Text>
-              </View>
-              <Text variant="metaBold">{card.shortStatus}</Text>
-            </Pressable>
-          ))}
+        <View style={styles.bandText}>
+          <Text variant="title" color={colors.inkInverse}>
+            {name}
+          </Text>
+          <Text variant="meta" color={colors.onMediaSoft}>
+            {blurb} · {inTopic.length === 1 ? '1 challenge' : `${inTopic.length} challenges`}
+          </Text>
         </View>
-      )}
+      </View>
+
+      <View style={styles.body}>
+        <SegmentedTabs
+          variant="pill"
+          dense
+          options={PHASES.map((p) => ({ key: p.key, label: `${p.label} ${byPhase(p.key).length}` }))}
+          value={phase}
+          onChange={setPhase}
+          style={styles.switch}
+        />
+
+        {rows.length > 0 ? (
+          list(rows)
+        ) : phase === 'upcoming' ? (
+          <EmptyState
+            icon="calendar-outline"
+            disc
+            title={topic ? `Nothing starting soon in ${topic}` : 'Nothing starting soon'}
+            hint="New rounds open every week. Start one yourself and friends can join you."
+            action={{
+              label: topic ? `Create a ${topic} challenge` : 'Create a challenge',
+              onPress: () => router.push('/challenge/create'),
+            }}
+            style={styles.empty}
+          />
+        ) : (
+          <EmptyState
+            icon={phase === 'active' ? 'hourglass-outline' : 'flag-outline'}
+            disc
+            title={
+              phase === 'active'
+                ? `Nothing under way${topic ? ` in ${topic}` : ''}`
+                : `Nothing finished${topic ? ` in ${topic}` : ''} yet`
+            }
+            style={styles.empty}
+          />
+        )}
+
+        {underWay.length > 0 ? (
+          <>
+            <Text variant="copyBold" style={styles.underWay}>
+              Under way — closed to new members
+            </Text>
+            {list(underWay)}
+          </>
+        ) : null}
+      </View>
     </ScreenScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  search: {
-    marginBottom: layout.block,
+  // The band runs up under the status bar, so the page starts at the top edge
+  // rather than a title's gap below it.
+  page: {
+    paddingTop: 0,
   },
-  // Chips run to the screen edges when they overflow, starting on the
-  // gutter like everything above them.
-  chipsBleed: {
-    marginHorizontal: -layout.gutter,
-    marginBottom: layout.section,
+  band: {
+    height: BAND_HEIGHT,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSunken,
   },
-  chips: {
+  back: {
+    position: 'absolute',
+    left: layout.gutter,
+  },
+  bandText: {
     paddingHorizontal: layout.gutter,
-    gap: layout.stack,
-  },
-  rows: {
-    gap: layout.block,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-  },
-  thumb: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: radii.md,
-  },
-  rowText: {
-    flex: 1,
+    paddingBottom: layout.card,
     gap: layout.line,
   },
-  empty: {
-    marginTop: layout.section,
+  body: {
+    paddingHorizontal: layout.gutter,
+    paddingTop: layout.card,
   },
-  pressed: {
-    opacity: 0.85,
+  switch: {
+    marginBottom: layout.stack,
+  },
+  empty: {
+    paddingTop: spacing['2xl'],
+  },
+  underWay: {
+    marginTop: layout.section,
+    marginBottom: layout.line,
   },
 });

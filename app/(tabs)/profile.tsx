@@ -1,343 +1,57 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
+import { useCallback, useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Avatar } from '@/components/Avatar';
-import { BottomSheet } from '@/components/BottomSheet';
-import { PrimaryButton } from '@/components/Buttons';
-import {
-  CalendarMonth,
-  MONTH_NAMES,
-  type CalendarDay,
-  type DayShot,
-} from '@/components/CalendarMonth';
-import { Card } from '@/components/Card';
-import { EmptyState } from '@/components/EmptyState';
-import { DayStamp } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
-import { MosaicArrangement } from '@/components/PhotoCollage';
-import { Placeholder } from '@/components/Placeholder';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileAvatarSize,
-} from '@/components/ProfileLayout';
+import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { SegmentedTabs } from '@/components/SegmentedTabs';
-import { accentAt } from '@/components/TaskRing';
-import { Text } from '@/components/Text';
-import {
-  colors,
-  gradients,
-  layout,
-  radii,
-  shadows,
-  spacing,
-} from '@/constants/theme';
-import { WheelPicker } from '@/components/WheelPicker';
+import { colors } from '@/constants/theme';
 import { useApp, usePostedDays } from '@/hooks/useAppState';
 
-/** Kept out of the stylesheet because it is handed to `Image` as often as to
- * a `View`, and the two disagree about what a style is allowed to say —
- * the calendar's own day-cell mosaic does the same. */
-const DAY_CELL_PIECE = { flex: 1 } as const;
-/** No cut between a day's own photos — unlike the calendar's own mosaic,
- * the gap here belongs between whole day tiles, not the prints inside one. */
-const DAY_CELL_SEAM = 0;
-/** A hint of rounding on each post tile — smaller than the `sm` token, which
- * reads too soft against the tight edge-to-edge grid. */
-const POST_TILE_RADIUS = 5;
-/** Width over height for a post tile — a touch taller than square, rather
- * than the flat 1:1 an Instagram grid usually cuts its own tiles to. */
-const POST_TILE_RATIO = 0.85;
-
-/** The "3/5" count on a partly done day's tile: small enough to leave the
- * photo the main thing, big enough to read as a mark rather than a speck. */
-const TILE_MARK = 22;
-
-/** Wide enough for "Grid" and "Month" with their glyphs; the pill track
- * splits it evenly so the chip slides between two fixed stops. */
-const DAYS_SWITCH_WIDTH = 190;
-
-/** The month view's paging arrows — big enough to hit at the page's edges
- * without a button shape around them. */
-const MONTH_ARROW = 24;
-/** The ▾ beside the month name, a step under the name's own cap height. */
-const MONTH_CARET = 18;
-/** Top margin that settles the caret onto the name's optical centre — see
- * `monthCaret` for where it was measured from. */
-const MONTH_CARET_NUDGE = 1;
-/** How far back the year picker reaches — far enough to look at the months
- * before the app. It stops at this year: there's nothing to see ahead. */
-const YEARS_BACK = 5;
-
-/** The challenge card's "opens a page" chevron — a Settings row's own size. */
-const CHALLENGE_CHEVRON = 20;
-
-/** Same hero circle the to-do ring and a friend's profile share — this is
- * the one place on the app's own profile that gets to be that big. */
-const avatarSize = profileAvatarSize;
-
 /**
- * Today at a glance, drawn as a ring around the photo: one segment per task
- * in the challenge, filled clockwise from 12 o'clock as tasks get done — so
- * opening a profile says straight away how the day is going. A clear gap
- * between the ring and the photo keeps it reading as a gauge around the
- * avatar, not a coloured border on it.
+ * Your own profile. The page itself is `ProfileView`, the same one anyone
+ * else's profile opens on — this screen only reads your days off the app's
+ * state and puts Settings in the header.
  */
-const RING_STROKE = 6;
-const RING_GAP = 5;
-const RING_SIZE = avatarSize + (RING_STROKE + RING_GAP) * 2;
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-/** The visible gap between two segments, measured along the ring. */
-const RING_SEGMENT_GAP = 7;
-
-/**
- * One arc per task, each rotated into its own slot. Round caps grow every
- * arc by half a stroke at each end, so the drawn length gives that back to
- * keep the gaps the size they say. A single task is the whole circle, with
- * no gap to leave.
- */
-function ringSegments(count: number): { length: number; rotation: number }[] {
-  if (count <= 1) return [{ length: RING_CIRCUMFERENCE, rotation: -90 }];
-  const slot = RING_CIRCUMFERENCE / count;
-  const length = Math.max(0.01, slot - RING_SEGMENT_GAP - RING_STROKE);
-  // Shifts each arc half a gap off its slot's edge, so the gap straddles
-  // 12 o'clock rather than the first segment starting on it.
-  const inset = (((RING_SEGMENT_GAP + RING_STROKE) / 2) / RING_CIRCUMFERENCE) * 360;
-  return Array.from({ length: count }, (_, i) => ({
-    length,
-    rotation: -90 + (i * 360) / count + inset,
-  }));
-}
-
-/** One arc of the ring, rotated into its slot. Round caps only between
- * segments — a single task's arc is the whole circle, with no end to cap. */
-function ringSegment(
-  segment: { length: number; rotation: number },
-  index: number,
-  stroke: string,
-  capped: boolean,
-) {
-  return (
-    <Circle
-      key={index}
-      cx={RING_SIZE / 2}
-      cy={RING_SIZE / 2}
-      r={RING_RADIUS}
-      stroke={stroke}
-      strokeWidth={RING_STROKE}
-      strokeLinecap={capped ? 'round' : 'butt'}
-      fill="none"
-      strokeDasharray={`${segment.length} ${RING_CIRCUMFERENCE}`}
-      transform={`rotate(${segment.rotation} ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-    />
-  );
-}
-
-/**
- * The accent runs *around* the ring rather than across its box: peach where
- * the first segment starts at 12 o'clock, rose halfway round, lavender by the
- * time the last segment closes — the warm end leads, so the first task ticked
- * off lands in the brightest colour. SVG has no conic gradient, so the sweep
- * is drawn as this many thin arcs, each one flat-coloured for its angle — at
- * a 4° step the banding is below what the eye picks out on a 6pt stroke.
- */
-const RING_SWEEP_SLICES = 90;
-/** How far each slice overlaps the next, along the ring — butted edge to
- * edge, anti-aliasing leaves a hairline seam of background between them. */
-const RING_SWEEP_OVERLAP = 0.6;
-
-/** The sweep's slices, clockwise from 12 o'clock. */
-const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
-  rotation: -90 + (i * 360) / RING_SWEEP_SLICES,
-  // Coloured at the slice's middle, so the first and last land just inside
-  // the two end stops rather than exactly on them.
-  color: accentAt((i + 0.5) / RING_SWEEP_SLICES),
-}));
-
-/** The badge sits centred on the bottom of the ring, the way the "Day N" pill
- * sits on the story ring — sized to that overlap, not to the type scale. */
-const badgeHeight = 30;
-const badgeRingWidth = 2;
-
-/** Where the photo sits inside the ring's box: clear of the stroke and the
- * gap between them. */
-const AVATAR_INSET = RING_STROKE + RING_GAP;
-
-/** How far the badge hangs below the ring: centred on the stroke, then lifted
- * a step so more of it sits on the photo than under it. The name under it
- * steps down by exactly this, so the gap above the name is the same with the
- * badge as it was without. */
-const badgeOverhang = (badgeHeight - RING_STROKE) / 2 - spacing.xs;
-
-const DAY_MS = 86_400_000;
-
-type DaysView = 'grid' | 'month';
-
 export default function ProfileScreen() {
   const router = useRouter();
-  const {
-    profile,
-    currentDay,
-    totalDays,
-    startDate,
-    challenge,
-    tasks,
-    progress,
-  } = useApp();
-  const { width: windowWidth } = useWindowDimensions();
-  // The photo itself is edited in Settings now, not from here — and the
-  // friend code lives on Find friends, with everything else about adding
-  // people.
-  const avatarSource = profile.avatar ?? profile.avatarSeed;
+  const { profile, currentDay, totalDays, startDate, challenge, tasks, progress } = useApp();
 
-  const [daysView, setDaysView] = useState<DaysView>('grid');
-  const [trackWidth, setTrackWidth] = useState(0);
-  // Which month the month view shows, counted in months from this one — 0 is
-  // now, -1 last month. An offset rather than a date, so the view still opens
-  // on the current month once the calendar rolls into a new one.
-  const [monthOffset, setMonthOffset] = useState(0);
-  // The year sheet's own pick, held apart from the month on show until Done —
-  // the wheel passes a year per row, and redrawing the calendar behind the
-  // sheet at every one of them is work nobody sees.
-  const [yearSheetOpen, setYearSheetOpen] = useState(false);
-  const [pendingYear, setPendingYear] = useState(0);
+  const dayOf = useCallback(
+    (day: number): ProfileDay => ({
+      shots: tasks.flatMap((task) => {
+        const entry = progress[day]?.[task.id];
+        return entry?.photo || entry?.photoSeed
+          ? [{ key: task.id, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }]
+          : [];
+      }),
+      done: tasks.filter((task) => progress[day]?.[task.id]?.done).length,
+    }),
+    [tasks, progress],
+  );
 
-  const doneOn = (day: number) =>
-    tasks.filter((task) => progress[day]?.[task.id]?.done).length;
-  // How many of today's tasks are ticked off — what the ring fills in.
-  const doneToday = doneOn(currentDay);
   // Today is a story as soon as one task has its photo — until then there is
   // nothing to watch, and the photo is just a photo.
-  const hasStoryToday = tasks.some((task) => {
-    const entry = progress[currentDay]?.[task.id];
-    return Boolean(entry?.photo || entry?.photoSeed);
-  });
-  const dayFinished = (day: number) => tasks.length > 0 && doneOn(day) === tasks.length;
+  const hasStoryToday = dayOf(currentDay).shots.length > 0;
+  const dayFinished = (day: number) => tasks.length > 0 && dayOf(day).done === tasks.length;
 
   // Same order the day pager pages through — opening a tile and paging down
   // must land on the next tile in this exact sequence. Today only joins the
   // grid once it is finished: until then it is still a story in progress,
   // and the ring above already shows it.
-  const postedDays = usePostedDays().filter(
-    (day) => day < currentDay || dayFinished(day),
+  const postedDays = usePostedDays().filter((day) => day < currentDay || dayFinished(day));
+
+  const openDay = useCallback(
+    (day: number) => router.push({ pathname: '/day/[day]', params: { day: String(day) } }),
+    [router],
   );
-
-  // Every posted day, most recent first — each one cut into the same merged
-  // mosaic the to-do tab and a friend's own day use. Only the tasks that
-  // actually got a photo take a slice of the cell: a day with three of five
-  // shot reads as three prints, not three prints and two grey gaps.
-  const posts = postedDays.map((day) => {
-    const rows = tasks
-      .map((task) => {
-        const entry = progress[day]?.[task.id];
-        return entry?.photo || entry?.photoSeed
-          ? { key: task.id, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }
-          : null;
-      })
-      .filter((row): row is NonNullable<typeof row> => row !== null);
-    return { key: `day-${day}`, day, rows, done: doneOn(day) };
-  });
-
-  const openDay = (day: number) =>
-    router.push({ pathname: '/day/[day]', params: { day: String(day) } });
-
-  // The month on show, laid out day by day. Any month can be paged to —
-  // before the app, after the challenge — and a date outside the challenge is
-  // just an empty cell. Inside it, a past day with photos opens its post,
-  // exactly as its grid tile does; today opens Tasks, where the day is
-  // actually being done; a missed day and a day still to come have nothing
-  // to open.
-  const shownMonth = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    /** Which challenge day a calendar date is, or null if it is outside it.
-     * Rounded rather than floored: a daylight-saving shift puts a fractional
-     * day between two dates, which would otherwise slide every date after it
-     * back by one. */
-    const dayNumber = (date: Date) => {
-      const n = Math.round((date.getTime() - startDate.getTime()) / DAY_MS) + 1;
-      return n >= 1 && n <= totalDays ? n : null;
-    };
-    const shotsFor = (day: number) =>
-      tasks.flatMap<DayShot>((task) => {
-        const row = progress[day]?.[task.id];
-        if (row?.photo) return [{ photo: row.photo, seed: null }];
-        if (row?.photoSeed) return [{ photo: null, seed: row.photoSeed }];
-        return [];
-      });
-    const doneCount = (day: number) =>
-      tasks.filter((task) => progress[day]?.[task.id]?.done).length;
-
-    const first = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
-    const year = first.getFullYear();
-    const month = first.getMonth();
-    const length = new Date(year, month + 1, 0).getDate();
-    const days: Record<number, CalendarDay> = {};
-
-    for (let date = 1; date <= length; date += 1) {
-      const on = new Date(year, month, date);
-      const day = dayNumber(on);
-      const isToday = on.getTime() === today.getTime();
-      const shots = day === null ? [] : shotsFor(day);
-      const done = day === null ? 0 : doneCount(day);
-      const cell: CalendarDay = { shots, past: on <= today, today: isToday };
-
-      if (day !== null && day < currentDay) {
-        // A finished day carries no mark — its photos are the proof, the
-        // same way a finished day's grid tile is just its photos. Only a
-        // day that fell short says so.
-        if (done < tasks.length) {
-          if (shots.length) cell.mark = `${done}/${tasks.length}`;
-          else cell.missed = true;
-        }
-        if (shots.length) {
-          cell.onPress = () =>
-            router.push({ pathname: '/day/[day]', params: { day: String(day) } });
-          cell.label = `Day ${day}, ${done} of ${tasks.length} tasks. Opens this day's post.`;
-        } else {
-          cell.label = `${MONTH_NAMES[month]} ${date}, Day ${day}. Missed.`;
-        }
-      } else if (day !== null && isToday) {
-        if (done) cell.mark = `${done}/${tasks.length}`;
-        cell.onPress = () => router.push('/tasks');
-        cell.label = `Today, Day ${day}, ${done} of ${tasks.length} so far. Opens Tasks.`;
-      }
-      days[date] = cell;
-    }
-
-    return { month: first, days };
-  }, [monthOffset, startDate, totalDays, currentDay, tasks, progress, router]);
-
-  // The years the picker offers: back from this one, stretched to take in the
-  // year the challenge started should it fall further back than that.
-  const thisYear = new Date().getFullYear();
-  const firstYear = Math.min(thisYear - YEARS_BACK, startDate.getFullYear());
-  const years = Array.from({ length: thisYear - firstYear + 1 }, (_, i) => firstYear + i);
-
-  // A year on its own isn't a page — it keeps the month being looked at and
-  // moves it to the chosen year, pulled back to this month if that lands it
-  // in the future.
-  const jumpToYear = (year: number) => {
-    setMonthOffset(Math.min(0, monthOffset + (year - shownMonth.month.getFullYear()) * 12));
-  };
-
-  const openYearSheet = () => {
-    setPendingYear(shownMonth.month.getFullYear());
-    setYearSheetOpen(true);
-  };
-
-  const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
-  const daysLeft = Math.max(0, totalDays - currentDay);
-  const startedLabel = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // Today is being done in Tasks, so that's where its calendar cell leads.
+  const today = useMemo(
+    () => ({ onPress: () => router.push('/tasks'), hint: 'Opens Tasks.' }),
+    [router],
+  );
 
   return (
     <View style={styles.screenRoot}>
@@ -366,339 +80,31 @@ export default function ProfileScreen() {
           />
         }
       >
-
-        <View style={styles.identity}>
-          <View
-            style={styles.ringWrap}
-            accessibilityLabel={`Day ${currentDay} of ${totalDays}, ${doneToday} of ${tasks.length} tasks done today`}
-          >
-            {/* Counted, not matched to a task: the ring says how many are
-                done, filling from the top, whichever ones they were. Done
-                segments wear the profile's own warm accent; open ones take
-                the empty-day grey the story ring uses.
-
-                The sweep is laid once around the whole ring and shown
-                through the done segments as a mask, so a segment's colour
-                is simply where it sits on the circle — the first one
-                peach, the last one lavender, whichever tasks are done. */}
-            <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
-              <Defs>
-                {/* White is what a mask lets through — the done segments'
-                    shape, not a colour anyone sees. */}
-                <Mask
-                  id="ringDone"
-                  maskUnits="userSpaceOnUse"
-                  x={0}
-                  y={0}
-                  width={RING_SIZE}
-                  height={RING_SIZE}
-                >
-                  {ringSegments(tasks.length)
-                    .slice(0, doneToday)
-                    .map((segment, index) =>
-                      ringSegment(segment, index, colors.inkInverse, tasks.length > 1),
-                    )}
-                </Mask>
-              </Defs>
-
-              {ringSegments(tasks.length).map((segment, index) =>
-                index < doneToday
-                  ? null
-                  : ringSegment(segment, index, colors.inkGhost, tasks.length > 1),
-              )}
-              <G mask="url(#ringDone)">
-                {ringSweep.map((slice, index) => (
-                  <Circle
-                    key={index}
-                    cx={RING_SIZE / 2}
-                    cy={RING_SIZE / 2}
-                    r={RING_RADIUS}
-                    stroke={slice.color}
-                    strokeWidth={RING_STROKE}
-                    fill="none"
-                    strokeDasharray={`${RING_CIRCUMFERENCE / RING_SWEEP_SLICES + RING_SWEEP_OVERLAP} ${RING_CIRCUMFERENCE}`}
-                    transform={`rotate(${slice.rotation} ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-                  />
-                ))}
-              </G>
-            </Svg>
-
-            {/* The disc behind the photo is the avatar's own shape, so the
-                hard shadow has something solid to cast from. A tap plays
-                today's story — the ring around it is that story's progress —
-                and does nothing on a day with no photo yet. */}
-            <View style={[styles.avatarDisc, shadows.hard]}>
-              <Pressable
-                accessibilityRole={hasStoryToday ? 'button' : undefined}
-                accessibilityLabel={hasStoryToday ? "Watch today's story" : 'Profile photo'}
-                disabled={!hasStoryToday}
-                onPress={() =>
-                  router.push({ pathname: '/story', params: { day: String(currentDay) } })
-                }
-                style={({ pressed }) => pressed && styles.pressed}
-              >
-                <Avatar source={avatarSource} size={avatarSize} />
-              </Pressable>
-            </View>
-
-            {/* Today's count clipped onto the bottom of the gauge — the ring
-                shows how far along, the badge says it in numbers. Hidden from
-                screen readers: the ring's own label already says it. */}
-            <View
-              pointerEvents="none"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={[styles.badge, shadows.hard]}
-            >
-              <Text variant="badge" color={colors.inkInverse}>
-                {`${doneToday}/${tasks.length}`}
-              </Text>
-            </View>
-          </View>
-
-          {/* Stacked under the photo and centred on it. Editing any of it is
-              Settings' job, not a tap here — and a missing bio is simply left
-              out rather than standing in as placeholder text. */}
-          <View style={styles.identityText}>
-            <Text variant="pageTitle" center>
-              {profile.name}
-            </Text>
-            <Text variant="metaBold" color={colors.inkGhost} center>
-              {profile.handle}
-            </Text>
-            {profile.bio ? (
-              <Text variant="copy" color={colors.inkMuted} center style={styles.bio}>
-                {profile.bio}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-
-        {/* The challenge the ring is measuring, how far into it you are, and
-            a way into its page. */}
-        <Card
-          flat
-          padded={false}
-          radius={radii.md}
-          onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-          accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
-          accessibilityHint="Opens the challenge"
-          style={styles.challengeCard}
-        >
-          {/* Laid out as Community's Members card is — name and chevron,
-              the challenge's start and size, then the bar with the day
-              spelled out under it — so the two read as one card. */}
-          <View style={styles.challengeBody}>
-            <View>
-              <View style={styles.challengeRow}>
-                <Text variant="itemTitle" numberOfLines={1} style={styles.challengeName}>
-                  {challenge.name}
-                </Text>
-                {/* The same chevron a Settings row ends on — the one cue the
-                    app already uses for "this opens a page", where a flat
-                    card on its own reads as information rather than a way in. */}
-                <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
-              </View>
-              <Text variant="meta" color={colors.inkMuted}>
-                {`Started ${startedLabel} · ${challenge.joined.toLocaleString('en-US')} members`}
-              </Text>
-            </View>
-            <View style={styles.progressBlock}>
-              <View
-                style={styles.progressTrack}
-                onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-              >
-                {/* The fill clips a gradient as wide as the whole track, so
-                    the colour marks how far through the challenge you are —
-                    peach early on, lavender only near the end — the same way
-                    the ring's sweep is read off where a segment sits. */}
-                <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]}>
-                  <LinearGradient
-                    colors={gradients.accent}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.progressGradient, { width: trackWidth }]}
-                  />
-                </View>
-              </View>
-              <View style={styles.progressLabels}>
-                <Text variant="metaBold">{`Day ${currentDay} of ${totalDays}`}</Text>
-                <Text variant="meta" color={colors.inkMuted}>
-                  {daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </Card>
-
-        <View style={styles.daysHeader}>
-          <Text variant="sectionHeading">Days</Text>
-          <SegmentedTabs
-            variant="pill"
-            options={[
-              { key: 'grid', label: 'Grid', icon: 'grid-outline' },
-              { key: 'month', label: 'Month', icon: 'calendar-outline' },
-            ]}
-            value={daysView}
-            onChange={setDaysView}
-            style={styles.daysSwitch}
-          />
-        </View>
-
-        {daysView === 'month' ? (
-          <CalendarMonth
-            month={shownMonth.month}
-            days={shownMonth.days}
-            filled
-            style={styles.month}
-            header={
-              // One month at a time, and the arrows go as far as anyone
-              // pages — an empty month before the app is still a month.
-              <View style={styles.monthHeader}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Previous month"
-                  onPress={() => setMonthOffset(monthOffset - 1)}
-                  hitSlop={spacing.md}
-                  style={({ pressed }) => pressed && styles.pressed}
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={MONTH_ARROW}
-                    color={colors.ink}
-                  />
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
-                  onPress={openYearSheet}
-                  hitSlop={spacing.sm}
-                  style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
-                >
-                  <Text variant="itemTitle" style={styles.monthTitleText}>
-                    {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
-                  </Text>
-                  <Ionicons
-                    name="chevron-down"
-                    size={MONTH_CARET}
-                    color={colors.ink}
-                    style={styles.monthCaret}
-                  />
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Next month"
-                  // This month is as far as it goes — the calendar shows
-                  // what has been, not what's ahead.
-                  disabled={monthOffset >= 0}
-                  onPress={() => setMonthOffset(monthOffset + 1)}
-                  hitSlop={spacing.md}
-                  style={({ pressed }) => pressed && styles.pressed}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={MONTH_ARROW}
-                    color={monthOffset >= 0 ? colors.inkGhost : colors.ink}
-                  />
-                </Pressable>
-              </View>
-            }
-          />
-        ) : posts.length === 0 ? (
-          <EmptyState
-            icon="camera-outline"
-            title="No days yet"
-            hint="Finish a day's tasks to see it here."
-          />
-        ) : (
-          <View style={styles.postGrid}>
-            {posts.map((post) => {
-              const finished = post.done === tasks.length;
-              return (
-                <View key={post.key} style={styles.postCellWrap}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      finished
-                        ? `Day ${post.day}, finished`
-                        : `Day ${post.day}, ${post.done} of ${tasks.length} tasks`
-                    }
-                    onPress={() => openDay(post.day)}
-                    style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
-                  >
-                    <MosaicArrangement
-                      cells={post.rows}
-                      seam={DAY_CELL_SEAM}
-                      renderCell={(row) =>
-                        row.photo ? (
-                          <Image
-                            key={row.key}
-                            source={row.photo}
-                            style={DAY_CELL_PIECE}
-                            contentFit="cover"
-                          />
-                        ) : (
-                          <Placeholder
-                            key={row.key}
-                            seed={row.seed ?? undefined}
-                            radius={0}
-                            style={DAY_CELL_PIECE}
-                          />
-                        )
-                      }
-                    />
-
-                    {/* The opened post's own stamp, set at the post's width
-                        — its photos run edge to edge, so the window's — and
-                        scaled down whole, so the tile is a miniature of the
-                        post rather than a pile of photos with a label. */}
-                    <DayStamp day={post.day} kicker={challenge.name} referenceWidth={windowWidth} />
-
-                    {/* Only a day that fell short says so — a finished day is
-                        just its photos. */}
-                    {finished ? null : (
-                      <View style={styles.tileCount}>
-                        <Text variant="badge" color={colors.ink}>
-                          {`${post.done}/${tasks.length}`}
-                        </Text>
-                      </View>
-                    )}
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        )}
+        <ProfileView
+          // The photo itself is edited in Settings, not from here — and the
+          // friend code lives on Find friends, with everything else about
+          // adding people.
+          avatar={profile.avatar ?? profile.avatarSeed}
+          name={profile.name}
+          handle={profile.handle}
+          bio={profile.bio}
+          challenge={challenge}
+          startDate={startDate}
+          currentDay={currentDay}
+          totalDays={totalDays}
+          taskCount={tasks.length}
+          dayOf={dayOf}
+          posted={postedDays}
+          onPlayStory={
+            hasStoryToday
+              ? () => router.push({ pathname: '/story', params: { day: String(currentDay) } })
+              : undefined
+          }
+          onOpenDay={openDay}
+          today={today}
+          emptyHint="Finish a day's tasks to see it here."
+        />
       </ScreenScroll>
-
-      {/* The year, picked on the iPhone's own date-wheel drum from a sheet
-          at the bottom. Done moves the calendar; tapping away leaves it. */}
-      <BottomSheet
-        visible={yearSheetOpen}
-        onDismiss={() => setYearSheetOpen(false)}
-      >
-        <Text variant="sectionHeading" center>
-          Year
-        </Text>
-        <WheelPicker
-          // Remounted on every open, so the drum starts on the year on show
-          // rather than wherever it was last left.
-          key={yearSheetOpen ? 'open' : 'closed'}
-          values={years}
-          value={pendingYear}
-          onChange={setPendingYear}
-          style={styles.yearWheel}
-        />
-        <PrimaryButton
-          label="Done"
-          onPress={() => {
-            jumpToYear(pendingYear);
-            setYearSheetOpen(false);
-          }}
-        />
-      </BottomSheet>
     </View>
   );
 }
@@ -706,174 +112,5 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  identity: {
-    alignItems: 'center',
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  ringWrap: {
-    width: RING_SIZE,
-    height: RING_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringSvg: {
-    position: 'absolute',
-  },
-  avatarDisc: {
-    position: 'absolute',
-    top: AVATAR_INSET,
-    left: AVATAR_INSET,
-    width: avatarSize,
-    height: avatarSize,
-    borderRadius: avatarSize / 2,
-    backgroundColor: colors.backgroundPlain,
-  },
-  // Centred on the ring's own stroke rather than its outer edge, so it reads
-  // as clipped onto the gauge instead of hanging off under it. The wrap's own
-  // `alignItems` does the horizontal centring.
-  badge: {
-    position: 'absolute',
-    zIndex: 1,
-    bottom: -badgeOverhang,
-    height: badgeHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: layout.pill,
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink,
-    // A ring the page's own white so the badge reads as sitting on top of the
-    // gauge rather than merging into its stroke.
-    borderWidth: badgeRingWidth,
-    borderColor: colors.backgroundPlain,
-  },
-  identityText: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    marginTop: layout.block + badgeOverhang,
-  },
-  bio: {
-    marginTop: layout.line,
-  },
-  challengeCard: {
-    marginTop: layout.section,
-    // The month view's own filled-cell grey, so the card and the calendar
-    // below it read as cut from the same sheet.
-    backgroundColor: colors.surfaceSunken,
-  },
-  // The card role on every side, and a block's gap between the title and
-  // the bar — Community's Members card, role for role.
-  challengeBody: {
-    padding: layout.card,
-    gap: layout.block,
-  },
-  challengeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-  },
-  challengeName: {
-    flex: 1,
-  },
-  progressBlock: {
-    gap: layout.stack,
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  // The ring's own stroke: the bar wears the ring's sweep, so it's drawn at
-  // the ring's weight and the two read as the same line, bent and straight.
-  progressTrack: {
-    height: RING_STROKE,
-    borderRadius: radii.pill,
-    // White rather than a divider grey: on the ring's grey card a divider
-    // tone sits within a shade of the fill behind it and the track vanishes.
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-  },
-  progressGradient: {
-    height: '100%',
-  },
-  daysHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: layout.section,
-    marginBottom: layout.heading,
-  },
-  daysSwitch: {
-    width: DAYS_SWITCH_WIDTH,
-  },
-  month: {
-    marginBottom: layout.section,
-  },
-  monthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  yearWheel: {
-    marginVertical: layout.block,
-  },
-  monthTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    // Half the usual gap: the name's own right padding below makes up the
-    // rest, so the caret still sits a full `xs` off the last digit.
-    gap: spacing.xs / 2,
-  },
-  monthTitleText: {
-    // The title's -1 tracking is applied after the last glyph too, so the
-    // measured box ends a point short of the ink and the Bold "6" of the
-    // year was clipped at its right edge. Room for that point and the
-    // glyph's overhang.
-    paddingRight: spacing.xs / 2,
-    // Android pads a line with the font's own ascent/descent on top of the
-    // line height, which sits the name lower than its box's centre.
-    includeFontPadding: false,
-  },
-  monthCaret: {
-    // Measured off the two fonts: the chevron sits dead centre in its icon
-    // box, but Quicksand's caps and digits sit ~0.5pt below the centre of
-    // `itemTitle`'s 18/24 line. In a centred row a 1pt top margin moves the caret half
-    // that, onto the same line as the name.
-    marginTop: MONTH_CARET_NUDGE,
-  },
-  // Edge to edge — the reference's own photo grid runs the full page width,
-  // no gutter either side — the gap lives between tiles (on `postCellWrap`
-  // below), not inside one.
-  postGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  // Half the gap on each side of every tile, so two neighbours add up to a
-  // full `xs` gap between them.
-  postCellWrap: {
-    width: '33.333%',
-    padding: layout.grid / 2,
-  },
-  postTile: {
-    aspectRatio: POST_TILE_RATIO,
-    borderRadius: POST_TILE_RADIUS,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceSunken,
-  },
-  tileCount: {
-    position: 'absolute',
-    right: spacing.xs,
-    bottom: spacing.xs,
-    height: TILE_MARK,
-    paddingHorizontal: layout.pill,
-    borderRadius: radii.pill,
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
 });

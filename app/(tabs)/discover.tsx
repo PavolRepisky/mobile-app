@@ -13,80 +13,92 @@ import {
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { ChallengeRow } from '@/components/ChallengeRow';
 import { IconButton } from '@/components/IconButton';
+import { Pill } from '@/components/Pill';
 import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
 import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
 import { FRIENDS } from '@/data/content';
+import { useApp } from '@/hooks/useAppState';
 import { CATEGORIES, useChallengeCards, type ChallengeCard } from '@/hooks/useChallengeCards';
-import { longDate } from '@/lib/format';
+import { addDays, longDate } from '@/lib/format';
 
-/** Tall enough for a photo to read as a cover rather than a thumbnail, short
- * enough that Browse starts above the fold. */
-const COVER_HEIGHT = 260;
-/** A category tile: a name and a count over a photo, not a card to read. */
-const TILE_HEIGHT = 96;
+/** Tall enough that the cover is the page's one picture — it carries the
+ * whole pitch, dates to Join — and still leaves "Starting soon" peeking
+ * under it on a standard phone. */
+const COVER_HEIGHT = 420;
+/** A topic tile: a name and a count over a photo, not a card to read. */
+const TILE_HEIGHT = 104;
 /** The faces on a cover — the friends named in its line. */
 const COVER_FACES = FRIENDS.slice(0, 2);
 const COVER_FACE_SIZE = 24;
-/** The pager's dots: the current one stretched into a short bar. */
+/** The thumbnail on "You're in", a step smaller than a list row's. */
+const MINE_THUMB = 44;
+/** The slider's dots, under it: the current one stretched into a short
+ * bar, so where you are reads at a glance. */
 const DOT = 6;
 const DOT_ACTIVE = 18;
 
 /**
- * Challenges, built to hold dozens of them: one cover at a time of what's
- * about to start — the only rounds anyone can still join — swiped through,
- * then Browse, one tile per category with how many it holds. Every tile,
- * "See all" and the search button open the same filtered list, where the
- * long tail lives; this page stays short however many challenges there are.
+ * Challenges. From the top: the one you're in, the soonest round you can
+ * still join as a cover, every other one you can join in a Starting soon
+ * slider under it — one row a swipe, dots underneath — and a tile per
+ * topic. Every round starts on one shared day and joining shuts on it, so
+ * both are ordered by that date — what's about to close first. The slider
+ * is the whole joinable list, so there's no separate page for it; everything else — rounds under way or finished —
+ * lives behind the topic tiles and search.
  *
- * The title row is the scroll's fixed header: the title on the gutter, search
- * and "+" together at the end, all staying put while the page moves under
- * them, so neither button ever floats over a cover.
+ * The title row is the scroll's fixed header: search and "+" stay put while
+ * the page moves under them, so neither ever floats over a cover.
  */
 export default function DiscoverScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { currentDay, totalDays } = useApp();
   const cards = useChallengeCards();
-  const [page, setPage] = useState(0);
+  const [slide, setSlide] = useState(0);
 
   const coverWidth = width - layout.gutter * 2;
   const tileWidth = (coverWidth - layout.stack) / 2;
 
-  // Soonest first. With nothing left to join, whatever is running stands in,
-  // so the top of the page is never empty.
-  const featured = useMemo(() => {
-    const upcoming = cards
-      .filter((card) => card.phase === 'upcoming')
-      .sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0));
-    return upcoming.length > 0 ? upcoming : cards.filter((card) => card.phase === 'active');
-  }, [cards]);
+  const mine = cards.find((card) => card.mine);
+  const upcoming = useMemo(
+    () =>
+      cards
+        .filter((card) => card.phase === 'upcoming' && !card.mine)
+        .sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0)),
+    [cards],
+  );
+  const [cover, ...soon] = upcoming;
+  // Each row is the column's full width, with a gutter's worth of gap either
+  // side of it, so the next one sits wholly off screen until it's swiped in.
+  const slideStep = coverWidth + layout.gutter * 2;
+  const onSlide = (event: NativeSyntheticEvent<NativeScrollEvent>) =>
+    setSlide(Math.round(event.nativeEvent.contentOffset.x / slideStep));
 
-  // One tile per category that has anything in it, fronted by its first
+  // One tile per topic that has anything in it, fronted by its first
   // challenge's first photo.
-  const categories = useMemo(
+  const topics = useMemo(
     () =>
       CATEGORIES.map((name) => {
         const inIt = cards.filter((card) => card.category === name);
         return { name, count: inIt.length, photo: inIt[0]?.photos[0] };
-      }).filter((category) => category.count > 0),
+      }).filter((topic) => topic.count > 0),
     [cards],
   );
 
-  const openList = (filter: string, search?: boolean) =>
-    router.push({
-      pathname: '/challenges/[filter]',
-      params: search ? { filter, search: '1' } : { filter },
-    });
-
-  const onPage = (event: NativeSyntheticEvent<NativeScrollEvent>) =>
-    setPage(Math.round(event.nativeEvent.contentOffset.x / (coverWidth + layout.stack)));
+  const openChallenge = (card: ChallengeCard) =>
+    router.push({ pathname: '/feed/[id]', params: { id: card.id } });
 
   return (
     <ScreenScroll
       tabBar
+      // The page ends on a line of small print rather than a card, and at
+      // the bare tab-bar allowance it sat right on the bar's top edge.
+      bottomExtra={layout.section}
       header={
         <ScreenHeader
           bar
@@ -99,7 +111,7 @@ export default function DiscoverScreen() {
                 size={profileActionButton}
                 iconSize={profileActionIcon}
                 background={colors.surface}
-                onPress={() => openList('all', true)}
+                onPress={() => router.push('/challenges/search')}
                 accessibilityLabel="Search challenges"
               />
               <IconButton
@@ -115,87 +127,150 @@ export default function DiscoverScreen() {
         />
       }
     >
-      {featured.length > 0 ? (
+      {mine ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`You're in ${mine.title}, day ${currentDay} of ${totalDays}`}
+          onPress={() => router.push('/tasks')}
+          style={({ pressed }) => [styles.mine, pressed && styles.pressed]}
+        >
+          <Image source={mine.photos[0]} style={styles.mineThumb} contentFit="cover" />
+          <View style={styles.mineText}>
+            <Text variant="badge" color={colors.inkMuted}>
+              YOU'RE IN
+            </Text>
+            <Text variant="copyBold" numberOfLines={1}>
+              {mine.title}
+            </Text>
+          </View>
+          <Text variant="metaBold">
+            Day {currentDay}
+            <Text variant="metaBold" color={colors.inkMuted}>
+              {' '}/ {totalDays}
+            </Text>
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {cover ? (
         <View style={styles.section}>
-          {/* Pages the width of the gutter-inset column, the gap between
-              them snapped past, so each swipe lands the next cover exactly
-              where the last one sat. */}
+          <Cover card={cover} width={coverWidth} onPress={() => openChallenge(cover)} />
+        </View>
+      ) : null}
+
+      {soon.length > 0 ? (
+        <View style={styles.section}>
+          <View style={styles.heading}>
+            <Text variant="sectionHeading">Starting soon</Text>
+          </View>
+          {/* Run to the screen edges so a row sliding in isn't clipped at the
+              gutter, and snapped a row at a time so each swipe lands the
+              next one exactly where the last one sat. */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={coverWidth + layout.stack}
+            snapToInterval={slideStep}
             decelerationRate="fast"
-            onMomentumScrollEnd={onPage}
-            contentContainerStyle={styles.pager}
-            style={styles.pagerBleed}
+            onScroll={onSlide}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.slider}
+            style={styles.sliderBleed}
           >
-            {featured.map((card) => (
-              <Cover
+            {soon.map((card) => (
+              <ChallengeRow
                 key={card.id}
                 card={card}
-                width={coverWidth}
-                onPress={() =>
-                  router.push({ pathname: '/feed/[id]', params: { id: card.id } })
-                }
+                showDate={false}
+                detail={[card.statusLabel, card.category, `${card.days} days`]
+                  .filter(Boolean)
+                  .join(' · ')}
+                onPress={() => openChallenge(card)}
+                style={{ width: coverWidth }}
               />
             ))}
           </ScrollView>
-          {featured.length > 1 ? (
+          {soon.length > 1 ? (
             <View style={styles.dots}>
-              {featured.map((card, i) => (
-                <View key={card.id} style={[styles.dot, i === page && styles.dotActive]} />
+              {soon.map((card, i) => (
+                <View key={card.id} style={[styles.dot, i === slide && styles.dotActive]} />
               ))}
             </View>
           ) : null}
         </View>
       ) : null}
 
-      <View style={styles.heading}>
-        <Text variant="sectionHeading">Browse</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => openList('all')}
-          hitSlop={spacing.sm}
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          <Text variant="metaBold" color={colors.inkMuted}>
-            See all {cards.length}
-          </Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.tiles}>
-        {categories.map((category) => (
+      <View style={styles.section}>
+        <View style={styles.heading}>
+          <Text variant="sectionHeading">Browse by topic</Text>
+        </View>
+        <View style={styles.tiles}>
+          {topics.map((topic) => (
+            <Pressable
+              key={topic.name}
+              accessibilityRole="button"
+              accessibilityLabel={`${topic.name}, ${topic.count} challenges`}
+              onPress={() =>
+                router.push({ pathname: '/challenges/[filter]', params: { filter: topic.name } })
+              }
+              style={({ pressed }) => [styles.tile, { width: tileWidth }, pressed && styles.pressed]}
+            >
+              {topic.photo ? (
+                <Image source={topic.photo} style={absoluteFill} contentFit="cover" />
+              ) : null}
+              <View style={styles.tileScrim} />
+              <Text variant="itemTitle" color={colors.inkInverse}>
+                {topic.name}
+              </Text>
+              <Text variant="metaBold" color={colors.inkInverse}>
+                {topic.count === 1 ? '1 challenge' : `${topic.count} challenges`}
+              </Text>
+            </Pressable>
+          ))}
+          {/* The last tile is the way into everything at once — every round
+              in every phase, where the slider is only the ones you can still
+              join. Drawn as a plain fill so it reads as "the rest", not as
+              one more topic. */}
           <Pressable
-            key={category.name}
             accessibilityRole="button"
-            accessibilityLabel={`${category.name}, ${category.count} challenges`}
-            onPress={() => openList(category.name)}
+            accessibilityLabel={`All topics, ${cards.length} challenges`}
+            onPress={() =>
+              router.push({ pathname: '/challenges/[filter]', params: { filter: 'all' } })
+            }
             style={({ pressed }) => [
               styles.tile,
+              styles.tileAll,
               { width: tileWidth },
               pressed && styles.pressed,
             ]}
           >
-            {category.photo ? (
-              <Image source={category.photo} style={absoluteFill} contentFit="cover" />
-            ) : null}
-            <View style={styles.tileScrim} />
-            <Text variant="itemTitle" color={colors.inkInverse}>
-              {category.name}
-            </Text>
-            <Text variant="metaBold" color={colors.inkInverse}>
-              {category.count === 1 ? '1 challenge' : `${category.count} challenges`}
+            <Text variant="itemTitle">All topics</Text>
+            <Text variant="metaBold" color={colors.inkMuted}>
+              {cards.length === 1 ? '1 challenge' : `${cards.length} challenges`}
             </Text>
           </Pressable>
-        ))}
+        </View>
       </View>
+
+      <Text variant="copy" color={colors.inkMuted} center>
+        Everyone in a challenge starts on the same day.{'\n'}Can't find one you like?{' '}
+        <Text
+          variant="copyBold"
+          accessibilityRole="link"
+          onPress={() => router.push('/challenge/create')}
+        >
+          Create your own
+        </Text>
+      </Text>
     </ScreenScroll>
   );
 }
 
-/** One featured round: its first photo edge to edge, and over the shade at
- * its foot when it starts, its name, and who's in. */
+/**
+ * One round you can still join, as a cover: its first photo edge to edge,
+ * how long until it starts on a pill at the top, and over the shade at its
+ * foot the topic and dates, the name, what a day asks of you, who's in, and
+ * Join — everything needed to decide without opening it.
+ */
 function Cover({
   card,
   width,
@@ -206,43 +281,58 @@ function Cover({
   onPress: () => void;
 }) {
   const others = Math.max((card.members ?? 0) - COVER_FACES.length, 0);
-  const when =
-    card.phase === 'upcoming' && card.start ? `Starts ${longDate(card.start)}` : card.statusLabel;
+  const dates = card.start
+    ? `${longDate(card.start)} → ${longDate(addDays(card.start, card.days - 1))}`
+    : undefined;
+  const kicker = [card.category, dates].filter(Boolean).join(' · ').toUpperCase();
+  const tasks = card.tasks.map((task) => task.toLowerCase()).join(', ');
+  const perDay = card.tasksCount === 1 ? '1 photo task a day' : `${card.tasksCount} photo tasks a day`;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${card.title}, ${when}`}
+      accessibilityLabel={`${card.title}, ${card.statusLabel}`}
       onPress={onPress}
       style={({ pressed }) => [styles.cover, { width }, pressed && styles.pressed]}
     >
       <Image source={card.photos[0]} style={absoluteFill} contentFit="cover" />
       <LinearGradient colors={gradients.coverShade} style={absoluteFill} />
+      <Pill label={card.statusLabel} tone="floating" size="sm" bold style={styles.coverStatus} />
       <View style={styles.coverText}>
-        <Text variant="badge" color={colors.inkInverse}>
-          {when}
+        <Text variant="badge" color={colors.onMediaSoft}>
+          {kicker}
         </Text>
-        <Text variant="pageTitle" color={colors.inkInverse} numberOfLines={1}>
+        <Text variant="title" color={colors.inkInverse} numberOfLines={2}>
           {card.title}
         </Text>
-        {card.members !== undefined ? (
-          <View style={styles.coverFaces}>
-            <View style={styles.faceStack}>
-              {COVER_FACES.map((friend, i) => (
-                <Avatar
-                  key={friend.id}
-                  source={friend.avatar}
-                  size={COVER_FACE_SIZE}
-                  style={[styles.face, i > 0 && styles.faceOverlap]}
-                />
-              ))}
+        <Text variant="copy" color={colors.onMediaSoft} numberOfLines={2}>
+          {card.days} days · {perDay}: {tasks}
+        </Text>
+        <View style={styles.coverFoot}>
+          {card.members !== undefined ? (
+            <View style={styles.coverFaces}>
+              <View style={styles.faceStack}>
+                {COVER_FACES.map((friend, i) => (
+                  <Avatar
+                    key={friend.id}
+                    source={friend.avatar}
+                    size={COVER_FACE_SIZE}
+                    style={[styles.face, i > 0 && styles.faceOverlap]}
+                  />
+                ))}
+              </View>
+              <Text variant="meta" color={colors.inkInverse} numberOfLines={1}>
+                {COVER_FACES.map((friend) => friend.name).join(', ')} +
+                {others.toLocaleString('en-US')}
+              </Text>
             </View>
-            <Text variant="meta" color={colors.inkInverse}>
-              {COVER_FACES.map((friend) => friend.name).join(', ')} and{' '}
-              {others.toLocaleString('en-US')} more are in
-            </Text>
-          </View>
-        ) : null}
+          ) : (
+            <View />
+          )}
+          {/* Drawn as a button but not one of its own: the whole cover is
+              the tap, and a button inside a button splits it in two. */}
+          <Pill label="Join" tone="floating" size="lg" bold labelVariant="copyBold" />
+        </View>
       </View>
     </Pressable>
   );
@@ -252,14 +342,23 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: layout.section,
   },
-  // The pager runs to the screen edges, so a cover being swiped in isn't
-  // clipped at the gutter; its content is inset back to the column.
-  pagerBleed: {
-    marginHorizontal: -layout.gutter,
+  mine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+    padding: layout.inline,
+    paddingRight: layout.block,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceSunken,
+    marginBottom: layout.section,
   },
-  pager: {
-    paddingHorizontal: layout.gutter,
-    gap: layout.stack,
+  mineThumb: {
+    width: MINE_THUMB,
+    height: MINE_THUMB,
+    borderRadius: radii.sm,
+  },
+  mineText: {
+    flex: 1,
   },
   cover: {
     height: COVER_HEIGHT,
@@ -267,15 +366,27 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'flex-end',
   },
+  coverStatus: {
+    position: 'absolute',
+    top: layout.card,
+    left: layout.card,
+  },
   coverText: {
     padding: layout.card,
-    gap: layout.line,
+    gap: layout.stack,
+  },
+  coverFoot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: layout.inline,
+    marginTop: layout.line,
   },
   coverFaces: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.stack,
-    marginTop: layout.line,
   },
   faceStack: {
     flexDirection: 'row',
@@ -287,11 +398,18 @@ const styles = StyleSheet.create({
   faceOverlap: {
     marginLeft: -spacing.sm,
   },
+  sliderBleed: {
+    marginHorizontal: -layout.gutter,
+  },
+  slider: {
+    paddingHorizontal: layout.gutter,
+    gap: layout.gutter * 2,
+  },
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: DOT,
-    marginTop: layout.heading,
+    marginTop: layout.stack,
   },
   dot: {
     width: DOT,
@@ -320,6 +438,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: layout.block,
     justifyContent: 'space-between',
+  },
+  tileAll: {
+    backgroundColor: colors.surfaceSunken,
   },
   tileScrim: {
     ...absoluteFill,

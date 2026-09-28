@@ -104,6 +104,9 @@ interface AppState {
    * id, oldest first — the seeded ones already on a post live in `Friend`
    * itself, not here. */
   friendComments: Record<string, FriendComment[]>;
+  /** The story photos you've already seen, by whose story it is (a friend's
+   * id, or `me-<day>` for yours) — the keys the story viewer gives each. */
+  watchedStories: Record<string, readonly string[]>;
   inviteCode: string;
 
   /** Challenges carried to the last day. One trophy, one finish. */
@@ -173,6 +176,8 @@ interface AppActions {
 
   /** Tapping the emoji already on a post takes it back off. */
   reactToPost: (postId: string, emoji: string) => void;
+  /** Marks one photo in someone's story as seen; seeing it again is a no-op. */
+  markStoryWatched: (owner: string, story: string) => void;
   /** Appends a comment to a friend's post — a reply to `parentId` if given,
    * a fresh top-level comment otherwise. Blank text is a no-op. */
   addFriendComment: (
@@ -337,6 +342,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ),
   );
   const [friendComments, setFriendComments] = useState<Record<string, FriendComment[]>>({});
+  const [watchedStories, setWatchedStories] = useState<Record<string, readonly string[]>>({});
   const [inviteCode] = useState(makeInviteCode);
   // Challenges the seeded account has already finished — see data/trophies.
   // Nothing increments this yet: reaching the last day is not an event the
@@ -618,6 +624,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const markStoryWatched = useCallback((owner: string, story: string) => {
+    setWatchedStories((map) =>
+      map[owner]?.includes(story) ? map : { ...map, [owner]: [...(map[owner] ?? []), story] },
+    );
+  }, []);
+
   const addFriendComment = useCallback(
     (friendId: string, text: string, parentId: string | null = null) => {
       const trimmed = text.trim();
@@ -670,6 +682,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       captions,
       postReactions,
       friendComments,
+      watchedStories,
       inviteCode,
       trophies,
       currentDay,
@@ -702,17 +715,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       completeTaskWithPhoto,
       undoTask,
       reactToPost,
+      markStoryWatched,
       addFriendComment,
       resetAll,
     }),
     [
       profile, installedAt, challenge, tasks, startDate, totalDays,
-      paused, tabBarHidden, progress, captions, postReactions, friendComments, inviteCode, trophies,
+      paused, tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, inviteCode, trophies,
       currentDay, endDate, missedDays, livesLeft, hasPhotographedTask, customChallenges,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
       updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
       setTabBarHidden, toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
-      reactToPost, addFriendComment, resetAll,
+      reactToPost, markStoryWatched, addFriendComment, resetAll,
     ],
   );
 

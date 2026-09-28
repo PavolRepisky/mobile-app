@@ -1,243 +1,119 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Avatar } from '@/components/Avatar';
-import { EmptyState } from '@/components/EmptyState';
-import { MosaicArrangement } from '@/components/PhotoCollage';
-import { Placeholder } from '@/components/Placeholder';
-import { PhotoViewer } from '@/components/PhotoViewer';
-import { ProfileStats } from '@/components/ProfileStats';
-import { profileAvatarSize } from '@/components/ProfileLayout';
+import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { Text } from '@/components/Text';
-import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { PEOPLE } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 
-/** Mirrors the own-profile grid's own cut — a friend's day reads as exactly
- * the same tile, so the two screens can share one glance. */
-const DAY_CELL_PIECE = { flex: 1 } as const;
-const DAY_CELL_SEAM = 0;
-const POST_TILE_RADIUS = 5;
-const POST_TILE_RATIO = 0.85;
-
-/** Stable per key rather than random — same trick the own-profile grid and
- * `FriendCard` both use, so a tile's fake numbers don't reshuffle on render. */
-function fakeCount(key: string, min: number, max: number): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) | 0;
-  return min + (Math.abs(h) % (max - min + 1));
-}
-
-/** Same hero circle the own-profile screen and the to-do ring share. */
-const avatarSize = profileAvatarSize;
-
-const streakBadgeHeight = 30;
-const streakBadgeOverlap = -4;
-const streakBadgeRingWidth = 2;
-const streakIconSize = 14;
+const DAY_MS = 86_400_000;
 
 /**
- * A friend's or a challenge member's profile, opened from the Community tab
- * or from who posted in a challenge feed. Same shell as your own Profile
- * screen — title band, circle with its streak badge, identity text, the
- * stats row, then their day cut into the same photo grid — just with a back
- * button standing in for the add-friend glyph and no settings gear, since
- * there is nothing here to edit.
+ * A friend's or a challenge member's profile, opened from the Community tab,
+ * a story, or who posted in a challenge feed. It is your own Profile page —
+ * `ProfileView`, the same ring, card and days — with "Lily's Profile" as the title
+ * and the way back in place of Settings, since there's nothing here to edit.
  */
 export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { challenge } = useApp();
-  const [avatarOpen, setAvatarOpen] = useState(false);
+  const { challenge, totalDays } = useApp();
 
   const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
 
-  // Their current day plus every earlier one — most recent first, the same
-  // order the own-profile grid lists its own days in. Each is cut into the
-  // same merged mosaic that grid uses for a day with fewer than all its
-  // tasks photographed.
-  const days = [
-    { day: friend.day, tasks: friend.tasks },
-    ...(friend.pastPosts ?? []),
-  ].sort((a, b) => b.day - a.day);
-
-  const posts = days
-    .map(({ day, tasks }) => {
-      const rows = tasks
-        .map((task) =>
+  // Their day today plus every earlier one they've shared, by challenge day.
+  // Days they haven't shared aren't known here, so they stay out of the map
+  // and read as blank on the calendar rather than as missed.
+  const days = useMemo(() => {
+    const byDay = new Map<number, ProfileDay>();
+    for (const { day, tasks } of [
+      { day: friend.day, tasks: friend.tasks },
+      ...(friend.pastPosts ?? []),
+    ]) {
+      byDay.set(day, {
+        shots: tasks.flatMap((task) =>
           task.photo || task.photoSeed
-            ? { key: task.label, photo: task.photo ?? null, seed: task.photoSeed ?? null }
-            : null,
-        )
-        .filter((row): row is NonNullable<typeof row> => row !== null);
+            ? [{ key: task.label, photo: task.photo ?? null, seed: task.photoSeed ?? null }]
+            : [],
+        ),
+        done: tasks.filter((task) => task.done).length,
+      });
+    }
+    return byDay;
+  }, [friend]);
+  const dayOf = useCallback((day: number) => days.get(day) ?? null, [days]);
 
-      return rows.length
-        ? {
-            key: `${friend.id}-day${day}`,
-            day,
-            rows,
-            likes: fakeCount(`${friend.id}-day${day}`, 4, 28),
-            comments: fakeCount(`${friend.id}-day${day}-c`, 1, 12),
-          }
-        : null;
-    })
-    .filter((post): post is NonNullable<typeof post> => post !== null);
+  const taskCount = friend.tasks.length;
+  const todayRecord = days.get(friend.day);
+  const hasStoryToday = Boolean(todayRecord?.shots.length);
+
+  // Your grid's own rule: every earlier day with a photo, most recent first,
+  // and today only once it's finished — until then it's a story, and the
+  // ring shows it.
+  const posted = [...days.entries()]
+    .filter(
+      ([day, record]) =>
+        record.shots.length > 0 && (day < friend.day || record.done === taskCount),
+    )
+    .map(([day]) => day)
+    .sort((a, b) => b - a);
+
+  // They're in the same challenge, on their own day of it, so their start is
+  // counted back from today. A long run can take them past your length.
+  const startDate = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return new Date(start.getTime() - (friend.day - 1) * DAY_MS);
+  }, [friend.day]);
+
+  const playStory = useCallback(
+    () => router.push({ pathname: '/story', params: { friend: friend.id } }),
+    [router, friend.id],
+  );
+  const openDay = useCallback(
+    (day: number) =>
+      router.push({
+        pathname: '/friend/post/[id]',
+        params: { id: friend.id, day: String(day) },
+      }),
+    [router, friend.id],
+  );
+  // Their today is being done somewhere you can't see — its cell plays their
+  // story, the way the photo does, once there's one to play.
+  const today = useMemo(
+    () => (hasStoryToday ? { onPress: playStory, hint: 'Plays their story.' } : undefined),
+    [hasStoryToday, playStory],
+  );
+
+  // Set like your own "My Profile", so the two titles read as a pair. A
+  // name ending in "s" takes the apostrophe alone.
+  const title = `${friend.name}${/s$/i.test(friend.name) ? "'" : "'s"} Profile`;
 
   return (
     <View style={styles.screenRoot}>
-      {/* Near-white, not the warm app shell — matches your own Profile tab. */}
       {/* Every pushed page's fixed bar: the way back, then whose profile
           this is. */}
-      <ScreenScroll tone="plain" header={<ScreenHeader bar plainTitle={friend.name} />}>
-        <View style={styles.identity}>
-          <View style={styles.headerRow}>
-            <View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`View ${friend.name}'s profile photo`}
-                disabled={!friend.avatar}
-                onPress={() => setAvatarOpen(true)}
-                style={({ pressed }) => [styles.avatarShadow, shadows.hard, pressed && styles.pressed]}
-              >
-                <Avatar source={friend.avatar} size={avatarSize} />
-              </Pressable>
-
-              {/* The day-streak badge, lapping the avatar's own corner —
-                  their own day count, the way yours shows on your own
-                  profile. */}
-              <View style={[styles.streakBadge, shadows.hard]}>
-                <Ionicons name="calendar" size={streakIconSize} color={colors.inkInverse} />
-                <Text variant="micro" color={colors.inkInverse}>
-                  {friend.day}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.identityText}>
-              <Text variant="sectionTitle">{friend.name}</Text>
-              <Text variant="bodyBold" color={colors.inkMuted}>
-                {friend.handle}
-              </Text>
-              <Text variant="bodyBold" color={colors.inkMuted} style={styles.bio}>
-                {friend.bio ?? 'No bio yet'}
-              </Text>
-            </View>
-          </View>
-
-          <ProfileStats
-            stats={[
-              {
-                key: 'friends',
-                icon: 'people',
-                value: friend.friendCount,
-                label: 'Friends',
-              },
-              {
-                key: 'trophies',
-                icon: 'trophy',
-                value: friend.trophies,
-                label: 'Completed',
-              },
-              {
-                key: 'lives',
-                icon: 'heart',
-                value: `${friend.livesLeft}/3`,
-                label: 'Misses left',
-                info: "Miss a day's tasks and it costs one of these. Run out, and the challenge restarts from day 1.",
-              },
-            ]}
-            style={styles.stats}
-          />
-        </View>
-
-        <View style={styles.gridSection}>
-          <View style={styles.divider} />
-
-          {posts.length === 0 ? (
-            <EmptyState
-              icon="camera-outline"
-              title="No days yet"
-              hint={`${friend.name} hasn't photographed a task yet.`}
-            />
-          ) : (
-            <View style={styles.postGrid}>
-              {posts.map((post) => (
-                <View key={post.key} style={styles.postCellWrap}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${challenge.name}, day ${post.day}, ${post.likes} likes, ${post.comments} comments`}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/friend/post/[id]',
-                        params: { id: friend.id, day: String(post.day) },
-                      })
-                    }
-                    style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
-                  >
-                    <MosaicArrangement
-                      cells={post.rows}
-                      seam={DAY_CELL_SEAM}
-                      renderCell={(row) =>
-                        row.photo ? (
-                          <Image
-                            key={row.key}
-                            source={row.photo}
-                            style={DAY_CELL_PIECE}
-                            contentFit="cover"
-                          />
-                        ) : (
-                          <Placeholder
-                            key={row.key}
-                            seed={row.seed ?? undefined}
-                            radius={0}
-                            style={DAY_CELL_PIECE}
-                          />
-                        )
-                      }
-                    />
-
-                    <View style={styles.postMeta}>
-                      <View style={styles.postMetaItem}>
-                        <Ionicons name="heart-outline" size={14} color={colors.inkInverse} />
-                        <Text
-                          variant="microBold"
-                          color={colors.inkInverse}
-                          numberOfLines={1}
-                          style={styles.postMetaCount}
-                        >
-                          {post.likes}
-                        </Text>
-                      </View>
-                      <View style={styles.postMetaItem}>
-                        <Ionicons name="chatbubble-outline" size={13} color={colors.inkInverse} />
-                        <Text
-                          variant="microBold"
-                          color={colors.inkInverse}
-                          numberOfLines={1}
-                          style={styles.postMetaCount}
-                        >
-                          {post.comments}
-                        </Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
+      <ScreenScroll tone="plain" header={<ScreenHeader bar plainTitle={title} />}>
+        <ProfileView
+          avatar={friend.avatar}
+          name={friend.name}
+          handle={friend.handle}
+          bio={friend.bio}
+          challenge={challenge}
+          startDate={startDate}
+          currentDay={friend.day}
+          totalDays={Math.max(totalDays, friend.day)}
+          taskCount={taskCount}
+          dayOf={dayOf}
+          posted={posted}
+          onPlayStory={hasStoryToday ? playStory : undefined}
+          onOpenDay={openDay}
+          today={today}
+          emptyHint={`${friend.name} hasn't finished a day yet.`}
+        />
       </ScreenScroll>
-
-      <PhotoViewer
-        photos={friend.avatar ? [friend.avatar] : []}
-        index={avatarOpen ? 0 : null}
-        onDismiss={() => setAvatarOpen(false)}
-      />
     </View>
   );
 }
@@ -245,89 +121,5 @@ export default function FriendProfileScreen() {
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  identity: {
-    marginTop: spacing.xs,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  avatarShadow: {
-    width: avatarSize,
-    height: avatarSize,
-    borderRadius: avatarSize / 2,
-    backgroundColor: colors.backgroundPlain,
-  },
-  streakBadge: {
-    position: 'absolute',
-    bottom: streakBadgeOverlap,
-    right: streakBadgeOverlap,
-    height: streakBadgeHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink,
-    borderWidth: streakBadgeRingWidth,
-    borderColor: colors.backgroundPlain,
-  },
-  identityText: {
-    flex: 1,
-    marginLeft: spacing.xl,
-  },
-  bio: {
-    marginTop: 2,
-  },
-  stats: {
-    alignSelf: 'stretch',
-    marginTop: spacing.xl,
-  },
-  gridSection: {
-    marginTop: spacing.xl,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.divider,
-    marginBottom: spacing.lg,
-  },
-  postGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  // Half the gap on each side of every tile, so two neighbours add up to a
-  // full `xs` gap between them.
-  postCellWrap: {
-    width: '33.333%',
-    padding: spacing.xs / 2,
-  },
-  postTile: {
-    aspectRatio: POST_TILE_RATIO,
-    borderRadius: POST_TILE_RADIUS,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceSunken,
-  },
-  postMeta: {
-    position: 'absolute',
-    left: spacing.xs,
-    bottom: spacing.xs,
-    maxWidth: '70%',
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  postMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
-    gap: 3,
-  },
-  postMetaCount: {
-    maxWidth: 32,
   },
 });

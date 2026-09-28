@@ -632,6 +632,60 @@ export const DISCOVER: readonly DiscoverSection[] = [
     startDate: '2026-10-12',
     creatorId: 'camila',
   },
+  // The four below have no shoot of their own yet, so they borrow fitting
+  // shots from the feed, the wall and the recipes.
+  {
+    id: 'steps',
+    title: '10k Steps a Day',
+    photos: [
+      require('../assets/feed/posts/canal-dog-walk.jpg'),
+      require('../assets/feed/posts/mountain-hike.jpg'),
+      require('../assets/tasks/timed-water-bottle-walk.jpg'),
+      require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
+    ],
+    members: 212,
+    startDate: '2026-10-17',
+    creatorId: 'lily',
+  },
+  {
+    id: 'pages',
+    title: 'Morning Pages',
+    photos: [
+      require('../assets/feed/posts/park-bench-reading.jpg'),
+      require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
+      require('../assets/recipes/fig-oatmeal.jpg'),
+      require('../assets/wall/skincare/skincare-shelf.jpg'),
+    ],
+    members: 48,
+    startDate: '2026-10-19',
+    creatorId: 'zoe',
+  },
+  {
+    id: 'rainbow',
+    title: 'Eat the Rainbow',
+    photos: [
+      require('../assets/wall/eat/berry-watermelon-plate.jpg'),
+      require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg'),
+      require('../assets/recipes/apricot-salad.jpg'),
+      require('../assets/feed/posts/post-workout-smoothie.jpg'),
+    ],
+    members: 96,
+    startDate: '2026-10-22',
+    creatorId: 'mia',
+  },
+  {
+    id: 'study',
+    title: 'Study Streak',
+    photos: [
+      require('../assets/feed/posts/studying-in-bed.jpg'),
+      require('../assets/challenges/hard/study-desk.jpg'),
+      require('../assets/recipes/avo-toast.jpg'),
+      require('../assets/challenges/soft/evening-reading.jpg'),
+    ],
+    members: 74,
+    startDate: '2026-11-02',
+    creatorId: 'sofia',
+  },
 ];
 
 /**
@@ -646,10 +700,11 @@ export function challengePhotos(id: string): readonly PhotoSource[] | undefined 
 
 /**
  * The custom challenge has no photographs of its own — it is whatever you make
- * it — so its strip takes the opening shot from each of the four that do. Four
- * sets, four tiles, and the row reads as every challenge at once.
+ * it — so its strip takes the opening shot from each of the four original
+ * challenges, the ones with a shoot of their own. Four sets, four tiles, and
+ * the row reads as every challenge at once.
  */
-export const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.map(
+export const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.slice(0, 4).map(
   (section) => section.photos[0],
 );
 

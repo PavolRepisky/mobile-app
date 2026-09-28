@@ -40,7 +40,8 @@ export interface SegmentedTabsProps<T extends string = string> {
   /**
    * Squeezes a large row a step further. The Saved sheet runs the same five
    * category labels behind a bookmark chip, and that sixth element does not
-   * fit a 390pt row at the standard size.
+   * fit a 390pt row at the standard size. On a pill track it sets the labels
+   * at `metaBold`, so three halves carrying counts ("Starting soon 2") fit.
    */
   dense?: boolean;
   /**
@@ -99,7 +100,8 @@ export function SegmentedTabs<T extends string = string>({
               it takes `inkMuted` the way the pill's off half does — `inkGhost`
               is for what can't be used yet. */}
           <Text
-            variant={pill ? 'copy' : large ? 'sectionTitle' : 'itemTitle'}
+            variant={pill ? (dense ? 'metaBold' : 'copy') : large ? 'sectionTitle' : 'itemTitle'}
+            numberOfLines={pill ? 1 : undefined}
             color={active ? colors.ink : colors.inkMuted}
             style={large && !pill ? [styles.lgLabel, dense && styles.denseLabel] : undefined}
           >

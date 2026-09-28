@@ -119,6 +119,62 @@ export const CHALLENGES: readonly Challenge[] = [
       task('s4', 'Listen to a podcast'),
     ],
   },
+  {
+    id: 'steps',
+    name: '10k Steps a Day',
+    stamp: '10k Steps',
+    description:
+      'Thirty days of getting your steps in — one walk a day, any route, any pace, as long as it adds up to ten thousand.',
+    category: 'Fitness',
+    joined: 212,
+    photoSeeds: ['steps-a', 'steps-b', 'steps-c', 'steps-d'],
+    defaultDays: 30,
+    tasks: [task('w1', 'Walk 10k steps')],
+  },
+  {
+    id: 'pages',
+    name: 'Morning Pages',
+    stamp: 'Morning Pages',
+    description:
+      'Three weeks of starting slow: three handwritten pages before anything else, then a few pages of a book.',
+    category: 'Mindset',
+    joined: 48,
+    photoSeeds: ['pages-a', 'pages-b', 'pages-c', 'pages-d'],
+    defaultDays: 21,
+    tasks: [task('p1', 'Write three pages'), task('p2', 'Read 10 pages')],
+  },
+  {
+    id: 'rainbow',
+    name: 'Eat the Rainbow',
+    stamp: 'Eat the Rainbow',
+    description:
+      'A month of colourful plates: fruit or veg at every meal, a proper breakfast, and enough water to go with it.',
+    category: 'Health',
+    joined: 96,
+    photoSeeds: ['rainbow-a', 'rainbow-b', 'rainbow-c', 'rainbow-d'],
+    defaultDays: 30,
+    tasks: [
+      task('e1', 'Fruit or veg at every meal'),
+      task('e2', 'Eat a proper breakfast'),
+      task('e3', 'Drink 2L water'),
+    ],
+  },
+  {
+    id: 'study',
+    name: 'Study Streak',
+    stamp: 'Study Streak',
+    description:
+      'Thirty days of showing up to your desk: two focused hours, your notes reviewed, and a chapter read.',
+    category: 'Study',
+    joined: 74,
+    photoSeeds: ['study-a', 'study-b', 'study-c', 'study-d'],
+    defaultDays: 30,
+    tasks: [
+      task('t1', 'Two focus hours'),
+      task('t2', 'Review your notes'),
+      task('t3', 'Read a chapter'),
+    ],
+  },
 ];
 
 export const CUSTOM_CHALLENGE: Challenge = {

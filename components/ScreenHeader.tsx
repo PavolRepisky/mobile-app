@@ -9,7 +9,7 @@ import {
 
 import { colors, layout, spacing } from '@/constants/theme';
 import { Headline } from './Headline';
-import { IconButton } from './IconButton';
+import { IconButton, InHeaderBar } from './IconButton';
 import { profileActionButton, profileActionIcon } from './ProfileLayout';
 import { Text, type TextProps } from './Text';
 
@@ -81,25 +81,27 @@ export function ScreenHeader({
         <IconButton name="chevron-back" {...cornerButton} onPress={goBack} accessibilityLabel="Go back" />
       ) : null;
     return (
-      <View style={[styles.barRow, style]}>
-        {left ?? back}
-        <View style={styles.barTitle}>
-          {plainTitle ? (
-            <Text variant={plainTitleVariant ?? 'pageTitle'} numberOfLines={1} style={plainTitleStyle}>
-              {plainTitle}
-            </Text>
-          ) : null}
-          {subtitle ? (
-            <Text variant={subtitleVariant} color={colors.inkMuted} numberOfLines={1}>
-              {subtitle}
-            </Text>
+      <InHeaderBar.Provider value>
+        <View style={[styles.barRow, style]}>
+          {left ?? back}
+          <View style={styles.barTitle}>
+            {plainTitle ? (
+              <Text variant={plainTitleVariant ?? 'pageTitle'} numberOfLines={1} style={plainTitleStyle}>
+                {plainTitle}
+              </Text>
+            ) : null}
+            {subtitle ? (
+              <Text variant={subtitleVariant} color={colors.inkMuted} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+          {right ? <View style={styles.barActions}>{right}</View> : null}
+          {onClose ? (
+            <IconButton name="close" {...cornerButton} onPress={onClose} accessibilityLabel="Close" />
           ) : null}
         </View>
-        {right ? <View style={styles.barActions}>{right}</View> : null}
-        {onClose ? (
-          <IconButton name="close" {...cornerButton} onPress={onClose} accessibilityLabel="Close" />
-        ) : null}
-      </View>
+      </InHeaderBar.Provider>
     );
   }
 

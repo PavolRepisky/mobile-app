@@ -15,6 +15,10 @@ const SEGMENT_GAP = 5;
  * profile's own badge sits across its bigger ring. */
 const BADGE_HEIGHT = 20;
 const BADGE_BORDER = 2;
+/** A watched segment keeps its accent, washed out — still the ring's own
+ * colour, so it reads as seen rather than as a different kind of mark, and
+ * clearly quieter than what's new beside it. */
+const WATCHED_OPACITY = 0.35;
 
 /** Blends two `#RRGGBB` colours, `t` of the way from `a` to `b`. */
 function mixHex(a: string, b: string, t: number): string {
@@ -41,6 +45,9 @@ export interface TaskRingProps {
   avatar: AvatarSource;
   done: number;
   total: number;
+  /** How many of the done segments you've already watched as stories —
+   * they're drawn in a faded accent. */
+  watched?: number;
   /** Outer diameter, ring included. */
   size: number;
   onPress?: () => void;
@@ -54,11 +61,16 @@ export interface TaskRingProps {
  * sits on the circle — My Profile's ring at the size of a story row, with the
  * same "3/5" badge clipped across its bottom. It only means anything while a
  * day is under way, so it is what stands for someone still going.
+ *
+ * Where it leads to a story, the done segments you've already watched fade
+ * from the start of the ring, so only what's new wears the accent at full
+ * strength.
  */
 export function TaskRing({
   avatar,
   done,
   total,
+  watched = 0,
   size,
   onPress,
   accessibilityLabel,
@@ -91,6 +103,7 @@ export function TaskRing({
             cy={centre}
             r={radius}
             stroke={i < done ? accentAt((i + 0.5) / count) : colors.inkGhost}
+            strokeOpacity={i < Math.min(watched, done) ? WATCHED_OPACITY : 1}
             strokeWidth={ringWidth}
             strokeLinecap={count > 1 ? 'round' : 'butt'}
             fill="none"

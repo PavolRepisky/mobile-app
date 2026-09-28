@@ -145,7 +145,8 @@ ramp; plain copy sits on Medium, not Regular. Don't "correct" this.
 ## Component inventory
 
 **Layout** · `Screen` / `ScreenScroll` page shell · `ProfileLayout` avatar +
-action + body · `ScreenHeader` back/close + title · `Card` white or muted
+action + body · `ProfileView` a whole profile page — yours
+and anyone else's · `ScreenHeader` back/close + title · `Card` white or muted
 surface · `EmptyState` icon + title + hint.
 
 **Type** · `Text` (variant) · `Headline` (headline-scale Quicksand; `**bold**`
@@ -167,7 +168,8 @@ with its "3/5" badge · `StickyNote` · `CalendarMonth` month grid ·
 `DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
 `Polaroid` one instant print · `PhotoCollage` a pile of them ·
 `StickerText` die-cut display word · `PhotoStrip` ·
-`FriendCard` · `ReviewCard` · `ChallengeDetail`
+`FriendCard` · `ReviewCard` · `ChallengeDetail` · `ChallengeRow` a
+challenge in a list, photo first, its start date at the end while it can be joined
 · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 

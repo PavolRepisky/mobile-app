@@ -12,7 +12,7 @@ import {
 
 import { colors, radii, spacing, type } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
-import { BottomSheet } from './BottomSheet';
+import { BottomSheet, SheetScrollable } from './BottomSheet';
 import { Text } from './Text';
 
 export interface CommentEntry {
@@ -112,6 +112,9 @@ export function CommentsSheet({
     <BottomSheet
       visible={visible}
       onDismiss={onDismiss}
+      // Pulled down from anywhere on it, Instagram's way — the thread only
+      // hands the pull to the sheet once it's scrolled back to the top.
+      dragAnywhere
       // Instagram's own composer sits flush against the edge it clears —
       // the safe area or the keyboard — rather than the sheet's usual
       // roomy distance short of it.
@@ -122,42 +125,52 @@ export function CommentsSheet({
         Comments
       </Text>
 
-      <FlatList
-        data={rowsFor(comments)}
-        keyExtractor={(row) => row.key}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text variant="copy" color={colors.inkMuted} center style={styles.empty}>
-            No comments yet — be the first to say something.
-          </Text>
-        }
-        renderItem={({ item }) => (
-          <View style={[styles.row, item.depth > 0 && { marginLeft: item.depth * INDENT }]}>
-            <Avatar source={item.comment.avatar} size={item.depth > 0 ? 22 : 28} />
-            <View style={styles.rowBody}>
-              {/* Set like a post's caption: prose in Medium, the author
-                  leading it a weight up. */}
-              <Text variant="body" color={colors.ink}>
-                <Text variant="copyBold">{item.comment.author} </Text>
-                {item.comment.text}
+      <SheetScrollable>
+        {(onScroll) => (
+          <FlatList
+            data={rowsFor(comments)}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            keyExtractor={(row) => row.key}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            // No overscroll at the top: a pull there moves the sheet, and a
+            // bounce would drag the thread down inside it at the same time.
+            bounces={false}
+            overScrollMode="never"
+            ListEmptyComponent={
+              <Text variant="copy" color={colors.inkMuted} center style={styles.empty}>
+                No comments yet — be the first to say something.
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => startReply({ id: item.comment.id, author: item.comment.author })}
-                hitSlop={spacing.sm}
-                style={styles.replyButton}
-              >
-                <Text variant="meta" color={colors.inkMuted}>
-                  Reply
-                </Text>
-              </Pressable>
-            </View>
-          </View>
+            }
+            renderItem={({ item }) => (
+              <View style={[styles.row, item.depth > 0 && { marginLeft: item.depth * INDENT }]}>
+                <Avatar source={item.comment.avatar} size={item.depth > 0 ? 22 : 28} />
+                <View style={styles.rowBody}>
+                  {/* Set like a post's caption: prose in Medium, the author
+                      leading it a weight up. */}
+                  <Text variant="body" color={colors.ink}>
+                    <Text variant="copyBold">{item.comment.author} </Text>
+                    {item.comment.text}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => startReply({ id: item.comment.id, author: item.comment.author })}
+                    hitSlop={spacing.sm}
+                    style={styles.replyButton}
+                  >
+                    <Text variant="meta" color={colors.inkMuted}>
+                      Reply
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          />
         )}
-      />
+      </SheetScrollable>
 
       {replyTarget ? (
         <View style={styles.replyBanner}>

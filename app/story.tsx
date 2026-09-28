@@ -6,7 +6,7 @@ import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { DayStamp } from '@/components/FriendCard';
+import { DayStamp, LOCK_BLUR_RADIUS } from '@/components/FriendCard';
 import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Pill } from '@/components/Pill';
 import { Placeholder } from '@/components/Placeholder';
@@ -17,6 +17,14 @@ import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /** How long a story holds before it moves on. */
 const STORY_MS = 5000;
+/** How long a press has to last to count as a hold rather than a tap —
+ * about where Instagram stops treating it as a skip. */
+const HOLD_MS = 200;
+/** The queue's name for your own story; everyone else goes by their id. */
+const ME = 'me';
+const HEAD_AVATAR = 34;
+/** The post's own separator dot, so the two headers read alike. */
+const HEAD_DOT = 3;
 
 /** Handed to `Image` as often as to a `View`, so it's kept out of the
  * stylesheet the way the post's own grid cell is. */
@@ -30,7 +38,13 @@ const SUMMARY_CELL = { flex: 1 } as const;
  *
  * Each story plays itself out — its bar fills over `STORY_MS` and hands over
  * to the next when it lands. Tapping the right half skips ahead, the left half
- * goes back, and running past the end closes.
+ * goes back, and holding either half pauses it until you let go.
+ *
+ * Opened from Community's "Still going today" row, it carries that row as
+ * `queue`, so running past the end of one person's day plays the next
+ * person's, and stepping back off the first story plays the one before —
+ * the row watched through the way it reads. Without a queue, or past its
+ * last person, running off the end closes.
  *
  * Yours and a friend's are the same viewer — opened with `day` for yours, or
  * `friend` from Community's "Still going today" row — so they look and play
@@ -45,18 +59,26 @@ const SUMMARY_CELL = { flex: 1 } as const;
 export default function StoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, challenge, currentDay } = useApp();
-  const { day, friend } = useLocalSearchParams<{ day?: string; friend?: string }>();
+  const { profile, challenge, currentDay, markStoryWatched, hasPhotographedTask } = useApp();
+  const params = useLocalSearchParams<{ day?: string; friend?: string; queue?: string }>();
 
-  /** Whose story this is — someone else's when opened with `friend`. */
-  const person = friend ? PEOPLE.find((p) => p.id === friend) : undefined;
+  // Whose story is playing. Held here rather than read off the params, so
+  // moving along the queue swaps the story in place instead of stacking a
+  // new viewer per person.
+  const [owner, setOwner] = useState<string>(params.friend ?? ME);
+  const queue = useMemo(() => (params.queue ? params.queue.split(',') : []), [params.queue]);
+  const place = queue.indexOf(owner);
+
+  /** Whose story this is — someone else's when it isn't yours. */
+  const person = owner === ME ? undefined : PEOPLE.find((p) => p.id === owner);
 
   // Your ring is tapped from whatever day the scrubber is parked on, so your
   // story follows that rather than always showing today; a friend's is the
   // day they're on now.
-  const viewing = person ? person.day : Number(day) || currentDay;
+  const viewing = person ? person.day : Number(params.day) || currentDay;
   const rows = useDayProgress(viewing);
   const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   /**
    * One story per task with a photo on it, in checklist order — read off your
@@ -86,6 +108,12 @@ export default function StoryScreen() {
     [person, rows],
   );
 
+  // Community's lock reaches in here: until you've shot a task of your own,
+  // someone else's story still plays — you can see who's going and how far —
+  // but every photo is blurred under the same wash and pill as a locked post,
+  // it doesn't count as watched, and it doesn't end on their post.
+  const locked = Boolean(person) && !hasPhotographedTask;
+
   /** Every task done — the day has become a post, so the story can point at it. */
   const finished = person
     ? person.tasks.length > 0 && person.tasks.every((task) => task.done)
@@ -97,12 +125,21 @@ export default function StoryScreen() {
   const frames = stories.length
     ? [
         ...stories.map((story) => ({ ...story, summary: false })),
-        ...(finished
+        ...(finished && !locked
           ? [{ key: 'post', photo: null, seed: '', time: null, summary: true }]
           : []),
       ]
     : [{ key: 'empty', photo: null, seed: 'story-empty', time: null, summary: false }];
   const current = frames[Math.min(index, frames.length - 1)];
+
+  // Each photo counts as watched the moment it's up, the way the ring that
+  // opened it reads it back. The empty frame and the post at the end aren't
+  // photos in the story, so they don't count.
+  const watchKey = person ? person.id : `me-${viewing}`;
+  const isPhoto = stories.length > 0 && !current.summary;
+  useEffect(() => {
+    if (isPhoto && !locked) markStoryWatched(watchKey, current.key);
+  }, [isPhoto, locked, watchKey, current.key, markStoryWatched]);
 
   // Stories only last the day, so the post they link lands in the Community
   // feed, where it stays — back down the stack to the tabs rather than a new
@@ -119,39 +156,77 @@ export default function StoryScreen() {
     });
   };
 
+  /** Plays someone else's story from its start; false when there's no one. */
+  const playOwner = (next: string | undefined) => {
+    if (next === undefined) return false;
+    setOwner(next);
+    setIndex(0);
+    return true;
+  };
+
   const advance = (delta: number) => {
     const next = index + delta;
-    if (next < 0) return;
+    if (next < 0) {
+      if (place > 0) playOwner(queue[place - 1]);
+      return;
+    }
     if (next >= frames.length) {
-      router.back();
+      if (!(place >= 0 && playOwner(queue[place + 1]))) router.back();
       return;
     }
     setIndex(next);
   };
 
   // Drives the bar on the current story, and moves to the next one when it
-  // fills. Restarted from zero on every change of story, including the ones a
-  // tap causes, so the bar always measures the time this story has been up.
-  const fill = useRef(new Animated.Value(0)).current;
+  // fills. Time already shown is kept in `elapsed` rather than read back off
+  // the animated value — with the native driver that value only reaches JS
+  // after the fact, so a hold would resume from a stale point. A new story
+  // (the next frame, or the next person's) starts it from zero; letting go of
+  // a hold picks it up where it stopped, for only the time that's left. The
+  // reset sits first so it runs after the old run's cleanup has counted up.
+  //
+  // Each story gets a value of its own. Shared, the next story's bar mounted
+  // still holding where the last one stopped and was only emptied by the
+  // effect a frame later — the bar jumped ahead, then snapped back to start.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fill = useMemo(() => new Animated.Value(0), [index, owner]);
+  const elapsed = useRef(0);
   useEffect(() => {
-    fill.setValue(0);
+    elapsed.current = 0;
+  }, [index, owner]);
+  useEffect(() => {
+    if (paused) return;
+    fill.setValue(Math.min(elapsed.current / STORY_MS, 1));
+    const startedAt = Date.now();
     const run = Animated.timing(fill, {
       toValue: 1,
-      duration: STORY_MS,
+      duration: Math.max(STORY_MS - elapsed.current, 0),
       easing: Easing.linear,
       useNativeDriver: true,
     });
     // `finished` is false when the cleanup below stops it — a tap moving on
-    // early, or the screen going away — and only a bar that actually ran out
-    // should advance.
+    // early, a hold, or the screen going away — and only a bar that actually
+    // ran out should advance.
     run.start(({ finished: ran }) => {
       if (ran) advance(1);
     });
-    return () => run.stop();
+    return () => {
+      run.stop();
+      elapsed.current += Date.now() - startedAt;
+    };
     // `advance` is rebuilt every render; the run only has to restart when the
-    // story it is timing changes.
+    // story it is timing changes or a hold lets go.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, frames.length, fill]);
+  }, [index, owner, frames.length, paused, fill]);
+
+  // The face and the name lead to the profile, the way they do on a post:
+  // a friend's opens in place of the story, yours drops back to your tab.
+  const openProfile = () => {
+    if (person) router.replace({ pathname: '/friend/[id]', params: { id: person.id } });
+    else router.dismissTo('/(tabs)/profile');
+  };
+  const openChallenge = () =>
+    router.replace({ pathname: '/feed/[id]', params: { id: challenge.id } });
 
   return (
     <View style={styles.root}>
@@ -198,20 +273,35 @@ export default function StoryScreen() {
           contentFit="cover"
           transition={160}
           style={absoluteFill}
+          blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
         />
       ) : (
         <Placeholder seed={current.seed} radius={0} style={absoluteFill} />
       )}
+
+      {/* A locked post's own wash and pill, just a label here: the taps
+          either side still step through the story. */}
+      {locked ? (
+        <View pointerEvents="none" style={[absoluteFill, styles.lockWash]}>
+          <Pill
+            tone="floating"
+            icon="lock-closed"
+            label="Unlocks when you post"
+            bold
+            style={styles.lockPill}
+          />
+        </View>
+      ) : null}
 
       <View style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.bars}>
           {frames.map((frame, i) => (
             <View key={frame.key} style={styles.bar}>
               {/* Only the story actually playing is an animated view. Handing
-                  a bar the shared `fill` and then swapping it for a plain
+                  a bar the playing `fill` and then swapping it for a plain
                   number leaves the native side still driving that view, so
-                  the `setValue(0)` that starts the next story empties the bar
-                  you just skipped past instead of leaving it full. Different
+                  the bar you just skipped past can empty instead of staying
+                  full. Different
                   element types either side of this branch mean React mounts a
                   fresh view rather than re-using the bound one. */}
               {i === index ? (
@@ -230,18 +320,56 @@ export default function StoryScreen() {
           ))}
         </View>
 
+        {/* A post's own header, set on the photo: face and name to the
+            profile, the challenge under them to its feed — separate tap
+            targets, so neither is nested inside the other. */}
         <View style={styles.head}>
-          <Avatar
-            source={person ? person.avatar : (profile.avatar ?? profile.avatarSeed)}
-            size={34}
-          />
-          <Text variant="bodyBold" color={colors.inkInverse} style={styles.name}>
-            {person ? person.name : profile.name}
-          </Text>
-          <Text variant="body" color={colors.onMediaSoft}>
-            {'  ·  '}
-            {current.time ?? `Day ${viewing}`}
-          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${person ? person.name : profile.name}'s profile`}
+            onPress={openProfile}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Avatar
+              source={person ? person.avatar : (profile.avatar ?? profile.avatarSeed)}
+              size={HEAD_AVATAR}
+            />
+          </Pressable>
+          <View style={styles.identity}>
+            <View style={styles.nameRow}>
+              <Text
+                variant="bodyBold"
+                color={colors.inkInverse}
+                accessibilityRole="button"
+                onPress={openProfile}
+                style={styles.name}
+              >
+                {person ? person.name : profile.name}
+              </Text>
+              {current.time ? (
+                <Text variant="body" color={colors.onMediaSoft}>
+                  {current.time}
+                </Text>
+              ) : null}
+            </View>
+            <View style={styles.nameRow}>
+              <Text
+                variant="meta"
+                color={colors.onMediaSoft}
+                numberOfLines={1}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${challenge.name}`}
+                onPress={openChallenge}
+                style={[styles.challengeLink, styles.shrink]}
+              >
+                {challenge.name}
+              </Text>
+              <View style={styles.headDot} />
+              <Text variant="meta" color={colors.onMediaSoft}>
+                Day {viewing}
+              </Text>
+            </View>
+          </View>
 
           <View style={styles.spacer} />
 
@@ -259,17 +387,22 @@ export default function StoryScreen() {
       {/* Tap zones sit under the chrome so the close button still wins, and
           under the post frame's grid for the same reason — the page either
           side of it still steps back and forward. */}
+      {/* Either half pauses the moment it's touched. A quick tap lets go
+          straight away and steps; a hold turns into a long press, which
+          swallows the tap, so letting go only resumes. */}
       <View style={styles.zones} pointerEvents="box-none">
-        <Pressable
-          accessibilityLabel="Previous"
-          style={styles.zone}
-          onPress={() => advance(-1)}
-        />
-        <Pressable
-          accessibilityLabel="Next"
-          style={styles.zone}
-          onPress={() => advance(1)}
-        />
+        {([-1, 1] as const).map((delta) => (
+          <Pressable
+            key={delta}
+            accessibilityLabel={delta < 0 ? 'Previous' : 'Next'}
+            style={styles.zone}
+            delayLongPress={HOLD_MS}
+            onPressIn={() => setPaused(true)}
+            onPressOut={() => setPaused(false)}
+            onLongPress={() => {}}
+            onPress={() => advance(delta)}
+          />
+        ))}
       </View>
     </View>
   );
@@ -322,9 +455,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
   },
-  name: {
+  identity: {
+    flexShrink: 1,
     marginLeft: spacing.md,
+  },
+  // The post's subtitle spacing: close enough that name and time, or
+  // challenge, dot and day, read as one line.
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + spacing.xs / 2,
+  },
+  headDot: {
+    width: HEAD_DOT,
+    height: HEAD_DOT,
+    borderRadius: radii.pill,
+    backgroundColor: colors.onMediaSoft,
+  },
+  shrink: {
+    flexShrink: 1,
+  },
+  name: {
     fontSize: 17,
+  },
+  // Underlined like the challenge under a post's name, so it reads as a
+  // link on a photo where there's no other cue.
+  challengeLink: {
+    textDecorationLine: 'underline',
+  },
+  lockWash: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.scrimLock,
+  },
+  // `Pill` shrink-wraps to the start of its row; the lock sits dead centre.
+  lockPill: {
+    alignSelf: 'center',
   },
   spacer: {
     flex: 1,

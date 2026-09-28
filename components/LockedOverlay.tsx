@@ -1,14 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { absoluteFill, colors, layout, radii, shadows } from '@/constants/theme';
-import { Text } from './Text';
-
-/** The lock pill's height and glyph, taken off the canvas's locked post. */
-const PILL_HEIGHT = 40;
-const PILL_ICON = 16;
-/** The pill's white rim — the canvas's inset ring, drawn as a border. */
-const PILL_RIM = 1.5;
+import { absoluteFill, colors, radii } from '@/constants/theme';
+import { Pill } from './Pill';
 
 export interface LockedOverlayProps {
   /** `false` renders `children` plain — the gate this wraps hasn't shut. */
@@ -22,15 +15,16 @@ export interface LockedOverlayProps {
 }
 
 /**
- * Dims whatever it wraps and sets a frosted pill naming the lock over the
- * middle of it — the Community feed's posts before a single task has been
- * proven with a photo. Drawn the way the canvas's locked post is: the photo
- * blurs itself (the caller sets it on the image, so it holds on every
- * platform, backdrop blur or not), a light ink wash settles it back, and the
- * pill sits dead centre. The content stays mounted underneath, its state
- * intact for the moment it unlocks, but `pointerEvents="none"` while locked:
- * none of its own taps — a like, a profile, the carousel — should fire
- * through the lock.
+ * Dims whatever it wraps and sets a pill naming the lock over the middle of
+ * it — the Community feed's posts before a single task has been
+ * proven with a photo. The photo blurs itself (the caller sets it on the
+ * image, so it holds on every platform, backdrop blur or not), a light ink
+ * wash settles it back, and the pill sits dead centre — the app's own white
+ * `floating` pill, the one "Day 5" and "+10,000 joined" ride photos in, so
+ * the lock reads as part of the app rather than a frosted one-off. The
+ * content stays mounted underneath, its state intact for the moment it
+ * unlocks, but `pointerEvents="none"` while locked: none of its own taps — a
+ * like, a profile, the carousel — should fire through the lock.
  */
 export function LockedOverlay({
   locked,
@@ -54,12 +48,7 @@ export function LockedOverlay({
         onPress={onPress}
         style={[absoluteFill, styles.message]}
       >
-        <View style={styles.pill}>
-          <Ionicons name="lock-closed" size={PILL_ICON} color={colors.inkInverse} />
-          <Text variant="copyBold" color={colors.inkInverse}>
-            {title}
-          </Text>
-        </View>
+        <Pill tone="floating" icon="lock-closed" label={title} bold style={styles.pill} />
       </Pressable>
     </View>
   );
@@ -76,19 +65,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Frosted white over the blurred shot, rimmed brighter than its fill so
-  // its edge holds against a pale photo, and lifted on the glass shadow.
+  // `Pill` shrink-wraps to the start of its row; the lock sits dead centre.
   pill: {
-    height: PILL_HEIGHT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.stack,
-    paddingHorizontal: layout.block,
-    borderRadius: radii.pill,
-    borderWidth: PILL_RIM,
-    borderColor: colors.lockPillRim,
-    backgroundColor: colors.lockPill,
-    ...shadows.glass,
+    alignSelf: 'center',
   },
 });
 

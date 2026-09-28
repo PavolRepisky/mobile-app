@@ -158,10 +158,6 @@ export const colors = {
    * as this app's own shadow and not a generic overlay.
    */
   scrimLock: 'rgba(20,20,20,0.45)',
-  /** The lock pill's frosted fill over a blurred photo — the canvas's own. */
-  lockPill: 'rgba(255,255,255,0.42)',
-  /** Its rim, brighter than the fill so the edge holds on a pale shot. */
-  lockPillRim: 'rgba(255,255,255,0.8)',
 
   /** The barely-there dim behind a popover; the lens does the rest. */
   frostBackdrop: 'rgba(0,0,0,0.04)',
@@ -695,6 +691,19 @@ export const shadows = {
     shadowRadius: 26,
     shadowOffset: { width: 0, height: 14 },
     elevation: 16,
+  },
+  /**
+   * `soft` pulled in close, for the round buttons in a screen's fixed header
+   * bar. The bar leaves only a stack's gap under them before the page
+   * scrolls in, and `soft`'s blur reaches past that, so its lower edge was
+   * sliced off flat. This one fades out inside the gap.
+   */
+  header: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
   /** Sticky notes cast a tighter, more directional shadow. */
   sticky: {

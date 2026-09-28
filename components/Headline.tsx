@@ -1,6 +1,7 @@
 import { Text as RNText, type StyleProp, type TextStyle } from 'react-native';
 
 import { colors, fonts, type as typeScale } from '@/constants/theme';
+import { trackingRoom } from './Text';
 
 type Size = 'hero' | 'headline' | 'headlineSm' | 'title';
 type Weight = 500 | 700 | 900;
@@ -103,6 +104,8 @@ export function Headline({
         scale,
         { fontFamily: FACE[baseWeight], color, textAlign: align },
         style,
+        // Room for the last glyph under negative tracking, as `Text` gives.
+        trackingRoom([scale, style]),
       ]}
     >
       {runs.map((run, i) => {

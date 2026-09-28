@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -12,9 +12,12 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { absoluteFill, colors, radii, screenPadding, shadows, spacing } from '@/constants/theme';
@@ -28,6 +31,39 @@ const DURATION = 280;
  * it, and how fast a flick has to be to close it from any distance. */
 const DISMISS_DRAG = 100;
 const DISMISS_VELOCITY = 0.8;
+/** The slowest a dragged-away sheet leaves at, in px/ms. A drag let go of
+ * gently still has to clear the screen briskly, not crawl off it. */
+const FLING_MIN_SPEED = 2;
+/** How far a finger travels on a `dragAnywhere` sheet before it counts as a
+ * pull rather than a tap on whatever it landed on. */
+const PULL_SLOP = 10;
+
+/**
+ * What a `dragAnywhere` sheet hands the list inside it: the list's own native
+ * gesture, so the sheet's pull can run alongside its scrolling, and a scroll
+ * handler, so the sheet knows whether the list is at its top — the only time
+ * a pull that starts on the list moves the sheet rather than the list.
+ */
+export interface SheetList {
+  gesture: ReturnType<typeof Gesture.Native>;
+  onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+}
+
+const SheetListContext = createContext<SheetList | null>(null);
+
+/**
+ * Wraps the scrolling list inside a `dragAnywhere` sheet, handing it the
+ * scroll handler to wear; anywhere else it renders the list untouched.
+ */
+export function SheetScrollable({
+  children,
+}: {
+  children: (onScroll?: SheetList['onScroll']) => React.ReactElement;
+}) {
+  const sheet = useContext(SheetListContext);
+  const list = children(sheet?.onScroll);
+  return sheet ? <GestureDetector gesture={sheet.gesture}>{list}</GestureDetector> : list;
+}
 
 /** Blur strength of the backdrop once fully open. Also sets its dim: the tint
  * expo-blur lays over the blur scales with the intensity. */
@@ -146,6 +182,14 @@ export interface BottomSheetProps {
   children: React.ReactNode;
   /** Shows the small grabber at the top edge. */
   handle?: boolean;
+  /**
+   * Lets the sheet be pulled down from anywhere on it, not just the grabber.
+   * A list inside wraps itself in `SheetScrollable`: a pull that starts on
+   * it moves the sheet only while it's scrolled to the top, and scrolls it
+   * otherwise. Off by default — a sheet holding a wheel or a slider needs its
+   * vertical drags for itself.
+   */
+  dragAnywhere?: boolean;
   /** Sheet fills most of the screen and scrolls its contents. */
   tall?: boolean;
   padded?: boolean;
@@ -175,6 +219,7 @@ export function BottomSheet({
   onDismissed,
   children,
   handle = true,
+  dragAnywhere,
   tall,
   padded = true,
   bottomGap,
@@ -195,14 +240,25 @@ export function BottomSheet({
   // back down instead of vanishing the moment `visible` flips.
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  // The speed the finger let go at, when a drag is what closed the sheet.
+  // The usual exit eases in — it starts from rest — so after a drag it
+  // stalled where the finger left it before speeding off. A dragged sheet
+  // instead carries straight on at the speed it was let go at, never slower
+  // than `FLING_MIN_SPEED`, all the way off the screen.
+  const flung = useRef<number | null>(null);
 
   useEffect(() => {
     if (visible) setMounted(true);
+    const fling = visible ? null : flung.current;
+    flung.current = null;
 
     const animation = Animated.timing(progress, {
       toValue: visible ? 1 : 0,
-      duration: DURATION,
-      easing: easingFor(visible),
+      duration:
+        fling === null
+          ? DURATION
+          : screenHeight / Math.max(fling, FLING_MIN_SPEED),
+      easing: fling === null ? easingFor(visible) : Easing.linear,
       useNativeDriver: true,
     });
 
@@ -211,6 +267,8 @@ export function BottomSheet({
     });
 
     return () => animation.stop();
+    // `screenHeight` only times a fling; a rotation mid-exit needn't restart it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, progress]);
 
   // How far the grabber has pulled the sheet down, on top of where the
@@ -227,6 +285,13 @@ export function BottomSheet({
   // close animation then runs on from wherever the drag left it.
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
+  /** Closes the sheet from a drag, let go at `speed` px/ms. */
+  const release = (speed: number) => {
+    flung.current = speed;
+    onDismissRef.current();
+  };
+  const releaseRef = useRef(release);
+  releaseRef.current = release;
   const grab = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -234,7 +299,7 @@ export function BottomSheet({
       onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
       onPanResponderRelease: (_, g) => {
         if (g.dy > DISMISS_DRAG || g.vy > DISMISS_VELOCITY) {
-          onDismissRef.current();
+          releaseRef.current(g.vy);
         } else {
           Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
         }
@@ -243,6 +308,66 @@ export function BottomSheet({
         Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(),
     }),
   ).current;
+
+  // The same pull, taken from anywhere on a `dragAnywhere` sheet. Whether it
+  // moves the sheet is settled once, as the finger starts travelling: a
+  // downward pull off the list always does, one on the list only while the
+  // list is at its top — otherwise the list is scrolling and the sheet stays.
+  const listAtTop = useRef(true);
+  const inList = useRef(false);
+  const pulling = useRef(false);
+  const pullFrom = useRef(0);
+  const sheetList = useMemo<SheetList>(
+    () => ({
+      gesture: Gesture.Native()
+        .runOnJS(true)
+        .onBegin(() => {
+          inList.current = true;
+        })
+        .onFinalize(() => {
+          inList.current = false;
+        }),
+      onScroll: (e) => {
+        listAtTop.current = e.nativeEvent.contentOffset.y <= 0;
+      },
+    }),
+    [],
+  );
+  const pull = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true)
+        .enabled(Boolean(dragAnywhere))
+        .activeOffsetY([-PULL_SLOP, PULL_SLOP])
+        .failOffsetX([-PULL_SLOP * 2, PULL_SLOP * 2])
+        .simultaneousWithExternalGesture(sheetList.gesture)
+        .onStart((e) => {
+          pulling.current = e.translationY > 0 && (!inList.current || listAtTop.current);
+          // Measured from here, so the sheet doesn't jump the slop's worth.
+          pullFrom.current = e.translationY;
+        })
+        .onUpdate((e) => {
+          if (pulling.current) drag.setValue(Math.max(0, e.translationY - pullFrom.current));
+        })
+        .onEnd((e, success) => {
+          if (!pulling.current) return;
+          // Gesture handler reports velocity per second, the responder above
+          // per millisecond — the flick threshold is kept in the latter.
+          if (
+            success &&
+            (e.translationY - pullFrom.current > DISMISS_DRAG ||
+              e.velocityY / 1000 > DISMISS_VELOCITY)
+          ) {
+            releaseRef.current(e.velocityY / 1000);
+          } else {
+            Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
+          }
+        })
+        .onFinalize(() => {
+          pulling.current = false;
+        }),
+    [dragAnywhere, sheetList, drag],
+  );
 
   const translateY = useMemo(
     () =>
@@ -277,57 +402,64 @@ export function BottomSheet({
       onDismiss={onDismissed}
       statusBarTranslucent
     >
-      <View style={styles.root}>
+      {/* A modal is a window of its own on Android, outside the app's root
+          handler view, so the sheet's pull needs one here to be seen. */}
+      <GestureHandlerRootView style={styles.root}>
         <SheetBackdrop visible={visible} onDismiss={onDismiss} />
 
-        <Animated.View
-          style={[
-            styles.sheet,
-            tall && {
-              height: Math.round(screenHeight * TALL_RATIO),
-              // Its own inset, not the safe-area one: the sheet stops well
-              // short of the status bar, so `insets.top` here only opened a
-              // hole above the content.
-              paddingTop: spacing['2xl'],
-            },
-            padded && styles.padded,
-            // The tall sheet pads its scroll content instead, so the list
-            // can run under the home indicator while scrolling.
-            tall
-              ? null
-              : {
-                // With the keyboard up the sheet keeps its bottom edge on
-                // the screen's and runs on underneath the keys, so what
-                // shows through their rounded corners is the sheet rather
-                // than the blurred page behind it. The safe-area inset
-                // goes at the same time: the home indicator is behind the
-                // keyboard, so clearing it would only reopen the gap.
-                paddingBottom: bottomInset
-                  ? bottomInset + (bottomGap ?? spacing.lg)
-                  : insets.bottom + (bottomGap ?? spacing.xl),
+        <GestureDetector gesture={pull}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              tall && {
+                height: Math.round(screenHeight * TALL_RATIO),
+                // Its own inset, not the safe-area one: the sheet stops well
+                // short of the status bar, so `insets.top` here only opened a
+                // hole above the content.
+                paddingTop: spacing['2xl'],
               },
-            style,
-            { transform: [{ translateY }] },
-          ]}
-        >
-          {handle ? (
-            // A full-width strip around the grabber, so it's caught without
-            // having to land on the thin line itself. Left out of the
-            // accessibility tree: a screen reader can't drag, and the
-            // backdrop's own "Dismiss" already closes the sheet.
-            <View
-              {...grab.panHandlers}
-              hitSlop={{ top: spacing.md }}
-              importantForAccessibility="no-hide-descendants"
-              accessibilityElementsHidden
-              style={styles.handleZone}
-            >
-              <View style={styles.handle} />
-            </View>
-          ) : null}
-          {body}
-        </Animated.View>
-      </View>
+              padded && styles.padded,
+              // The tall sheet pads its scroll content instead, so the list
+              // can run under the home indicator while scrolling.
+              tall
+                ? null
+                : {
+                  // With the keyboard up the sheet keeps its bottom edge on
+                  // the screen's and runs on underneath the keys, so what
+                  // shows through their rounded corners is the sheet rather
+                  // than the blurred page behind it. The safe-area inset
+                  // goes at the same time: the home indicator is behind the
+                  // keyboard, so clearing it would only reopen the gap.
+                  paddingBottom: bottomInset
+                    ? bottomInset + (bottomGap ?? spacing.lg)
+                    : insets.bottom + (bottomGap ?? spacing.xl),
+                },
+              style,
+              { transform: [{ translateY }] },
+            ]}
+          >
+            {handle ? (
+              // A full-width strip around the grabber, so it's caught without
+              // having to land on the thin line itself. Left out of the
+              // accessibility tree: a screen reader can't drag, and the
+              // backdrop's own "Dismiss" already closes the sheet.
+              <View
+                // A `dragAnywhere` sheet's own pull already covers the grabber.
+                {...(dragAnywhere ? null : grab.panHandlers)}
+                hitSlop={{ top: spacing.md }}
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden
+                style={styles.handleZone}
+              >
+                <View style={styles.handle} />
+              </View>
+            ) : null}
+            <SheetListContext.Provider value={dragAnywhere ? sheetList : null}>
+              {body}
+            </SheetListContext.Provider>
+          </Animated.View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -358,8 +490,10 @@ const styles = StyleSheet.create({
     width: 42,
     height: 5,
     borderRadius: radii.pill,
-    // The palette's fill grey — every sheet's grabber, on every screen.
-    backgroundColor: colors.surfaceSunken,
+    // Ink, like the rest of the sheet's marks — every sheet's grabber, on
+    // every screen, so it reads as something to take hold of rather than a
+    // faint fill.
+    backgroundColor: colors.ink,
   },
 });
 

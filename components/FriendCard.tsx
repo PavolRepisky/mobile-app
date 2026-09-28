@@ -44,7 +44,7 @@ const GRID_CELL_PIECE = { flex: 1 } as const;
  * web or older Android. Soft enough that the day's colours still show
  * through under `LockedOverlay`'s light wash, too soft to make out the shot.
  */
-const LOCK_BLUR_RADIUS = 50;
+export const LOCK_BLUR_RADIUS = 50;
 
 /** Blur on the day stamp's drop shadow — wide and soft, so it lifts the
  * white type off a bright shot without drawing an edge around the letters. */
@@ -128,9 +128,29 @@ const SUBTITLE_DOT = 3;
 /** One carousel page marker riding the photo's bottom edge. */
 const CAROUSEL_DOT = 6;
 
+/** Minutes past midnight for a task's "7:40 AM", so times compare. */
+const clockMinutes = (time: string) => {
+  const match = /^(\d{1,2}):(\d{2})\s*([AP]M)$/i.exec(time.trim());
+  if (!match) return -1;
+  const hour = (Number(match[1]) % 12) + (match[3].toUpperCase() === 'PM' ? 12 : 0);
+  return hour * 60 + Number(match[2]);
+};
+
+/** When the day became a post: the latest time on any of its tasks — the
+ * checklist's order isn't the order they were done in. */
+const finishedAt = (tasks: readonly { time?: string }[]) =>
+  tasks.reduce<string | undefined>(
+    (latest, task) =>
+      task.time && (!latest || clockMinutes(task.time) > clockMinutes(latest))
+        ? task.time
+        : latest,
+    undefined,
+  );
+
 /**
- * A friend's day as one flat post — avatar, name and the post-detail screen's
- * own subtitle (the challenge, linked, then "Day N" — no relative timestamp)
+ * A friend's day as one flat post — avatar, name and the time the day was
+ * finished, the way a story carries the time its photo was taken, then the
+ * post-detail screen's own subtitle (the challenge, linked, then "Day N")
  * leading, then the same edge-to-edge photo mosaic the post-detail screen's
  * own grid slide cuts, just their shot tasks and nothing standing in for the
  * rest, and a like/comment action row. The comments themselves are never on
@@ -150,6 +170,7 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
   const postId = post?.id ?? friend.id;
   const day = post?.day ?? friend.day;
   const postTasks = post?.tasks ?? friend.tasks;
+  const time = finishedAt(postTasks);
 
   // One reaction per person per post: picking another moves it, picking
   // yours again takes it back.
@@ -280,6 +301,28 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
 
   const renderSlide = (item: (typeof slides)[number]) => {
     const slideSize = { width: carouselWidth, height: carouselHeight };
+    if (item.kind === 'grid' && locked) {
+      // Locked, the grid isn't cut into cells at all. Each photo blurs only
+      // inside its own box, so blurred cell by cell the seams between them
+      // stayed sharp lines across the blur. Instead every photo is laid over
+      // the whole slide, each a step more see-through than the one under it
+      // (1, 1/2, 1/3…, an even running blend), so the day reads as one soft
+      // wash of its colours with nothing to trace.
+      const shots = item.rows.filter((row) => row.photo);
+      return (
+        <View style={slideSize}>
+          {shots.map((row, i) => (
+            <Image
+              key={row.key}
+              source={row.photo}
+              style={[absoluteFill, { opacity: 1 / (i + 1) }]}
+              contentFit="cover"
+              blurRadius={LOCK_BLUR_RADIUS}
+            />
+          ))}
+        </View>
+      );
+    }
     if (item.kind === 'grid') {
       return (
         <View style={slideSize}>
@@ -351,14 +394,23 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
           <Avatar source={friend.avatar} size={POST_AVATAR} />
         </Pressable>
         <View style={styles.identityText}>
-          <Text
-            variant="itemTitle"
-            accessibilityRole={onPress ? 'button' : undefined}
-            accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
-            onPress={onPress}
-          >
-            {friend.name}
-          </Text>
+          <View style={styles.subtitleRow}>
+            <Text
+              variant="itemTitle"
+              numberOfLines={1}
+              accessibilityRole={onPress ? 'button' : undefined}
+              accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
+              onPress={onPress}
+              style={styles.nameText}
+            >
+              {friend.name}
+            </Text>
+            {time ? (
+              <Text variant="meta" color={colors.inkMuted}>
+                {time}
+              </Text>
+            ) : null}
+          </View>
           <View style={styles.subtitleRow}>
             <Text
               variant="meta"
@@ -646,6 +698,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs + spacing.xs / 2,
+  },
+  // Gives way before the time does, so a long name ellipsizes rather than
+  // pushing the time off the row.
+  nameText: {
+    flexShrink: 1,
   },
   challengeLink: {
     textDecorationLine: 'underline',
