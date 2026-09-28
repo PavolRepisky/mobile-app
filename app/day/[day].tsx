@@ -1,18 +1,11 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/FriendCard';
-import { IconButton } from '@/components/IconButton';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileActionTop,
-} from '@/components/ProfileLayout';
-import { topPadding } from '@/components/Screen';
-import { Text } from '@/components/Text';
-import { colors, layout } from '@/constants/theme';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { layout } from '@/constants/theme';
 import { FRIENDS, type Friend } from '@/data/content';
 import { useApp, usePostedDays } from '@/hooks/useAppState';
 
@@ -30,19 +23,11 @@ import { useApp, usePostedDays } from '@/hooks/useAppState';
 export default function DayPostScreen() {
   const { day: dayParam } = useLocalSearchParams<{ day: string }>();
   const openedDay = Number(dayParam) || 1;
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-
   const postedDays = usePostedDays();
   // A day reached by a link rather than a tap on the grid — nothing
   // photographed yet, say — has no neighbours in the feed to scroll onto, so
   // it shows just itself.
   const days = postedDays.includes(openedDay) ? postedDays : [openedDay];
-
-  // The line the title and the back button share — My Profile's and
-  // Settings' own: the corner button's fixed offset, or the status bar's if
-  // that runs lower.
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
 
   const { profile, tasks, progress, captions, currentDay, trophies, livesLeft } = useApp();
 
@@ -122,28 +107,15 @@ export default function DayPostScreen() {
   }, [openedDay, days]);
 
   return (
-    <View style={styles.root}>
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        onScrollBeginDrag={() => {
-          userScrolledRef.current = true;
-        }}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: headerTop, paddingBottom: insets.bottom + layout.section },
-        ]}
-      >
-        {/* The feed's own title, sharing the back chevron's line the way
-            every other pushed screen's title band does — not "Day N", which
-            belongs to the post below it, but what this whole scroll is. */}
-        <View style={styles.titleBand}>
-          <Text variant="pageTitle" center>
-            My Days
-          </Text>
-        </View>
-
+    // The feed's title in the fixed bar — not "Day N", which belongs to the
+    // post below it, but what this whole scroll is.
+    <ScreenScroll
+      ref={scrollRef}
+      onScrollBeginDrag={() => {
+        userScrolledRef.current = true;
+      }}
+      header={<ScreenHeader bar plainTitle="My days" />}
+    >
         {days.map((day) => (
           <View
             key={day}
@@ -159,54 +131,13 @@ export default function DayPostScreen() {
             />
           </View>
         ))}
-      </ScrollView>
-
-      {/* My Profile's round corner button, as Settings has it — pinned over
-          the feed on the title's line, so scrolling between days never moves
-          it while the title band above scrolls with the content. */}
-      <IconButton
-        name="chevron-back"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.back()}
-        accessibilityLabel="Go back"
-        style={[styles.back, { top: headerTop }]}
-      />
-    </View>
+    </ScreenScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.backgroundPlain,
-  },
-  // Without an explicit bound here the ScrollView has no viewport of its
-  // own to scroll within — it just renders its content at full length and
-  // whatever falls past the screen edge is gone, not scrolled to.
-  scroll: {
-    flex: 1,
-  },
-  // The gutter `FriendCard` bleeds its photos back out of, edge to edge —
-  // the same one the Community tab's own feed sits in.
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: layout.gutter,
-  },
-  // The pinned button's height, so the centred title shares its line — the
-  // same title band My Profile and Settings open with.
-  titleBand: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    marginBottom: layout.title,
-  },
   // One post's clearance from the next: each post is a block of the page.
   post: {
     marginBottom: layout.section,
-  },
-  back: {
-    position: 'absolute',
-    left: layout.gutter,
   },
 });

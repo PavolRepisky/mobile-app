@@ -18,12 +18,8 @@ import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
 import { Pill, pillHeights } from '@/components/Pill';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileActionTop,
-} from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { CheckCircle } from '@/components/TaskRow';
 import { Text } from '@/components/Text';
 import { WheelPicker } from '@/components/WheelPicker';
@@ -153,11 +149,6 @@ export default function CreateChallengeScreen() {
     router.back();
   };
 
-  // The line the title and the back button share — My Profile's and
-  // Settings' own, so moving between them nothing in the header jumps.
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
-
   const missing = PHOTO_COUNT - photos.length;
 
   // The Join dock's own gap: what the floating tab bar keeps off the bottom
@@ -176,12 +167,10 @@ export default function CreateChallengeScreen() {
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        // Title and back button in the scroll's fixed header, level with each
+        // other however far the form has scrolled.
+        header={<ScreenHeader bar plainTitle="New challenge" />}
       >
-        <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="pageTitle" center>
-            New challenge
-          </Text>
-        </View>
 
         {/* The photos as a small pile of prints rather than four empty
             wells: each photo picked lands on the pile, tilted, and the card
@@ -316,18 +305,6 @@ export default function CreateChallengeScreen() {
         </View>
       </ScreenScroll>
 
-      {/* Settings' back arrow: My Profile's round corner button, pinned on
-          the title's line so the way out stays in reach. */}
-      <IconButton
-        name="chevron-back"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.back()}
-        accessibilityLabel="Go back"
-        style={[styles.cornerLeft, { top: headerTop }]}
-      />
-
       {/* Docked on a white band like Join on a challenge's preview, so the
           tasks scroll away under it rather than showing through. */}
       <View style={[styles.dock, { paddingBottom: dockGap }]}>
@@ -410,16 +387,6 @@ function Field({
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  // The pinned button's height, so the title centres on the same line.
-  header: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    marginBottom: layout.title,
-  },
-  cornerLeft: {
-    position: 'absolute',
-    left: layout.gutter,
   },
   // Centred as a pile; the vertical padding is room for the tilted corners,
   // which a rotation pushes past the row's own bounds.

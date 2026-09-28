@@ -12,6 +12,7 @@ import { PhotoViewer } from '@/components/PhotoViewer';
 import { ProfileStats } from '@/components/ProfileStats';
 import { profileAvatarSize } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { PEOPLE } from '@/data/content';
@@ -31,14 +32,6 @@ function fakeCount(key: string, min: number, max: number): number {
   for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) | 0;
   return min + (Math.abs(h) % (max - min + 1));
 }
-
-/** A bare glyph, sized on its own rather than the circular IconButton's —
- * matches the own-profile header's corner glyphs exactly. */
-const headerIconSize = 26;
-/** The outline glyph has no bold cut of its own — stacking a second copy a
- * hair off the first thickens the stroke without switching to the filled
- * icon. */
-const headerBoldOffset = 0.6;
 
 /** Same hero circle the own-profile screen and the to-do ring share. */
 const avatarSize = profileAvatarSize;
@@ -98,36 +91,9 @@ export default function FriendProfileScreen() {
   return (
     <View style={styles.screenRoot}>
       {/* Near-white, not the warm app shell — matches your own Profile tab. */}
-      <ScreenScroll tone="plain">
-        <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            hitSlop={spacing.md}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <View style={styles.headerIconStack}>
-              <Ionicons name="chevron-back" size={headerIconSize} color={colors.ink} />
-              <Ionicons
-                name="chevron-back"
-                size={headerIconSize}
-                color={colors.ink}
-                style={styles.headerIconOverlay}
-              />
-            </View>
-          </Pressable>
-
-          <Text variant="sectionTitle" center style={styles.headerTitle}>
-            Profile
-          </Text>
-
-          {/* Matches the add-friend/settings glyph's own width, so the title
-              still centres on the page rather than on the space a lone back
-              button leaves free. */}
-          <View style={styles.headerIconStack} />
-        </View>
-
+      {/* Every pushed page's fixed bar: the way back, then whose profile
+          this is. */}
+      <ScreenScroll tone="plain" header={<ScreenHeader bar plainTitle={friend.name} />}>
         <View style={styles.identity}>
           <View style={styles.headerRow}>
             <View>
@@ -280,25 +246,8 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  headerTitle: {
-    flex: 1,
-  },
   identity: {
     marginTop: spacing.xs,
-  },
-  headerIconStack: {
-    width: headerIconSize + headerBoldOffset,
-    height: headerIconSize + headerBoldOffset,
-  },
-  headerIconOverlay: {
-    position: 'absolute',
-    left: headerBoldOffset,
-    top: headerBoldOffset,
   },
   headerRow: {
     flexDirection: 'row',

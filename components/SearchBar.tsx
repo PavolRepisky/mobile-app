@@ -18,6 +18,9 @@ export interface SearchBarProps {
   /** A trailing glyph — Add Friends' own scan icon, so far. */
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightIconPress?: () => void;
+  /** Opens with the keyboard up — for a list reached from a search button,
+   * where typing is the whole reason the screen was opened. */
+  autoFocus?: boolean;
 }
 
 /**
@@ -34,6 +37,7 @@ export function SearchBar({
   style,
   rightIcon,
   onRightIconPress,
+  autoFocus,
 }: SearchBarProps) {
   return (
     <View style={[styles.root, style]}>
@@ -44,6 +48,7 @@ export function SearchBar({
         placeholder={placeholder}
         placeholderTextColor={colors.inkMuted}
         returnKeyType="search"
+        autoFocus={autoFocus}
         style={styles.input}
       />
       {rightIcon ? (

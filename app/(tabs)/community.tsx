@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, type AvatarSource } from '@/components/Avatar';
 import { PrimaryButton } from '@/components/Buttons';
@@ -12,12 +11,9 @@ import { EmptyState } from '@/components/EmptyState';
 import { FriendCard } from '@/components/FriendCard';
 import { IconButton } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileActionTop,
-} from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { TaskRing } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
@@ -75,7 +71,6 @@ const finished = (person: Friend) =>
  */
 export default function CommunityScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const {
     hasPhotographedTask,
     profile,
@@ -136,10 +131,6 @@ export default function CommunityScreen() {
   };
 
   const locked = !hasPhotographedTask;
-
-  // The shared line the title and the corner button sit on — see Challenges.
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
 
   const openProfile = (id: string) =>
     router.push({ pathname: '/friend/[id]', params: { id } });
@@ -234,15 +225,30 @@ export default function CommunityScreen() {
   );
 
   return (
-    // Absolute overlays need a positioned parent, otherwise their offsets
-    // resolve against the scroll content instead of the screen.
+    // Challenges' own fixed title row: the title on the gutter, Find friends
+    // at the end, staying put while the feed scrolls under it.
     <View style={styles.screenRoot}>
-      <ScreenScroll tabBar ref={scrollRef}>
-        <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="pageTitle" center>
-            Community
-          </Text>
-        </View>
+      <ScreenScroll
+        tabBar
+        ref={scrollRef}
+        header={
+          <ScreenHeader
+            bar
+            plainTitle="Community"
+            showBack={false}
+            right={
+              <IconButton
+                name="person-add-outline"
+                size={profileActionButton}
+                iconSize={profileActionIcon}
+                background={colors.surface}
+                onPress={() => router.push('/add-friends')}
+                accessibilityLabel="Find friends"
+              />
+            }
+          />
+        }
+      >
 
         <SegmentedTabs
           options={[
@@ -484,16 +490,6 @@ export default function CommunityScreen() {
           </>
         )}
       </ScreenScroll>
-
-      <IconButton
-        name="person-add-outline"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.push('/add-friends')}
-        accessibilityLabel="Find friends"
-        style={[styles.cornerRight, { top: headerTop }]}
-      />
     </View>
   );
 }
@@ -578,17 +574,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  // Sized to the corner button, so the title centres on the same line as the
-  // button pinned beside it — the way My Profile lines up its own two.
-  header: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    marginBottom: layout.title,
-  },
-  cornerRight: {
-    position: 'absolute',
-    right: layout.gutter,
   },
   tabs: {
     marginBottom: layout.section,

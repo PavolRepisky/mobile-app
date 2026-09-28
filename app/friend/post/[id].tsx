@@ -1,34 +1,24 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { FriendCard } from '@/components/FriendCard';
-import { topPadding } from '@/components/Screen';
-import { Text } from '@/components/Text';
-import { colors, screenPadding, spacing } from '@/constants/theme';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { spacing } from '@/constants/theme';
 import { PEOPLE } from '@/data/content';
-
-/** Matches the back chevron's own drawn size — the own-profile "My Days"
- * screen's own footprint for it, since the button floats above the scroll
- * rather than sitting in its flow. */
-const BACK_ICON_SIZE = 26.6;
 
 /**
  * A friend's or member's posts, opened from their profile grid — every day
  * they've shot, most recent first, the same continuous feed your own "My
- * Days" screen scrolls through, landing on the tile that was tapped rather
- * than always the top. The back button floats over the feed the same way —
- * scrolling between days never moves it, and the title band above scrolls
- * with the content instead. Each day is the same `FriendCard` the Community
- * feed posts with: photo carousel, like, and the comment thread behind its
- * own sheet.
+ * days" screen scrolls through, landing on the tile that was tapped rather
+ * than always the top. The way back and the title sit in the fixed bar, so
+ * scrolling between days never moves them. Each day is the same `FriendCard`
+ * the Community feed posts with: photo carousel, like, and the comment thread
+ * behind its own sheet.
  */
 export default function FriendPostScreen() {
   const { id, day: dayParam } = useLocalSearchParams<{ id: string; day?: string }>();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
   const openedDay = Number(dayParam) || friend.day;
@@ -37,8 +27,6 @@ export default function FriendPostScreen() {
     { day: friend.day, tasks: friend.tasks },
     ...(friend.pastPosts ?? []),
   ].sort((a, b) => b.day - a.day);
-
-  const headerTop = topPadding(insets.top);
 
   const scrollRef = useRef<ScrollView>(null);
   const itemRefs = useRef(new Map<number, View>());
@@ -85,27 +73,13 @@ export default function FriendPostScreen() {
   }, [openedDay, days]);
 
   return (
-    <View style={styles.root}>
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        onScrollBeginDrag={() => {
-          userScrolledRef.current = true;
-        }}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: headerTop, paddingBottom: insets.bottom + spacing.xl },
-        ]}
-      >
-        {/* The feed's own title, sharing the back chevron's line the way
-            every other pushed screen's title band does. */}
-        <View style={styles.titleBand}>
-          <Text variant="sectionTitle" center>
-            {friend.name}&apos;s Days
-          </Text>
-        </View>
-
+    <ScreenScroll
+      ref={scrollRef}
+      onScrollBeginDrag={() => {
+        userScrolledRef.current = true;
+      }}
+      header={<ScreenHeader bar plainTitle={`${friend.name}'s days`} />}
+    >
         {days.map(({ day, tasks, caption }) => (
           <View
             key={day}
@@ -127,74 +101,14 @@ export default function FriendPostScreen() {
             />
           </View>
         ))}
-      </ScrollView>
-
-      {/* Floats over the feed rather than living inside one post, so
-          scrolling between days never moves it. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        onPress={() => router.back()}
-        hitSlop={spacing.md}
-        style={({ pressed }) => [
-          styles.back,
-          { top: headerTop },
-          pressed && styles.pressed,
-        ]}
-      >
-        <View style={styles.backIconStack}>
-          <Ionicons name="chevron-back" size={26} color={colors.ink} />
-          <Ionicons
-            name="chevron-back"
-            size={26}
-            color={colors.ink}
-            style={styles.backIconOverlay}
-          />
-        </View>
-      </Pressable>
-    </View>
+    </ScreenScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.backgroundPlain,
-  },
-  // Without an explicit bound here the ScrollView has no viewport of its own
-  // to scroll within — it just renders its content at full length and
-  // whatever falls past the screen edge is gone, not scrolled to.
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: screenPadding,
-  },
-  titleBand: {
-    minHeight: BACK_ICON_SIZE,
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-  },
-  // One post's clearance from the next — the own-profile "My Days" feed's
+  // One post's clearance from the next — the own-profile "My days" feed's
   // own break between days.
   post: {
     marginBottom: spacing['3xl'],
-  },
-  back: {
-    position: 'absolute',
-    left: screenPadding,
-  },
-  backIconStack: {
-    width: BACK_ICON_SIZE,
-    height: BACK_ICON_SIZE,
-  },
-  backIconOverlay: {
-    position: 'absolute',
-    left: 0.6,
-    top: 0.6,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

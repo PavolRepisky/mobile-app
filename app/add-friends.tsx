@@ -3,20 +3,14 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, Share, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
-import { IconButton } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileActionTop,
-} from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { SearchBar } from '@/components/SearchBar';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, shadows } from '@/constants/theme';
@@ -60,15 +54,10 @@ const ROW_AVATAR = 48;
  */
 export default function AddFriendsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { challenge } = useApp();
   const [query, setQuery] = useState('');
   const [requested, setRequested] = useState<ReadonlySet<string>>(new Set());
   const [codeOpen, setCodeOpen] = useState(false);
-
-  // The title and the pinned back button share one line — Settings' own.
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
 
   // The challenge's own page, where its Join button is — what a scan or a
   // tapped invite opens.
@@ -146,13 +135,7 @@ export default function AddFriendsScreen() {
 
   return (
     <View style={styles.screenRoot}>
-      <ScreenScroll tone="plain">
-        <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="pageTitle" center>
-            Find friends
-          </Text>
-        </View>
-
+      <ScreenScroll tone="plain" header={<ScreenHeader bar plainTitle="Find friends" />}>
         <SearchBar
           value={query}
           onChangeText={setQuery}
@@ -219,19 +202,6 @@ export default function AddFriendsScreen() {
         )}
       </ScreenScroll>
 
-      {/* Settings' back button — the round corner button pinned on the
-          title's line, so the way out stays in reach however far down the
-          page goes. */}
-      <IconButton
-        name="chevron-back"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.back()}
-        accessibilityLabel="Go back"
-        style={[styles.cornerLeft, { top: headerTop }]}
-      />
-
       {/* The code at full size slides up from the bottom the way the
           comments do: something to hold out to a friend for a moment, and
           swiped or tapped away once they've scanned it. */}
@@ -270,16 +240,6 @@ export default function AddFriendsScreen() {
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  // The pinned button's height, so the title centres on the same line.
-  header: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    marginBottom: layout.title,
-  },
-  cornerLeft: {
-    position: 'absolute',
-    left: layout.gutter,
   },
   search: {
     marginBottom: layout.section,

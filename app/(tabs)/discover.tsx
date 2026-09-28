@@ -1,459 +1,333 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { Card } from '@/components/Card';
-import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
-import { Pill } from '@/components/Pill';
-import { PhotoStrip, type PhotoSource } from '@/components/PhotoStrip';
-import {
-  profileActionButton,
-  profileActionIcon,
-  profileActionTop,
-} from '@/components/ProfileLayout';
-import { ScreenScroll, topPadding } from '@/components/Screen';
-import { SearchBar } from '@/components/SearchBar';
-import { SegmentedTabs } from '@/components/SegmentedTabs';
+import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { ScreenScroll } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
-import { bodyTracking, colors, layout, radii, spacing } from '@/constants/theme';
-import { challengeById, type ChallengeCategory } from '@/data/challenges';
-import { challengeStrip, DISCOVER, FRIENDS } from '@/data/content';
-import { useApp } from '@/hooks/useAppState';
-import { localDay, roundState } from '@/lib/round';
+import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
+import { FRIENDS } from '@/data/content';
+import { CATEGORIES, useChallengeCards, type ChallengeCard } from '@/hooks/useChallengeCards';
+import { longDate } from '@/lib/format';
 
-/** The photo band across the top of each card — kept short so a card is a
- * row to scan past rather than a page to scroll through. */
-const CARD_PHOTO_HEIGHT = 156;
-
-/** The browse filters, "All" plus one per `ChallengeCategory`. */
-const CATEGORIES = ['All', 'Fitness', 'Health', 'Mindset', 'Lifestyle', 'Study'] as const;
-type CategoryFilter = (typeof CATEGORIES)[number];
-
-/** Leading glyph for a category's pills, on and off the filter row. */
-const CATEGORY_ICONS: Record<ChallengeCategory, keyof typeof Ionicons.glyphMap> = {
-  Fitness: 'barbell',
-  Health: 'heart',
-  Mindset: 'leaf',
-  Lifestyle: 'sunny',
-  Study: 'book',
-};
-
-/** One row of the unified list — the challenge you're on and every browse
- * option render through the same card, so there is nothing to tell them
- * apart by shape. */
-interface ChallengeCard {
-  id: string;
-  title: string;
-  photos: readonly PhotoSource[];
-  category?: ChallengeCategory;
-  tasksCount: number;
-  /** Undefined for a custom challenge with no Discover listing of its own —
-   * the members row drops out rather than showing a count nothing backs. */
-  members?: number;
-  /** How many days the challenge runs, shown under its name. */
-  days: number;
-  /**
-   * Where it stands, on the white badge in the photo's top-right corner:
-   * "in 4 days" before a round starts, "Day 25 of 75" while it runs,
-   * "Finished" after — and "N days left" on a custom challenge of your own,
-   * which has no shared round to count from.
-   */
-  statusLabel: string;
-  /** Which of the three tabs the card sits under. */
-  phase: Phase;
-}
+/** Tall enough for a photo to read as a cover rather than a thumbnail, short
+ * enough that Browse starts above the fold. */
+const COVER_HEIGHT = 260;
+/** A category tile: a name and a count over a photo, not a card to read. */
+const TILE_HEIGHT = 96;
+/** The faces on a cover — the friends named in its line. */
+const COVER_FACES = FRIENDS.slice(0, 2);
+const COVER_FACE_SIZE = 24;
+/** The pager's dots: the current one stretched into a short bar. */
+const DOT = 6;
+const DOT_ACTIVE = 18;
 
 /**
- * The list is split by where each round stands, because what someone is
- * looking for depends on it: a round they can still join, one under way, or
- * one that's over. Starting soon comes first — it's the only kind anyone can
- * join.
- */
-type Phase = 'upcoming' | 'active' | 'finished';
-
-const PHASES: readonly { key: Phase; label: string }[] = [
-  { key: 'upcoming', label: 'Starting soon' },
-  { key: 'active', label: 'Active' },
-  { key: 'finished', label: 'Finished' },
-];
-
-/** What an empty tab says when no search or category is narrowing it. */
-const EMPTY: Record<Phase, { title: string; hint: string }> = {
-  upcoming: {
-    title: 'Nothing starting soon',
-    hint: 'Start your own with the + button.',
-  },
-  active: { title: 'No active challenges', hint: 'Join one that starts soon.' },
-  finished: { title: 'No finished challenges yet', hint: 'Check back when one ends.' },
-};
-
-/** Faces in each card's who's-in stack — as many friends as there are, up
- * to three; everyone else is counted beside them. */
-const CARD_FACES = FRIENDS.slice(0, 3);
-
-/** A round's tab and its corner badge, off where it stands today. */
-function roundStatus(startDate: string, days: number): { phase: Phase; label: string } {
-  const state = roundState(localDay(startDate), days);
-  if (state.kind === 'upcoming') {
-    return {
-      phase: 'upcoming',
-      label:
-        state.daysUntil === 1 ? 'Starts tomorrow' : `Starts in ${state.daysUntil} days`,
-    };
-  }
-  if (state.kind === 'running') {
-    return { phase: 'active', label: `Day ${state.day} of ${days}` };
-  }
-  return { phase: 'finished', label: 'Finished' };
-}
-
-/**
- * The challenges going on out there, one long list — the one you're on and
- * everything you could start sit in the same row shape, in the same scroll,
- * so nothing marks your own run out as a different kind of thing. Tapping any
- * of them opens its feed. The "+" is sticky, pinned to the same top-right
- * corner every other tab root puts its own action button in; the title
- * shares its line, the way the button's own fixed offset naturally lines the
- * two up.
+ * Challenges, built to hold dozens of them: one cover at a time of what's
+ * about to start — the only rounds anyone can still join — swiped through,
+ * then Browse, one tile per category with how many it holds. Every tile,
+ * "See all" and the search button open the same filtered list, where the
+ * long tail lives; this page stays short however many challenges there are.
+ *
+ * The title row is the scroll's fixed header: the title on the gutter, search
+ * and "+" together at the end, all staying put while the page moves under
+ * them, so neither button ever floats over a cover.
  */
 export default function DiscoverScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { challenge, tasks, currentDay, totalDays } = useApp();
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<CategoryFilter>('All');
-  const [phase, setPhase] = useState<Phase>('upcoming');
+  const { width } = useWindowDimensions();
+  const cards = useChallengeCards();
+  const [page, setPage] = useState(0);
 
-  /**
-   * The shared line the title and the button both sit on: normally the
-   * button's own fixed offset, but on a deep safe-area inset (Dynamic Island,
-   * a tall notch) the scroll's own top padding can run past it — in which
-   * case the button drops to meet the content instead of the title
-   * disappearing under a fixed corner.
-   */
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
+  const coverWidth = width - layout.gutter * 2;
+  const tileWidth = (coverWidth - layout.stack) / 2;
 
-  // One row for the challenge you're on, built off live app state rather
-  // than the static table — a custom challenge has no entry in `DISCOVER` or
-  // `CHALLENGES` for `challengeById` to find — plus one row per browse
-  // option, off the static table the way the picker itself reads it.
-  const cards = useMemo<ChallengeCard[]>(() => {
-    const daysLeft = Math.max(totalDays - currentDay, 0);
-    const listing = DISCOVER.find((section) => section.id === challenge.id);
-    // Filed by its listing's round like every other card, so a round that has
-    // ended sits under Finished even while it's the one you're on. A custom
-    // challenge has no listing, so it counts from the day you started it.
-    const mineStatus = listing
-      ? roundStatus(listing.startDate, totalDays)
-      : { phase: 'active' as const, label: `${daysLeft} days left` };
-    const mine: ChallengeCard = {
-      id: challenge.id,
-      title: challenge.name,
-      photos: challengeStrip(challenge.id),
-      category: challenge.category,
-      tasksCount: tasks.length,
-      members: listing?.members,
-      days: totalDays,
-      statusLabel: mineStatus.label,
-      phase: mineStatus.phase,
-    };
+  // Soonest first. With nothing left to join, whatever is running stands in,
+  // so the top of the page is never empty.
+  const featured = useMemo(() => {
+    const upcoming = cards
+      .filter((card) => card.phase === 'upcoming')
+      .sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0));
+    return upcoming.length > 0 ? upcoming : cards.filter((card) => card.phase === 'active');
+  }, [cards]);
 
-    const browse: ChallengeCard[] = DISCOVER.filter(
-      (section) => section.id !== challenge.id,
-    ).map((section) => {
-      const info = challengeById(section.id);
-      const status = roundStatus(section.startDate, info.defaultDays);
-      return {
-        id: section.id,
-        title: section.title,
-        photos: section.photos,
-        category: info.category,
-        tasksCount: info.tasks.length,
-        members: section.members,
-        days: info.defaultDays,
-        statusLabel: status.label,
-        phase: status.phase,
-      };
+  // One tile per category that has anything in it, fronted by its first
+  // challenge's first photo.
+  const categories = useMemo(
+    () =>
+      CATEGORIES.map((name) => {
+        const inIt = cards.filter((card) => card.category === name);
+        return { name, count: inIt.length, photo: inIt[0]?.photos[0] };
+      }).filter((category) => category.count > 0),
+    [cards],
+  );
+
+  const openList = (filter: string, search?: boolean) =>
+    router.push({
+      pathname: '/challenges/[filter]',
+      params: search ? { filter, search: '1' } : { filter },
     });
 
-    return [mine, ...browse];
-  }, [challenge, tasks.length, currentDay, totalDays]);
-
-  const filteredCards = useMemo(() => {
-    // Split into terms so "excuses no" still finds "No Excuses Challenge" —
-    // each word has to appear somewhere in the title, in any order.
-    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return cards.filter((card) => {
-      if (card.phase !== phase) return false;
-      if (category !== 'All' && card.category !== category) return false;
-      if (terms.length === 0) return true;
-      const title = card.title.toLowerCase();
-      return terms.every((term) => title.includes(term));
-    });
-  }, [cards, query, category, phase]);
+  const onPage = (event: NativeSyntheticEvent<NativeScrollEvent>) =>
+    setPage(Math.round(event.nativeEvent.contentOffset.x / (coverWidth + layout.stack)));
 
   return (
-    // Absolute overlays need a positioned parent, otherwise their offsets
-    // resolve against the scroll content instead of the screen.
-    <View style={styles.screenRoot}>
-      <ScreenScroll tabBar bottomExtra={spacing.lg}>
-        <View style={[styles.header, { marginTop: titleOffset }]}>
-          <Text variant="pageTitle" center>
-            Challenges
-          </Text>
-        </View>
-
-        {/* Community's own tab switch, under the title the same way. */}
-        <SegmentedTabs
-          options={PHASES}
-          value={phase}
-          onChange={setPhase}
-          align="fill"
-          style={styles.tabs}
-        />
-
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search challenges"
-          style={styles.search}
-        />
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-          contentContainerStyle={styles.categoryRow}
-        >
-          {CATEGORIES.map((cat) => {
-            const active = cat === category;
-            return (
-              <Pill
-                key={cat}
-                label={cat}
-                tone={active ? 'solid' : 'outline'}
-                bold
-                onPress={() => setCategory(cat)}
+    <ScreenScroll
+      tabBar
+      header={
+        <ScreenHeader
+          bar
+          plainTitle="Challenges"
+          showBack={false}
+          right={
+            <>
+              <IconButton
+                name="search"
+                size={profileActionButton}
+                iconSize={profileActionIcon}
+                background={colors.surface}
+                onPress={() => openList('all', true)}
+                accessibilityLabel="Search challenges"
               />
-            );
-          })}
-        </ScrollView>
+              <IconButton
+                name="add"
+                size={profileActionButton}
+                iconSize={profileActionIcon}
+                background={colors.surface}
+                onPress={() => router.push('/challenge/create')}
+                accessibilityLabel="Create a challenge"
+              />
+            </>
+          }
+        />
+      }
+    >
+      {featured.length > 0 ? (
+        <View style={styles.section}>
+          {/* Pages the width of the gutter-inset column, the gap between
+              them snapped past, so each swipe lands the next cover exactly
+              where the last one sat. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={coverWidth + layout.stack}
+            decelerationRate="fast"
+            onMomentumScrollEnd={onPage}
+            contentContainerStyle={styles.pager}
+            style={styles.pagerBleed}
+          >
+            {featured.map((card) => (
+              <Cover
+                key={card.id}
+                card={card}
+                width={coverWidth}
+                onPress={() =>
+                  router.push({ pathname: '/feed/[id]', params: { id: card.id } })
+                }
+              />
+            ))}
+          </ScrollView>
+          {featured.length > 1 ? (
+            <View style={styles.dots}>
+              {featured.map((card, i) => (
+                <View key={card.id} style={[styles.dot, i === page && styles.dotActive]} />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
-        {filteredCards.length === 0 ? (
-          <EmptyState
-            icon="search"
-            title={
-              query.trim() || category !== 'All'
-                ? 'No challenges found'
-                : EMPTY[phase].title
-            }
-            hint={
-              query.trim()
-                ? 'Try a different search.'
-                : category !== 'All'
-                  ? 'Try a different category.'
-                  : EMPTY[phase].hint
-            }
-            style={styles.empty}
-          />
-        ) : (
-          <View style={styles.cards}>
-            {filteredCards.map((card) => {
-              const icon = card.category ? CATEGORY_ICONS[card.category] : 'sparkles';
-              return (
-                <Card
-                  key={card.id}
-                  padded={false}
-                  radius={radii.md}
-                  onPress={() =>
-                    router.push({ pathname: '/feed/[id]', params: { id: card.id } })
-                  }
-                >
-                  <View style={styles.cardPhotoWrap}>
-                    <PhotoStrip photos={card.photos} height={CARD_PHOTO_HEIGHT} layout="flat" radius={0} />
-                    {card.category ? (
-                      <Pill
-                        label={card.category}
-                        tone="floating"
-                        icon={icon}
-                        size="sm"
-                        bold
-                        labelVariant="metaBold"
-                        style={[styles.categoryBadge, styles.badgeFill]}
-                      />
-                    ) : null}
-                    <Pill
-                      label={card.statusLabel}
-                      tone="floating"
-                      size="sm"
-                      bold
-                      labelVariant="metaBold"
-                      style={[styles.durationBadge, styles.badgeFill]}
-                    />
-                  </View>
+      <View style={styles.heading}>
+        <Text variant="sectionHeading">Browse</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => openList('all')}
+          hitSlop={spacing.sm}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text variant="metaBold" color={colors.inkMuted}>
+            See all {cards.length}
+          </Text>
+        </Pressable>
+      </View>
 
-                  {/* The name, then a line under it: its length and daily
-                      tasks on the left, the faces of who's in and a count of
-                      everyone else on the right. */}
-                  <View style={styles.cardBody}>
-                    <Text variant="itemTitle" numberOfLines={1}>
-                      {card.title}
-                    </Text>
-                    <View style={styles.cardFacts}>
-                      <Text
-                        variant="metaBold"
-                        color={colors.inkMuted}
-                        numberOfLines={1}
-                        style={styles.trackedEnd}
-                      >
-                        {card.days} days · {card.tasksCount} tasks
-                      </Text>
+      <View style={styles.tiles}>
+        {categories.map((category) => (
+          <Pressable
+            key={category.name}
+            accessibilityRole="button"
+            accessibilityLabel={`${category.name}, ${category.count} challenges`}
+            onPress={() => openList(category.name)}
+            style={({ pressed }) => [
+              styles.tile,
+              { width: tileWidth },
+              pressed && styles.pressed,
+            ]}
+          >
+            {category.photo ? (
+              <Image source={category.photo} style={absoluteFill} contentFit="cover" />
+            ) : null}
+            <View style={styles.tileScrim} />
+            <Text variant="itemTitle" color={colors.inkInverse}>
+              {category.name}
+            </Text>
+            <Text variant="metaBold" color={colors.inkInverse}>
+              {category.count === 1 ? '1 challenge' : `${category.count} challenges`}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </ScreenScroll>
+  );
+}
 
-                      {card.members !== undefined ? (
-                        <View style={styles.cardMembers}>
-                          <View style={styles.memberStack}>
-                            {CARD_FACES.map((friend, i) => (
-                              <Avatar
-                                key={friend.id}
-                                source={friend.avatar}
-                                size={28}
-                                style={[
-                                  styles.memberAvatar,
-                                  i > 0 && styles.memberAvatarOverlap,
-                                ]}
-                              />
-                            ))}
-                          </View>
-                          <Text
-                            variant="metaBold"
-                            color={colors.inkMuted}
-                            style={styles.trackedEnd}
-                          >
-                            and{' '}
-                            {Math.max(card.members - CARD_FACES.length, 0).toLocaleString('en-US')}{' '}
-                            others
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-                </Card>
-              );
-            })}
+/** One featured round: its first photo edge to edge, and over the shade at
+ * its foot when it starts, its name, and who's in. */
+function Cover({
+  card,
+  width,
+  onPress,
+}: {
+  card: ChallengeCard;
+  width: number;
+  onPress: () => void;
+}) {
+  const others = Math.max((card.members ?? 0) - COVER_FACES.length, 0);
+  const when =
+    card.phase === 'upcoming' && card.start ? `Starts ${longDate(card.start)}` : card.statusLabel;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${card.title}, ${when}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.cover, { width }, pressed && styles.pressed]}
+    >
+      <Image source={card.photos[0]} style={absoluteFill} contentFit="cover" />
+      <LinearGradient colors={gradients.coverShade} style={absoluteFill} />
+      <View style={styles.coverText}>
+        <Text variant="badge" color={colors.inkInverse}>
+          {when}
+        </Text>
+        <Text variant="pageTitle" color={colors.inkInverse} numberOfLines={1}>
+          {card.title}
+        </Text>
+        {card.members !== undefined ? (
+          <View style={styles.coverFaces}>
+            <View style={styles.faceStack}>
+              {COVER_FACES.map((friend, i) => (
+                <Avatar
+                  key={friend.id}
+                  source={friend.avatar}
+                  size={COVER_FACE_SIZE}
+                  style={[styles.face, i > 0 && styles.faceOverlap]}
+                />
+              ))}
+            </View>
+            <Text variant="meta" color={colors.inkInverse}>
+              {COVER_FACES.map((friend) => friend.name).join(', ')} and{' '}
+              {others.toLocaleString('en-US')} more are in
+            </Text>
           </View>
-        )}
-      </ScreenScroll>
-
-      {/* My Profile's and Community's corner button — the same size, white
-          disc and soft shadow — pinned to the title's line and measured from
-          the screen edge rather than the scroll content. */}
-      <IconButton
-        name="add"
-        size={profileActionButton}
-        iconSize={profileActionIcon}
-        background={colors.surface}
-        onPress={() => router.push('/challenge/create')}
-        accessibilityLabel="Create a challenge"
-        style={[styles.cornerRight, { top: headerTop }]}
-      />
-    </View>
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  screenRoot: {
-    flex: 1,
-  },
-  // Sized to the corner button, so the title centres on the same line as the
-  // button pinned beside it — the way My Profile and Community line up theirs.
-  header: {
-    minHeight: profileActionButton,
-    justifyContent: 'center',
-    marginBottom: layout.title,
-  },
-  cornerRight: {
-    position: 'absolute',
-    right: layout.gutter,
-  },
-  tabs: {
+  section: {
     marginBottom: layout.section,
   },
-  search: {
-    marginBottom: spacing.xl,
+  // The pager runs to the screen edges, so a cover being swiped in isn't
+  // clipped at the gutter; its content is inset back to the column.
+  pagerBleed: {
+    marginHorizontal: -layout.gutter,
   },
-  categoryScroll: {
-    marginBottom: spacing['2xl'],
+  pager: {
+    paddingHorizontal: layout.gutter,
+    gap: layout.stack,
   },
-  categoryRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingRight: spacing.md,
+  cover: {
+    height: COVER_HEIGHT,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  cards: {
-    gap: spacing['3xl'],
-  },
-  cardPhotoWrap: {
-    position: 'relative',
-  },
-  categoryBadge: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-  },
-  durationBadge: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-  },
-  // Both corner badges in one material: the canvas's white badge, held
-  // translucent so the photo underneath still shows through.
-  badgeFill: {
-    backgroundColor: colors.surfaceOnPhotoDim,
-  },
-  // A row's padding rather than a card's full `card` on every side: this is
-  // a name and one line of facts under a photo, and the full inset stood it
-  // up as a block of its own. No gap between the two: the name's own
-  // leading already sets the facts line apart.
-  cardBody: {
-    paddingHorizontal: layout.card,
-    paddingVertical: layout.block,
-  },
-  cardFacts: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: layout.inline,
-  },
-  // Tight, so the faces and the count read as one phrase: "(faces) and 160
-  // others".
-  // The type's negative tracking is applied after the last letter too, so
-  // the text's box ends a point short of the glyph it holds — and native
-  // clips a Text to its box, shaving the end off a bold "s". Handing that
-  // point back as padding lets the last letter finish.
-  trackedEnd: {
-    paddingRight: -bodyTracking,
-  },
-  cardMembers: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  coverText: {
+    padding: layout.card,
     gap: layout.line,
   },
-  memberStack: {
+  coverFaces: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.stack,
+    marginTop: layout.line,
+  },
+  faceStack: {
     flexDirection: 'row',
   },
-  memberAvatar: {
+  face: {
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  memberAvatarOverlap: {
-    marginLeft: -10,
+  faceOverlap: {
+    marginLeft: -spacing.sm,
   },
-  empty: {
-    marginTop: spacing.xl,
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: DOT,
+    marginTop: layout.heading,
+  },
+  dot: {
+    width: DOT,
+    height: DOT,
+    borderRadius: radii.pill,
+    backgroundColor: colors.inkGhost,
+  },
+  dotActive: {
+    width: DOT_ACTIVE,
+    backgroundColor: colors.ink,
+  },
+  heading: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: layout.heading,
+  },
+  tiles: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: layout.stack,
+  },
+  tile: {
+    height: TILE_HEIGHT,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    padding: layout.block,
+    justifyContent: 'space-between',
+  },
+  tileScrim: {
+    ...absoluteFill,
+    // The heavier of the photo scrims: a tile's type sits on whatever part
+    // of the shot the crop lands on, often its brightest.
+    backgroundColor: colors.scrim,
+  },
+  pressed: {
+    opacity: 0.85,
   },
 });

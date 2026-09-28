@@ -10,11 +10,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   colors,
+  layout,
   screenPadding,
   screenTopGap,
   spacing,
   tabBarClearance,
 } from '@/constants/theme';
+
+/**
+ * The line every screen's title row sits on, measured from the very top of
+ * the display — the corner buttons of the tab roots and the round back button
+ * of a pushed page all share it, so moving between screens never makes the
+ * header jump.
+ */
+export const headerLineTop = 56;
 
 interface CommonProps {
   children: React.ReactNode;
@@ -98,6 +107,13 @@ export interface ScreenScrollProps
   /** The scroller itself, for a screen that scrolls to something on its own
    * — Community landing on a post a story linked to. */
   ref?: React.Ref<ScrollView>;
+  /**
+   * A title row that stays put while the page scrolls under it — usually a
+   * `ScreenHeader bar`. It sits on the header line on the page's own tone,
+   * so its buttons never float over content the way a button pinned beside
+   * a scrolling title does.
+   */
+  header?: React.ReactNode;
 }
 
 /** Scrolling screen that keeps content clear of the floating tab bar. */
@@ -110,6 +126,7 @@ export function ScreenScroll({
   style,
   bottomExtra = 0,
   contentContainerStyle,
+  header,
   // React Native's default here is `never`, which puts a *capture* responder
   // on the scroller: while a keyboard is up it eats the first tap anywhere
   // below it and only dismisses the keys. A Modal is a React child of the
@@ -121,7 +138,7 @@ export function ScreenScroll({
 }: ScreenScrollProps) {
   const insets = useSafeAreaInsets();
 
-  return (
+  const scroller = (
     <ScrollView
       ref={ref}
       showsVerticalScrollIndicator={false}
@@ -129,7 +146,9 @@ export function ScreenScroll({
       {...rest}
       style={[styles.flex, { backgroundColor: TONES[tone] }, style]}
       contentContainerStyle={[
-        { paddingTop: topPadding(insets.top, topGap) },
+        // Under a fixed header the page starts a title's gap below the bar,
+        // not below the status bar — the bar has already cleared that.
+        { paddingTop: header ? layout.title : topPadding(insets.top, topGap) },
         padded && styles.padded,
         {
           paddingBottom:
@@ -142,6 +161,26 @@ export function ScreenScroll({
       {children}
     </ScrollView>
   );
+
+  if (!header) return scroller;
+
+  return (
+    <View style={[styles.flex, { backgroundColor: TONES[tone] }]}>
+      <View
+        style={[
+          styles.headerBar,
+          padded && styles.padded,
+          {
+            backgroundColor: TONES[tone],
+            paddingTop: Math.max(headerLineTop, topPadding(insets.top)),
+          },
+        ]}
+      >
+        {header}
+      </View>
+      {scroller}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -150,6 +189,11 @@ const styles = StyleSheet.create({
   },
   padded: {
     paddingHorizontal: screenPadding,
+  },
+  // A stack's gap under the row, so content scrolling up under the bar is cut
+  // off clear of the buttons' shadows rather than against them.
+  headerBar: {
+    paddingBottom: layout.stack,
   },
 });
 
