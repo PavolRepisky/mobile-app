@@ -12,6 +12,7 @@ import {
   CUSTOM_CHALLENGE,
   challengeById,
   type Challenge,
+  type ChallengeCategory,
   type ChallengeTask,
 } from '@/data/challenges';
 import { FEED_POSTS } from '@/data/content';
@@ -130,10 +131,12 @@ interface AppActions {
   addChallenge: (input: {
     name: string;
     description: string;
+    category?: ChallengeCategory;
     photos: readonly TaskPhoto[];
-    tasks: readonly string[];
+    tasks: readonly { label: string; note?: string }[];
     days: number;
     startDate: Date;
+    lives: number;
   }) => Challenge;
   setTotalDays: (days: number) => void;
   setTabBarHidden: (hidden: boolean) => void;
@@ -181,12 +184,13 @@ const SEED_CAPTIONS: Readonly<Record<number, string>> = {
 };
 
 /**
- * Days you are allowed to miss before the challenge is lost. Fixed at three
- * whatever the challenge and however long it runs — a rule you can hold in
- * your head is the point of it, and one that moved with the length would have
- * to be explained on every screen that shows it.
+ * Days you are allowed to miss before the challenge is lost. Three whatever
+ * the challenge and however long it runs — a rule you can hold in your head
+ * is the point of it, and one that moved with the length would have to be
+ * explained on every screen that shows it. A challenge you build yourself can
+ * set its own on the create form; this is where that form starts.
  */
-const LIVES_PER_CHALLENGE = 3;
+export const LIVES_PER_CHALLENGE = 3;
 
 const SEED_CHALLENGE = CHALLENGES[0];
 
@@ -326,7 +330,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Floored rather than left negative: past the allowance the challenge is
   // lost, and how far past says nothing more than that.
-  const livesLeft = Math.max(0, LIVES_PER_CHALLENGE - missedDays);
+  const livesTotal = challenge.lives ?? LIVES_PER_CHALLENGE;
+  const livesLeft = Math.max(0, livesTotal - missedDays);
 
   // Today only, not the challenge's whole history — the gate this feeds
   // asks what today has proven, so an old streak can't stand in for a photo
@@ -377,22 +382,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (input: {
       name: string;
       description: string;
+      category?: ChallengeCategory;
       photos: readonly TaskPhoto[];
-      tasks: readonly string[];
+      tasks: readonly { label: string; note?: string }[];
       days: number;
       startDate: Date;
+      lives: number;
     }) => {
       const built: Challenge = {
         id: `custom-${Date.now()}`,
         name: input.name,
         stamp: 'Custom',
         description: input.description,
+        category: input.category,
         joined: 0,
         photoSeeds: [],
         photos: input.photos,
         defaultDays: input.days,
         startDate: isoDay(input.startDate),
-        tasks: input.tasks.map((label, i) => ({ id: `ct${Date.now()}-${i}`, label })),
+        lives: input.lives,
+        tasks: input.tasks.map((t, i) => ({ id: `ct${Date.now()}-${i}`, ...t })),
       };
       setCustomChallenges((list) => [...list, built]);
       return built;
@@ -519,7 +528,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       watchedStories,
       trophies,
       currentDay,
-      livesTotal: LIVES_PER_CHALLENGE,
+      livesTotal,
       livesLeft,
       hasPhotographedTask,
 

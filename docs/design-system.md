@@ -150,8 +150,10 @@ date-wheel drum.
 ### Overlays
 
 **`BottomSheet`** — `visible` · `onDismiss` · `handle` (default true) ·
-`dragAnywhere` (pull it down from anywhere; a list inside wraps itself in
-`SheetScrollable`) · `padded` · `bottomGap`.
+`padded` · `bottomGap`. Every sheet pulls down from anywhere on it. A
+vertical scroller inside wraps itself in `SheetScrollable`: a list hands the
+pull to the sheet once it's scrolled to the top; `owned` (a wheel) keeps
+every vertical drag for itself.
 
 **`AlertDialog`** — `title` · `message` · `actions` (`{label, onPress,
 destructive?}`) · optional `input` · `onDismiss`. Two actions sit side by

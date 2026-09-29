@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { radii, screenPadding, spacing } from '@/constants/theme';
+import { layout, screenPadding } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 import { addDays, longDate } from '@/lib/format';
 import { BottomSheet } from './BottomSheet';
@@ -17,13 +17,6 @@ import { Text } from './Text';
 export const MIN_DAYS = 7;
 export const MAX_DAYS = 120;
 const OPTIONS = MAX_DAYS - MIN_DAYS + 1;
-
-/**
- * Share of the screen the sheet stands at whatever its content measures. The
- * picker is one control with a lot of air around it, so left to its own
- * content it comes up shorter than it should.
- */
-const MIN_HEIGHT_RATIO = 0.78;
 
 const indexFor = (days: number) =>
   Math.min(Math.max(days - MIN_DAYS, 0), OPTIONS - 1);
@@ -44,7 +37,7 @@ export interface ChallengeLengthSheetProps {
 
 /**
  * The challenge-length picker, reached from Duration in settings. The ruler is
- * a draft until "Continue": leaving by the grabber or the backdrop keeps the
+ * a draft until "Done": leaving by the grabber or the backdrop keeps the
  * length that was already saved.
  */
 export function ChallengeLengthSheet({
@@ -54,7 +47,6 @@ export function ChallengeLengthSheet({
   startDate: draftStart,
   onConfirm,
 }: ChallengeLengthSheetProps) {
-  const { height } = useWindowDimensions();
   const app = useApp();
   const startDate = draftStart ?? app.startDate;
   const totalDays = draftDays ?? app.totalDays;
@@ -75,13 +67,9 @@ export function ChallengeLengthSheet({
   const end = addDays(startDate, days - 1);
 
   return (
-    <BottomSheet
-      visible={visible}
-      onDismiss={onDismiss}
-      style={{ minHeight: Math.round(height * MIN_HEIGHT_RATIO) }}
-    >
-      <Text variant="headline" center style={styles.title}>
-        {'Set challenge\nlength?'}
+    <BottomSheet visible={visible} onDismiss={onDismiss}>
+      <Text variant="sectionHeading" center>
+        Length
       </Text>
 
       <RulerSlider
@@ -100,46 +88,26 @@ export function ChallengeLengthSheet({
         style={styles.ruler}
       />
 
-      {/* Takes whatever the minimum height leaves over, so the button rides
-          the bottom edge instead of trailing the ruler. */}
-      <View style={styles.spacer} />
-
       <PrimaryButton
-        label="Continue"
+        label="Done"
         onPress={() => {
           setTotalDays(days);
           onDismiss();
         }}
-        fullWidth={false}
-        style={styles.cta}
       />
     </BottomSheet>
   );
 }
 
+// Built like every other picker sheet — the year on My Profile, a new
+// challenge's start day and lives: its name as a section heading, the
+// picker, then Done across the foot.
 const styles = StyleSheet.create({
-  // The gaps are wide on purpose: the picker is the whole of the sheet, and
-  // the air either side of the ruler is what gives it its height.
-  title: {
-    marginTop: spacing.xl,
-  },
   // The ticks run to both edges of the sheet rather than stopping at its
   // padding, so the ruler reads as something the sheet is a window onto.
   ruler: {
-    marginTop: spacing['4xl'],
+    marginVertical: layout.block,
     marginHorizontal: -screenPadding,
-  },
-  spacer: {
-    flex: 1,
-  },
-  cta: {
-    alignSelf: 'center',
-    minWidth: 240,
-    // A floor under the spacer, for a screen short enough to leave none.
-    marginTop: spacing['3xl'],
-    // Squared off against the app's usual fully-round buttons, to sit as a
-    // panel action rather than as the page's own call to action.
-    borderRadius: radii.lg,
   },
 });
 

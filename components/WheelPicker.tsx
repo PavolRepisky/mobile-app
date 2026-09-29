@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { colors, radii } from '@/constants/theme';
+import { SheetScrollable } from './BottomSheet';
 import { Text } from './Text';
 
 /** One row of the wheel; also the snap interval. The height iOS gives its own
@@ -87,35 +88,41 @@ export function WheelPicker<T extends string | number>({
     <View style={[styles.frame, style]}>
       {/* Behind the rows, so the selected one reads as sitting in it. */}
       <View style={styles.band} pointerEvents="none" />
-      <ScrollView
-        ref={scroller}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ROW_HEIGHT}
-        decelerationRate="fast"
-        contentOffset={initialOffset}
-        onLayout={() =>
-          scroller.current?.scrollTo({ y: initialOffset.y, animated: false })
-        }
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.content}
-      >
-        {/* The row in the band in ink, the rest in the light "not
-            chosen" grey — flat colours rather than a faded ink, which would
-            blend into a grey of its own that nothing else uses. */}
-        {values.map((item, index) => {
-          return (
-            <View key={String(item)} style={styles.row}>
-              <Text
-                variant="sectionHeading"
-                color={index === active ? colors.ink : colors.inkGhost}
-              >
-                {format(item)}
-              </Text>
-            </View>
-          );
-        })}
-      </ScrollView>
+      {/* Owned: in a sheet, a drag on the drum always turns it — pulling the
+          sheet away is for anywhere else on it. */}
+      <SheetScrollable owned>
+        {() => (
+          <ScrollView
+            ref={scroller}
+            showsVerticalScrollIndicator={false}
+            snapToInterval={ROW_HEIGHT}
+            decelerationRate="fast"
+            contentOffset={initialOffset}
+            onLayout={() =>
+              scroller.current?.scrollTo({ y: initialOffset.y, animated: false })
+            }
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.content}
+          >
+            {/* The row in the band in ink, the rest in the light "not
+                chosen" grey — flat colours rather than a faded ink, which would
+                blend into a grey of its own that nothing else uses. */}
+            {values.map((item, index) => {
+              return (
+                <View key={String(item)} style={styles.row}>
+                  <Text
+                    variant="sectionHeading"
+                    color={index === active ? colors.ink : colors.inkGhost}
+                  >
+                    {format(item)}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+      </SheetScrollable>
     </View>
   );
 }

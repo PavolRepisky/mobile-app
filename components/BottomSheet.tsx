@@ -5,7 +5,6 @@ import {
   Easing,
   Keyboard,
   Modal,
-  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -23,42 +22,52 @@ import { absoluteFill, colors, radii, screenPadding, shadows, spacing } from '@/
 
 const DURATION = 280;
 
-/** How far the grabber has to pull the sheet down before letting go closes
- * it, and how fast a flick has to be to close it from any distance. */
+/** How far a pull has to take the sheet down before letting go closes it,
+ * and how fast a flick has to be to close it from any distance. */
 const DISMISS_DRAG = 100;
 const DISMISS_VELOCITY = 0.8;
 /** The slowest a dragged-away sheet leaves at, in px/ms. A drag let go of
  * gently still has to clear the screen briskly, not crawl off it. */
 const FLING_MIN_SPEED = 2;
-/** How far a finger travels on a `dragAnywhere` sheet before it counts as a
- * pull rather than a tap on whatever it landed on. */
+/** How far a finger travels on a sheet before it counts as a pull rather
+ * than a tap on whatever it landed on. */
 const PULL_SLOP = 10;
 
 /**
- * What a `dragAnywhere` sheet hands the list inside it: the list's own native
+ * What a sheet hands the scrolling things inside it: each one's native
  * gesture, so the sheet's pull can run alongside its scrolling, and a scroll
- * handler, so the sheet knows whether the list is at its top — the only time
- * a pull that starts on the list moves the sheet rather than the list.
+ * handler, so the sheet knows whether a list is at its top — the only time a
+ * pull that starts on a list moves the sheet rather than the list.
  */
-export interface SheetList {
+interface SheetList {
   gesture: ReturnType<typeof Gesture.Native>;
+  /** For a scroller that keeps every vertical drag: a wheel. */
+  ownedGesture: ReturnType<typeof Gesture.Native>;
   onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
 const SheetListContext = createContext<SheetList | null>(null);
 
 /**
- * Wraps the scrolling list inside a `dragAnywhere` sheet, handing it the
- * scroll handler to wear; anywhere else it renders the list untouched.
+ * Wraps a vertical scroller that might sit in a sheet. A list is handed the
+ * scroll handler to wear, and a pull that starts on it moves the sheet once
+ * it's scrolled to the top. An `owned` scroller — a wheel, where every
+ * vertical drag means "the next value" — never gives its drags to the sheet.
+ * Outside a sheet it renders the scroller untouched.
  */
 export function SheetScrollable({
+  owned,
   children,
 }: {
+  owned?: boolean;
   children: (onScroll?: SheetList['onScroll']) => React.ReactElement;
 }) {
   const sheet = useContext(SheetListContext);
-  const list = children(sheet?.onScroll);
-  return sheet ? <GestureDetector gesture={sheet.gesture}>{list}</GestureDetector> : list;
+  const list = children(owned ? undefined : sheet?.onScroll);
+  if (!sheet) return list;
+  return (
+    <GestureDetector gesture={owned ? sheet.ownedGesture : sheet.gesture}>{list}</GestureDetector>
+  );
 }
 
 /** Blur strength of the backdrop once fully open. Also sets its dim: the tint
@@ -172,14 +181,6 @@ export interface BottomSheetProps {
   children: React.ReactNode;
   /** Shows the small grabber at the top edge. */
   handle?: boolean;
-  /**
-   * Lets the sheet be pulled down from anywhere on it, not just the grabber.
-   * A list inside wraps itself in `SheetScrollable`: a pull that starts on
-   * it moves the sheet only while it's scrolled to the top, and scrolls it
-   * otherwise. Off by default — a sheet holding a wheel or a slider needs its
-   * vertical drags for itself.
-   */
-  dragAnywhere?: boolean;
   padded?: boolean;
   /**
    * Room left past the keyboard/safe-area inset at the sheet's bottom edge.
@@ -193,7 +194,9 @@ export interface BottomSheetProps {
 
 /**
  * Sheet anchored to the bottom edge, dimming and dismissing on backdrop tap.
- * Used for the inline task editor.
+ * Every sheet pulls down from anywhere on it, not just the grabber, the way
+ * iOS's own sheets do; a vertical scroller inside wraps itself in
+ * `SheetScrollable` so its own drags still scroll it.
  *
  * The two layers are animated separately rather than left to the Modal's own
  * `slide`, which drags the backdrop up with the sheet: the sheet travels up
@@ -205,7 +208,6 @@ export function BottomSheet({
   onDismiss,
   children,
   handle = true,
-  dragAnywhere,
   padded = true,
   bottomGap,
   style,
@@ -256,7 +258,7 @@ export function BottomSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, progress]);
 
-  // How far the grabber has pulled the sheet down, on top of where the
+  // How far a pull has taken the sheet down, on top of where the
   // open/close animation has it. Zeroed on every open, so a sheet dragged
   // away last time comes back up to its full height.
   const drag = useRef(new Animated.Value(0)).current;
@@ -264,10 +266,10 @@ export function BottomSheet({
     if (visible) drag.setValue(0);
   }, [visible, drag]);
 
-  // The grabber is a handle in the literal sense: the sheet follows the
-  // finger down (never up past where it rests), and letting go far enough
-  // down — or flicking — dismisses it; anything less springs it back. The
-  // close animation then runs on from wherever the drag left it.
+  // The sheet follows the finger down (never up past where it rests), and
+  // letting go far enough down — or flicking — dismisses it; anything less
+  // springs it back. The close animation then runs on from wherever the drag
+  // left it.
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
   /** Closes the sheet from a drag, let go at `speed` px/ms. */
@@ -277,29 +279,14 @@ export function BottomSheet({
   };
   const releaseRef = useRef(release);
   releaseRef.current = release;
-  const grab = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > Math.abs(g.dx),
-      onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > DISMISS_DRAG || g.vy > DISMISS_VELOCITY) {
-          releaseRef.current(g.vy);
-        } else {
-          Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
-        }
-      },
-      onPanResponderTerminate: () =>
-        Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(),
-    }),
-  ).current;
 
-  // The same pull, taken from anywhere on a `dragAnywhere` sheet. Whether it
-  // moves the sheet is settled once, as the finger starts travelling: a
-  // downward pull off the list always does, one on the list only while the
-  // list is at its top — otherwise the list is scrolling and the sheet stays.
+  // Whether a pull moves the sheet is settled once, as the finger starts
+  // travelling: a downward pull off any scroller always does, one on a list
+  // only while the list is at its top — otherwise the list is scrolling and
+  // the sheet stays — and one on a wheel never does.
   const listAtTop = useRef(true);
   const inList = useRef(false);
+  const inOwned = useRef(false);
   const pulling = useRef(false);
   const pullFrom = useRef(0);
   const sheetList = useMemo<SheetList>(
@@ -312,6 +299,14 @@ export function BottomSheet({
         .onFinalize(() => {
           inList.current = false;
         }),
+      ownedGesture: Gesture.Native()
+        .runOnJS(true)
+        .onBegin(() => {
+          inOwned.current = true;
+        })
+        .onFinalize(() => {
+          inOwned.current = false;
+        }),
       onScroll: (e) => {
         listAtTop.current = e.nativeEvent.contentOffset.y <= 0;
       },
@@ -322,12 +317,14 @@ export function BottomSheet({
     () =>
       Gesture.Pan()
         .runOnJS(true)
-        .enabled(Boolean(dragAnywhere))
         .activeOffsetY([-PULL_SLOP, PULL_SLOP])
         .failOffsetX([-PULL_SLOP * 2, PULL_SLOP * 2])
-        .simultaneousWithExternalGesture(sheetList.gesture)
+        .simultaneousWithExternalGesture(sheetList.gesture, sheetList.ownedGesture)
         .onStart((e) => {
-          pulling.current = e.translationY > 0 && (!inList.current || listAtTop.current);
+          pulling.current =
+            e.translationY > 0 &&
+            !inOwned.current &&
+            (!inList.current || listAtTop.current);
           // Measured from here, so the sheet doesn't jump the slop's worth.
           pullFrom.current = e.translationY;
         })
@@ -351,7 +348,7 @@ export function BottomSheet({
         .onFinalize(() => {
           pulling.current = false;
         }),
-    [dragAnywhere, sheetList, drag],
+    [sheetList, drag],
   );
 
   const translateY = useMemo(
@@ -406,8 +403,6 @@ export function BottomSheet({
               // accessibility tree: a screen reader can't drag, and the
               // backdrop's own "Dismiss" already closes the sheet.
               <View
-                // A `dragAnywhere` sheet's own pull already covers the grabber.
-                {...(dragAnywhere ? null : grab.panHandlers)}
                 hitSlop={{ top: spacing.md }}
                 importantForAccessibility="no-hide-descendants"
                 accessibilityElementsHidden
@@ -416,7 +411,7 @@ export function BottomSheet({
                 <View style={styles.handle} />
               </View>
             ) : null}
-            <SheetListContext.Provider value={dragAnywhere ? sheetList : null}>
+            <SheetListContext.Provider value={sheetList}>
               {children}
             </SheetListContext.Provider>
           </Animated.View>

@@ -14,6 +14,15 @@ export interface ScreenHeaderProps {
   plainTitle?: string;
   /** A tab root passes `false`, and its title sits on the gutter. */
   showBack?: boolean;
+  /** An X instead of the chevron, for a flow whose first step is left
+   * rather than stepped back from. */
+  backIcon?: 'chevron-back' | 'close';
+  /** Replaces leaving the screen — a multi-step form steps back through
+   * itself first. */
+  onBack?: () => void;
+  /** Drawn in the title's place, for a bar that says where you are some
+   * other way than a title: the create form's step bar. */
+  middle?: React.ReactNode;
   /** The trailing actions, grouped side by side at the end. */
   right?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -29,7 +38,15 @@ export interface ScreenHeaderProps {
  * on the gutter, and every action grouped at the end — one place to reach for
  * them however many a screen has.
  */
-export function ScreenHeader({ plainTitle, showBack = true, right, style }: ScreenHeaderProps) {
+export function ScreenHeader({
+  plainTitle,
+  showBack = true,
+  backIcon = 'chevron-back',
+  onBack,
+  middle,
+  right,
+  style,
+}: ScreenHeaderProps) {
   const router = useRouter();
 
   return (
@@ -37,20 +54,20 @@ export function ScreenHeader({ plainTitle, showBack = true, right, style }: Scre
       <View style={[styles.row, style]}>
         {showBack ? (
           <IconButton
-            name="chevron-back"
+            name={backIcon}
             size={cornerButtonSize}
             iconSize={cornerIconSize}
             background={colors.surface}
-            onPress={() => router.back()}
-            accessibilityLabel="Go back"
+            onPress={onBack ?? (() => router.back())}
+            accessibilityLabel={backIcon === 'close' ? 'Close' : 'Go back'}
           />
         ) : null}
         <View style={styles.title}>
-          {plainTitle ? (
+          {middle ?? (plainTitle ? (
             <Text variant="pageTitle" numberOfLines={1} style={styles.titleText}>
               {plainTitle}
             </Text>
-          ) : null}
+          ) : null)}
         </View>
         {right ? <View style={styles.actions}>{right}</View> : null}
       </View>

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BottomSheet } from '@/components/BottomSheet';
+import { BottomSheet, SheetScrollable } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
 import { Text } from '@/components/Text';
@@ -130,48 +130,55 @@ export function PhotoLibrarySheet({
         </Text>
       </View>
 
-      <FlatList
-        data={assets}
-        style={styles.grid}
-        keyExtractor={(item) => item.id}
-        numColumns={COLUMNS}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
-        showsVerticalScrollIndicator={false}
-        onEndReachedThreshold={0.6}
-        onEndReached={() => {
-          if (granted && !exhausted) loadPage(cursor);
-        }}
-        ListEmptyComponent={
-          <EmptyState
-            icon="images-outline"
-            title={granted ? 'No photos yet' : 'No library access'}
-            hint={
-              granted
-                ? 'Photos you take will show up here.'
-                : 'Allow photo access in Settings to pick from your library.'
+      {/* Scrolled to the top, a pull on the grid takes the sheet down with it. */}
+      <SheetScrollable>
+        {(onScroll) => (
+          <FlatList
+            data={assets}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            style={styles.grid}
+            keyExtractor={(item) => item.id}
+            numColumns={COLUMNS}
+            columnWrapperStyle={styles.row}
+            contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+            showsVerticalScrollIndicator={false}
+            onEndReachedThreshold={0.6}
+            onEndReached={() => {
+              if (granted && !exhausted) loadPage(cursor);
+            }}
+            ListEmptyComponent={
+              <EmptyState
+                icon="images-outline"
+                title={granted ? 'No photos yet' : 'No library access'}
+                hint={
+                  granted
+                    ? 'Photos you take will show up here.'
+                    : 'Allow photo access in Settings to pick from your library.'
+                }
+              />
             }
+            renderItem={({ item }) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Photo"
+                onPress={() => choose({ uri: item.uri })}
+                style={({ pressed }) => [
+                  { width: tile, height: tile },
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Image
+                  source={{ uri: item.uri }}
+                  contentFit="cover"
+                  transition={120}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Pressable>
+            )}
           />
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Photo"
-            onPress={() => choose({ uri: item.uri })}
-            style={({ pressed }) => [
-              { width: tile, height: tile },
-              pressed && styles.pressed,
-            ]}
-          >
-            <Image
-              source={{ uri: item.uri }}
-              contentFit="cover"
-              transition={120}
-              style={StyleSheet.absoluteFill}
-            />
-          </Pressable>
         )}
-      />
+      </SheetScrollable>
     </BottomSheet>
   );
 }

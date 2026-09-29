@@ -3,6 +3,9 @@ import type { ImageSourcePropType } from 'react-native';
 export interface ChallengeTask {
   id: string;
   label: string;
+  /** One line on how to do it, so everyone's photo proves the same thing —
+   * written on the create form; the presets go without. */
+  note?: string;
 }
 
 /** The five browse filters on the Challenges list. */
@@ -16,9 +19,8 @@ export interface Challenge {
   /** One or two sentences: what the challenge is and who it's for. */
   description: string;
   /**
-   * Which of the browse filters this challenge sits under. Unset for a
-   * custom challenge — a hand-built list of tasks has no taxonomy of its own
-   * to fall into.
+   * Which of the browse filters this challenge sits under. A custom
+   * challenge carries the topic picked on the create form, or none.
    */
   category?: ChallengeCategory;
   joined: number;
@@ -37,6 +39,9 @@ export interface Challenge {
    * rounds keep theirs on `DiscoverSection`.
    */
   startDate?: string;
+  /** Days anyone in it may miss before their run ends, set on the create
+   * form. Unset, the app-wide allowance holds. */
+  lives?: number;
 }
 
 const task = (id: string, label: string): ChallengeTask => ({ id, label });

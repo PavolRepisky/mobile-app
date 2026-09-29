@@ -112,9 +112,6 @@ export function CommentsSheet({
     <BottomSheet
       visible={visible}
       onDismiss={onDismiss}
-      // Pulled down from anywhere on it, Instagram's way — the thread only
-      // hands the pull to the sheet once it's scrolled back to the top.
-      dragAnywhere
       // Instagram's own composer sits flush against the edge it clears —
       // the safe area or the keyboard — rather than the sheet's usual
       // roomy distance short of it.

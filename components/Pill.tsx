@@ -14,8 +14,11 @@ export interface PillProps {
   label: string;
   /**
    * `floating` is the white overlay pill ("+10,000 joined", "Day 5").
+   * `outline` is an ink ring on the page's white: an action repeated down a
+   * list, like Invite, where a row of solid pills would stack into a wall
+   * of black.
    */
-  tone?: 'floating' | 'solid' | 'muted';
+  tone?: 'floating' | 'solid' | 'muted' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -138,6 +141,10 @@ export function Pill({
  */
 export const pillHeights = { sm: 28, md: 38, lg: 48 } as const;
 
+/** The `outline` ring: heavier than a hairline so it reads as a button, not
+ * a box drawn round a word. */
+const OUTLINE_RULE = 1.5;
+
 const SIZES = StyleSheet.create({
   sm: { paddingHorizontal: spacing.md, height: pillHeights.sm },
   md: { paddingHorizontal: spacing.lg, height: pillHeights.md },
@@ -148,6 +155,11 @@ const TONES = StyleSheet.create({
   floating: { backgroundColor: colors.surface },
   solid: { backgroundColor: colors.ink },
   muted: { backgroundColor: colors.surfaceMuted },
+  outline: {
+    backgroundColor: colors.surface,
+    borderWidth: OUTLINE_RULE,
+    borderColor: colors.ink,
+  },
 });
 
 const styles = StyleSheet.create({

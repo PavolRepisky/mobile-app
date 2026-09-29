@@ -141,7 +141,7 @@ actions · `Card` white surface · `EmptyState` icon + title + hint.
 **Type** · `Text` (variant).
 
 **Controls** · `PrimaryButton` · `IconButton` circular · `Pill`
-(`floating`|`solid`|`muted` × `sm`|`md`|`lg`) · `SegmentedTabs` the pill
+(`floating`|`solid`|`muted`|`outline` × `sm`|`md`|`lg`) · `SegmentedTabs` the pill
 switch · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
 `SearchBar`.
 
