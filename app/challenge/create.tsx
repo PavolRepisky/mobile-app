@@ -20,7 +20,7 @@ import { PhotoSlot } from '@/components/PhotoSlot';
 import { Pill, pillHeights } from '@/components/Pill';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { CheckCircle } from '@/components/TaskRow';
+import { CheckCircle } from '@/components/CheckCircle';
 import { Text } from '@/components/Text';
 import { WheelPicker } from '@/components/WheelPicker';
 import {
@@ -169,7 +169,7 @@ export default function CreateChallengeScreen() {
         keyboardDismissMode="interactive"
         // Title and back button in the scroll's fixed header, level with each
         // other however far the form has scrolled.
-        header={<ScreenHeader bar plainTitle="New challenge" />}
+        header={<ScreenHeader plainTitle="New challenge" />}
       >
 
         {/* The photos as a small pile of prints rather than four empty
@@ -190,7 +190,6 @@ export default function CreateChallengeScreen() {
                 width={PRINT_WIDTH - PRINT_FRAME * 2}
                 height={PRINT_HEIGHT - PRINT_FRAME * 2}
                 radius={radii.md - PRINT_FRAME}
-                shadow={false}
                 onPress={() => setActiveSlot(i)}
                 accessibilityLabel={`Change photo ${i + 1}`}
               />
@@ -202,8 +201,6 @@ export default function CreateChallengeScreen() {
               width={PRINT_WIDTH}
               height={PRINT_HEIGHT}
               radius={radii.md}
-              shadow={false}
-              emptyIcon="add"
               emptyLabel={
                 photos.length === 0 ? 'Add photos' : `Add ${missing} more`
               }
@@ -273,7 +270,7 @@ export default function CreateChallengeScreen() {
             <View key={task.id} style={styles.taskRow}>
               {/* Ticked, the way the task will look once it's done each
                   day — the row previews the list rather than numbering it. */}
-              <CheckCircle checked size={TASK_CHECK} />
+              <CheckCircle size={TASK_CHECK} />
               <TextInput
                 value={task.label}
                 onChangeText={(label) => updateTaskLabel(task.id, label)}

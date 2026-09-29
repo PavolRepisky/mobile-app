@@ -7,8 +7,8 @@ import { addDays, longDate } from '@/lib/format';
 import { BottomSheet } from './BottomSheet';
 import { PrimaryButton } from './Buttons';
 import { DateRange } from './DateRange';
-import { Headline } from './Headline';
 import { RulerSlider } from './RulerSlider';
+import { Text } from './Text';
 
 /**
  * 7 to 120 days, in single-day steps. Exported so the create-challenge form
@@ -80,9 +80,9 @@ export function ChallengeLengthSheet({
       onDismiss={onDismiss}
       style={{ minHeight: Math.round(height * MIN_HEIGHT_RATIO) }}
     >
-      <Headline size="headline" weight={700} style={styles.title}>
+      <Text variant="headline" center style={styles.title}>
         {'Set challenge\nlength?'}
-      </Headline>
+      </Text>
 
       <RulerSlider
         key={opened}

@@ -135,7 +135,7 @@ export default function AddFriendsScreen() {
 
   return (
     <View style={styles.screenRoot}>
-      <ScreenScroll tone="plain" header={<ScreenHeader bar plainTitle="Find friends" />}>
+      <ScreenScroll tone="plain" header={<ScreenHeader plainTitle="Find friends" />}>
         <SearchBar
           value={query}
           onChangeText={setQuery}
@@ -166,7 +166,7 @@ export default function AddFriendsScreen() {
           <>
             {/* Your challenge's code, for a friend standing next to you — My
                 Profile's challenge card, the same grey and corner. */}
-            <Card flat padded={false} radius={radii.md} style={styles.codeCard}>
+            <Card flat radius={radii.md} style={styles.codeCard}>
               <View style={styles.codeBody}>
                 {/* Small here to sit beside its title; a tap holds it up big
                     enough to scan from across a table. */}

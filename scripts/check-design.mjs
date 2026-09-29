@@ -14,12 +14,11 @@ const ROOTS = ['app', 'components'];
 /**
  * Files allowed to break a rule, with the reason. `Placeholder` *is* the
  * gradient stand-in palette, so its hex list is the point of the file; `Text`
- * and `Headline` are the wrappers everything else goes through.
+ * is the wrapper everything else goes through.
  */
 const ALLOW = {
   'components/Placeholder.tsx': ['colour'],
   'components/Text.tsx': ['rn-text'],
-  'components/Headline.tsx': ['rn-text', 'font-family'],
   // A reaction emoji is deliberately not run through the type system: giving it
   // a font family only fights the platform's own emoji face.
   'app/feed/[id].tsx': ['rn-text'],

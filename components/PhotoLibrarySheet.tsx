@@ -33,8 +33,6 @@ export interface PhotoLibrarySheetProps {
   /** Handed the picked photo. */
   onPick: (photo: TaskPhoto) => void;
   onDismiss: () => void;
-  /** Fired once the sheet is gone, for callers that navigate on from here. */
-  onDismissed?: () => void;
 }
 
 /**
@@ -48,7 +46,6 @@ export function PhotoLibrarySheet({
   visible,
   onPick,
   onDismiss,
-  onDismissed,
 }: PhotoLibrarySheetProps) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -115,7 +112,6 @@ export function PhotoLibrarySheet({
     <BottomSheet
       visible={visible}
       onDismiss={onDismiss}
-      onDismissed={onDismissed}
       // The close button is the grabber here: two round things stacked at
       // the top edge read as clutter.
       handle={false}

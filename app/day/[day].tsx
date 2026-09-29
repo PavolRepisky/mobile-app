@@ -114,7 +114,7 @@ export default function DayPostScreen() {
       onScrollBeginDrag={() => {
         userScrolledRef.current = true;
       }}
-      header={<ScreenHeader bar plainTitle="My days" />}
+      header={<ScreenHeader plainTitle="My days" />}
     >
         {days.map((day) => (
           <View

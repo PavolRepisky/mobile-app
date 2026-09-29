@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 
-import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
+import { absoluteFill, colors, layout, radii, shadows, spacing } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
@@ -25,14 +25,6 @@ export interface PopoverMenuProps {
   items: readonly PopoverItem[];
   /** Distance from the top of the screen — anchors under the trigger. */
   top: number;
-  /** Distance from the right edge. Ignored when `left` is given. */
-  right?: number;
-  /**
-   * Distance from the left edge, for a menu that drops from something out in
-   * the page rather than from a corner button. The menu unfolds from whichever
-   * edge it is pinned to.
-   */
-  left?: number;
 }
 
 /**
@@ -50,10 +42,7 @@ export function PopoverMenu({
   onDismiss,
   items,
   top,
-  right = 20,
-  left,
 }: PopoverMenuProps) {
-  const anchored = left === undefined ? { right } : { left };
   const open = useRef(new Animated.Value(0)).current;
   // The modal has to outlive `visible` by the length of the collapse,
   // otherwise the menu is unmounted before it has played.
@@ -111,8 +100,7 @@ export function PopoverMenu({
             styles.menu,
             {
               top,
-              ...anchored,
-              transformOrigin: left === undefined ? 'top right' : 'top left',
+              transformOrigin: 'top right',
               opacity: open.interpolate({
                 inputRange: [0, 0.45, 1],
                 outputRange: [0, 1, 1],
@@ -174,12 +162,13 @@ const styles = StyleSheet.create({
   // sit behind the lens, and the blur would sample it rather than the screen
   // the menu is covering. The drop stays out here too — on iOS a view cannot
   // both clip its children and cast one.
+  // Pinned under the corner button on the gutter, so it grows out of the
+  // control it drops from rather than swelling from its own middle.
   menu: {
     position: 'absolute',
+    right: layout.gutter,
     minWidth: 240,
     borderRadius: radii.xl,
-    // The origin is set per instance, so the menu grows out of the control it
-    // is anchored to rather than swelling from its own middle.
     ...shadows.floating,
   },
   items: {

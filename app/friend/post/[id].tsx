@@ -78,7 +78,7 @@ export default function FriendPostScreen() {
       onScrollBeginDrag={() => {
         userScrolledRef.current = true;
       }}
-      header={<ScreenHeader bar plainTitle={`${friend.name}'s days`} />}
+      header={<ScreenHeader plainTitle={`${friend.name}'s days`} />}
     >
         {days.map(({ day, tasks, caption }) => (
           <View

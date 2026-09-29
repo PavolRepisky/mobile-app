@@ -12,10 +12,9 @@ type Variant = keyof typeof typeScale;
 
 /**
  * The trailing room a text style needs so its last glyph isn't clipped —
- * see `Text` below. Shared with `Headline`, the one other place text is set
- * straight on React Native's own `Text`.
+ * see `Text` below.
  */
-export function trackingRoom(style: StyleProp<TextStyle>): TextStyle | null {
+function trackingRoom(style: StyleProp<TextStyle>): TextStyle | null {
   const flat = StyleSheet.flatten(style) ?? {};
   const tracking = flat.letterSpacing ?? 0;
   // A style that sets its own trailing padding has already made that room

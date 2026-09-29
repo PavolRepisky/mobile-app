@@ -14,9 +14,8 @@ import {
 
 import { Avatar } from '@/components/Avatar';
 import { ChallengeRow } from '@/components/ChallengeRow';
-import { IconButton } from '@/components/IconButton';
+import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
-import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
@@ -101,23 +100,22 @@ export default function DiscoverScreen() {
       bottomExtra={layout.section}
       header={
         <ScreenHeader
-          bar
           plainTitle="Challenges"
           showBack={false}
           right={
             <>
               <IconButton
                 name="search"
-                size={profileActionButton}
-                iconSize={profileActionIcon}
+                size={cornerButtonSize}
+                iconSize={cornerIconSize}
                 background={colors.surface}
                 onPress={() => router.push('/challenges/search')}
                 accessibilityLabel="Search challenges"
               />
               <IconButton
                 name="add"
-                size={profileActionButton}
-                iconSize={profileActionIcon}
+                size={cornerButtonSize}
+                iconSize={cornerIconSize}
                 background={colors.surface}
                 onPress={() => router.push('/challenge/create')}
                 accessibilityLabel="Create a challenge"

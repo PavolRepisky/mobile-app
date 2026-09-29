@@ -8,7 +8,6 @@ import {
   PanResponder,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -21,9 +20,6 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { absoluteFill, colors, radii, screenPadding, shadows, spacing } from '@/constants/theme';
-
-/** Share of the screen the tall sheet occupies. */
-const TALL_RATIO = 0.78;
 
 const DURATION = 280;
 
@@ -173,12 +169,6 @@ function SheetBackdrop({
 export interface BottomSheetProps {
   visible: boolean;
   onDismiss: () => void;
-  /**
-   * Fired once the sheet has finished animating away, for callers that open
-   * something of their own next: pushing a page or presenting a second modal
-   * while this one is still on screen is what strands it on iOS.
-   */
-  onDismissed?: () => void;
   children: React.ReactNode;
   /** Shows the small grabber at the top edge. */
   handle?: boolean;
@@ -190,12 +180,9 @@ export interface BottomSheetProps {
    * vertical drags for itself.
    */
   dragAnywhere?: boolean;
-  /** Sheet fills most of the screen and scrolls its contents. */
-  tall?: boolean;
   padded?: boolean;
   /**
-   * Room left past the keyboard/safe-area inset at the sheet's bottom edge,
-   * `tall` sheets excepted (they pad their own scroll content instead).
+   * Room left past the keyboard/safe-area inset at the sheet's bottom edge.
    * Defaults to a roomy gap sized for a button or a field with air around
    * it; a composer that should hug the edge instead — a comment field
    * sitting right above the keyboard — passes a tighter one.
@@ -216,11 +203,9 @@ export interface BottomSheetProps {
 export function BottomSheet({
   visible,
   onDismiss,
-  onDismissed,
   children,
   handle = true,
   dragAnywhere,
-  tall,
   padded = true,
   bottomGap,
   style,
@@ -382,24 +367,12 @@ export function BottomSheet({
     [progress, drag, screenHeight],
   );
 
-  const body = tall ? (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
-    >
-      {children}
-    </ScrollView>
-  ) : (
-    children
-  );
-
   return (
     <Modal
       visible={mounted}
       transparent
       animationType="none"
       onRequestClose={onDismiss}
-      onDismiss={onDismissed}
       statusBarTranslucent
     >
       {/* A modal is a window of its own on Android, outside the app's root
@@ -411,29 +384,18 @@ export function BottomSheet({
           <Animated.View
             style={[
               styles.sheet,
-              tall && {
-                height: Math.round(screenHeight * TALL_RATIO),
-                // Its own inset, not the safe-area one: the sheet stops well
-                // short of the status bar, so `insets.top` here only opened a
-                // hole above the content.
-                paddingTop: spacing['2xl'],
-              },
               padded && styles.padded,
-              // The tall sheet pads its scroll content instead, so the list
-              // can run under the home indicator while scrolling.
-              tall
-                ? null
-                : {
-                  // With the keyboard up the sheet keeps its bottom edge on
-                  // the screen's and runs on underneath the keys, so what
-                  // shows through their rounded corners is the sheet rather
-                  // than the blurred page behind it. The safe-area inset
-                  // goes at the same time: the home indicator is behind the
-                  // keyboard, so clearing it would only reopen the gap.
-                  paddingBottom: bottomInset
-                    ? bottomInset + (bottomGap ?? spacing.lg)
-                    : insets.bottom + (bottomGap ?? spacing.xl),
-                },
+              {
+                // With the keyboard up the sheet keeps its bottom edge on the
+                // screen's and runs on underneath the keys, so what shows
+                // through their rounded corners is the sheet rather than the
+                // blurred page behind it. The safe-area inset goes at the same
+                // time: the home indicator is behind the keyboard, so clearing
+                // it would only reopen the gap.
+                paddingBottom: bottomInset
+                  ? bottomInset + (bottomGap ?? spacing.lg)
+                  : insets.bottom + (bottomGap ?? spacing.xl),
+              },
               style,
               { transform: [{ translateY }] },
             ]}
@@ -455,7 +417,7 @@ export function BottomSheet({
               </View>
             ) : null}
             <SheetListContext.Provider value={dragAnywhere ? sheetList : null}>
-              {body}
+              {children}
             </SheetListContext.Provider>
           </Animated.View>
         </GestureDetector>

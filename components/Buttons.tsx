@@ -1,88 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type TextStyle,
-  type ViewStyle,
-} from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radii, shadows, spacing, type } from '@/constants/theme';
+import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { Text } from './Text';
 
 interface BaseProps {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
-  loading?: boolean;
   /** Ionicon rendered to the left of the label — e.g. the share glyph on "Send invites". */
   icon?: keyof typeof Ionicons.glyphMap;
-  /** Glyph size, when the label is set larger than the standard button cut. */
-  iconSize?: number;
   style?: StyleProp<ViewStyle>;
-  /** Overrides on the label — a bigger cut for the one-off invite action. */
-  labelStyle?: StyleProp<TextStyle>;
   /** Full-width is the default; pass false for the side-by-side pairs. */
   fullWidth?: boolean;
 }
 
 /** Solid black pill. The app's single primary action style. */
 export function PrimaryButton({
-  label,
-  onPress,
-  disabled,
-  loading,
-  icon,
-  iconSize = 19,
-  style,
-  labelStyle,
-  fullWidth = true,
-}: BaseProps) {
-  const inactive = disabled || loading;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: !!inactive }}
-      onPress={inactive ? undefined : onPress}
-      style={({ pressed }) => [
-        styles.base,
-        fullWidth && styles.fullWidth,
-        inactive ? styles.primaryDisabled : styles.primary,
-        !inactive && shadows.soft,
-        pressed && !inactive && styles.pressed,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator color={colors.inkInverse} />
-      ) : (
-        <View style={styles.row}>
-          {icon ? (
-            <Ionicons
-              name={icon}
-              size={iconSize}
-              color={inactive ? colors.disabledInk : colors.inkInverse}
-              style={styles.icon}
-            />
-          ) : null}
-          <Text
-            variant="button"
-            color={inactive ? colors.disabledInk : colors.inkInverse}
-            style={labelStyle}
-          >
-            {label}
-          </Text>
-        </View>
-      )}
-    </Pressable>
-  );
-}
-
-/** White pill with a hairline border — "Start solo", "Use a friend's code". */
-export function SecondaryButton({
   label,
   onPress,
   disabled,
@@ -98,7 +32,8 @@ export function SecondaryButton({
       style={({ pressed }) => [
         styles.base,
         fullWidth && styles.fullWidth,
-        styles.secondary,
+        disabled ? styles.primaryDisabled : styles.primary,
+        !disabled && shadows.soft,
         pressed && !disabled && styles.pressed,
         style,
       ]}
@@ -108,11 +43,11 @@ export function SecondaryButton({
           <Ionicons
             name={icon}
             size={19}
-            color={colors.inkMuted}
+            color={disabled ? colors.disabledInk : colors.inkInverse}
             style={styles.icon}
           />
         ) : null}
-        <Text variant="button" color={disabled ? colors.field : colors.inkMuted}>
+        <Text variant="button" color={disabled ? colors.disabledInk : colors.inkInverse}>
           {label}
         </Text>
       </View>
@@ -120,37 +55,7 @@ export function SecondaryButton({
   );
 }
 
-/** Underlined text link — "Already have an account?", "Skip". */
-export function TextLink({
-  label,
-  onPress,
-  color = colors.inkMuted,
-  style,
-}: {
-  label: string;
-  onPress?: () => void;
-  color?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
-      style={({ pressed }) => [styles.link, pressed && styles.pressed, style]}
-      hitSlop={10}
-    >
-      <Text
-        variant="bodyStrong"
-        color={color}
-        style={{ textDecorationLine: 'underline' }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-/** Outer height of the primary and secondary pills. Exported for a screen
+/** Outer height of the primary pill. Exported for a screen
  * that pins one over its scroll and has to leave the content room under it. */
 export const buttonHeight = 58;
 
@@ -171,11 +76,6 @@ const styles = StyleSheet.create({
   primaryDisabled: {
     backgroundColor: colors.disabled,
   },
-  secondary: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.divider,
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -187,10 +87,4 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     transform: [{ scale: 0.985 }],
   },
-  link: {
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-  },
 });
-
-export const buttonTextStyle = type.button;

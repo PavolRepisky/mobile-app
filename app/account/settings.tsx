@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -21,7 +20,6 @@ const BIO_MAX = 120;
 const PHOTO_THUMB = 32;
 
 export default function SettingsScreen() {
-  const router = useRouter();
   const { profile, setName, setBio, setHandle, setAvatarPhoto, setAvatarSeed, resetAll } =
     useApp();
 
@@ -58,7 +56,7 @@ export default function SettingsScreen() {
         tabBar
         // The back arrow and the title in the fixed bar, in reach however
         // far down the settings go.
-        header={<ScreenHeader bar plainTitle="Settings" />}
+        header={<ScreenHeader plainTitle="Settings" />}
       >
         <Group title="Profile">
           <Row

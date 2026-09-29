@@ -25,7 +25,6 @@ import { IconButton } from './IconButton';
 import { DayStamp } from './FriendCard';
 import { MosaicArrangement } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
-import { profileAvatarSize } from './ProfileLayout';
 import { SegmentedTabs } from './SegmentedTabs';
 import { accentAt } from './TaskRing';
 import { Text } from './Text';
@@ -122,9 +121,8 @@ function DaySquare({ state, color, size }: { state: SquareState; color: string; 
   );
 }
 
-/** Same hero circle the to-do ring shares — the one place on a profile that
- * gets to be that big. */
-const avatarSize = profileAvatarSize;
+/** The hero circle — the one place on a profile that gets to be that big. */
+const avatarSize = 120;
 
 /**
  * Today at a glance, drawn as a ring around the photo: one segment per task
@@ -545,7 +543,6 @@ export function ProfileView({
       {/* The challenge the ring is measuring, drawn as the whole run — one
           square a day — and a way into its page. */}
       <Card
-        padded={false}
         radius={radii.card}
         onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
         accessibilityLabel={challengeLabel}
@@ -630,9 +627,7 @@ export function ProfileView({
             only, so the app's two-way switches match — here cut down to sit
             beside the heading rather than across the page. */}
         <SegmentedTabs
-          variant="pill"
           size="sm"
-          dense
           options={[
             { key: 'grid', label: 'Grid' },
             { key: 'month', label: 'Month' },
@@ -647,7 +642,6 @@ export function ProfileView({
         <CalendarMonth
           month={shownMonth.month}
           days={shownMonth.days}
-          filled
           style={styles.month}
           header={
             // The month's name leads on the left and opens the year picker;

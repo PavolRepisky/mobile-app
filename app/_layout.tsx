@@ -1,7 +1,5 @@
-import { Caveat_600SemiBold } from '@expo-google-fonts/caveat';
 import { Fraunces_900Black } from '@expo-google-fonts/fraunces';
 import {
-  Quicksand_400Regular,
   Quicksand_500Medium,
   Quicksand_600SemiBold,
   Quicksand_700Bold,
@@ -24,11 +22,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Quicksand_400Regular,
     Quicksand_500Medium,
     Quicksand_600SemiBold,
     Quicksand_700Bold,
-    Caveat_600SemiBold,
     Fraunces_900Black,
   });
 

@@ -30,13 +30,6 @@ export interface AlertDialogProps {
   title: string;
   message?: string;
   onDismiss: () => void;
-  /**
-   * Fired once the dialog has finished animating away, for callers that open
-   * something of their own next: presenting on top of a modal that is still
-   * dismissing loses the new screen on iOS. iOS only, which is also the only
-   * platform that presents anything to lose.
-   */
-  onDismissed?: () => void;
   actions: readonly AlertAction[];
   /** Renders a text field between the message and the actions. */
   input?: {
@@ -65,7 +58,6 @@ export function AlertDialog({
   title,
   message,
   onDismiss,
-  onDismissed,
   actions,
   input,
 }: AlertDialogProps) {
@@ -75,7 +67,6 @@ export function AlertDialog({
       transparent
       animationType="fade"
       onRequestClose={onDismiss}
-      onDismiss={onDismissed}
       statusBarTranslucent
     >
       <View style={styles.root}>

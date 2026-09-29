@@ -4,18 +4,13 @@ import {
   Pressable,
   StyleSheet,
   View,
-  type DimensionValue,
   type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
-import { Placeholder } from './Placeholder';
+import { colors, radii, spacing } from '@/constants/theme';
 import { Text } from './Text';
-
-/** The done tick on a filled slot. Hangs a quarter of itself off the corner. */
-const BADGE = 26;
 
 /**
  * The dashed rule around an empty slot: its weight, and how far outside the
@@ -28,131 +23,52 @@ const BADGE = 26;
 const RULE = 1.75;
 
 export interface PhotoSlotProps {
-  /** A bundled photo. Takes precedence over `seed`, which stands in for one. */
+  /** The photo; left empty, the slot is a `+` asking for one. */
   photo?: ImageSourcePropType | null;
-  /** When set, the slot shows a "photo"; otherwise the empty camera tile. */
-  seed?: string | null;
-  /**
-   * A point width, or a share of the parent — the collage lays its prints out
-   * in flexed columns, so its tiles are sized by the column rather than by a
-   * number this component could know.
-   */
-  width?: DimensionValue;
+  width?: number;
   height?: number;
   radius?: number;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   /**
-   * `'add'` swaps the camera for a `+` where the slot adds something rather
-   * than shoots it, and `'none'` leaves the tile blank — for the day's grid, where an empty tile
-   * is a gap in a record rather than anything to press.
-   */
-  emptyIcon?: 'camera' | 'add' | 'none';
-  /**
    * Turns the empty tile from a flat grey block into an invitation: a dashed
-   * field outline with this caption under the glyph. For the task rows, where
-   * the slot is the only control on the row and has to say so. Slots that are
-   * merely decorative — a friend's list — leave it off.
+   * field outline with this caption under the glyph.
    */
   emptyLabel?: string;
-  /**
-   * The dashed field outline on its own, without a caption under the glyph.
-   * Defaults to whether there is an `emptyLabel` — the two arrived together —
-   * but the collage wants the outline and no words: its prints have no room
-   * for a caption, and the task rows underneath already say what a tap does.
-   */
-  emptyOutline?: boolean;
-  /**
-   * `'warm'` trades the cool grey fill for the shell's own muted tone inside a
-   * hairline. The grey is right where an empty slot is a thing to press — it
-   * reads as a well waiting to be filled. In a block that is a record of a day
-   * it is wrong twice over: it is a cold grey on a warm page, and early in a
-   * day most of the block is made of it, so the gaps end up louder than the
-   * photographs. The hairline is what keeps the quieter fill from reading as a
-   * patch where something failed to load.
-   */
-  emptyTone?: 'sunken' | 'warm';
-  /**
-   * Marks a filled slot with a tick in the corner. The to-do list has no check
-   * circle: a task is done because it was photographed, so the proof carries
-   * the status rather than a control sitting next to it.
-   */
-  done?: boolean;
   /** Degrees off straight. A shade of tilt reads as a photo laid on the page
    * rather than a thumbnail placed in a grid. */
   tilt?: number;
-  /**
-   * `'card'` is the diffuse lift a card uses; `'hard'` is the tight,
-   * offset near-black drop the task rows use, so the photos read as prints
-   * laid on the page rather than thumbnails set into it.
-   */
-  shadow?: boolean | 'card' | 'hard';
-  /**
-   * Overrides the read-out label. Slots that sit beside their task's text
-   * don't need one; a tile standing on its own in the collage does, or the
-   * whole day reads out as a row of identical "Add photo" buttons.
-   */
+  /** Overrides the read-out label. */
   accessibilityLabel?: string;
 }
 
 /**
- * The rounded thumbnail attached to every task row. Filled state is the photo itself, optionally ticked; empty
- * state is a sunken grey tile with a glyph, or — where the slot is something
- * to press — a dashed outline captioned with what pressing it does.
+ * A photo, or the rounded tile waiting for one — the new-challenge screen's
+ * cover prints and the slot that adds another.
  */
 export function PhotoSlot({
   photo,
-  seed,
   width = 88,
   height = 118,
   radius = radii.lg,
   onPress,
   style,
-  emptyIcon = 'camera',
   emptyLabel,
-  emptyOutline = !!emptyLabel,
-  emptyTone = 'sunken',
-  done,
   tilt,
-  shadow = true,
   accessibilityLabel,
 }: PhotoSlotProps) {
   const box: ViewStyle = { width, height, borderRadius: radius };
-  const filled = !!photo || !!seed;
 
   const inner = photo ? (
     <View style={[box, styles.clip]}>
-      <Image
-        source={photo}
-        contentFit="cover"
-        transition={200}
-        style={StyleSheet.absoluteFill}
-      />
+      <Image source={photo} contentFit="cover" transition={200} style={StyleSheet.absoluteFill} />
     </View>
-  ) : filled ? (
-    <Placeholder seed={seed!} radius={radius} style={box} />
   ) : (
-    <View
-      style={[
-        styles.empty,
-        emptyTone === 'warm' ? styles.emptyWarm : null,
-        box,
-        emptyOutline ? styles.emptyPadded : null,
-      ]}
-    >
-      {emptyOutline || emptyTone === 'warm' ? (
-        <View
-          pointerEvents="none"
-          style={[styles.rule, { borderRadius: radius + RULE }]}
-        />
+    <View style={[styles.empty, box, emptyLabel ? styles.emptyPadded : null]}>
+      {emptyLabel ? (
+        <View pointerEvents="none" style={[styles.rule, { borderRadius: radius + RULE }]} />
       ) : null}
-      {emptyIcon === 'none' ? null : (
-        <Ionicons
-          name={emptyIcon === 'camera' ? 'camera' : 'add'}
-          size={emptyIcon === 'camera' ? 26 : 28}
-          color={emptyOutline ? colors.inkMuted : colors.field}
-        />
-      )}
+      <Ionicons name="add" size={28} color={emptyLabel ? colors.inkMuted : colors.field} />
       {emptyLabel ? (
         <Text variant="micro" color={colors.inkMuted} center style={styles.emptyLabel}>
           {emptyLabel}
@@ -161,45 +77,18 @@ export function PhotoSlot({
     </View>
   );
 
-  // The shadow needs a shape to cast from: on iOS a transparent wrapper
-  // squares the shadow off at the bounds instead of following the corner.
-  const wrapper = [
-    shadow && [
-      { borderRadius: radius, backgroundColor: colors.surface },
-      shadow === 'hard' ? shadows.hard : shadows.card,
-    ],
-    tilt ? { transform: [{ rotate: `${tilt}deg` }] } : null,
-    style,
-  ];
+  const wrapper = [tilt ? { transform: [{ rotate: `${tilt}deg` }] } : null, style];
 
-  // Sits on the print's corner like something stuck there afterwards, ring
-  // and all, so it holds against a dark photo as readily as a pale one.
-  const badge =
-    done && filled ? (
-      <View style={[styles.badge, shadows.soft]}>
-        <Ionicons name="checkmark" size={15} color={colors.inkInverse} />
-      </View>
-    ) : null;
-
-  if (!onPress)
-    return (
-      <View style={wrapper}>
-        {inner}
-        {badge}
-      </View>
-    );
+  if (!onPress) return <View style={wrapper}>{inner}</View>;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={
-        accessibilityLabel ?? (filled ? 'View photo' : 'Add photo')
-      }
+      accessibilityLabel={accessibilityLabel ?? (photo ? 'View photo' : 'Add photo')}
       onPress={onPress}
       style={({ pressed }) => [wrapper, pressed && styles.pressed]}
     >
       {inner}
-      {badge}
     </Pressable>
   );
 }
@@ -212,15 +101,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  /**
-   * The shell's own muted tone, held by a hairline. The fill sits only a shade
-   * off the page it is on, which is the point — a gap should recede — but a
-   * shape that pale with no edge stops looking like a place and starts looking
-   * like a smudge, so `rule` below is what draws it.
-   */
-  emptyWarm: {
-    backgroundColor: colors.surfaceMuted,
   },
   /**
    * The dash is what separates "nothing here yet" from "nothing goes here": a
@@ -240,28 +120,12 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: colors.field,
   },
-  /**
-   * Air around the glyph, or the rule crops the caption on the narrow task
-   * tiles.
-   */
+  /** Air around the glyph, or the rule crops the caption. */
   emptyPadded: {
     paddingHorizontal: spacing.sm,
   },
   emptyLabel: {
     marginTop: spacing.xs,
-  },
-  badge: {
-    position: 'absolute',
-    right: -BADGE / 4,
-    bottom: -BADGE / 4,
-    width: BADGE,
-    height: BADGE,
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink,
-    borderWidth: 2,
-    borderColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.85,

@@ -5,12 +5,10 @@ import { FlatList, StyleSheet, View, type LayoutRectangle } from 'react-native';
 import { AlertDialog } from '@/components/AlertDialog';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
-import { IconButton } from '@/components/IconButton';
-import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TaskCameraGrid } from '@/components/TaskCameraGrid';
-import { Text } from '@/components/Text';
 import { WeekTracker, type WeekCellStatus } from '@/components/WeekTracker';
 import { colors, radii, screenPadding, spacing } from '@/constants/theme';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
@@ -147,14 +145,13 @@ export default function TasksScreen() {
           tabBar
           header={
             <ScreenHeader
-              bar
               plainTitle="Tasks"
               showBack={false}
               right={
                 <IconButton
                   name="settings-outline"
-                  size={profileActionButton}
-                  iconSize={profileActionIcon}
+                  size={cornerButtonSize}
+                  iconSize={cornerIconSize}
                   background={colors.surface}
                   onPress={() => setMenuOpen(true)}
                   accessibilityLabel="Challenge settings"
@@ -208,8 +205,6 @@ export default function TasksScreen() {
                     return (
                       <View style={{ width: gridBox.width, height: gridBox.height }}>
                         <PhotoCollage
-                          layout="mosaic"
-                          showLabels
                           // Barely rounded — the smallest cut in the scale, so
                           // the block reads as a contact sheet with its corners
                           // just eased rather than a card sitting on the page.
@@ -319,7 +314,6 @@ export default function TasksScreen() {
             destructive: true,
             // Confirming only closes the dialog: the challenge is left where
             // it is until there is somewhere for a restart to lead.
-            // `restartChallenge` is still on the context, unwired.
             onPress: () => setRestartOpen(false),
           },
         ]}

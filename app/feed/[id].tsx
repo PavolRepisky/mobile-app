@@ -12,7 +12,7 @@ import { PrimaryButton } from '@/components/Buttons';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { DateRange } from '@/components/DateRange';
-import { CheckCircle } from '@/components/TaskRow';
+import { CheckCircle } from '@/components/CheckCircle';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, shadows, spacing, tabBarBottom } from '@/constants/theme';
 import { challengeById } from '@/data/challenges';
@@ -95,14 +95,12 @@ export default function FeedScreen() {
           photos once they scroll up under it. */}
       <ScreenScroll
         bottomExtra={hasDock ? Math.max(0, dockHeight - insets.bottom) : 0}
-        header={<ScreenHeader bar plainTitle={challenge.name} />}
+        header={<ScreenHeader plainTitle={challenge.name} />}
       >
         <PhotoStrip
           photos={section.photos}
           height={170}
           onPressPhoto={setOpenPhotoIndex}
-          layout="scattered"
-          framed
           style={styles.strip}
         />
 
@@ -218,10 +216,10 @@ function Upcoming({ section, start }: { section: DiscoverSection; start: Date })
       {/* Ticked rather than hollow: nothing here is the reader's to tick
           yet, so a filled circle reads as "what's included" instead of an
           empty checklist waiting on them. */}
-      <Card padded={false} style={styles.tasks}>
+      <Card style={styles.tasks}>
         {challenge.tasks.map((task) => (
           <View key={task.id} style={styles.taskRow}>
-            <CheckCircle checked size={TASK_CHECK_SIZE} />
+            <CheckCircle size={TASK_CHECK_SIZE} />
             <Text variant="itemTitle" style={styles.taskLabel}>
               {task.label}
             </Text>

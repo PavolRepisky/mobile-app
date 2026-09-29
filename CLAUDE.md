@@ -19,7 +19,8 @@ Enforcement: `npm run check:design` (also run `npm run typecheck`).
 2. **No literal type.** No `fontFamily`, `fontSize`, `lineHeight` or
    `letterSpacing` in a StyleSheet. Type comes from the `type` scale only.
 3. **All text goes through `@/components/Text`** with a `variant`. Never import
-   `Text` from `react-native`. Headlines go through `@/components/Headline`.
+   `Text` from `react-native` — headlines too, on the `headline`,
+   `headlineSm` and `title` variants.
 4. **No magic numbers** for padding, margin, gap, radius or shadow. Use
    `layout` (spacing by role) first, then `spacing`, `radii`, `shadows`; a
    bare `spacing` step is for an optical nudge. Sizes tied to a specific
@@ -52,7 +53,7 @@ colour of progress: the profile's task ring and challenge bar.
 
 My Profile and Settings use these and nothing else; so do the shared
 dialog, photo viewer and bottom sheets. Reach for them first on any page; the
-older in-between greys (`inkFaded`, `inkSoft`, `field`, `divider`) remain for
+older in-between greys (`inkSoft`, `field`, `divider`) remain for
 screens that already use them. Never use `palette` outside `theme.ts` — code
 names the role (`inkMuted`), not the shade (`greyDark`).
 
@@ -62,11 +63,7 @@ Every screen in the app sits on the same white, `Screen`/`ScreenScroll`'s
 default `plain` tone (`backgroundPlain` `#FFFFFF`) — the tab roots, a
 challenge's feed, a friend's day, all of it — with one exception: Settings
 sits on `alt` (`backgroundAlt`, the palette's `#F2F2F2`), because its groups are white
-cards and on a white page they'd dissolve. `app` (`background` `#F8F5F0`)
-and `warm` (`backgroundWarm` `#FBF6F3`) remain available tones on the
-component for a screen that deliberately wants to break from the white —
-don't reach for any of them without a specific reason to split a screen off
-from the rest.
+cards and on a white page they'd dissolve. Those are the only two tones.
 
 **Shadow** — pick by what the thing sits on, not by how big it is:
 
@@ -76,14 +73,11 @@ from the rest.
 | `soft` | icon buttons, floating pills, photo tiles |
 | `hard` | things lifted *off* the page: avatar, "Day N" badge, task photos |
 | `floating` | sheets and bars floating over content |
-| `lifted` | surfaces sitting on top of a screen: tilted friend card, invite panel |
-| `deep` | the two badges crowning the challenge feed — heaviest in the set |
 | `glass` | liquid-glass surfaces sitting on a photo |
-| `sticky` | sticky notes only (tight and directional) |
+| `header` | round buttons in a screen's fixed header bar (pulled in close) |
 
 **Radius**: `pill` (999) for anything fully rounded — buttons, chips, tab bar ·
-`card`/`xl` (32) is the signature card corner · `'2xl'` (44) is the friend card
-only · `lg` 20 · `md` 16 · `sm` 10.
+`card`/`xl` (32) is the signature card corner · `lg` 20 · `md` 16 · `sm` 10.
 
 **Type hierarchy** — eight levels, defined once as `hierarchy` in `theme.ts`
 and used as `Text` variants by name. My Profile and Settings use these and
@@ -104,8 +98,7 @@ A post's caption itself is running prose at `copy`'s size in Medium (`body`),
 so the bold handle leading it stands clear.
 
 The older names that meant one of these point at it (`sectionTitle` →
-`pageTitle`, `sectionTitleSm`/`sectionTitleXs` → `sectionHeading`,
-`cardTitleBold` → `itemTitle`, `bodySemi` → `copy`, `bodyBold` → `copyBold`,
+`pageTitle`, `cardTitleBold` → `itemTitle`, `bodyBold` → `copyBold`,
 `labelBold` → `meta`,
 `microBold` → `badge`). Prefer the level names in new code.
 
@@ -127,59 +120,46 @@ padding:
 | `pill` | 8 | either side of a pill's label |
 | `grid` | 4 | between tiles in a grid |
 
-**Typeface** — three faces, no exceptions:
+**Typeface** — two faces, no exceptions:
 - **Quicksand** — everything, headlines included: body, buttons, labels, tabs,
-  captions, and the `hero`/`headline`/`headlineSm`/`title` scale (Bold). The
-  app has no separate display face — Playfair was removed on purpose; don't
-  add a serif back for headlines.
-- **Caveat** — the app's handwriting: numerals on sticky notes, and the
-  caption in the chin of a `Polaroid`. Nothing else. A print is captioned by
-  hand or not at all; setting those in Quicksand turns a pile of photographs
-  back into a gallery with labels under it.
+  captions, and the `headline`/`headlineSm`/`title` scale (Bold). The app has
+  no separate display face — Playfair was removed on purpose; don't add a
+  serif back for headlines.
 - **Fraunces Black** — the `poster` variant: the "Day N" stamped across a
   Community post's photo grid. Nothing else.
 
 Quicksand runs optically light, so each role is mapped one step up the weight
-ramp; plain copy sits on Medium, not Regular. Don't "correct" this.
+ramp; plain copy sits on Medium, and Regular isn't loaded at all. Don't
+"correct" this.
 
 ## Component inventory
 
-**Layout** · `Screen` / `ScreenScroll` page shell · `ProfileLayout` avatar +
-action + body · `ProfileView` a whole profile page — yours
-and anyone else's · `ScreenHeader` back/close + title · `Card` white or muted
-surface · `EmptyState` icon + title + hint.
+**Layout** · `Screen` / `ScreenScroll` page shell · `ProfileView` a whole
+profile page — yours and anyone else's · `ScreenHeader` back + title +
+actions · `Card` white surface · `EmptyState` icon + title + hint.
 
-**Type** · `Text` (variant) · `Headline` (headline-scale Quicksand; `**bold**`
-and `*accent*` runs step the weight up from a lighter base).
+**Type** · `Text` (variant).
 
-**Controls** · `PrimaryButton` / `SecondaryButton` / `TextLink` ·
-`IconButton` circular · `Pill` (`floating`|`glass`|`solid`|`muted`|`outline` ×
-`sm`|`md`|`lg`) · `SegmentedTabs` (`underline`|`pill`) · `BigSegmentHeader` the
-two-up avatar switch · `RulerSlider` / `DayScrubber` tick pickers · `WheelPicker`
-the iOS date-wheel drum.
+**Controls** · `PrimaryButton` · `IconButton` circular · `Pill`
+(`floating`|`solid`|`muted` × `sm`|`md`|`lg`) · `SegmentedTabs` the pill
+switch · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
+`SearchBar`.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
-**Content** · `TaskRow` + `CheckCircle` · `DayRing` avatar + story ring + day
-pill, and `DayPill` on its own · `TaskRing` a face in the split task ring
-with its "3/5" badge · `StickyNote` · `CalendarMonth` month grid ·
-`WeekTracker` task × weekday habit grid ·
-`DayCard` / `DayCardStory` the shareable day · `PhotoSlot` ·
-`Polaroid` one instant print · `PhotoCollage` a pile of them ·
-`StickerText` die-cut display word · `PhotoStrip` ·
-`FriendCard` · `ReviewCard` · `ChallengeDetail` · `ChallengeRow` a
+**Content** · `CheckCircle` a done task's tick · `TaskRing` a face in the split
+task ring with its "3/5" badge · `CalendarMonth` month grid · `WeekTracker`
+task × weekday habit grid · `PhotoCollage` the day's photo mosaic ·
+`TaskCameraGrid` the live camera over that mosaic · `PhotoSlot` · `PhotoStrip`
+a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
+`FriendCard` · `LockedOverlay` · `ChallengeRow` a
 challenge in a list, photo first, its start date at the end while it can be joined
 · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 
 ## Conventions
 
-- **The day card is the app's face.** `DayCard` is what leaves the app and
-  lands on somebody else's feed, so its composition is a fixed part of the
-  visual language, not a screen to redecorate. Change what a day *contains*
-  freely; leave the headline-over-prints pairing, the warm page and the stamp
-  footer alone.
 - **Comments explain *why*, in prose.** The existing files justify their values
   ("sampled off the reference", "anything heavier reads as a drawn outline").
   Match that. Don't add comments that restate the code.
@@ -187,6 +167,6 @@ challenge in a list, photo first, its start date at the end while it can be join
   function *and* a default, and keep their `StyleSheet.create` at the bottom.
 - Pressed states dim via a `pressed` style, not an opacity wrapper.
 - Haptics: `Haptics.selectionAsync().catch(() => {})` on tick-crossing
-  scrubbers only. Don't spray haptics onto ordinary taps.
+  pickers only. Don't spray haptics onto ordinary taps.
 - New route files go under `app/`, expo-router file conventions, `typedRoutes`
   is on.

@@ -37,7 +37,7 @@ export default function AddFriendScreen() {
   const alreadyFriends = person ? FRIENDS.some((f) => f.id === person.id) : false;
 
   return (
-    <ScreenScroll header={<ScreenHeader bar plainTitle="Add friend" />}>
+    <ScreenScroll header={<ScreenHeader plainTitle="Add friend" />}>
 
       {isYou ? (
         <EmptyState

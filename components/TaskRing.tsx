@@ -3,9 +3,11 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { colors, gradients, layout, radii } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
-import { ringWidth } from './DayRing';
 import { Text } from './Text';
 
+/** The band's stroke: heavy enough to read as a gauge at the Community row's
+ * 64pt, light enough not to crowd the face at My Profile's size. */
+const ringWidth = 3.5;
 /** Clear air between the ring and the photo, so it reads as a gauge around
  * the face rather than a coloured border on it — My Profile's own rule. */
 const RING_GAP = 3;

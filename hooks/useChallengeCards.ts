@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 
 import type { PhotoSource } from '@/components/PhotoStrip';
@@ -28,15 +27,6 @@ export const CATEGORIES: readonly ChallengeCategory[] = [
   'Lifestyle',
   'Study',
 ];
-
-/** Leading glyph for a category wherever it's named. */
-export const CATEGORY_ICONS: Record<ChallengeCategory, keyof typeof Ionicons.glyphMap> = {
-  Fitness: 'barbell',
-  Health: 'heart',
-  Mindset: 'leaf',
-  Lifestyle: 'sunny',
-  Study: 'book',
-};
 
 /** A topic's one line under its name on the topic page — what kind of days
  * a challenge filed there asks for, so the photo isn't left to explain it. */

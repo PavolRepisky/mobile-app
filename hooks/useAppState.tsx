@@ -11,8 +11,6 @@ import {
   CHALLENGES,
   CUSTOM_CHALLENGE,
   challengeById,
-  nextTint,
-  tinted,
   type Challenge,
   type ChallengeTask,
 } from '@/data/challenges';
@@ -70,22 +68,11 @@ export interface FriendComment {
 interface AppState {
   profile: Profile;
 
-  /**
-   * The day the app was first opened. The calendar runs from this month to the
-   * current one, so it outlives any one challenge — restarting, or switching to
-   * a different challenge, must not shorten the record of months already lived.
-   */
-  installedAt: Date;
-
   challenge: Challenge;
   /** Working copy of the task list — edited in the challenge detail screen. */
   tasks: ChallengeTask[];
-  /** Challenges built from scratch on the Create Challenge screen, newest
-   * last. Selectable from the picker's Custom tab alongside the presets. */
-  customChallenges: Challenge[];
   startDate: Date;
   totalDays: number;
-  paused: boolean;
   /**
    * The floating tab bar is drawn once, at the `(tabs)` layout, so a screen
    * wanting it gone — the to-do tab's live camera grid, full-bleed — has no
@@ -107,17 +94,13 @@ interface AppState {
   /** The story photos you've already seen, by whose story it is (a friend's
    * id, or `me-<day>` for yours) — the keys the story viewer gives each. */
   watchedStories: Record<string, readonly string[]>;
-  inviteCode: string;
 
   /** Challenges carried to the last day. One trophy, one finish. */
   trophies: number;
 
   /** 1-indexed, clamped to the challenge length. */
   currentDay: number;
-  endDate: Date;
 
-  /** Days already gone by with at least one task left unticked. */
-  missedDays: number;
   /** The allowance a challenge starts with, so a screen can show "2 of 3". */
   livesTotal: number;
   /** What is left of that allowance, floored at zero. */
@@ -142,7 +125,8 @@ interface AppActions {
 
   selectChallenge: (id: string) => void;
   /** Builds a new custom challenge from the create-challenge form, adds it to
-   * `customChallenges`, and hands it back so the screen can navigate on. */
+   * the challenges `selectChallenge` can pick, and hands it back so the screen
+   * can navigate on. */
   addChallenge: (input: {
     name: string;
     description: string;
@@ -151,20 +135,9 @@ interface AppActions {
     days: number;
     startDate: Date;
   }) => Challenge;
-  setTasks: (tasks: ChallengeTask[]) => void;
-  updateTaskLabel: (taskId: string, label: string) => void;
-  addTask: () => void;
-  deleteTask: (taskId: string) => void;
-  reorderTask: (from: number, to: number) => void;
-
-  setStartDate: (date: Date) => void;
   setTotalDays: (days: number) => void;
-  setPaused: (paused: boolean) => void;
-  restartChallenge: () => void;
   setTabBarHidden: (hidden: boolean) => void;
 
-  toggleTask: (taskId: string, day?: number) => void;
-  setTaskPhoto: (taskId: string, photo: TaskPhoto | null, day?: number) => void;
   /**
    * A task is only ever ticked off by photographing it, so the shot and the
    * tick land together rather than through two calls that could be left half
@@ -206,13 +179,6 @@ const SEED_CAPTIONS: Readonly<Record<number, string>> = {
   3: 'Sunday meal prep paid off today.',
   4: "Almost skipped the walk. So glad I didn't.",
 };
-
-/**
- * How long ago the seeded account downloaded the app. Deliberately well before
- * the seeded challenge began: the calendar starts at the install month, not at
- * day one, and a seed that put the two on the same day would hide that.
- */
-const SEED_INSTALLED_DAYS_AGO = 40;
 
 /**
  * Days you are allowed to miss before the challenge is lost. Fixed at three
@@ -261,8 +227,8 @@ function startOfToday(): Date {
 }
 
 /**
- * Builds a few days of plausible history so the profile grid, post-it wall and
- * sticker sheet are not empty on first launch.
+ * Builds a few days of plausible history so the profile grid and calendar are
+ * not empty on first launch.
  */
 function seedProgress(tasks: readonly ChallengeTask[]): Progress {
   const progress: Progress = {};
@@ -290,13 +256,6 @@ function seedProgress(tasks: readonly ChallengeTask[]): Progress {
   return progress;
 }
 
-function makeInviteCode(): string {
-  const chars = '0123456789ABCDEF';
-  return Array.from({ length: 8 }, () =>
-    chars[Math.floor(Math.random() * chars.length)],
-  ).join('');
-}
-
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
@@ -312,22 +271,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     avatar: require('../assets/ambassadors/amb-3.jpg'),
   });
 
-  // Set once and never written again: you only ever download the app the once,
-  // so there is no action that moves it and nothing to reset it to.
-  const [installedAt] = useState<Date>(() =>
-    addDays(startOfToday(), -SEED_INSTALLED_DAYS_AGO),
-  );
-
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
-    tinted(SEED_CHALLENGE.tasks),
+    [...SEED_CHALLENGE.tasks],
   );
   const [customChallenges, setCustomChallenges] = useState<Challenge[]>([]);
   const [startDate, setStartDateState] = useState<Date>(
     addDays(startOfToday(), -(SEED_DAY - 1)),
   );
   const [totalDays, setTotalDays] = useState(SEED_CHALLENGE.defaultDays);
-  const [paused, setPaused] = useState(false);
   const [tabBarHidden, setTabBarHidden] = useState(false);
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
@@ -343,7 +295,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [friendComments, setFriendComments] = useState<Record<string, FriendComment[]>>({});
   const [watchedStories, setWatchedStories] = useState<Record<string, readonly string[]>>({});
-  const [inviteCode] = useState(makeInviteCode);
   // Challenges the seeded account has already finished — see data/trophies.
   // Nothing increments this yet: reaching the last day is not an event the
   // app observes, so the list is seeded and left alone until finishing a
@@ -358,11 +309,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
     return Math.min(Math.max(elapsed + 1, 1), totalDays);
   }, [startDate, totalDays]);
-
-  const endDate = useMemo(
-    () => addDays(startDate, totalDays - 1),
-    [startDate, totalDays],
-  );
 
   /**
    * Only days that are fully behind you can be missed — today is still open
@@ -419,7 +365,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ? CUSTOM_CHALLENGE
           : customChallenges.find((c) => c.id === id) ?? challengeById(id);
       setChallenge(next);
-      setTasksState(tinted(next.tasks));
+      setTasksState([...next.tasks]);
       setTotalDays(next.defaultDays);
       setProgress({});
       setCaptions({});
@@ -446,122 +392,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         photos: input.photos,
         defaultDays: input.days,
         startDate: isoDay(input.startDate),
-        tasks: tinted(
-          input.tasks.map((label, i) => ({ id: `ct${Date.now()}-${i}`, label })),
-        ),
+        tasks: input.tasks.map((label, i) => ({ id: `ct${Date.now()}-${i}`, label })),
       };
       setCustomChallenges((list) => [...list, built]);
       return built;
     },
     [],
-  );
-
-  const setTasks = useCallback((next: ChallengeTask[]) => {
-    setTasksState(next);
-  }, []);
-
-  const updateTaskLabel = useCallback((taskId: string, label: string) => {
-    setTasksState((list) =>
-      list.map((t) => (t.id === taskId ? { ...t, label } : t)),
-    );
-  }, []);
-
-  const addTask = useCallback(() => {
-    setTasksState((list) => [
-      ...list,
-      {
-        id: `t${Date.now()}`,
-        label: `Task ${list.length + 1}`,
-        tint: nextTint(list),
-      },
-    ]);
-  }, []);
-
-  const deleteTask = useCallback((taskId: string) => {
-    setTasksState((list) => list.filter((t) => t.id !== taskId));
-    // Its ticks and proof photos go with it. Left behind they would be picked
-    // up by whatever task is added next under a recycled key, and would go on
-    // counting towards days that no longer have that task in them.
-    setProgress((days) =>
-      Object.fromEntries(
-        Object.entries(days).map(([day, rows]) => {
-          const { [taskId]: _gone, ...rest } = rows;
-          return [Number(day), rest];
-        }),
-      ),
-    );
-  }, []);
-
-  const reorderTask = useCallback((from: number, to: number) => {
-    setTasksState((list) => {
-      if (to < 0 || to >= list.length) return list;
-      const next = [...list];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  }, []);
-
-  const setStartDate = useCallback((date: Date) => {
-    setStartDateState(date);
-  }, []);
-
-  const restartChallenge = useCallback(() => {
-    setStartDateState(startOfToday());
-    setProgress({});
-    setCaptions({});
-  }, []);
-
-  const toggleTask = useCallback(
-    (taskId: string, day?: number) => {
-      const target = day ?? currentDay;
-      setProgress((prev) => {
-        const dayMap = prev[target] ?? {};
-        const existing = dayMap[taskId];
-        const nextDone = !existing?.done;
-        return {
-          ...prev,
-          [target]: {
-            ...dayMap,
-            [taskId]: {
-              // Spread first: a proof photo belongs to the task, not to the
-              // tick, so ticking one off — or back on — has to leave the shot
-              // and its stand-in exactly where they were.
-              ...existing,
-              done: nextDone,
-              time: nextDone ? timeStamp(new Date()) : undefined,
-              photoSeed: existing?.photoSeed ?? null,
-            },
-          },
-        };
-      });
-    },
-    [currentDay],
-  );
-
-  /** Attaches the photo just taken or picked, or clears the slot with null. */
-  const setTaskPhoto = useCallback(
-    (taskId: string, photo: TaskPhoto | null, day?: number) => {
-      const target = day ?? currentDay;
-      setProgress((prev) => {
-        const dayMap = prev[target] ?? {};
-        const existing = dayMap[taskId] ?? { done: false };
-        return {
-          ...prev,
-          [target]: {
-            ...dayMap,
-            [taskId]: {
-              ...existing,
-              photo,
-              // A real photo replaces the seeded stand-in rather than sitting
-              // behind it, so clearing one leaves an empty slot.
-              photoSeed: null,
-            },
-          },
-        };
-      });
-    },
-    [currentDay],
   );
 
   const completeTaskWithPhoto = useCallback(
@@ -651,7 +487,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const resetAll = useCallback(() => {
     setChallenge(SEED_CHALLENGE);
-    setTasksState(tinted(SEED_CHALLENGE.tasks));
+    setTasksState([...SEED_CHALLENGE.tasks]);
     setStartDateState(addDays(startOfToday(), -(SEED_DAY - 1)));
     setTotalDays(SEED_CHALLENGE.defaultDays);
     setProgress(seedProgress(SEED_CHALLENGE.tasks));
@@ -671,27 +507,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppContextValue>(
     () => ({
       profile,
-      installedAt,
       challenge,
       tasks,
       startDate,
       totalDays,
-      paused,
       tabBarHidden,
       progress,
       captions,
       postReactions,
       friendComments,
       watchedStories,
-      inviteCode,
       trophies,
       currentDay,
-      endDate,
-      missedDays,
       livesTotal: LIVES_PER_CHALLENGE,
       livesLeft,
       hasPhotographedTask,
-      customChallenges,
 
       setName,
       setBio,
@@ -700,18 +530,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAvatarPhoto,
       selectChallenge,
       addChallenge,
-      setTasks,
-      updateTaskLabel,
-      addTask,
-      deleteTask,
-      reorderTask,
-      setStartDate,
       setTotalDays,
-      setPaused,
-      restartChallenge,
       setTabBarHidden,
-      toggleTask,
-      setTaskPhoto,
       completeTaskWithPhoto,
       undoTask,
       reactToPost,
@@ -720,12 +540,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       resetAll,
     }),
     [
-      profile, installedAt, challenge, tasks, startDate, totalDays,
-      paused, tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, inviteCode, trophies,
-      currentDay, endDate, missedDays, livesLeft, hasPhotographedTask, customChallenges,
-      setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge, setTasks,
-      updateTaskLabel, addTask, deleteTask, reorderTask, setStartDate, restartChallenge,
-      setTabBarHidden, toggleTask, setTaskPhoto, completeTaskWithPhoto, undoTask,
+      profile, challenge, tasks, startDate, totalDays,
+      tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, trophies,
+      currentDay, livesLeft, hasPhotographedTask,
+      setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge,
+      setTabBarHidden, completeTaskWithPhoto, undoTask,
       reactToPost, markStoryWatched, addFriendComment, resetAll,
     ],
   );

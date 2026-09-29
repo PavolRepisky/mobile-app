@@ -2,8 +2,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { IconButton } from '@/components/IconButton';
-import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -66,14 +65,13 @@ export default function ProfileScreen() {
         tone="plain"
         header={
           <ScreenHeader
-            bar
             plainTitle="My Profile"
             showBack={false}
             right={
               <IconButton
                 name="settings-outline"
-                size={profileActionButton}
-                iconSize={profileActionIcon}
+                size={cornerButtonSize}
+                iconSize={cornerIconSize}
                 background={colors.surface}
                 onPress={() => router.push('/account/settings')}
                 accessibilityLabel="Settings"

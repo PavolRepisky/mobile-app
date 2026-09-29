@@ -95,7 +95,7 @@ export default function FriendProfileScreen() {
     <View style={styles.screenRoot}>
       {/* Every pushed page's fixed bar: the way back, then whose profile
           this is. */}
-      <ScreenScroll tone="plain" header={<ScreenHeader bar plainTitle={title} />}>
+      <ScreenScroll tone="plain" header={<ScreenHeader plainTitle={title} />}>
         <ProfileView
           avatar={friend.avatar}
           name={friend.name}

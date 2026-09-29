@@ -8,9 +8,8 @@ import { PrimaryButton } from '@/components/Buttons';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { FriendCard } from '@/components/FriendCard';
-import { IconButton } from '@/components/IconButton';
+import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
-import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
@@ -28,8 +27,8 @@ const STORY_RING = 64;
 /** The round badges leading the lock card and the empty "Finished today"
  * card — the size of the corner button, so the two read as the same kind of
  * mark. */
-const CARD_DISC = profileActionButton;
-const CARD_DISC_ICON = profileActionIcon;
+const CARD_DISC = cornerButtonSize;
+const CARD_DISC_ICON = cornerIconSize;
 /** The friends stacked beside "going today" in the lock card. */
 const MINI_AVATAR = 26;
 /** How far each stacked face tucks under the one before it. */
@@ -234,14 +233,13 @@ export default function CommunityScreen() {
         ref={scrollRef}
         header={
           <ScreenHeader
-            bar
             plainTitle="Community"
             showBack={false}
             right={
               <IconButton
                 name="person-add-outline"
-                size={profileActionButton}
-                iconSize={profileActionIcon}
+                size={cornerButtonSize}
+                iconSize={cornerIconSize}
                 background={colors.surface}
                 onPress={() => router.push('/add-friends')}
                 accessibilityLabel="Find friends"
@@ -252,8 +250,6 @@ export default function CommunityScreen() {
       >
 
         <SegmentedTabs
-          variant="pill"
-          dense
           options={[
             { key: 'friends', label: 'Friends' },
             { key: 'members', label: 'Members' },
@@ -265,7 +261,7 @@ export default function CommunityScreen() {
 
 
         {locked ? (
-          <Card flat padded={false} radius={radii.md} style={styles.sunkenCard}>
+          <Card flat radius={radii.md} style={styles.sunkenCard}>
             <View style={styles.cardBody}>
               <View style={styles.lockRow}>
                 <View style={[styles.disc, styles.discInk]}>
@@ -377,7 +373,7 @@ export default function CommunityScreen() {
                 {friendsFinished.map((friend) => renderPost(friend))}
               </View>
             ) : (
-              <Card flat padded={false} radius={radii.md} style={styles.sunkenCard}>
+              <Card flat radius={radii.md} style={styles.sunkenCard}>
                 <View style={[styles.cardBody, styles.emptyBody]}>
                   <View style={styles.emptyIntro}>
                     <View style={[styles.disc, styles.discWhite]}>

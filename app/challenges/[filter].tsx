@@ -7,8 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChallengeRow, challengeDetail } from '@/components/ChallengeRow';
 import { EmptyState } from '@/components/EmptyState';
-import { IconButton } from '@/components/IconButton';
-import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { headerLineTop, ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
@@ -86,8 +85,8 @@ export default function TopicScreen() {
         <LinearGradient colors={gradients.coverShade} style={absoluteFill} />
         <IconButton
           name="chevron-back"
-          size={profileActionButton}
-          iconSize={profileActionIcon}
+          size={cornerButtonSize}
+          iconSize={cornerIconSize}
           background={colors.surface}
           onPress={() => router.back()}
           accessibilityLabel="Go back"
@@ -108,8 +107,6 @@ export default function TopicScreen() {
 
       <View style={styles.body}>
         <SegmentedTabs
-          variant="pill"
-          dense
           options={PHASES.map((p) => ({ key: p.key, label: `${p.label} ${byPhase(p.key).length}` }))}
           value={phase}
           onChange={setPhase}

@@ -1,239 +1,97 @@
-import { Ionicons } from '@expo/vector-icons';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
 
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { Text } from './Text';
 
-/** The pill switch's measurements, taken off the profile's Grid / Month
- * switch on the design canvas: a short control that sits beside a section
- * heading, not a full-height tab bar. Grown a step past the canvas so the
- * labels set in body type rather than micro: at 13pt "Grid" and "Month"
- * read as a footnote beside the Days heading. */
+/** The switch's measurements, taken off the profile's Grid / Month switch on
+ * the design canvas: a short control that sits beside a section heading, not
+ * a full-height tab bar. */
 const PILL_HEIGHT = 36;
-/** The small pill's chip: a view switch tucked beside a heading, sized to
- * the heading's own line rather than to a full-width row. */
+/** The small chip: a view switch tucked beside a heading, sized to the
+ * heading's own line rather than to a full-width row. */
 const PILL_HEIGHT_SM = 30;
 const PILL_INSET = 3;
-const PILL_ICON = 17;
 
 export interface SegmentOption<T extends string = string> {
   key: T;
   label: string;
-  icon?: keyof typeof Ionicons.glyphMap;
 }
 
 export interface SegmentedTabsProps<T extends string = string> {
   options: readonly SegmentOption<T>[];
   value: T;
   onChange: (key: T) => void;
-  /** A row too long for the screen scrolls sideways; two-up tabs do not. */
-  scrollable?: boolean;
-  /** `justify` spreads the row across its container on even gaps. `fill`
-   * splits the whole width into equal tabs, each underline as wide as its
-   * share. */
-  align?: 'center' | 'left' | 'justify' | 'fill';
-  /** `sm` only changes the pill: a shorter chip for a switch sitting beside
-   * a heading rather than across the page. */
-  size?: 'sm' | 'md' | 'lg';
-  /**
-   * Squeezes a large row a step further. The Saved sheet runs the same five
-   * category labels behind a bookmark chip, and that sixth element does not
-   * fit a 390pt row at the standard size. On a pill track it sets the labels
-   * at `metaBold`, so three halves carrying counts ("Starting soon 2") fit.
-   */
-  dense?: boolean;
-  /**
-   * `underline` is the app's default tab cut. `pill` is the iOS segmented
-   * control: both options share a sunken grey track and the selected one
-   * rides a white chip inside it — a compact switch for a view toggle beside
-   * a heading, like the profile's Grid / Month.
-   */
-  variant?: 'underline' | 'pill';
+  /** `sm` is a shorter chip for a switch sitting beside a heading rather than
+   * across the page. */
+  size?: 'sm' | 'md';
   style?: StyleProp<ViewStyle>;
 }
 
 /**
- * Underlined text tabs. Used several different ways in the reference — Most
- * Popular/Custom, Friends/Members, Sticker/Post-it — so it takes an icon slot
- * and a scrollable mode.
+ * The iOS segmented control: every option shares a sunken grey track and the
+ * selected one rides a white chip inside it. The halves split the track
+ * evenly, which is what makes the chip slide between fixed stops rather than
+ * resize with the labels. Labels are set at `metaBold`, so three halves
+ * carrying counts ("Starting soon 2") still fit one row.
  */
 export function SegmentedTabs<T extends string = string>({
   options,
   value,
   onChange,
-  scrollable,
-  align = 'center',
   size = 'md',
-  dense,
-  variant = 'underline',
   style,
 }: SegmentedTabsProps<T>) {
-  const large = size === 'lg';
-  const pill = variant === 'pill';
-  const items = options.map((option) => {
-    const active = option.key === value;
-    return (
-      <Pressable
-        key={option.key}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: active }}
-        onPress={() => onChange(option.key)}
-        style={[
-          styles.item,
-          align === 'fill' && styles.fillItem,
-          pill && styles.pillItem,
-          pill && size === 'sm' && styles.pillItemSm,
-          pill && active && styles.pillActive,
-        ]}
-      >
-        <View style={styles.itemRow}>
-          {option.icon ? (
-            <Ionicons
-              name={option.icon}
-              size={pill ? PILL_ICON : large && !dense ? 19 : 17}
-              color={active ? colors.ink : colors.inkMuted}
-              style={[styles.icon, (dense || pill) && styles.denseIcon]}
-            />
-          ) : null}
-          {/* The tab not on show is still one tap away and still read, so
-              it takes `inkMuted` the way the pill's off half does — `inkGhost`
-              is for what can't be used yet. */}
-          <Text
-            variant={pill ? (dense ? 'metaBold' : 'copy') : large ? 'sectionTitle' : 'itemTitle'}
-            numberOfLines={pill ? 1 : undefined}
-            color={active ? colors.ink : colors.inkMuted}
-            style={large && !pill ? [styles.lgLabel, dense && styles.denseLabel] : undefined}
-          >
-            {option.label}
-          </Text>
-        </View>
-        {pill ? null : (
-          <View style={[styles.underline, active && styles.underlineActive]} />
-        )}
-      </Pressable>
-    );
-  });
-
-  if (scrollable) {
-    return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={style}
-        contentContainerStyle={[styles.scrollRow, dense && styles.denseRow]}
-      >
-        {items}
-      </ScrollView>
-    );
-  }
-
-  // The track ignores `align`: its two halves split it evenly, which is what
-  // makes the chip slide between two fixed stops rather than resize with the
-  // labels.
-  if (pill) {
-    return <View style={[styles.row, styles.pillTrack, style]}>{items}</View>;
-  }
-
   return (
-    <View
-      style={[styles.row, styles[align], style]}
-    >
-      {items}
+    <View style={[styles.track, style]}>
+      {options.map((option) => {
+        const active = option.key === value;
+        return (
+          <Pressable
+            key={option.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(option.key)}
+            style={[styles.item, size === 'sm' && styles.itemSm, active && styles.active]}
+          >
+            {/* The half not on show is still one tap away and still read, so
+                it takes `inkMuted` — `inkGhost` is for what can't be used yet. */}
+            <Text
+              variant="metaBold"
+              numberOfLines={1}
+              color={active ? colors.ink : colors.inkMuted}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  track: {
     flexDirection: 'row',
-  },
-  scrollRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingRight: spacing.md,
-  },
-  denseRow: {
-    gap: spacing.sm,
-    paddingRight: spacing.sm,
-  },
-  /**
-   * Nudged down from the section-title size so a five-up row still fits one
-   * 390pt screen, as it does in the reference.
-   */
-  lgLabel: {
-    fontSize: 19,
-    lineHeight: 25,
-  },
-  denseLabel: {
-    fontSize: 17,
-    lineHeight: 23,
-  },
-  center: {
-    justifyContent: 'center',
-    gap: spacing['2xl'],
-  },
-  left: {
-    gap: spacing.xl,
-  },
-  /** No gap of its own: the leftover width *is* the spacing. */
-  justify: {
-    justifyContent: 'space-between',
-  },
-  /** Laid out by its items, which share the width between them. */
-  fill: {},
-  item: {
-    alignItems: 'center',
-  },
-  fillItem: {
-    flex: 1,
-  },
-  pillTrack: {
     backgroundColor: colors.surfaceSunken,
     borderRadius: radii.pill,
     padding: PILL_INSET,
   },
-  pillItem: {
+  item: {
     flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
     height: PILL_HEIGHT,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.pill,
   },
-  pillItemSm: {
+  itemSm: {
     height: PILL_HEIGHT_SM,
   },
   // White on the grey track, lifted a touch so it reads as the chip that
   // slides rather than a hole cut in the track.
-  pillActive: {
+  active: {
     backgroundColor: colors.surface,
     ...shadows.soft,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  icon: {
-    marginRight: 6,
-  },
-  denseIcon: {
-    marginRight: 4,
-  },
-  underline: {
-    height: 2,
-    alignSelf: 'stretch',
-    marginTop: 6,
-    borderRadius: 2,
-    backgroundColor: 'transparent',
-  },
-  underlineActive: {
-    backgroundColor: colors.ink,
   },
 });
 

@@ -22,17 +22,15 @@ screenshots rather than estimated:
 
 | Token | Value | Where it came from |
 |---|---|---|
-| `background` | `#F8F5F0` | the warm off-white behind the logged-in app |
-| `backgroundPlain` | `#FDFDFD` | near-white, a deliberate split from the app shell |
+| `backgroundPlain` | `#FFFFFF` | the page every screen sits on |
+| `backgroundAlt` | `#F2F2F2` | the Settings page, so its white groups read as cards |
 | `surface` | `#FFFFFF` | cards, tab bar, circular buttons |
 | `ink` | `#141414` | text and the solid pill buttons |
 | `divider` | `#E9E8E2` | hairlines, and the pill behind the active tab |
-| `sage` / `butter` / `blush` / `gold` | `#D4E5C4` / `#F1DFA8` / `#EEC5BF` / `#F3D362` | the 75-day post-it grid |
 
 Type is **Quicksand** for everything, headlines included (Bold at the
-`hero`/`headline`/`title` sizes), Caveat for the hand-drawn numerals on sticky
-notes, and Fraunces Black for the day stamped across a post's photos. All three
-come from `@expo-google-fonts/*` and are loaded in `app/_layout.tsx`.
+`headline`/`headlineSm`/`title` sizes), and Fraunces Black for the day stamped
+across a post's photos. Both come from `@expo-google-fonts/*` and are loaded in `app/_layout.tsx`.
 
 **Weight mapping.** Quicksand is a rounded geometric sans, which keeps the soft
 feel the reference gets from its rounded bold cut — across the whole ramp
@@ -46,35 +44,15 @@ weights seen in `reference/screens/`:
 | `bodyMedium` | Quicksand Medium (500) | emphasis, labels, tab bar |
 | `bodySemi` | Quicksand SemiBold (600) | buttons, card titles |
 | `bodyBold` | Quicksand Bold (700) | section titles, underlined tab rows |
-| `bodyLight` | Quicksand Regular (400) | captions and muted secondary copy |
 
 Plain copy sits on Medium rather than Regular: at Regular, Quicksand reads
-markedly lighter than the reference screenshots. Regular is held back for the
-muted secondary text that should recede — amounts, timestamps, `Day 75`.
+markedly lighter than the reference screenshots, so Regular isn't loaded.
 
 > **Missing glyphs.** Quicksand has no `→` or `✓`. Anywhere those appeared in
 > UI copy they are drawn as Ionicons instead: `components/DateRange.tsx` for
-> the `from → to` ranges on sticker cards and the length picker, and `Pill`'s
+> the `from → to` ranges, and `Pill`'s
 > `icon` prop for the "Joined …" badge. **Do not put those characters into a
 > string** — they will render as tofu.
-
-> **Legacy files.** `assets/fonts/` still holds the Helvetica pack this
-> replaced (a Personal-Use-Only demo release). Nothing loads it any more; it
-> can be deleted.
-
-### Headlines
-
-Nearly every headline sets one or two words apart, so `Headline` takes markers
-rather than composed children:
-
-```tsx
-<Headline size="hero">{'Choose\nyour *challenge*'}</Headline>        // italic accent
-<Headline size="hero" weight={700} accent="bold">…</Headline>        // upright black accent
-<Headline size="hero" weight={700}>{'Finding **your**\n*perfect* challenge'}</Headline>
-```
-
-`*word*` is italic, `**word**` is upright black. Both are needed because some
-headlines use them together.
 
 ## Structure
 
@@ -86,7 +64,7 @@ components/              shared UI
 constants/theme.ts       design tokens
 data/                    mock challenges, friends, feed content
 hooks/useAppState.tsx    all app state, in memory
-lib/                     date/word formatting
+lib/                     date formatting, rounds, comment threads
 ```
 
 The tab bar is a floating pill drawn over the content, built on the headless

@@ -34,32 +34,14 @@ export const palette = {
 } as const;
 
 export const colors = {
-  /** Warm off-white behind the logged-in app (home, friends, profile, settings). */
-  background: '#F8F5F0',
-  /** Pure white — a deliberate split from the warm app shell. Own profile,
-   * a friend's profile and a wall day all sit on it. */
+  /** The page every screen sits on. */
   backgroundPlain: palette.white,
   /** The settings stack's page: the palette's fill grey, so the white groups
    * on it read as cards while the screen keeps to the profile's colours. */
   backgroundAlt: palette.greyFill,
-  /**
-   * The warm pinkish off-white the profile-views screen sits on — a touch
-   * warmer than `background`, sampled off reference/screens/profile/screen5.
-   */
-  backgroundWarm: '#FBF6F3',
 
   /** Cards, the tab bar, circular icon buttons. */
   surface: palette.white,
-  /** The reaction strip's circles, which sit directly on a friend's photo —
-   * held just off full white so the picture underneath still reads through. */
-  surfaceOnPhoto: 'rgba(255,255,255,0.92)',
-  /**
-   * The Challenges cards' two corner badges — the category and where the
-   * round stands — laid straight on the photo. Mostly white, so their dark
-   * type holds on a busy shot, but short of `surfaceOnPhoto` so the picture
-   * still shows through them.
-   */
-  surfaceOnPhotoDim: 'rgba(255,255,255,0.75)',
   /** Inset panels: the invite card, "Create Daily Task+" well. */
   surfaceMuted: '#F1F0EA',
   /** Empty photo slots and "add" tiles on the wall. */
@@ -70,12 +52,6 @@ export const colors = {
    * lighter, barely-there sink so it doesn't read as a grey block on white.
    */
   surfaceInput: '#F5F5F5',
-  /**
-   * The face of a print that has not come up yet. A shade off the paper it is
-   * printed on and a shade warm of grey, the way film looks before it develops
-   * — a flat white window would read as a photograph that failed to load.
-   */
-  undeveloped: '#EBE7DF',
 
   /** Primary text and the solid pill buttons. */
   ink: palette.black,
@@ -83,14 +59,6 @@ export const colors = {
   inkSoft: '#3A3A3A',
   /** Timestamps, placeholders, inactive tab labels, review bodies. */
   inkMuted: palette.greyDark,
-  /** A step darker than `inkMuted` — meta rows that want to stay quiet but
-   * still read at a glance, like the days/tasks line on the Discover list. */
-  inkFaded: '#7E7E7E',
-  /**
-   * Checklist labels. Sampled off the friends reference, where the task text
-   * is a cool near-black rather than the flat `ink` used for titles.
-   */
-  inkSlate: '#2B3038',
   /**
    * The greyed-out half of the Discover/Friends switch — barely there, but a
    * touch heavier than a hairline. Sampled from the same screen.
@@ -98,12 +66,6 @@ export const colors = {
   inkGhost: palette.greyLight,
   /** Text on dark fills. */
   inkInverse: palette.white,
-  /**
-   * A solid badge's own fill where it sits on a photo rather than the page —
-   * held translucent so the shot underneath still shows through instead of a
-   * flat block sitting on top of it. The my-challenge card's category chip.
-   */
-  inkOnPhoto: 'rgba(20,20,20,0.55)',
 
   /** Text input fills and unselected control strokes. */
   field: '#CDCDCD',
@@ -118,25 +80,12 @@ export const colors = {
    */
   destructive: palette.red,
 
-  /**
-   * The rose accent on the Add Friends screen's "See all". Sampled off the
-   * reference screenshot rather than reused from `destructive`: that red
-   * reads as a warning, and nothing here is one.
-   */
-  accent: '#F04884',
 
   /** Disabled primary button fill / label. */
   disabled: '#EDEBE6',
   disabledInk: palette.greyDark,
 
-  /** Pastels — exact values from the 75-day post-it grid. */
-  sage: '#D4E5C4',
-  butter: '#F1DFA8',
-  blush: '#EEC5BF',
-  gold: '#F3D362',
 
-  /** Handwritten numerals on the sticky notes. */
-  stickyInk: '#2B2B2B',
 
   /** Scrims. */
   scrim: 'rgba(0,0,0,0.45)',
@@ -180,20 +129,7 @@ export const colors = {
   onMediaShadow: 'rgba(0,0,0,0.35)',
 } as const;
 
-/** The four pastels, in the rotation order the post-it grid uses. */
-export const stickyPalette = [
-  colors.sage,
-  colors.butter,
-  colors.blush,
-  colors.gold,
-] as const;
-
-/**
- * The Instagram-style ring around the avatar on the To-do home — the one
- * genuinely linear gradient in the app.
- */
 export const gradients = {
-  storyRing: ['#F58529', '#DD2A7B', '#8134AF'],
   /**
    * The app's one accent, the only colour that sits beside `palette`: peach
    * into rose into lavender, in the order it is drawn — clockwise round My
@@ -232,8 +168,8 @@ export const fonts = {
    *
    * Quicksand runs optically lighter than the Helvetica it replaced, so each
    * role is mapped one step up the ramp to hold the weights in the reference
-   * screenshots: plain copy sits on Medium, not Regular. Regular is kept for
-   * the muted secondary text that should recede.
+   * screenshots: plain copy sits on Medium, not Regular, and Regular is not
+   * loaded at all.
    */
   body: 'Quicksand_500Medium',
   /** Same colour as `body`: the reference draws no medium/regular contrast. */
@@ -242,11 +178,6 @@ export const fonts = {
   bodySemi: 'Quicksand_600SemiBold',
   /** Section titles and the underlined tab rows. */
   bodyBold: 'Quicksand_700Bold',
-  /** Muted secondary copy — amounts, timestamps, captions. */
-  bodyLight: 'Quicksand_400Regular',
-
-  /** Caveat — the hand-drawn numerals on sticky notes. */
-  hand: 'Caveat_600SemiBold',
 
   /**
    * Fraunces Black — the day number stamped across a post's photo grid, and
@@ -341,10 +272,9 @@ export const hierarchy = {
 } as const;
 
 /**
- * Type scale. Headline sizes track the reference closely: the big welcome
- * headline is ~44px on a 1170pt-wide render, the standard question headline
- * ~34px, section titles ~26px. Headlines are set in Quicksand's heaviest cut
- * like everything else — the app has no separate display face; size alone
+ * Type scale. Headline sizes track the reference closely: the standard
+ * question headline is ~34px on a 1170pt-wide render, section titles ~26px.
+ * Headlines are set in Quicksand's heaviest cut like everything else — the app has no separate display face; size alone
  * is what sets a headline apart.
  */
 export const type = {
@@ -358,12 +288,6 @@ export const type = {
   metaBold: hierarchy.metaBold,
   badge: hierarchy.badge,
 
-  hero: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 44,
-    lineHeight: 48,
-    letterSpacing: bodyTracking,
-  },
   headline: {
     fontFamily: fonts.bodyBold,
     fontSize: 34,
@@ -384,18 +308,6 @@ export const type = {
   },
 
   sectionTitle: hierarchy.pageTitle,
-  /**
-   * A touch under `sectionTitle`'s own default. Discover's per-challenge
-   * titles and the preview page's "Daily Tasks" and "Reviews" headings all
-   * share this cut, so the three read as the same weight of heading.
-   */
-  sectionTitleSm: hierarchy.sectionHeading,
-  /**
-   * A further step down, for a card's own title sitting under a page-level
-   * heading that already carries `sectionTitle` — the profile's "Current
-   * challenge" card.
-   */
-  sectionTitleXs: hierarchy.sectionHeading,
   cardTitle: {
     fontFamily: fonts.bodySemi,
     fontSize: 17,
@@ -418,23 +330,7 @@ export const type = {
     lineHeight: 22,
     letterSpacing: bodyTracking,
   },
-  /**
-   * One step under `bodyBold`: copy that wants weight without the shout — the
-   * bullet list on the support card.
-   */
-  bodySemi: hierarchy.copy,
   bodyBold: hierarchy.copyBold,
-  /**
-   * The daily-task label, which the reference sets in the heavy cut. A step
-   * above `bodyBold`: the to-do row lost its check circle, and the label is
-   * now the only thing holding the width beside the photo.
-   */
-  taskLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: bodyTracking,
-  },
   button: {
     fontFamily: fonts.bodySemi,
     fontSize: 17,
@@ -453,12 +349,6 @@ export const type = {
    * background the way most `label` copy does.
    */
   labelBold: hierarchy.meta,
-  caption: {
-    fontFamily: fonts.bodyLight,
-    fontSize: 13,
-    lineHeight: 17,
-    letterSpacing: bodyTracking,
-  },
   micro: {
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
@@ -471,28 +361,6 @@ export const type = {
    * lighter washes out again against a busy photo at this size. */
   microBold: hierarchy.badge,
   /**
-   * The uppercase stamp closing the day card — the challenge name and the
-   * handle under its rule. Letterspaced open rather than set at the body
-   * tracking: capitals pulled a point tighter crowd into a block instead of
-   * reading as something pressed onto the page.
-   */
-  /**
-   * The caption written in the chin of a print. Caveat, because a photograph
-   * laid on a page is captioned by hand — the face runs small and loose, so it
-   * sets larger than a sans would at the same optical size.
-   */
-  hand: {
-    fontFamily: fonts.hand,
-    fontSize: 17,
-    lineHeight: 20,
-    letterSpacing: 0,
-  },
-  /**
-   * "Day N" stamped across a post's photo grid, the way the reference sets
-   * its cover word. Leading pulled in to the size so the kicker above tucks
-   * against it rather than floating.
-   */
-  /**
    * The ❤️ that pops over a post on a double tap. An emoji draws taller than
    * a line of text at the same size, so the line is opened well past the
    * size — at a text leading the heart's top was clipped off its own box.
@@ -502,12 +370,23 @@ export const type = {
     fontSize: 44,
     lineHeight: 60,
   },
+  /**
+   * "Day N" stamped across a post's photo grid, the way the reference sets
+   * its cover word. Leading pulled in to the size so the kicker above tucks
+   * against it rather than floating.
+   */
   poster: {
     fontFamily: fonts.poster,
     fontSize: 68,
     lineHeight: 68,
     letterSpacing: -2,
   },
+  /**
+   * The uppercase kicker over a post's "Day N" — the challenge's name.
+   * Letterspaced open rather than set at the body tracking: capitals pulled a
+   * point tighter crowd into a block instead of reading as something pressed
+   * onto the photo.
+   */
   stamp: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
@@ -588,8 +467,6 @@ export const radii = {
   /** The signature card radius. */
   card: 32,
   xl: 32,
-  /** The friend card's corner. */
-  '2xl': 44,
   /** Anything fully rounded: buttons, chips, the tab bar. */
   pill: 999,
 } as const;
@@ -615,13 +492,6 @@ export const tabBarClearance =
  */
 export const tabBarBottom = (insetBottom: number) =>
   Math.max(insetBottom - spacing.xl, spacing.md) + tabBar.bottomOffset;
-
-/**
- * Distance from the bottom of the screen to the *top* edge of the bar, for
- * anything that has to sit clear of it (the invite button).
- */
-export const tabBarTop = (insetBottom: number) =>
-  tabBarBottom(insetBottom) + tabBar.height;
 
 // ---------------------------------------------------------------------------
 // Elevation
@@ -659,15 +529,6 @@ export const shadows = {
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
-  /** A step past `floating`, for the few surfaces that sit on top of a screen
-   * rather than in it: the tilted friend card, the invite panel. */
-  lifted: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.22,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 10,
-  },
   /**
    * Liquid glass sits *on* the photo rather than on the warm background, so it
    * casts a tighter, cooler shadow than the card shadows above — enough to
@@ -681,18 +542,6 @@ export const shadows = {
     elevation: 5,
   },
   /**
-   * The heaviest in the set, for the two badges crowning the challenge feed.
-   * They sit on the bare page rather than over a photo, so the shadow is what
-   * lifts them off it — hence more of it than anything else needs.
-   */
-  deep: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.3,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 16,
-  },
-  /**
    * `soft` pulled in close, for the round buttons in a screen's fixed header
    * bar. The bar leaves only a stack's gap under them before the page
    * scrolls in, and `soft`'s blur reaches past that, so its lower edge was
@@ -704,14 +553,6 @@ export const shadows = {
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
     elevation: 2,
-  },
-  /** Sticky notes cast a tighter, more directional shadow. */
-  sticky: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: { width: 2, height: 4 },
-    elevation: 4,
   },
   /**
    * A dropped cast rather than a centred one: the same soft, neutral blur as
@@ -793,7 +634,6 @@ export const glass = {
 export const theme = {
   colors,
   gradients,
-  stickyPalette,
   fonts,
   type,
   bodyTracking,
@@ -806,7 +646,6 @@ export const theme = {
   tabBar,
   tabBarClearance,
   tabBarBottom,
-  tabBarTop,
 } as const;
 
 export default theme;

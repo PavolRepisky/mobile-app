@@ -18,6 +18,12 @@ import { GlassSurface } from './GlassSurface';
  */
 export const InHeaderBar = createContext(false);
 
+/** The round corner buttons on a tab root's title line — My Profile's QR and
+ * Settings, the Challenges "+", Tasks' settings — and the photo viewer's
+ * actions, all one size wherever they sit. */
+export const cornerButtonSize = 46;
+export const cornerIconSize = 22;
+
 export interface IconButtonProps {
   name: keyof typeof Ionicons.glyphMap;
   onPress?: () => void;

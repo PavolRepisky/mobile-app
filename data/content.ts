@@ -3,45 +3,7 @@ import type { ImageSourcePropType } from 'react-native';
 import type { AvatarSource } from '@/components/Avatar';
 import type { CommentEntry } from '@/components/CommentsSheet';
 import type { PhotoSource } from '@/components/PhotoStrip';
-import type { Review } from '@/components/ReviewCard';
 import { CHALLENGES } from './challenges';
-
-// ---------------------------------------------------------------------------
-// Reviews shown under every challenge detail
-// ---------------------------------------------------------------------------
-
-export const REVIEWS: readonly Review[] = [
-  {
-    id: 'r1',
-    title: 'me and my roommate survived lol',
-    handle: 'zoe_runner',
-    body: 'we started the same day and basically lived on voice notes. day 4 i wanted to quit; she sent a meme and we went for the walk anyway.',
-  },
-  {
-    id: 'r2',
-    title: 'low pressure, high payoff',
-    handle: 'ninaknight',
-    body: 'my friend roped me in after i whined about feeling stuck. we voice memo each other on walks like we’re 16 again.',
-  },
-  {
-    id: 'r3',
-    title: 'first week i kept forgetting',
-    handle: 'elliehayes',
-    body: 'was hard at first bc my days blur together. once i stacked two tiny wins i started wanting a third.',
-  },
-  {
-    id: 'r4',
-    title: 'glow without the guilt trip',
-    handle: 'camilleinthesix',
-    body: 'i actually see it in photos, less puffy, more rested. didn’t think soft could feel this real.',
-  },
-  {
-    id: 'r5',
-    title: 'doing it parallel with my cousin',
-    handle: 'jadejournal',
-    body: 'different time zones, same checklist. when one of us slips we don’t spiral, we just reset next block.',
-  },
-];
 
 // ---------------------------------------------------------------------------
 // Friends & the discover feed

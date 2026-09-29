@@ -29,22 +29,14 @@ interface CommonProps {
   children: React.ReactNode;
   /**
    * Every screen sits on the same white `plain` Profile is built on, by
-   * default. `app` is the warm off-white the shell used to run on, `alt` the
-   * settings stack's own cooler off-white, `warm` a touch warmer still —
-   * kept for a screen that deliberately wants to break from the white, not
-   * used anywhere today.
+   * default. `alt` is the settings stack's own fill grey, so its white groups
+   * read as cards.
    */
-  tone?: 'app' | 'plain' | 'alt' | 'warm';
+  tone?: 'plain' | 'alt';
   /** Adds the horizontal page gutter. Off for edge-to-edge photo layouts. */
   padded?: boolean;
   /** Reserves room for the floating tab bar. */
   tabBar?: boolean;
-  /**
-   * Gap between the status bar and the first thing on the screen. Screens
-   * opening on a headline take the default; ones opening on a control row sit
-   * closer, since the row reads as the header itself.
-   */
-  topGap?: number;
   /**
    * A title row that stays put above the page — usually a `ScreenHeader
    * bar`. It sits on the header line on the page's own tone, so its buttons
@@ -68,14 +60,12 @@ interface CommonProps {
  * corner action button is placed from the display edge, so the only way to
  * work out how far the page has to be pushed down to clear it is from here.
  */
-export const topPadding = (insetTop: number, gap: number = screenTopGap) =>
-  Math.max(insetTop + gap, screenTopGap);
+export const topPadding = (insetTop: number) =>
+  Math.max(insetTop + screenTopGap, screenTopGap);
 
 const TONES = {
-  app: colors.background,
   plain: colors.backgroundPlain,
   alt: colors.backgroundAlt,
-  warm: colors.backgroundWarm,
 } as const;
 
 /**
@@ -107,7 +97,6 @@ export function Screen({
   tone = 'plain',
   padded = true,
   tabBar,
-  topGap = screenTopGap,
   header,
   style,
 }: CommonProps) {
@@ -121,7 +110,7 @@ export function Screen({
           backgroundColor: TONES[tone],
           // Under a fixed header the page starts a title's gap below the bar,
           // not below the status bar — the bar has already cleared that.
-          paddingTop: header ? layout.title : topPadding(insets.top, topGap),
+          paddingTop: header ? layout.title : topPadding(insets.top),
         },
         padded && styles.padded,
         style,
@@ -158,7 +147,6 @@ export function ScreenScroll({
   tone = 'plain',
   padded = true,
   tabBar,
-  topGap = screenTopGap,
   style,
   bottomExtra = 0,
   contentContainerStyle,
@@ -184,7 +172,7 @@ export function ScreenScroll({
       contentContainerStyle={[
         // Under a fixed header the page starts a title's gap below the bar,
         // not below the status bar — the bar has already cleared that.
-        { paddingTop: header ? layout.title : topPadding(insets.top, topGap) },
+        { paddingTop: header ? layout.title : topPadding(insets.top) },
         padded && styles.padded,
         {
           paddingBottom:

@@ -8,21 +8,17 @@ import {
 } from 'react-native';
 
 import { colors, radii, shadows, spacing } from '@/constants/theme';
-import { GlassSurface } from './GlassSurface';
 import { Text, type TextProps } from './Text';
 
 export interface PillProps {
   label: string;
   /**
-   * `floating` is the white overlay pill ("+10,000 joined", "Day 5"). `glass`
-   * is the liquid-glass lens used for prep times, which needs something worth
-   * refracting behind it — over a flat background it reads as a plain tint.
+   * `floating` is the white overlay pill ("+10,000 joined", "Day 5").
    */
-  tone?: 'floating' | 'glass' | 'solid' | 'muted' | 'outline';
+  tone?: 'floating' | 'solid' | 'muted';
   size?: 'sm' | 'md' | 'lg';
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
-  color?: string;
   /**
    * Leading glyph. An icon rather than a character in the label because
    * Quicksand has no check-mark glyph.
@@ -58,7 +54,6 @@ export function Pill({
   size = 'md',
   onPress,
   style,
-  color,
   icon,
   trailingIcon,
   bold,
@@ -70,7 +65,7 @@ export function Pill({
         <Ionicons
           name={icon}
           size={size === 'sm' ? 13 : 16}
-          color={color ?? (tone === 'solid' ? colors.inkInverse : colors.ink)}
+          color={tone === 'solid' ? colors.inkInverse : colors.ink}
           style={styles.icon}
         />
       ) : null}
@@ -94,7 +89,7 @@ export function Pill({
                 ? 'button'
                 : 'bodyStrong')
         }
-        color={color ?? (tone === 'solid' ? colors.inkInverse : colors.ink)}
+        color={tone === 'solid' ? colors.inkInverse : colors.ink}
       >
         {label}
       </Text>
@@ -109,11 +104,7 @@ export function Pill({
     </>
   );
 
-  const body = tone === 'glass' ? (
-    <GlassSurface radius={radii.pill} style={[styles.glassOuter, style]}>
-      <View style={[styles.base, SIZES[size]]}>{content}</View>
-    </GlassSurface>
-  ) : (
+  const body = (
     <View
       style={[
         styles.base,
@@ -155,15 +146,8 @@ const SIZES = StyleSheet.create({
 
 const TONES = StyleSheet.create({
   floating: { backgroundColor: colors.surface },
-  /** Painted by GlassSurface, not by a fill. */
-  glass: { backgroundColor: 'transparent' },
   solid: { backgroundColor: colors.ink },
   muted: { backgroundColor: colors.surfaceMuted },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.divider,
-  },
 });
 
 const styles = StyleSheet.create({
@@ -172,10 +156,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  /** The lens shrink-wraps its label the way the solid tones do. */
-  glassOuter: {
     alignSelf: 'flex-start',
   },
   icon: {

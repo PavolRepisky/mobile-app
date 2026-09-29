@@ -23,15 +23,15 @@ everywhere else keeps to the semantic names.
 
 | group | tokens |
 | --- | --- |
-| Backgrounds | `background` `backgroundPlain` `backgroundAlt` `backgroundWarm` |
+| Backgrounds | `backgroundPlain` `backgroundAlt` |
 | Surfaces | `surface` (white) · `surfaceMuted` (inset panels) · `surfaceSunken` (empty photo slots) |
-| Ink | `ink` · `inkSoft` · `inkMuted` · `inkSlate` (checklist labels) · `inkGhost` (the greyed half of a switch) · `inkInverse` |
+| Ink | `ink` · `inkSoft` · `inkMuted` · `inkGhost` (not yet / not available) · `inkInverse` |
 | Lines | `field` · `divider` · `dividerStrong` |
 | State | `destructive` · `disabled` · `disabledInk` |
-| Pastels | `sage` `butter` `blush` `gold`, rotated by `stickyPalette` |
-| Scrims | `scrim` · `scrimLight` |
+| Scrims | `scrim` · `scrimLight` · `scrimPhoto` · `scrimLock` |
+| Media | `mediaBackdrop` · `onMediaSoft` · `onMediaTrack` · `onMediaBorder` · `onMediaShadow` |
 
-`gradients.storyRing` is the friends' story ring. `gradients.accent` —
+`gradients.accent` —
 peach #F7C3A0 into rose #EFA3B7 into lavender #D8C6EE, in drawing order — is
 the app's one accent beside the palette, the colour of progress: My
 Profile's task ring (swept round it) and the challenge card's bar.
@@ -42,16 +42,15 @@ The hierarchy comes first — `hierarchy` in `theme.ts`, eight levels exposed
 as `Text` variants: `pageTitle` 23 Bold · `sectionHeading` 21 Bold ·
 `itemTitle` 18 Bold · `copy` 16 SemiBold · `copyBold` 16 Bold · `meta` 14
 SemiBold · `metaBold` 14 Bold · `badge` 12 Bold. My Profile and Settings are built from these alone;
-`sectionTitle`, `sectionTitleSm`, `sectionTitleXs`, `cardTitleBold`,
-`bodySemi`, `bodyBold`, `labelBold` and `microBold` now point at the
-matching level.
+`sectionTitle`, `cardTitleBold`, `bodyBold`, `labelBold` and `microBold` now
+point at the matching level.
 
-Headline cuts — Quicksand Bold: `hero` 44 · `headline` 34 · `headlineSm` 27 ·
-`title` 30. There is no separate display face; size sets a headline apart.
+Headline cuts — Quicksand Bold: `headline` 34 · `headlineSm` 27 · `title` 30. There is no separate display face; size sets a headline apart.
 
-Functional cuts — Quicksand: `sectionTitle` 23 · `cardTitle` 17 · `body` 16 ·
-`bodyStrong` 16 · `bodySemi` 16 · `bodyBold` 16 · `button` 17 · `label` 14 ·
-`caption` 13 · `micro` 11 · `tab` 12.
+Functional cuts — Quicksand: `cardTitle` 17 · `body` 16 · `bodyStrong` 16 ·
+`button` 17 · `label` 14 · `micro` 11 · `tab` 12. And the three drawn ones:
+`poster` (Fraunces Black, the "Day N" on a post), `stamp` (the letterspaced
+kicker over it) and `burst` (the heart a double tap pops).
 
 Tracking is baked into the scale: `bodyTracking` (-1) on every Quicksand
 string, headlines included. A component building its own
@@ -68,17 +67,16 @@ On top of that ruler sits `layout`, spacing by role: `gutter` 20 · `title` 20 �
 · `card` 20 · `pill` 8 · `grid` 4. My Profile and Settings take every gap,
 margin and padding from it; a bare `spacing` step is left for optical nudges.
 
-`radii`: `sm` 10 · `md` 16 · `lg` 20 · `card`/`xl` 32 · `2xl` 44 · `pill` 999.
+`radii`: `sm` 10 · `md` 16 · `lg` 20 · `card`/`xl` 32 · `pill` 999.
 
 `shadows` are all low-opacity and large-blur — see the selection table in
-`CLAUDE.md`. Anything punchier reads wrong against the warm background.
+`CLAUDE.md`. Anything punchier reads as a drawn outline on the white page.
 
 ### Tab bar geometry
 
 `tabBar` is `{ height: 68, bottomOffset: 12, horizontalInset: 20 }`.
 `tabBarClearance` is what a scroll view adds to its bottom inset.
-`tabBarBottom(insetBottom)` and `tabBarTop(insetBottom)` place things relative
-to the floating bar — the bar floats *over* the home-indicator area rather than
+`tabBarBottom(insetBottom)` places things relative to the floating bar — the bar floats *over* the home-indicator area rather than
 above it.
 
 ### Liquid glass
@@ -97,238 +95,156 @@ Use `GlassSurface` rather than assembling the layers by hand.
 
 ### Layout
 
-**`Screen` / `ScreenScroll`** — `tone` `'app'|'plain'|'alt'|'warm'` ·
-`padded` (default true) · `tabBar` · `topGap` · `style`. `ScreenScroll` also
-takes `bottomExtra` and any `ScrollViewProps`. Screens opening on a headline
-take the default `topGap`; ones opening on a control row pass a smaller value
-because the row reads as the header itself.
+**`Screen` / `ScreenScroll`** — `tone` `'plain'|'alt'` · `padded` (default
+true) · `tabBar` · `header` · `style`. `header` is a title row that stays put
+above the page on the header line; the page then starts a title's gap under
+it. `ScreenScroll` also takes `bottomExtra`, a `ref` to the scroller, and any
+`ScrollViewProps`.
 
-**`ProfileLayout`** — `identity` and optional `action` / `leading` nodes above
-`children`, plus `tone` / `padded` / `tabBar` / `bottomExtra`. `action` floats
-in the top-right corner; `leading` is the page's heading on that same line at
-the left — the To-do home's date — but it sits *in* the scroll and travels with
-it, so the title leaves the screen with the content it names while the button
-stays reachable. Exports
-`profileAvatarSize` (120), `profileActionTop` (56), `profileActionHeight` (52)
-so callers can align against it.
+**`ScreenHeader`** — `plainTitle` · `showBack` (default true; a tab root
+passes false) · `right`. The row a screen's fixed `header` holds: the back
+button, the title at `pageTitle` on the gutter, then the actions grouped at
+the end. Its buttons are `cornerButtonSize` / `cornerIconSize` (46 / 22,
+exported from `IconButton`), the size every corner button in the app shares.
 
-**`ScreenHeader`** — `title` (headline scale) or `plainTitle` (smaller, with
-`plainTitleVariant`/`plainTitleStyle`), `subtitle`, `onBack`/`showBack`,
-`onClose`, and a `right` node.
+**`ProfileView`** — a whole profile page, yours and anyone else's: the face in
+its task ring, the name and bio, the challenge card, and the days as a grid of
+posts or a month (`CalendarMonth`).
 
-**`Card`** — `padded` · `flat` (drops the shadow, for cards on an inset panel) ·
-`muted` (uses `surfaceMuted`) · `onPress`.
+**`Card`** — `flat` (drops the shadow) · `radius` · `onPress`. A white
+surface; the content sets its own padding.
 
-**`MasonryGrid<T>`** — `items` · `renderItem` · `keyExtractor` · `weight` (relative
-height, used to balance columns) · `columns`.
-
-**`EmptyState`** — `icon` · `title` · `hint`.
+**`EmptyState`** — `icon` · `title` · `hint` · `disc` (the glyph on a grey
+disc) · `action` (`{label, onPress}`).
 
 ### Type
 
-**`Text`** — `variant` (any key of the type scale) · `color` · `center`.
-**`Headline`** — `size` `'hero'|'headline'|'headlineSm'|'title'` · `weight`
-500/700/900 · `accent` `'italic'|'bold'` · `accentWeight` · `align` ·
-`numberOfLines`. Markdown-ish runs inside the string: `**bold**` and `*italic*`
-segments step up to the accent weight.
+**`Text`** — `variant` (any key of the type scale) · `color` · `center`. The
+only way text reaches the screen.
 
 ### Controls
 
-**`PrimaryButton` / `SecondaryButton`** — `label` · `onPress` · `disabled` ·
-`loading` · `icon` (Ionicon) · `iconSize` · `fullWidth` (default true; pass
-false for side-by-side pairs) · `labelStyle`. **`TextLink`** takes
-`label`/`onPress`/`color`.
+**`PrimaryButton`** — `label` · `onPress` · `disabled` · `icon` (Ionicon) ·
+`fullWidth` (default true; false for side-by-side pairs). `buttonHeight` (58)
+is exported for a screen that docks one over its scroll.
 
-**`IconButton`** — `name` · `size` · `iconSize` · `color` · `background` ·
-`shadow` · `accessibilityLabel`.
+**`IconButton`** — `name` · `size` · `iconSize` · `color` · `background` (a
+flat fill instead of the lens) · `shadow` · `disabled` · `accessibilityLabel`.
 
-**`Pill`** — `label` · `tone` `'floating'|'glass'|'solid'|'muted'|'outline'` ·
-`size` `'sm'|'md'|'lg'` (heights 28/38/48, exported as `pillHeights`) · `icon` ·
-`bold` · `color`.
+**`Pill`** — `label` · `tone` `'floating'|'solid'|'muted'` · `size`
+`'sm'|'md'|'lg'` (heights 28/38/48, exported as `pillHeights`) · `icon` ·
+`trailingIcon` · `bold` · `labelVariant` · `onPress`.
 
-**`SegmentedTabs<T>`** — `options` (`{key,label,icon?}`) · `value` · `onChange` ·
-`variant` `'underline'|'pill'` · `size` `'md'|'lg'` · `align`
-`'center'|'left'|'justify'` · `scrollable` · `dense`.
+**`SegmentedTabs<T>`** — `options` (`{key, label}`) · `value` · `onChange` ·
+`size` `'sm'|'md'`. The pill switch: a sunken track with the selected half
+riding a white chip, labels at `metaBold`.
 
-**`BigSegmentHeader<T>`** — exactly two options, each with an avatar cluster
-above an oversized label; the unselected side drops to `inkGhost`.
+**`SearchBar`** — `value` · `onChangeText` · `placeholder` · `tone`
+`'outline'|'sunken'` · `rightIcon` / `onRightIconPress` · `onSubmit`.
 
-**`RulerSlider`** — `length` · `index` · `onChange` · `readout` · `caption`.
-**`DayScrubber`** — `day` · `totalDays` · `onChange`, firing as strokes cross
-the centre line rather than on release. Both tick a selection haptic.
+**`RulerSlider`** — `length` · `index` · `onChange` · `readout` · `caption`,
+firing a selection haptic as ticks cross the centre line.
+**`WheelPicker`** — `values` · `value` · `onChange` · `format`: the iOS
+date-wheel drum.
 
 ### Overlays
 
-**`BottomSheet`** — `visible` · `onDismiss` · `onDismissed` (fires once the
-sheet is gone, for callers that navigate on) · `handle` · `tall` · `padded`.
+**`BottomSheet`** — `visible` · `onDismiss` · `handle` (default true) ·
+`dragAnywhere` (pull it down from anywhere; a list inside wraps itself in
+`SheetScrollable`) · `padded` · `bottomGap`.
 
 **`AlertDialog`** — `title` · `message` · `actions` (`{label, onPress,
-destructive?}`) · optional `input` · `onDismiss` / `onDismissed`. Two actions
-sit side by side; three or more stack.
+destructive?}`) · optional `input` · `onDismiss`. Two actions sit side by
+side; three or more stack.
 
-**`PopoverMenu`** — `items` (`{label, onPress, destructive?}`) anchored by
-`top` plus `right` or `left`.
+**`PopoverMenu`** — `items` (`{label, onPress, destructive?}`) · `top`. Drops
+from the corner button on the gutter and unfolds out of its top-right corner.
 
-**`PhotoLibrarySheet`** — picks for a task (`taskId` + `day`) or for anything
-else (`visible` + `onPick`). **`ChallengeLengthSheet`** wraps `RulerSlider`.
+**`PhotoLibrarySheet`** — `visible` · `onPick` · `onDismiss`.
+**`ChallengeLengthSheet`** wraps `RulerSlider`. **`CommentsSheet`** — a post's
+thread with its composer.
+
+**`PhotoViewer`** — `photos` · `index` · `onDismiss` · `actions`: photos blown
+up one at a time over a dark blurred backdrop, swiped through.
 
 ### Content
 
-**`TaskRow`** — `label` · `done` · `time` · `onPressPhoto` · `divider`. The row
-is a check circle, a label and a completion stamp; the proof photo is not on it
-— that lives in the day's `PhotoCollage`. **`CheckCircle`** is exported
-separately (default size 36) and takes `emptyIcon`, the glyph shown while the
-circle is still hollow. Pass it only where the circle is pressable: on a
-friend's list a camera would be inviting you to photograph their day.
+**`CheckCircle`** — `size`. A finished task's mark: an ink disc with a white
+tick. Only ever a report of what is done, never pressed.
 
-**`DayRing`** — `day` · `state` `'full'|'partial'|'none'` · `avatar`/`avatarSeed`
-· `size` · `onPress` · `onDoublePressDay` (the way back to today from a
-scrubbed day). `ringInnerSize(size)` gives the inner diameter.
-**`DayPill`** is the "Day N" chip on its own — `day` · `onPress` ·
-`onDoublePress` · `onLongPress`. The lens has to lap over something to refract
-it, so give it a negative margin onto whatever sits behind. `onDoublePress` is
-ignored once `onPress` is set: a tap action and a double tap cannot share a
-pill without holding every tap back to see whether a second one follows, so a
-screen wanting both puts the second on `onLongPress` — which is what the To-do
-home does (tap opens the story, hold goes back to today).
-
-**`StickyNote`** — `value` · `size` · `colorIndex` (into `stickyPalette`) ·
-`muted` · `tilt`.
+**`TaskRing`** — `avatar` · `done` · `total` · `watched` · `size` · `onPress`.
+A face inside the split task ring, one segment per task in the accent, with its
+"3/5" badge — My Profile's hero and the Community stories row.
 
 **`CalendarMonth`** — `month` (any date inside it) · `days`, a map from day of
 the month to `shots` (up to four `photo`/`seed` pairs) · `past` · `today` ·
-`label` · `onPress`. One month as a seven-column grid, Monday first, with the
-day's photographs tiled behind its numeral — one fills the cell, two split it
-across, three put one over a pair, four take a corner each. A single cover
-would say a day was one picture; the mosaic says how full it was. The heading is `sectionTitle`, not a headline: it labels a
-grid of dates rather than opening a page. Photographs lead, so a bare numeral
-stays quiet — `inkMuted` for a day already gone, `inkGhost` for one still to
-come. Today takes the ink disc a calendar always puts on it, or an ink ring when
-it already has a photo under it.
+`missed` · `inRun` · `label` · `onPress` · `header`. One month as a
+seven-column grid, Monday first, with the day's photographs tiled behind its
+numeral — one fills the cell, two split it across, three put one over a pair,
+four take a corner each. Every day of the challenge gets a grey cell, shot or
+not; dates either side of the run stay bare numbers. A bare numeral stays
+quiet — `inkMuted` for a day already gone, `inkGhost` for one still to come —
+and today wears a black border.
 
 **`WeekTracker`** — `rows` (`id` · `label` · seven `days`, Monday first, each
 `done`|`today`|`missed`|`future`|`outside`) · `todayIndex` · `selectedIndex`
 (the weekday letter picked out in ink — the day the photo carousel below is
-showing; defaults to today). The Tasks tab's habit grid:
-one row per task, one 24px disc per weekday. A kept day is a solid ink disc
-with a white tick, today an ink ring, a missed day a `surfaceMuted` blank —
-never red, the tracker records rather than scolds — and a day still to come a
-hairline ring. Days outside the challenge draw nothing.
+showing; defaults to today). The Tasks tab's habit grid: one row per task, one
+24px disc per weekday. A kept day is a solid ink disc with a white tick, today
+an ink ring, a missed day a `surfaceMuted` blank — never red, the tracker
+records rather than scolds — and a day still to come a hairline ring. Days
+outside the challenge draw nothing.
 
-**`PhotoSlot`** — `photo` or `seed` · `width` (points, or a share of the
-parent) / `height`/`radius` · `emptyIcon` `'camera'|'add'|'none'` ·
-`emptyLabel` ·
-`emptyOutline` (the dashed field on its own, defaults to whether there is a
-label) · `emptyTone` `'sunken'|'warm'` · `done` · `tilt` ·
-`shadow` `boolean|'card'|'hard'` · `accessibilityLabel`. `emptyTone="warm"` is
-for blocks where an empty tile is a gap in a record rather than a well to
-press: the shell's muted tone inside a hairline instead of the cool grey.
-**`StickerText`** — `children` · `tilt` · `size`. A word die-cut as a sticker:
-black display type on a white plaque, applied off straight, with the prints'
-own drop shadow under it. It was first drawn as a true outline — the word laid
-down many times in white around a circle, black on top — which does not survive
-being asked for a thick one: every copy is the whole glyph, so the union closes
-the letters' counters, bridges the gaps between them, and scallops where two
-neighbouring copies meet. The plaque gets the same idea with one shape and one
-edge, and thicker is simply more paper rather than more artefact.
+**`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `time` · `label` ·
+`onPress`) · `radius` · `ratio` · `seam`. The day's proof photos merged edge
+to edge into one block behind an ink seam: one fills it, two split it, three
+put one over a pair, four take a corner each, and past four the rest fall in
+rows of two under the first. Every tile carries its task's name; a photographed
+one also its time, and an open one a camera glyph inviting the tap.
+`MosaicArrangement` is the same cut, generic over what a cell renders — the
+live camera grid lays its cells out through it.
 
-**`DayCard`** — `day` · `date` · `cells` · `challengeName` · `handle` ·
-`background`. The day composed as one 4:5 page to be posted: a headline `*day* five` over the
-scattered prints on the warm paper, closed off with a drawn rule and the
-uppercase `stamp` line. It is the app's face on other people's feeds, so the
-stack — a `StickerText` day over hand-laid prints over the challenge's own
-photograph, everything under it held back by a scrim so white type reads — is
-the part that must not drift. `DayCardStory` is the same card centred on a 9:16 ink ground.
-`captureRef` is pointed straight at either through a forwarded `ref`; the
-capture and share themselves live in `lib/shareDayCard.ts`, apart from the
-views so a device problem has one file to look at.
+**`TaskCameraGrid`** — `day` · `rows` · `onCapture` · `onUndo` · `onClose`.
+The Tasks tab's live camera: full-bleed, the day's mosaic laid over the feed,
+each open task a frosted tile until tapped. The shot is cropped back to the
+tile it was framed through, so the print matches the preview.
 
-**`Polaroid`** — `width` · `photo`/`seed` · `caption` · `tilt` · `onPress`. One
-instant print: a square picture in a white frame with a deep chin under it,
-captioned by hand. The chin is the whole thing — a photograph in an even border
-is a framed picture, while one with four times as much paper below it as above
-is a Polaroid, and the eye reads that shape before it reads the picture. It is
-also where the caption goes, which is what turns proof shots into somebody's
-account of their day. Everything is a share of `width`, so the same print is a
-thumbnail on the To-do page and a full-bleed print on an export.
+**`PhotoSlot`** — `photo` · `width` / `height` / `radius` · `emptyLabel` (a
+dashed outline and a caption under the `+`) · `tilt` · `onPress`. A photo, or
+the tile waiting for one — the new-challenge screen's cover prints.
 
-**`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `caption` · `done` ·
-`label` · `onPress`) · `columns` · `layout` `'collage'|'grid'|'dice'` ·
-`maxHeight`. The default `collage` is a pile of `Polaroid`s: prints off
-straight, lapping over each other, laid out against `PILES` — placements
-written by hand per count, in shares of the pile's own width. Dealt by rule a
-pile comes out evenly spaced and reads as a grid that slipped; placed, it reads
-as a handful of prints somebody put down. Every preset keeps one rule: a print
-may lap over another's picture, never over its chin, since prints are drawn in
-order and a caption buried under the next photograph reads as a rendering fault
-rather than as a pile.
+**`PhotoStrip`** — `photos` · `height` · `onPressPhoto`. A challenge's photos
+dropped as loose framed prints across the top of its page, each at its own
+height and angle.
 
-Because the pile is described in shares of its width it has one shape and one
-aspect, given by `collageRatio(count)`. `maxHeight` is a ceiling: where the room
-is shorter than that shape wants — the day card, whose height is fixed by its
-4:5 — the whole pile is drawn *narrower* and centred rather than squashed. The
-width it measures against comes off a bare inner view, not the styled box: a
-caller's `style` may carry padding, and `onLayout` reports the box including it.
-
-`layout="grid"` is the plain alternative — equal tiles, no tilt, task order —
-and `layout="dice"` lays five out the way the five is pipped on a die: four
-square tiles with the fifth over the middle on a white mat (any other number
-falls back to the grid). Both draw no done ticks and no dashed "add" tiles, and
-their empty tiles drop the shadow for the warm tone: they are a record of the
-day, the camera is opened from the task rows, and a gap has nothing to lift off
-the page.
-
-The To-do home and the day card both take the pile, and both pass it only what
-has actually been photographed. That is deliberate: the page you live in and
-the page you would post should not be two different pictures of the same day.
-It costs the block early in a day — it starts empty and grows a print at a
-time — but the progress line under the heading already says how much of the day
-is left, and a pile cannot carry gaps the way an even grid could. Captions come
-from `shortLabel`, which strips the parentheticals and emoji a checklist label
-carries for the list rather than for a caption, then cuts to three words:
-counting characters instead leaves "one 45-minute", which is a caption of
-nothing.
-
-**`PhotoStrip`** — `photos` · `height` · `badge` (white pill overlapping the top
-edge) · `radius`.
-
-**`FriendCard`**, **`RecipeCard`**, **`ReviewCard`** take their domain object
-plus `onPress`. **`ChallengeDetail`** is the full editor: task list with
-drag-reorder (`onReorder`), rename, delete, and `onDraggingChange` so the host
-screen can lock its scroll.
+**`FriendCard`** — `friend` · `post` · `locked` · `accessory` · `onPress`: one
+post on Community, flat on the page, with the "Day N" `DayStamp` across its
+photo grid. **`LockedOverlay`** blurs what you can't see until you've posted.
+**`ChallengeRow`** — `card` · `detail` · `note` · `showDate` · `onPress`: a
+challenge in a list, photo first, its start date at the end while it can be
+joined.
 
 **`Avatar`** (`source` · `size`) · **`DateRange`** (`from` · `to` · `variant`) ·
 **`GlassSurface`** (`radius` · `shadow`) · **`Placeholder`** /
 `AvatarPlaceholder` / `AvatarSilhouette` — deterministic gradient stand-ins
 seeded by a string, and the only place literal hex is allowed.
 
-**`FloatingTabBar`** + `TabBarButton` — icons
-`'recipes'|'friends'|'tasks'|'calendar'|'profile'` (outline until focused), a
-glass lens behind the bar and a light pill behind the active tab. `filled`
-turns a tab into a solid ink disc with no label — the centre tab only.
-
-**`TrophyCard`** — `trophy` · `challenge` · `width`. One finished challenge,
-flat on the page: a big gold trophy glyph, the `Headline` name under it, then
-a `DateRange`. No card surface, no photos. `app/trophies.tsx` decks every
-trophy into a horizontal, peeking, snap-scrolled row of these — one to swipe
-through at a time, reached from the Trophies column in `ProfileStats`.
+**`FloatingTabBar`** — the four tabs (Challenges · Community · Tasks ·
+Profile), outline icons until focused, a glass lens behind the bar and a light
+pill behind the active tab. `hidden` takes it away for the live camera.
 
 ---
 
 ## 3. Composition recipes
 
-**A tab screen.** `ScreenScroll tabBar` at the root. If the screen opens on a
-control row rather than a headline, pass `topGap={spacing.sm}`. A floating
-action wants an explicit `<View style={{flex:1}}>` wrapper around the
-`ScreenScroll` so its absolute offsets resolve against the screen rather than
-the taller scroll content, and it positions with `tabBarTop(insets.bottom)`.
+**A tab screen.** `ScreenScroll tabBar` at the root, with a
+`ScreenHeader showBack={false}` as its `header` and the screen's actions in
+`right`.
 
-**A detail screen.** `ScreenScroll tone="plain"` with a `ScreenHeader showBack`
-first. Pushed with `router.push({ pathname: '/thing/[id]', params: { id } })`.
+**A detail screen.** `ScreenScroll` with a `ScreenHeader` as its `header`.
+Pushed with `router.push({ pathname: '/thing/[id]', params: { id } })`.
 
-**A sheet.** Hold `visible` in the host screen. Use `onDismiss` to close and
-`onDismissed` to navigate afterwards — navigating from `onDismiss` fights the
-dismiss animation.
+**A sheet.** Hold `visible` in the host screen and close it with `onDismiss`.
 
 **Lists.** Always give the empty case an `EmptyState`; every list in the app
 has one.
@@ -339,7 +255,7 @@ has one.
 
 `hooks/useAppState.tsx` exposes `useApp()`, wrapped by `AppProvider` in
 `app/_layout.tsx`. Static content lives in `data/` (`challenges.ts`,
-`content.ts`, `recipes.ts`); formatting helpers in `lib/format.ts`.
+`content.ts`, `trophies.ts`); formatting helpers in `lib/format.ts`.
 
 Fonts are loaded once in `app/_layout.tsx` and the splash is held until they
 resolve — headlines are the whole design, so a fallback-face flash is not

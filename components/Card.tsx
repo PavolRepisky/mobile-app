@@ -7,17 +7,13 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { colors, radii, shadows } from '@/constants/theme';
 
 export interface CardProps extends ViewProps {
-  /** Inner padding. `false` for edge-to-edge content like photo strips. */
-  padded?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   /** Drops the shadow — for cards sitting on an already-light inset panel. */
   flat?: boolean;
-  /** Muted fill instead of pure white (invite card, task well). */
-  muted?: boolean;
   /** Corner radius, off the shared scale. Defaults to the signature `card` cut. */
   radius?: number;
 }
@@ -31,10 +27,8 @@ export interface CardProps extends ViewProps {
  * no shadow at all.
  */
 export function Card({
-  padded = true,
   onPress,
   flat,
-  muted,
   radius,
   style,
   children,
@@ -44,12 +38,11 @@ export function Card({
   const host = [
     styles.card,
     radiusStyle,
-    muted && styles.muted,
     !flat && shadows.card,
     style,
   ];
   const inner = (
-    <View style={[styles.clip, radiusStyle, padded && styles.padded]}>{children}</View>
+    <View style={[styles.clip, radiusStyle]}>{children}</View>
   );
 
   if (onPress) {
@@ -80,12 +73,6 @@ const styles = StyleSheet.create({
   clip: {
     borderRadius: radii.card,
     overflow: 'hidden',
-  },
-  muted: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  padded: {
-    padding: spacing.xl,
   },
   pressed: {
     opacity: 0.92,

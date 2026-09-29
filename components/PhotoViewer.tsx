@@ -14,9 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
-import { IconButton } from './IconButton';
+import { IconButton, cornerButtonSize, cornerIconSize } from './IconButton';
 import { Placeholder } from './Placeholder';
-import { profileActionButton, profileActionIcon } from './ProfileLayout';
 import type { PhotoSource } from './PhotoStrip';
 
 export interface PhotoViewerAction {
@@ -48,12 +47,6 @@ export interface PhotoViewerProps {
    * else's photos has none.
    */
   actions?: readonly PhotoViewerAction[];
-  /**
-   * Something that isn't a photo, blown up in the photo's place — your friend
-   * code, say. Shown instead of `photos` when set, centred in the very frame a
-   * photo gets, on white, with the same backdrop and tap-to-dismiss.
-   */
-  children?: React.ReactNode;
 }
 
 /**
@@ -69,7 +62,6 @@ export function PhotoViewer({
   onDismiss,
   onDismissed,
   actions,
-  children,
 }: PhotoViewerProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -91,16 +83,7 @@ export function PhotoViewer({
           style={absoluteFill}
         />
 
-        {index === null ? null : children ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss"
-            onPress={onDismiss}
-            style={styles.custom}
-          >
-            <View style={[styles.frame, styles.customFrame]}>{children}</View>
-          </Pressable>
-        ) : (
+        {index === null ? null : (
           // Remounted per opening index, so the page-tracking state below
           // starts fresh on every open rather than carrying over from
           // wherever a previous viewing left it.
@@ -111,7 +94,7 @@ export function PhotoViewer({
             width={width}
             height={height}
             onDismiss={onDismiss}
-            dotsLift={actions?.length ? profileActionButton + spacing.md : 0}
+            dotsLift={actions?.length ? cornerButtonSize + spacing.md : 0}
           />
         )}
 
@@ -125,8 +108,8 @@ export function PhotoViewer({
               <IconButton
                 key={action.key}
                 name={action.icon}
-                size={profileActionButton}
-                iconSize={profileActionIcon}
+                size={cornerButtonSize}
+                iconSize={cornerIconSize}
                 background={colors.surface}
                 color={action.destructive ? colors.destructive : colors.ink}
                 accessibilityLabel={action.label}
@@ -224,12 +207,6 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  custom: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing['2xl'],
-  },
   actions: {
     position: 'absolute',
     left: 0,
@@ -237,11 +214,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing.xl,
-  },
-  customFrame: {
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   page: {
     alignItems: 'center',
