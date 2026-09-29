@@ -39,6 +39,8 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
  * seven of them across a phone still read as photographs and not as swatches.
  */
 const CELL_ASPECT = 0.76;
+/** The profile's filled month: between that print shape and a square. */
+const FILLED_CELL_ASPECT = 0.86;
 
 /**
  * A day cell's own corner — tighter than the app's usual `radii.sm`, so a
@@ -381,10 +383,11 @@ const styles = StyleSheet.create({
     // A hair of air between neighbouring prints; the row gap matches it.
     paddingHorizontal: layout.grid / 2,
   },
-  // Square in the filled month: its cells are slots in a grid more than
-  // prints, and a month of tall ones runs half a screen further down.
+  // A touch taller than wide in the filled month — enough to read as a print
+  // rather than a swatch, short of the full print shape, whose month runs
+  // half a screen further down.
   cellFilled: {
-    aspectRatio: 1,
+    aspectRatio: FILLED_CELL_ASPECT,
   },
   press: {
     flex: 1,

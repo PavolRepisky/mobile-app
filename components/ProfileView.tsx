@@ -362,13 +362,10 @@ export function ProfileView({
       const cell: CalendarDay = { shots, past: on <= now, today: isToday, inRun: day !== null };
 
       if (day !== null && day < currentDay && record) {
-        // A finished day carries no mark — its photos are the proof, the
-        // same way a finished day's grid tile is just its photos. Only a
-        // day that fell short says so.
-        if (done < taskCount) {
-          if (shots.length) cell.mark = `${done}/${taskCount}`;
-          else cell.missed = true;
-        }
+        // No count on a cell: its photos are the day, and how many tasks
+        // it got is one tap away on the post. Only a day with nothing at
+        // all says so, as missed.
+        if (!shots.length && done < taskCount) cell.missed = true;
         if (shots.length) {
           cell.onPress = () => onOpenDay(day);
           cell.label = `Day ${day}, ${done} of ${taskCount} tasks. Opens this day's post.`;
@@ -376,7 +373,6 @@ export function ProfileView({
           cell.label = `${MONTH_NAMES[month]} ${date}, Day ${day}. Missed.`;
         }
       } else if (day !== null && isToday) {
-        if (done) cell.mark = `${done}/${taskCount}`;
         if (today) cell.onPress = today.onPress;
         cell.label = `Today, Day ${day}, ${done} of ${taskCount} so far.${
           today ? ` ${today.hint}` : ''
