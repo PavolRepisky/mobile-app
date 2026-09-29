@@ -14,13 +14,14 @@ import {
 } from 'react-native';
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
-import { colors, gradients, layout, radii, shadows, spacing } from '@/constants/theme';
+import { colors, layout, radii, shadows, spacing } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
 import { BottomSheet } from './BottomSheet';
 import { PrimaryButton } from './Buttons';
 import { CalendarMonth, MONTH_NAMES, type CalendarDay } from './CalendarMonth';
 import { Card } from './Card';
 import { EmptyState } from './EmptyState';
+import { IconButton } from './IconButton';
 import { DayStamp } from './FriendCard';
 import { MosaicArrangement } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
@@ -48,13 +49,15 @@ const POST_TILE_RATIO = 0.85;
  * photo the main thing, big enough to read as a mark rather than a speck. */
 const TILE_MARK = 22;
 
-/** Wide enough for "Grid" and "Month" with their glyphs; the pill track
- * splits it evenly so the chip slides between two fixed stops. */
-const DAYS_SWITCH_WIDTH = 190;
+/** Wide enough for "Grid" and "Month" side by side at the switch's dense
+ * size; the pill track splits it evenly so the chip slides between two fixed
+ * stops. */
+const DAYS_SWITCH_WIDTH = 150;
 
-/** The month view's paging arrows — big enough to hit at the page's edges
- * without a button shape around them. */
-const MONTH_ARROW = 24;
+/** The month view's paging buttons: small grey discs grouped at the end of
+ * the month's own row, the way the Days switch sits at the end of its row. */
+const MONTH_ARROW_BUTTON = 36;
+const MONTH_ARROW_ICON = 18;
 /** The ▾ beside the month name, a step under the name's own cap height. */
 const MONTH_CARET = 18;
 /** Top margin that settles the caret onto the name's optical centre — see
@@ -66,6 +69,58 @@ const YEARS_BACK = 5;
 
 /** The challenge card's "opens a page" chevron — a Settings row's own size. */
 const CHALLENGE_CHEVRON = 20;
+
+/** Days per row of the challenge card's squares: a 75-day run folds into
+ * five even rows, a 30-day one into two. */
+const SQUARES_PER_ROW = 15;
+/** A day square's corner. The squares come out around 17pt, where even the
+ * smallest radius token rounds them into dots. */
+const SQUARE_RADIUS = 4;
+/** Today's ring around its square — the calendar's today cell, scaled down. */
+const SQUARE_TODAY_BORDER = 2;
+/** The lives' hearts beside "Day 5 of 75" — the height of that line's
+ * capitals, so they sit on it rather than tower over it. */
+const HEART_ICON = 16;
+/** Hearts to draw when a profile knows the lives left but not the allowance
+ * — the app's fixed three. */
+const DEFAULT_LIVES = 3;
+
+/** How one day of the run is drawn on the challenge card. */
+type SquareState = 'done' | 'partial' | 'missed' | 'today' | 'ahead';
+
+/**
+ * One day of the challenge as a square: done in the accent for where it sits
+ * in the run, half-filled for a day that got photos but fell short, the
+ * darker grey for a day with nothing, a ring for today and the empty grey
+ * for everything still to come.
+ */
+function DaySquare({ state, color, size }: { state: SquareState; color: string; size: number }) {
+  const box = { width: size, height: size };
+  if (state === 'partial') {
+    // Cut corner to corner, so half a day reads as half a square rather
+    // than as a lighter shade of a whole one.
+    return (
+      <LinearGradient
+        colors={[color, color, colors.surfaceSunken, colors.surfaceSunken]}
+        locations={[0, 0.5, 0.5, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.square, box]}
+      />
+    );
+  }
+  return (
+    <View
+      style={[
+        styles.square,
+        box,
+        state === 'done' && { backgroundColor: color },
+        state === 'missed' && styles.squareMissed,
+        state === 'today' && styles.squareToday,
+      ]}
+    />
+  );
+}
 
 /** Same hero circle the to-do ring shares — the one place on a profile that
  * gets to be that big. */
@@ -211,6 +266,11 @@ export interface ProfileViewProps {
   today?: { onPress: () => void; hint: string };
   /** What the grid says while it has no days in it. */
   emptyHint: string;
+  /** Lives still in hand, drawn as hearts on the challenge card; left out
+   * where the profile doesn't know them. */
+  livesLeft?: number;
+  /** The allowance the hearts are counted out of. */
+  livesTotal?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -237,13 +297,15 @@ export function ProfileView({
   onOpenDay,
   today,
   emptyHint,
+  livesLeft,
+  livesTotal = DEFAULT_LIVES,
   style,
 }: ProfileViewProps) {
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
 
   const [daysView, setDaysView] = useState<DaysView>('grid');
-  const [trackWidth, setTrackWidth] = useState(0);
+  const [squaresWidth, setSquaresWidth] = useState(0);
   // Which month the month view shows, counted in months from this one — 0 is
   // now, -1 last month. An offset rather than a date, so the view still opens
   // on the current month once the calendar rolls into a new one.
@@ -297,7 +359,7 @@ export function ProfileView({
       const record = day === null ? null : dayOf(day);
       const shots = record?.shots ?? [];
       const done = record?.done ?? 0;
-      const cell: CalendarDay = { shots, past: on <= now, today: isToday };
+      const cell: CalendarDay = { shots, past: on <= now, today: isToday, inRun: day !== null };
 
       if (day !== null && day < currentDay && record) {
         // A finished day carries no mark — its photos are the proof, the
@@ -344,9 +406,39 @@ export function ProfileView({
     setYearSheetOpen(true);
   };
 
-  const progressShare = Math.min(1, currentDay / Math.max(totalDays, 1));
-  const daysLeft = Math.max(0, totalDays - currentDay);
-  const startedLabel = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const dateLabel = (date: Date) =>
+    date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const startedLabel = dateLabel(startDate);
+  const endLabel = dateLabel(new Date(startDate.getTime() + (totalDays - 1) * DAY_MS));
+
+  // Every day of the run, as the challenge card draws it. A past day with no
+  // record is left as an empty slot, not marked missed — someone else's
+  // history only reaches as far as what they've shared.
+  const squares = useMemo(
+    () =>
+      Array.from({ length: totalDays }, (_, index): SquareState => {
+        const day = index + 1;
+        if (day === currentDay) return 'today';
+        if (day > currentDay) return 'ahead';
+        const record = dayOf(day);
+        if (!record) return 'ahead';
+        if (record.done >= taskCount) return 'done';
+        return record.shots.length ? 'partial' : 'missed';
+      }),
+    [totalDays, currentDay, dayOf, taskCount],
+  );
+
+  // Fifteen across, cut to whatever width the card leaves — worked out from
+  // the measured row rather than a percentage, which `gap` would push over.
+  const squareSize =
+    squaresWidth > 0 ? (squaresWidth - layout.grid * (SQUARES_PER_ROW - 1)) / SQUARES_PER_ROW : 0;
+
+  const challengeLabel = [
+    `${challenge.name}, day ${currentDay} of ${totalDays}`,
+    livesLeft !== undefined ? `${livesLeft} of ${livesTotal} lives left` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <View style={style}>
@@ -454,57 +546,82 @@ export function ProfileView({
         </View>
       </View>
 
-      {/* The challenge the ring is measuring, how far into it they are, and
-          a way into its page. */}
+      {/* The challenge the ring is measuring, drawn as the whole run — one
+          square a day — and a way into its page. */}
       <Card
-        flat
         padded={false}
-        radius={radii.md}
+        radius={radii.card}
         onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-        accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
+        accessibilityLabel={challengeLabel}
         accessibilityHint="Opens the challenge"
         style={styles.challengeCard}
       >
-        {/* Laid out as Community's Members card is — name and chevron,
-            the challenge's start and size, then the bar with the day
-            spelled out under it — so the two read as one card. */}
         <View style={styles.challengeBody}>
-          <View>
-            <View style={styles.challengeRow}>
-              <Text variant="itemTitle" numberOfLines={1} style={styles.challengeName}>
-                {challenge.name}
-              </Text>
-              {/* The same chevron a Settings row ends on — the one cue the
-                  app already uses for "this opens a page", where a flat
-                  card on its own reads as information rather than a way in. */}
-              <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
-            </View>
-            <Text variant="meta" color={colors.inkMuted}>
-              {`Started ${startedLabel} · ${challenge.joined.toLocaleString('en-US')} members`}
+          <View style={styles.challengeRow}>
+            <Text variant="itemTitle" numberOfLines={1} style={styles.challengeName}>
+              {challenge.name}
             </Text>
+            {/* The same chevron a Settings row ends on — the one cue the
+                app already uses for "this opens a page", where a flat
+                card on its own reads as information rather than a way in. */}
+            <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
           </View>
-          <View style={styles.progressBlock}>
-            <View
-              style={styles.progressTrack}
-              onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-            >
-              {/* The fill clips a gradient as wide as the whole track, so
-                  the colour marks how far through the challenge they are —
-                  peach early on, lavender only near the end — the same way
-                  the ring's sweep is read off where a segment sits. */}
-              <View style={[styles.progressFill, { width: `${progressShare * 100}%` }]}>
-                <LinearGradient
-                  colors={gradients.accent}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.progressGradient, { width: trackWidth }]}
-                />
-              </View>
+
+          <View style={styles.daysPanel}>
+            <View style={styles.daysPanelHead}>
+              {/* A step under the name's `itemTitle`, so the challenge still
+                  leads the card, but big enough to read as the card's number. */}
+              <Text variant="copyBold">
+                {`Day ${currentDay} `}
+                <Text variant="copyBold" color={colors.inkMuted}>
+                  {`of ${totalDays}`}
+                </Text>
+              </Text>
+              {/* The lives beside the day, as hearts alone — how many are
+                  left is the count of dark ones, no words needed. */}
+              {livesLeft !== undefined ? (
+                <View style={styles.hearts}>
+                  {Array.from({ length: livesTotal }, (_, i) => (
+                    <Ionicons
+                      key={i}
+                      name="heart"
+                      size={HEART_ICON}
+                      color={i < livesLeft ? colors.ink : colors.inkGhost}
+                    />
+                  ))}
+                </View>
+              ) : null}
             </View>
-            <View style={styles.progressLabels}>
-              <Text variant="metaBold">{`Day ${currentDay} of ${totalDays}`}</Text>
-              <Text variant="meta" color={colors.inkMuted}>
-                {daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}
+
+            {/* Read out once, in the card's own label — seventy-five
+                squares one by one is noise to a screen reader. */}
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              onLayout={(e) => setSquaresWidth(e.nativeEvent.layout.width)}
+              style={styles.squares}
+            >
+              {squareSize > 0
+                ? squares.map((state, index) => (
+                    <DaySquare
+                      key={index}
+                      state={state}
+                      // Coloured by where the day sits in the run, the way the
+                      // ring's sweep is read off where a segment sits — peach
+                      // early on, lavender only near the end.
+                      color={accentAt((index + 0.5) / squares.length)}
+                      size={squareSize}
+                    />
+                  ))
+                : null}
+            </View>
+
+            <View style={styles.daysPanelHead}>
+              <Text variant="badge" color={colors.inkMuted}>
+                {startedLabel}
+              </Text>
+              <Text variant="badge" color={colors.inkMuted}>
+                {endLabel}
               </Text>
             </View>
           </View>
@@ -513,11 +630,16 @@ export function ProfileView({
 
       <View style={styles.daysHeader}>
         <Text variant="sectionHeading">Days</Text>
+        {/* Community's Friends | Members switch at its dense size, labels
+            only, so the app's two-way switches match — here cut down to sit
+            beside the heading rather than across the page. */}
         <SegmentedTabs
           variant="pill"
+          size="sm"
+          dense
           options={[
-            { key: 'grid', label: 'Grid', icon: 'grid-outline' },
-            { key: 'month', label: 'Month', icon: 'calendar-outline' },
+            { key: 'grid', label: 'Grid' },
+            { key: 'month', label: 'Month' },
           ]}
           value={daysView}
           onChange={setDaysView}
@@ -532,19 +654,12 @@ export function ProfileView({
           filled
           style={styles.month}
           header={
-            // One month at a time, and the arrows go as far as anyone
-            // pages — an empty month before the app is still a month.
+            // The month's name leads on the left and opens the year picker;
+            // both arrows sit together at the end, one thumb's reach apart
+            // rather than at opposite edges of the page. They go as far back
+            // as anyone pages — an empty month before the app is still a
+            // month — and forward only as far as this one.
             <View style={styles.monthHeader}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Previous month"
-                onPress={() => setMonthOffset(monthOffset - 1)}
-                hitSlop={spacing.md}
-                style={({ pressed }) => pressed && styles.pressed}
-              >
-                <Ionicons name="chevron-back" size={MONTH_ARROW} color={colors.ink} />
-              </Pressable>
-
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
@@ -563,22 +678,29 @@ export function ProfileView({
                 />
               </Pressable>
 
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Next month"
-                // This month is as far as it goes — the calendar shows
-                // what has been, not what's ahead.
-                disabled={monthOffset >= 0}
-                onPress={() => setMonthOffset(monthOffset + 1)}
-                hitSlop={spacing.md}
-                style={({ pressed }) => pressed && styles.pressed}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={MONTH_ARROW}
-                  color={monthOffset >= 0 ? colors.inkGhost : colors.ink}
+              <View style={styles.monthArrows}>
+                <IconButton
+                  name="chevron-back"
+                  size={MONTH_ARROW_BUTTON}
+                  iconSize={MONTH_ARROW_ICON}
+                  background={colors.surfaceSunken}
+                  shadow={false}
+                  onPress={() => setMonthOffset(monthOffset - 1)}
+                  accessibilityLabel="Previous month"
                 />
-              </Pressable>
+                <IconButton
+                  name="chevron-forward"
+                  size={MONTH_ARROW_BUTTON}
+                  iconSize={MONTH_ARROW_ICON}
+                  background={colors.surfaceSunken}
+                  shadow={false}
+                  // This month is as far as it goes — the calendar shows
+                  // what has been, not what's ahead.
+                  disabled={monthOffset >= 0}
+                  onPress={() => setMonthOffset(monthOffset + 1)}
+                  accessibilityLabel="Next month"
+                />
+              </View>
             </View>
           }
         />
@@ -722,14 +844,13 @@ const styles = StyleSheet.create({
   bio: {
     marginTop: layout.line,
   },
+  // A white card resting on the white page: the card shadow is what lifts
+  // it off, and the squares still to come wear the fill grey as empty slots.
   challengeCard: {
     marginTop: layout.section,
-    // The month view's own filled-cell grey, so the card and the calendar
-    // below it read as cut from the same sheet.
-    backgroundColor: colors.surfaceSunken,
   },
-  // The card role on every side, and a block's gap between the title and
-  // the bar — Community's Members card, role for role.
+  // The card role on every side, and a block's gap between its three parts:
+  // the name row, the squares and the lives line.
   challengeBody: {
     padding: layout.card,
     gap: layout.block,
@@ -742,30 +863,35 @@ const styles = StyleSheet.create({
   challengeName: {
     flex: 1,
   },
-  progressBlock: {
-    gap: layout.stack,
+  daysPanel: {
+    gap: layout.heading,
   },
-  progressLabels: {
+  daysPanelHead: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
-  // The ring's own stroke: the bar wears the ring's sweep, so it's drawn at
-  // the ring's weight and the two read as the same line, bent and straight.
-  progressTrack: {
-    height: RING_STROKE,
-    borderRadius: radii.pill,
-    // White rather than a divider grey: on the ring's grey card a divider
-    // tone sits within a shade of the fill behind it and the track vanishes.
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
+  squares: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: layout.grid,
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: radii.pill,
-    overflow: 'hidden',
+  square: {
+    borderRadius: SQUARE_RADIUS,
+    backgroundColor: colors.surfaceSunken,
   },
-  progressGradient: {
-    height: '100%',
+  squareMissed: {
+    backgroundColor: colors.inkGhost,
+  },
+  squareToday: {
+    borderWidth: SQUARE_TODAY_BORDER,
+    borderColor: colors.ink,
+  },
+  hearts: {
+    flexDirection: 'row',
+    // Hearts drawn edge to edge touch at their widest point; a hair of room
+    // keeps them three hearts rather than one lumpy shape.
+    gap: spacing.xs / 2,
   },
   daysHeader: {
     flexDirection: 'row',
@@ -784,6 +910,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  monthArrows: {
+    flexDirection: 'row',
+    gap: layout.stack,
   },
   yearWheel: {
     marginVertical: layout.block,

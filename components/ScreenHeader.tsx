@@ -13,6 +13,10 @@ import { IconButton, InHeaderBar } from './IconButton';
 import { profileActionButton, profileActionIcon } from './ProfileLayout';
 import { Text, type TextProps } from './Text';
 
+/** How far the bar's title is raised to sit optically centred on the corner
+ * buttons — see `barTitleText`. */
+const BAR_TITLE_LIFT = 1.5;
+
 export interface ScreenHeaderProps {
   /** Headline-scale title with optional `*accent*` markers. */
   title?: string;
@@ -86,7 +90,11 @@ export function ScreenHeader({
           {left ?? back}
           <View style={styles.barTitle}>
             {plainTitle ? (
-              <Text variant={plainTitleVariant ?? 'pageTitle'} numberOfLines={1} style={plainTitleStyle}>
+              <Text
+                variant={plainTitleVariant ?? 'pageTitle'}
+                numberOfLines={1}
+                style={[styles.barTitleText, plainTitleStyle]}
+              >
                 {plainTitle}
               </Text>
             ) : null}
@@ -174,6 +182,16 @@ const styles = StyleSheet.create({
   },
   barTitle: {
     flex: 1,
+  },
+  // Centring the title's line box on the buttons still leaves the word low:
+  // Quicksand hangs its capitals ~0.6pt under the middle of a 23/28 line, and
+  // the lowercase and descenders under them pull the word's weight further
+  // down. Measured off the screens, lifting it by this much puts the word's
+  // middle on the corner buttons' centre. Android's extra font padding is
+  // dropped so it lands in the same place there.
+  barTitleText: {
+    transform: [{ translateY: -BAR_TITLE_LIFT }],
+    includeFontPadding: false,
   },
   barActions: {
     flexDirection: 'row',

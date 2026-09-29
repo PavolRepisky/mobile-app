@@ -1,14 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View, type LayoutRectangle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlatList, StyleSheet, View, type LayoutRectangle } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { PopoverMenu } from '@/components/PopoverMenu';
-import { profileActionHeight, profileActionTop } from '@/components/ProfileLayout';
-import { Screen, topPadding } from '@/components/Screen';
+import { IconButton } from '@/components/IconButton';
+import { profileActionButton, profileActionIcon } from '@/components/ProfileLayout';
+import { Screen } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { TaskCameraGrid } from '@/components/TaskCameraGrid';
 import { Text } from '@/components/Text';
 import { WeekTracker, type WeekCellStatus } from '@/components/WeekTracker';
@@ -31,20 +31,11 @@ import { addDays } from '@/lib/format';
  * drawn grid over the prints; one keeps the cut without the weight. */
 const GRID_SEAM = 1;
 
-/** The same bare settings glyph My Profile's header carries, at the same
- * size, rather than a circular IconButton of its own. */
-const settingsIconSize = 26;
-/** The outline glyph has no bold cut of its own — stacking a second copy a
- * hair off the first thickens the stroke without switching to the filled
- * icon, exactly as Profile does. */
-const settingsBoldOffset = 0.6;
-
 /** The carousel's page dots — the same 6px marks the multi-photo posts use. */
 const PAGE_DOT = 6;
 
 export default function TasksScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { currentDay, startDate, totalDays, tasks, progress, undoTask, completeTaskWithPhoto } =
     useApp();
 
@@ -133,10 +124,6 @@ export default function TasksScreen() {
    * undo-or-cancel. */
   const [doneFor, setDoneFor] = useState<{ taskId: string; day: number } | null>(null);
 
-  // Lines the title up on the same row every other tab root's corner button
-  // sits on, the way Discover's own title does.
-  const headerTop = Math.max(profileActionTop, topPadding(insets.top));
-  const titleOffset = headerTop - topPadding(insets.top);
 
   return (
     <>
@@ -152,36 +139,30 @@ export default function TasksScreen() {
           onClose={() => setCameraDismissed(true)}
         />
       ) : (
-        // Plain, centred title — the same header Discover uses —
-        // naming what the page holds rather than an identity of its own. The
-        // settings glyph is laid out the way My Profile lays out its own: a
-        // spacer the glyph's width on the left so the title centres on the
-        // page, not on what's left.
-        <Screen padded={false} tabBar>
-          <View style={[styles.titleBand, { marginTop: titleOffset }]}>
-            <View style={styles.headerIconStack} />
-            <Text variant="sectionTitle" center style={styles.headerTitle}>
-              Tasks
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Challenge settings"
-              onPress={() => setMenuOpen(true)}
-              hitSlop={spacing.md}
-              style={({ pressed }) => pressed && styles.pressed}
-            >
-              <View style={styles.headerIconStack}>
-                <Ionicons name="settings-outline" size={settingsIconSize} color={colors.ink} />
-                <Ionicons
+        // Every tab root's fixed title row: the title on the gutter and the
+        // challenge's settings at the end, the same bar and the same white
+        // corner button My Profile and Community carry.
+        <Screen
+          padded={false}
+          tabBar
+          header={
+            <ScreenHeader
+              bar
+              plainTitle="Tasks"
+              showBack={false}
+              right={
+                <IconButton
                   name="settings-outline"
-                  size={settingsIconSize}
-                  color={colors.ink}
-                  style={styles.headerIconOverlay}
+                  size={profileActionButton}
+                  iconSize={profileActionIcon}
+                  background={colors.surface}
+                  onPress={() => setMenuOpen(true)}
+                  accessibilityLabel="Challenge settings"
                 />
-              </View>
-            </Pressable>
-          </View>
-
+              }
+            />
+          }
+        >
           <WeekTracker
             rows={weekRows}
             todayIndex={todayIndex}
@@ -365,29 +346,9 @@ export default function TasksScreen() {
 }
 
 const styles = StyleSheet.create({
-  titleBand: {
-    minHeight: profileActionHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: screenPadding,
-  },
-  headerTitle: {
-    flex: 1,
-  },
-  headerIconStack: {
-    width: settingsIconSize + settingsBoldOffset,
-    height: settingsIconSize + settingsBoldOffset,
-  },
-  headerIconOverlay: {
-    position: 'absolute',
-    left: settingsBoldOffset,
-    top: settingsBoldOffset,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
+  // The fixed header already leaves a title's gap above the page, the same
+  // as every other tab root, so the tracker needs none of its own.
   tracker: {
-    marginTop: spacing.lg,
     paddingHorizontal: screenPadding,
   },
   gridArea: {

@@ -17,7 +17,9 @@ import { useApp, usePostedDays } from '@/hooks/useAppState';
  */
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, currentDay, totalDays, startDate, challenge, tasks, progress } = useApp();
+  const {
+    profile, currentDay, totalDays, startDate, challenge, tasks, progress, livesLeft, livesTotal,
+  } = useApp();
 
   const dayOf = useCallback(
     (day: number): ProfileDay => ({
@@ -103,6 +105,8 @@ export default function ProfileScreen() {
           onOpenDay={openDay}
           today={today}
           emptyHint="Finish a day's tasks to see it here."
+          livesLeft={livesLeft}
+          livesTotal={livesTotal}
         />
       </ScreenScroll>
     </View>

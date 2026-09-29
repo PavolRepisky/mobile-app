@@ -32,6 +32,9 @@ export interface IconButtonProps {
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   shadow?: boolean;
+  /** Can't be pressed right now — the glyph drops to `inkGhost`, the app's
+   * "not available" grey, and the button stops taking taps. */
+  disabled?: boolean;
 }
 
 /**
@@ -49,6 +52,7 @@ export function IconButton({
   style,
   accessibilityLabel,
   shadow = true,
+  disabled,
 }: IconButtonProps) {
   const inHeader = useContext(InHeaderBar);
   const radius = size / 2;
@@ -58,7 +62,9 @@ export function IconButton({
     borderRadius: radius,
   };
 
-  const glyph = <Ionicons name={name} size={iconSize ?? size * 0.44} color={color} />;
+  const glyph = (
+    <Ionicons name={name} size={iconSize ?? size * 0.44} color={disabled ? colors.inkGhost : color} />
+  );
 
   // The lens sizes itself to its content, so the dimensions live on the inner
   // view rather than on the surface.
@@ -83,6 +89,8 @@ export function IconButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? name}
+      accessibilityState={disabled ? { disabled: true } : undefined}
+      disabled={disabled}
       onPress={onPress}
       hitSlop={8}
       style={({ pressed }) => [pressed && styles.pressed, style]}

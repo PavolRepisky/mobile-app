@@ -45,6 +45,14 @@ interface CommonProps {
    * closer, since the row reads as the header itself.
    */
   topGap?: number;
+  /**
+   * A title row that stays put above the page — usually a `ScreenHeader
+   * bar`. It sits on the header line on the page's own tone, so its buttons
+   * never float over content the way a button pinned beside a scrolling
+   * title does. Both shells draw it through the same `HeaderBar`, so every
+   * screen's title and corner buttons land on exactly the same line.
+   */
+  header?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -70,6 +78,29 @@ const TONES = {
   warm: colors.backgroundWarm,
 } as const;
 
+/**
+ * The fixed row a screen's `header` sits in: on the header line, on the
+ * page's own tone, and always on the gutter — even over an edge-to-edge page,
+ * whose title still has to line up with every other screen's.
+ */
+function HeaderBar({ tone, children }: { tone: keyof typeof TONES; children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={[
+        styles.headerBar,
+        styles.padded,
+        {
+          backgroundColor: TONES[tone],
+          paddingTop: Math.max(headerLineTop, topPadding(insets.top)),
+        },
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
 /** Static full-height screen. */
 export function Screen({
   children,
@@ -77,17 +108,20 @@ export function Screen({
   padded = true,
   tabBar,
   topGap = screenTopGap,
+  header,
   style,
 }: CommonProps) {
   const insets = useSafeAreaInsets();
 
-  return (
+  const page = (
     <View
       style={[
         styles.flex,
         {
           backgroundColor: TONES[tone],
-          paddingTop: topPadding(insets.top, topGap),
+          // Under a fixed header the page starts a title's gap below the bar,
+          // not below the status bar — the bar has already cleared that.
+          paddingTop: header ? layout.title : topPadding(insets.top, topGap),
         },
         padded && styles.padded,
         style,
@@ -95,6 +129,15 @@ export function Screen({
     >
       {children}
       {tabBar ? <View style={{ height: tabBarClearance }} /> : null}
+    </View>
+  );
+
+  if (!header) return page;
+
+  return (
+    <View style={[styles.flex, { backgroundColor: TONES[tone] }]}>
+      <HeaderBar tone={tone}>{header}</HeaderBar>
+      {page}
     </View>
   );
 }
@@ -107,13 +150,6 @@ export interface ScreenScrollProps
   /** The scroller itself, for a screen that scrolls to something on its own
    * — Community landing on a post a story linked to. */
   ref?: React.Ref<ScrollView>;
-  /**
-   * A title row that stays put while the page scrolls under it — usually a
-   * `ScreenHeader bar`. It sits on the header line on the page's own tone,
-   * so its buttons never float over content the way a button pinned beside
-   * a scrolling title does.
-   */
-  header?: React.ReactNode;
 }
 
 /** Scrolling screen that keeps content clear of the floating tab bar. */
@@ -166,18 +202,7 @@ export function ScreenScroll({
 
   return (
     <View style={[styles.flex, { backgroundColor: TONES[tone] }]}>
-      <View
-        style={[
-          styles.headerBar,
-          padded && styles.padded,
-          {
-            backgroundColor: TONES[tone],
-            paddingTop: Math.max(headerLineTop, topPadding(insets.top)),
-          },
-        ]}
-      >
-        {header}
-      </View>
+      <HeaderBar tone={tone}>{header}</HeaderBar>
       {scroller}
     </View>
   );

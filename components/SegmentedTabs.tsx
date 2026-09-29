@@ -17,6 +17,9 @@ import { Text } from './Text';
  * labels set in body type rather than micro: at 13pt "Grid" and "Month"
  * read as a footnote beside the Days heading. */
 const PILL_HEIGHT = 36;
+/** The small pill's chip: a view switch tucked beside a heading, sized to
+ * the heading's own line rather than to a full-width row. */
+const PILL_HEIGHT_SM = 30;
 const PILL_INSET = 3;
 const PILL_ICON = 17;
 
@@ -36,7 +39,9 @@ export interface SegmentedTabsProps<T extends string = string> {
    * splits the whole width into equal tabs, each underline as wide as its
    * share. */
   align?: 'center' | 'left' | 'justify' | 'fill';
-  size?: 'md' | 'lg';
+  /** `sm` only changes the pill: a shorter chip for a switch sitting beside
+   * a heading rather than across the page. */
+  size?: 'sm' | 'md' | 'lg';
   /**
    * Squeezes a large row a step further. The Saved sheet runs the same five
    * category labels behind a bookmark chip, and that sixth element does not
@@ -84,6 +89,7 @@ export function SegmentedTabs<T extends string = string>({
           styles.item,
           align === 'fill' && styles.fillItem,
           pill && styles.pillItem,
+          pill && size === 'sm' && styles.pillItemSm,
           pill && active && styles.pillActive,
         ]}
       >
@@ -199,6 +205,9 @@ const styles = StyleSheet.create({
     height: PILL_HEIGHT,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.pill,
+  },
+  pillItemSm: {
+    height: PILL_HEIGHT_SM,
   },
   // White on the grey track, lifted a touch so it reads as the chip that
   // slides rather than a hole cut in the track.

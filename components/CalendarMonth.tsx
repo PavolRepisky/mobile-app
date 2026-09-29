@@ -97,6 +97,12 @@ export interface CalendarDay {
   /** A challenge day that passed with nothing shot — a dash across the cell,
    * so a gap in the record reads as missed rather than as not yet begun. */
   missed?: boolean;
+  /**
+   * Falls inside the challenge. In a `filled` month only these get a cell:
+   * the run reads as a stretch of slots to fill, and the dates either side
+   * of it stay bare numbers instead of a wall of empty boxes.
+   */
+  inRun?: boolean;
   onPress?: () => void;
 }
 
@@ -152,14 +158,17 @@ export function CalendarMonth({ month, days, filled, header, style }: CalendarMo
             center
             style={styles.weekday}
           >
-            {name.toUpperCase()}
+            {/* One letter in the filled month, as the Tasks tracker heads its
+                week — three-letter caps over seven narrow columns read as a
+                row of labels rather than a calendar's quiet top line. */}
+            {filled ? name[0] : name.toUpperCase()}
           </Text>
         ))}
       </View>
 
       <View style={styles.grid}>
         {cells.map((date, i) => (
-          <View key={date ?? `blank-${i}`} style={styles.cell}>
+          <View key={date ?? `blank-${i}`} style={[styles.cell, filled && styles.cellFilled]}>
             {date === null ? null : (
               <DayCell date={date} day={days[date] ?? {}} filled={filled} />
             )}
@@ -179,18 +188,22 @@ function DayCell({
   day: CalendarDay;
   filled?: boolean;
 }) {
-  const { shots, past, today, mark, missed, onPress } = day;
+  const { shots, past, today, mark, missed, inRun, onPress } = day;
   const tiles = (shots ?? []).slice(0, MOSAIC_MAX);
   const hasShot = tiles.length > 0;
 
   // The photographs are the page; every bare numeral stays quiet under them. A
   // day that has been and gone with nothing on it is still a day you could have
-  // shot, so it holds more weight than one that has not arrived yet.
+  // shot, so it holds more weight than one that has not arrived yet. In the
+  // filled month a date outside the run was never a day to shoot at all, so
+  // it takes the quietest grey whichever side of today it falls.
   const numberColor = hasShot
     ? colors.inkInverse
-    : past
-      ? colors.inkMuted
-      : colors.inkGhost;
+    : filled && !inRun && !missed
+      ? colors.inkGhost
+      : past
+        ? colors.inkMuted
+        : colors.inkGhost;
 
   // White reads on a photograph and vanishes on blank film, so the numeral
   // follows what is actually behind it rather than whether a shot exists.
@@ -239,14 +252,20 @@ function DayCell({
   );
 
   const body = hasShot ? (
-    <View style={[styles.tile, filled && styles.tileFilled, today && styles.tileToday]}>
+    <View
+      style={[
+        styles.tile,
+        filled ? styles.tileFilled : styles.tileLifted,
+        today && styles.tileToday,
+      ]}
+    >
       {content}
     </View>
   ) : (
     <View
       style={[
         styles.plain,
-        filled && styles.plainFilled,
+        filled && (inRun ? styles.plainFilled : styles.plainBare),
         today && styles.plainToday,
         missed && styles.plainMissed,
       ]}
@@ -362,6 +381,11 @@ const styles = StyleSheet.create({
     // A hair of air between neighbouring prints; the row gap matches it.
     paddingHorizontal: layout.grid / 2,
   },
+  // Square in the filled month: its cells are slots in a grid more than
+  // prints, and a month of tall ones runs half a screen further down.
+  cellFilled: {
+    aspectRatio: 1,
+  },
   press: {
     flex: 1,
   },
@@ -376,8 +400,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSunken,
     borderWidth: 1,
     borderColor: colors.divider,
-    // The corner is clipped on the layers themselves rather than with
-    // `overflow: hidden` here, which would eat the shadow on iOS.
+  },
+  // The corner is clipped on the layers themselves rather than with
+  // `overflow: hidden` on the tile, which would eat this shadow on iOS.
+  tileLifted: {
     ...shadows.soft,
   },
   // Today wears the same blacked-out border a photo-less day gets — no
@@ -437,6 +463,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: colors.surfaceSunken,
   },
+  // A date outside the run: just its number on the page, no cell at all.
+  plainBare: {
+    borderWidth: 0,
+  },
   // Today, before it has a photo, is marked by darkening the cell's own
   // border rather than a separate disc behind the numeral.
   plainToday: {
@@ -457,13 +487,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.field,
     transform: [{ rotate: '-40deg' }],
   },
-  // The profile's filled month keeps to its page's two greys: the photo
-  // cell's hairline in the fill grey, the photo's backing likewise, and the
-  // missed-day slash in the text grey.
+  // The profile's filled month keeps to its page's two greys, and its photo
+  // days are the photos alone: no hairline and no shadow, so a finished run
+  // reads as one sheet of prints rather than a stack of framed tiles.
   tileFilled: {
-    borderColor: colors.surfaceSunken,
+    borderWidth: 0,
   },
   photoFilled: {
+    borderRadius: CELL_RADIUS,
     backgroundColor: colors.surfaceSunken,
   },
   missDashFilled: {
