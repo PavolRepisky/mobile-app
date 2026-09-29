@@ -359,9 +359,10 @@ export default function CommunityScreen() {
               </View>
             ) : null}
 
-            <Text variant="sectionHeading" style={styles.sectionHeading}>
-              Finished today
-            </Text>
+            <SectionHeading
+              title="Finished today"
+              meta={String(friendsFinished.length + (myPost ? 1 : 0))}
+            />
 
             {myPost || friendsFinished.length ? (
               <View
@@ -407,9 +408,7 @@ export default function CommunityScreen() {
           </>
         ) : (
           <>
-            <Text variant="sectionHeading" style={styles.sectionHeading}>
-              Finished today
-            </Text>
+            <SectionHeading title="Finished today" meta={String(membersFinished.length)} />
 
             {membersFinished.length ? (
               <View
@@ -444,6 +443,7 @@ export default function CommunityScreen() {
             ) : (
               <EmptyState
                 icon="flag-outline"
+                disc
                 title="No one has finished today yet"
                 hint="Finished days land here, newest first."
               />
@@ -451,6 +451,19 @@ export default function CommunityScreen() {
           </>
         )}
       </ScreenScroll>
+    </View>
+  );
+}
+
+/** A section's title with its quiet count at the far end — the way My
+ * Profile sets "Days" against its switch. */
+function SectionHeading({ title, meta }: { title: string; meta: string }) {
+  return (
+    <View style={styles.sectionHeading}>
+      <Text variant="sectionHeading">{title}</Text>
+      <Text variant="metaBold" color={colors.inkMuted}>
+        {meta}
+      </Text>
     </View>
   );
 }
@@ -610,6 +623,9 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: layout.heading,
   },
   posts: {

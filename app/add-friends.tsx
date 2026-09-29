@@ -156,6 +156,7 @@ export default function AddFriendsScreen() {
             ) : (
               <EmptyState
                 icon="search-outline"
+                disc
                 title="No one by that name"
                 hint="Try a username or another spelling."
               />
