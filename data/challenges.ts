@@ -178,6 +178,23 @@ export const CHALLENGES: readonly Challenge[] = [
       task('t3', 'Read a chapter', 'From a course book or anything you are studying.'),
     ],
   },
+  {
+    id: 'summer-glow',
+    name: 'Summer Glow',
+    stamp: 'Summer Glow',
+    description:
+      'A 30-day August reset: water before anything else, a walk in the evening light, and a proper wind-down before bed.',
+    category: 'Health',
+    joined: 132,
+    photoSeeds: ['glow-a', 'glow-b', 'glow-c', 'glow-d'],
+    defaultDays: 30,
+    lives: 2,
+    tasks: [
+      task('g1', 'Drink 2L water', 'Photo your bottle any time of day.'),
+      task('g2', 'Evening walk', 'Out after dinner, at least 20 minutes.'),
+      task('g3', 'Stretch before bed', 'Ten minutes on the floor, phone out of reach.'),
+    ],
+  },
 ];
 
 export const CUSTOM_CHALLENGE: Challenge = {

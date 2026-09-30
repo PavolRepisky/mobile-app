@@ -13,6 +13,7 @@ import { PhotoViewer } from '@/components/PhotoViewer';
 import { Pill } from '@/components/Pill';
 import { PrimaryButton } from '@/components/Buttons';
 import { headerLineTop, ScreenScroll, topPadding } from '@/components/Screen';
+import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import {
   absoluteFill,
@@ -105,6 +106,10 @@ const RANK_WIDTH = 20;
 
 /** How many of those who ran out of lives show before See all. */
 const RAN_OUT_PREVIEW = 3;
+
+/** Your face on the Your run card, rimmed in white to lift it off the ink. */
+const RUN_FACE = 48;
+const RUN_RIM = 2;
 
 /**
  * A challenge's page. Before Day 1 and while it runs it is one page — the
@@ -559,11 +564,12 @@ function Hero({
 }
 
 /**
- * A round that is over: the photos with its dates, then how many of everyone
- * made it to the last day, the podium for the longest streaks and everyone
- * under it by theirs. A streak is the round's one fair measure — everyone had
- * the same days — so people on the same one share a spot rather than being
- * put in an order nobody earned.
+ * A round that is over: the photos with its dates, then your own run first,
+ * how many of everyone made it to the last day, the podium for the longest
+ * streaks and everyone under it by theirs — all of them or just your friends
+ * — and last what the round asked, in figures and task by task. A streak is
+ * the round's one fair measure — everyone had the same days — so people on
+ * the same one share a spot rather than being put in an order nobody earned.
  */
 function Finished({
   section,
@@ -580,6 +586,7 @@ function Finished({
   const { profile } = useApp();
   const [openPhotoIndex, setOpenPhotoIndex] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [board, setBoard] = useState<'everyone' | 'friends'>('everyone');
 
   const challenge = challengeById(section.id);
   const totalDays = challenge.defaultDays;
@@ -616,14 +623,33 @@ function Finished({
     { group: top[2], place: 3 },
   ];
 
-  // Down the groups, a tie one rank. Past the finishers it stops a few rows
-  // in until See all.
+  // Where you finished, if you were in it: your group's streak and its rank.
+  const myRank = results.groups.findIndex((g) => g.named.some((p) => p.personId === ME));
+  const myGroup = myRank >= 0 ? results.groups[myRank] : null;
+  const shareRecap = () => {
+    if (!myGroup) return;
+    Share.share({
+      message: `I did ${challenge.name} on Her 75 — a ${myGroup.days}-day streak, #${myRank + 1} of ${members}.`,
+    }).catch(() => {});
+  };
+
+  // Friends narrows the list to the people you know, you included; each
+  // keeps the rank it has among everyone, so a spot means the same on both.
+  const friendIds = new Set(FRIENDS.map((f) => f.id));
+  const onBoard = (person: Standing) =>
+    board === 'everyone' || person.personId === ME || friendIds.has(person.personId ?? '');
+  const boardGroups = results.groups
+    .map((group, i) => ({ ...group, rank: i + 1, named: group.named.filter(onBoard) }))
+    .filter((group) => group.named.length > 0);
+
+  // Down the groups, a tie one rank. Past the finishers everyone's list stops
+  // a few rows in until See all; your friends are few enough to show whole.
   const rows: React.ReactNode[] = [];
   let ranOutShown = 0;
   let cut = false;
-  results.groups.forEach((group, i) => {
-    const rank = i + 1;
-    if (!group.finished && (i === 0 || results.groups[i - 1].finished)) {
+  boardGroups.forEach((group, i) => {
+    const rank = group.rank;
+    if (!group.finished && (i === 0 || boardGroups[i - 1].finished)) {
       rows.push(
         <View key="ran-out" style={styles.ranOut}>
           <View style={styles.ranOutRule} />
@@ -635,7 +661,7 @@ function Finished({
       );
     }
     for (const person of group.named) {
-      if (!group.finished) {
+      if (!group.finished && board === 'everyone') {
         if (!showAll && ranOutShown === RAN_OUT_PREVIEW) {
           cut = true;
           return;
@@ -662,13 +688,61 @@ function Finished({
         <Hero
           section={section}
           badge={`Finished · ${shortDate(start)}`}
+          badgeIcon="trophy-outline"
           badgeTo={shortDate(end)}
           onOpenPhoto={setOpenPhotoIndex}
         />
 
         <View style={styles.finishedBody}>
-          <View style={styles.podiumBlock}>
-            <Text variant="sectionHeading">Finishers</Text>
+          {/* Your own run leads, on ink: the one result on the page that's
+              yours, before anyone else's. */}
+          {myGroup ? (
+            <View style={styles.runCard}>
+              <View style={styles.runHead}>
+                <View style={styles.runFace}>
+                  <Avatar source={myAvatar} size={RUN_FACE - RUN_RIM * 2} />
+                </View>
+                <View style={styles.runTitle}>
+                  <Text variant="badge" color={colors.inkGhost}>
+                    YOUR RUN
+                  </Text>
+                  <Text variant="itemTitle" color={colors.inkInverse}>
+                    {myGroup.finished
+                      ? `You made it to Day ${totalDays}`
+                      : `You kept it up ${myGroup.days} days`}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.runStats}>
+                {/* Each centred in its own third with a seam between, the
+                    way the round's figures below sit — the row fills the
+                    card without the three drifting to its edges. */}
+                <RunStat value={String(myGroup.days)} label="best streak" />
+                <RunStat value={`#${myRank + 1}`} label={`of ${members}`} ruled />
+                <RunStat
+                  value={(myGroup.days * challenge.tasks.length).toLocaleString('en-US')}
+                  label="photos"
+                  ruled
+                />
+              </View>
+              <Pill
+                label="Share your recap"
+                icon="share-outline"
+                tone="floating"
+                bold
+                onPress={shareRecap}
+                style={styles.runShare}
+              />
+            </View>
+          ) : null}
+
+          <View style={styles.block}>
+            <View style={styles.podiumHeading}>
+              <Text variant="sectionHeading">Finishers</Text>
+              <Text variant="metaBold" color={colors.inkMuted}>
+                {results.finished} of {members}
+              </Text>
+            </View>
             {finisherFaces.length > 0 || moreFinishers > 0 ? (
               <View style={styles.finishers}>
                 {finisherFaces.map((face, i) => (
@@ -691,71 +765,9 @@ function Finished({
                 ) : null}
               </View>
             ) : null}
-            <View style={styles.finishedLines}>
-              <Text variant="stat">
-                {results.finished}{' '}
-                <Text variant="sectionHeading" color={colors.inkMuted}>
-                  of {members}
-                </Text>
-              </Text>
-              <Text variant="copy" color={colors.inkMuted}>
-                made it to the end
-              </Text>
-            </View>
-          </View>
-
-          {/* What it took, laid out the way the preview laid it out before
-              the start — the same terms, description and tasks, told in the
-              past now the round is over. */}
-          <View style={styles.block}>
-            <Text variant="sectionHeading">How it worked</Text>
-            <View style={styles.terms}>
-              <Term
-                icon="calendar-outline"
-                label="Length"
-                value={`${totalDays} days`}
-                hint={`${longDate(start)} – ${longDate(end)}`}
-              />
-              <Term
-                icon="camera-outline"
-                label="Every day"
-                value={`${challenge.tasks.length} ${challenge.tasks.length === 1 ? 'photo' : 'photos'}`}
-                hint="One per task, before midnight"
-                ruled
-              />
-              <Term
-                icon="heart-outline"
-                label="Lives"
-                value={String(lives)}
-                hint={
-                  lives === 0
-                    ? 'One missed day ended a run'
-                    : `A ${ordinal(lives + 1)} missed day ended a run`
-                }
-                ruled
-              />
-            </View>
-          </View>
-
-          <Text variant="copy" color={colors.inkMuted}>
-            {challenge.description}
-          </Text>
-
-          <View style={styles.block}>
-            <Text variant="sectionHeading">Every day they'd</Text>
-            {challenge.tasks.map((task) => (
-              <View key={task.id} style={styles.taskRow}>
-                <View style={styles.taskCircle} />
-                <View style={styles.taskText}>
-                  <Text variant="copyBold">{task.label}</Text>
-                  {task.note ? (
-                    <Text variant="meta" color={colors.inkMuted}>
-                      {task.note}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            ))}
+            <Text variant="meta" color={colors.inkMuted}>
+              made it to the end · {ranOut.toLocaleString('en-US')} ran out of lives
+            </Text>
           </View>
 
           {top.length > 0 ? (
@@ -777,18 +789,19 @@ function Finished({
                   ) : null,
                 )}
               </View>
-              {top.some((g) => g.count > 1) ? (
-                <Text variant="meta" color={colors.inkMuted} center>
-                  Same streak, same spot.
-                </Text>
-              ) : null}
             </View>
           ) : null}
 
           <View>
-            <Text variant="metaBold" color={colors.inkMuted} style={styles.listHeading}>
-              EVERYONE · BY LONGEST STREAK
-            </Text>
+            <SegmentedTabs
+              options={[
+                { key: 'everyone', label: 'Everyone' },
+                { key: 'friends', label: 'Friends' },
+              ]}
+              value={board}
+              onChange={setBoard}
+              style={styles.boardSwitch}
+            />
             {rows}
             {cut ? (
               <Pill
@@ -800,6 +813,32 @@ function Finished({
               />
             ) : null}
           </View>
+
+          {/* What the round asked, in three figures — the terms the preview
+              spelled out row by row, now it's over. */}
+          <View style={styles.roundStats}>
+            <RoundStat value={String(totalDays)} label="days" />
+            <RoundStat
+              value={String(challenge.tasks.length)}
+              label={challenge.tasks.length === 1 ? 'photo a day' : 'photos a day'}
+              ruled
+            />
+            <RoundStat value={String(lives)} label={lives === 1 ? 'life' : 'lives'} ruled />
+          </View>
+
+          <View style={styles.block}>
+            <Text variant="sectionHeading">Tasks</Text>
+            {/* Just the names: how to do each one was for the people doing
+                it, and the round is over. */}
+            {challenge.tasks.map((task) => (
+              <View key={task.id} style={styles.taskRow}>
+                <View style={styles.taskCircle} />
+                <Text variant="copyBold" style={styles.taskText}>
+                  {task.label}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       </ScreenScroll>
 
@@ -808,6 +847,32 @@ function Finished({
         index={openPhotoIndex}
         onDismiss={() => setOpenPhotoIndex(null)}
       />
+    </View>
+  );
+}
+
+/** One figure on the Your run card: white on the ink, its label under it. */
+function RunStat({ value, label, ruled }: { value: string; label: string; ruled?: boolean }) {
+  return (
+    <View style={[styles.runStat, ruled && styles.runStatRule]}>
+      <Text variant="sectionHeading" color={colors.inkInverse}>
+        {value}
+      </Text>
+      <Text variant="badge" color={colors.inkGhost}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+/** One of the round's figures, centred in its third of the grey strip. */
+function RoundStat({ value, label, ruled }: { value: string; label: string; ruled?: boolean }) {
+  return (
+    <View style={[styles.roundStat, ruled && styles.roundStatRule]}>
+      <Text variant="itemTitle">{value}</Text>
+      <Text variant="badge" color={colors.inkMuted}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -1163,6 +1228,65 @@ const styles = StyleSheet.create({
     paddingTop: layout.section,
     paddingHorizontal: layout.gutter,
     gap: layout.section,
+  },
+  runCard: {
+    gap: layout.block,
+    padding: layout.card,
+    borderRadius: radii.card,
+    backgroundColor: colors.ink,
+  },
+  runHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+  },
+  runFace: {
+    width: RUN_FACE,
+    height: RUN_FACE,
+    borderRadius: radii.pill,
+    borderWidth: RUN_RIM,
+    borderColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  runTitle: {
+    flex: 1,
+  },
+  runStats: {
+    flexDirection: 'row',
+  },
+  runStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  // A seam a shade up from the ink, the dark card's version of the white
+  // one between the round's figures.
+  runStatRule: {
+    borderLeftWidth: TERM_RULE,
+    borderLeftColor: colors.inkSoft,
+  },
+  // The card's full width, like the page's own buttons.
+  runShare: {
+    alignSelf: 'stretch',
+  },
+  boardSwitch: {
+    marginBottom: layout.stack,
+  },
+  // The fill grey strip, cut in three by white seams like How it works'
+  // rows were.
+  roundStats: {
+    flexDirection: 'row',
+    paddingVertical: layout.block,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceSunken,
+  },
+  roundStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  roundStatRule: {
+    borderLeftWidth: TERM_RULE,
+    borderLeftColor: colors.surface,
   },
   finishers: {
     flexDirection: 'row',

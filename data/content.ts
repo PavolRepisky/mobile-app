@@ -741,6 +741,65 @@ export const DISCOVER: readonly DiscoverSection[] = [
     startDate: '2026-11-02',
     creatorId: 'sofia',
   },
+  // A round that's already over — August's — so the Finished filter and a
+  // challenge's finished page have one to show that isn't your own.
+  {
+    id: 'summer-glow',
+    title: 'Summer Glow',
+    photos: [
+      require('../assets/challenges/soft/sunset-walk.jpg'),
+      require('../assets/challenges/medium/infused-water.jpg'),
+      require('../assets/challenges/soft/poolside-stretch.jpg'),
+      require('../assets/challenges/soft/evening-reading.jpg'),
+    ],
+    members: 132,
+    startDate: '2026-08-01',
+    creatorId: 'zoe',
+    results: {
+      finished: 41,
+      groups: [
+        {
+          days: 30,
+          count: 23,
+          finished: true,
+          named: [
+            { name: 'Zoe', personId: 'zoe' },
+            { name: 'Sofia', personId: 'sofia' },
+            { name: 'Ava' },
+          ],
+        },
+        {
+          days: 29,
+          count: 11,
+          finished: true,
+          named: [
+            { name: 'Lily', personId: 'lily' },
+            { name: 'You', personId: ME },
+            { name: 'Grace' },
+          ],
+        },
+        {
+          days: 27,
+          count: 7,
+          finished: true,
+          named: [
+            { name: 'Elena', personId: 'elena' },
+            { name: 'Hana' },
+          ],
+        },
+        { days: 24, count: 1, finished: false, named: [{ name: 'Mia', personId: 'mia' }] },
+        {
+          days: 19,
+          count: 2,
+          finished: false,
+          named: [{ name: 'Priya' }, { name: 'Nora', personId: 'nora' }],
+        },
+        { days: 14, count: 1, finished: false, named: [{ name: 'June' }] },
+        { days: 11, count: 1, finished: false, named: [{ name: 'Camila', personId: 'camila' }] },
+        { days: 6, count: 1, finished: false, named: [{ name: 'Tara' }] },
+      ],
+    },
+  },
 ];
 
 /**
