@@ -15,15 +15,16 @@ import {
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { colors, layout, radii, shadows, spacing } from '@/constants/theme';
+import { challengeStrip } from '@/data/content';
 import { Avatar, type AvatarSource } from './Avatar';
 import { BottomSheet } from './BottomSheet';
 import { PrimaryButton } from './Buttons';
 import { CalendarMonth, MONTH_NAMES, type CalendarDay } from './CalendarMonth';
-import { Card } from './Card';
 import { EmptyState } from './EmptyState';
 import { IconButton } from './IconButton';
 import { DayStamp } from './FriendCard';
 import { MosaicArrangement } from './PhotoCollage';
+import { Pill } from './Pill';
 import { Placeholder } from './Placeholder';
 import { SegmentedTabs } from './SegmentedTabs';
 import { accentAt } from './TaskRing';
@@ -68,6 +69,12 @@ const YEARS_BACK = 5;
 
 /** The challenge card's "opens a page" chevron — a Settings row's own size. */
 const CHALLENGE_CHEVRON = 20;
+/** The challenge's own photo leading its card — a list row's thumbnail, so
+ * the challenge looks the same here as where it was joined. */
+const CHALLENGE_THUMB = 40;
+/** The arrow between the round's first and last date: Quicksand has no
+ * arrow glyph, so it's an icon at the size of the line's lowercase. */
+const RANGE_ARROW = 12;
 
 /** Days per row of the challenge card's squares: a 75-day run folds into
  * five even rows, a 30-day one into two. */
@@ -77,12 +84,6 @@ const SQUARES_PER_ROW = 15;
 const SQUARE_RADIUS = 4;
 /** Today's ring around its square — the calendar's today cell, scaled down. */
 const SQUARE_TODAY_BORDER = 2;
-/** The lives' hearts beside "Day 5 of 75" — the height of that line's
- * capitals, so they sit on it rather than tower over it. */
-const HEART_ICON = 16;
-/** Hearts to draw when a profile knows the lives left but not the allowance
- * — the app's fixed three. */
-const DEFAULT_LIVES = 3;
 
 /** How one day of the run is drawn on the challenge card. */
 type SquareState = 'done' | 'partial' | 'missed' | 'today' | 'ahead';
@@ -90,7 +91,7 @@ type SquareState = 'done' | 'partial' | 'missed' | 'today' | 'ahead';
 /**
  * One day of the challenge as a square: done in the accent for where it sits
  * in the run, half-filled for a day that got photos but fell short, the
- * darker grey for a day with nothing, a ring for today and the empty grey
+ * light grey for a day with nothing, a ring for today and the card's white
  * for everything still to come.
  */
 function DaySquare({ state, color, size }: { state: SquareState; color: string; size: number }) {
@@ -100,7 +101,7 @@ function DaySquare({ state, color, size }: { state: SquareState; color: string; 
     // than as a lighter shade of a whole one.
     return (
       <LinearGradient
-        colors={[color, color, colors.surfaceSunken, colors.surfaceSunken]}
+        colors={[color, color, colors.surface, colors.surface]}
         locations={[0, 0.5, 0.5, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -264,11 +265,11 @@ export interface ProfileViewProps {
   today?: { onPress: () => void; hint: string };
   /** What the grid says while it has no days in it. */
   emptyHint: string;
-  /** Lives still in hand, drawn as hearts on the challenge card; left out
-   * where the profile doesn't know them. */
-  livesLeft?: number;
-  /** The allowance the hearts are counted out of. */
-  livesTotal?: number;
+  /** The heading over the days — "My days" on your own page. */
+  daysTitle?: string;
+  /** A row of buttons under the bio — Edit profile and Share profile on your
+   * own page; left out on anyone else's. */
+  actions?: readonly { label: string; onPress: () => void }[];
   style?: StyleProp<ViewStyle>;
 }
 
@@ -295,8 +296,8 @@ export function ProfileView({
   onOpenDay,
   today,
   emptyHint,
-  livesLeft,
-  livesTotal = DEFAULT_LIVES,
+  daysTitle = 'Days',
+  actions,
   style,
 }: ProfileViewProps) {
   const router = useRouter();
@@ -402,8 +403,12 @@ export function ProfileView({
 
   const dateLabel = (date: Date) =>
     date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const shortDate = (date: Date) =>
+    date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endDate = new Date(startDate.getTime() + (totalDays - 1) * DAY_MS);
   const startedLabel = dateLabel(startDate);
-  const endLabel = dateLabel(new Date(startDate.getTime() + (totalDays - 1) * DAY_MS));
+  const endLabel = dateLabel(endDate);
+  const challengePhoto = challengeStrip(challenge.id)[0];
 
   // Every day of the run, as the challenge card draws it. A past day with no
   // record is left as an empty slot, not marked missed — someone else's
@@ -427,12 +432,7 @@ export function ProfileView({
   const squareSize =
     squaresWidth > 0 ? (squaresWidth - layout.grid * (SQUARES_PER_ROW - 1)) / SQUARES_PER_ROW : 0;
 
-  const challengeLabel = [
-    `${challenge.name}, day ${currentDay} of ${totalDays}`,
-    livesLeft !== undefined ? `${livesLeft} of ${livesTotal} lives left` : null,
-  ]
-    .filter(Boolean)
-    .join(', ');
+  const challengeLabel = `${challenge.name}, day ${currentDay} of ${totalDays}, ${startedLabel} to ${endLabel}`;
 
   return (
     <View style={style}>
@@ -540,89 +540,78 @@ export function ProfileView({
         </View>
       </View>
 
+      {actions?.length ? (
+        <View style={styles.actions}>
+          {actions.map((action) => (
+            <View key={action.label} style={styles.action}>
+              <Pill
+                label={action.label}
+                tone="muted"
+                labelVariant="copyBold"
+                onPress={action.onPress}
+                style={styles.actionPill}
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       {/* The challenge the ring is measuring, drawn as the whole run — one
           square a day — and a way into its page. */}
-      <Card
-        radius={radii.card}
-        onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+      <Pressable
+        accessibilityRole="button"
         accessibilityLabel={challengeLabel}
         accessibilityHint="Opens the challenge"
-        style={styles.challengeCard}
+        onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+        style={({ pressed }) => [styles.challengeCard, pressed && styles.pressed]}
       >
-        <View style={styles.challengeBody}>
-          <View style={styles.challengeRow}>
-            <Text variant="itemTitle" numberOfLines={1} style={styles.challengeName}>
+        <View style={styles.challengeRow}>
+          <Image source={challengePhoto} style={styles.challengeThumb} contentFit="cover" />
+          <View style={styles.challengeText}>
+            <Text variant="copyBold" numberOfLines={1}>
               {challenge.name}
             </Text>
-            {/* The same chevron a Settings row ends on — the one cue the
-                app already uses for "this opens a page", where a flat
-                card on its own reads as information rather than a way in. */}
-            <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
-          </View>
-
-          <View style={styles.daysPanel}>
-            <View style={styles.daysPanelHead}>
-              {/* A step under the name's `itemTitle`, so the challenge still
-                  leads the card, but big enough to read as the card's number. */}
-              <Text variant="copyBold">
-                {`Day ${currentDay} `}
-                <Text variant="copyBold" color={colors.inkMuted}>
-                  {`of ${totalDays}`}
-                </Text>
+            <View style={styles.challengeMeta}>
+              <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+                {`Day ${currentDay} of ${totalDays} · ${shortDate(startDate)}`}
               </Text>
-              {/* The lives beside the day, as hearts alone — how many are
-                  left is the count of dark ones, no words needed. */}
-              {livesLeft !== undefined ? (
-                <View style={styles.hearts}>
-                  {Array.from({ length: livesTotal }, (_, i) => (
-                    <Ionicons
-                      key={i}
-                      name="heart"
-                      size={HEART_ICON}
-                      color={i < livesLeft ? colors.ink : colors.inkGhost}
-                    />
-                  ))}
-                </View>
-              ) : null}
-            </View>
-
-            {/* Read out once, in the card's own label — seventy-five
-                squares one by one is noise to a screen reader. */}
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              onLayout={(e) => setSquaresWidth(e.nativeEvent.layout.width)}
-              style={styles.squares}
-            >
-              {squareSize > 0
-                ? squares.map((state, index) => (
-                    <DaySquare
-                      key={index}
-                      state={state}
-                      // Coloured by where the day sits in the run, the way the
-                      // ring's sweep is read off where a segment sits — peach
-                      // early on, lavender only near the end.
-                      color={accentAt((index + 0.5) / squares.length)}
-                      size={squareSize}
-                    />
-                  ))
-                : null}
-            </View>
-
-            <View style={styles.daysPanelHead}>
-              <Text variant="badge" color={colors.inkMuted}>
-                {startedLabel}
-              </Text>
-              <Text variant="badge" color={colors.inkMuted}>
-                {endLabel}
+              <Ionicons name="arrow-forward" size={RANGE_ARROW} color={colors.inkMuted} />
+              <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+                {shortDate(endDate)}
               </Text>
             </View>
           </View>
+          {/* The same chevron a Settings row ends on — the one cue the app
+              already uses for "this opens a page". */}
+          <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
         </View>
-      </Card>
+
+        {/* Read out once, in the card's own label — seventy-five squares one
+            by one is noise to a screen reader. */}
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onLayout={(e) => setSquaresWidth(e.nativeEvent.layout.width)}
+          style={styles.squares}
+        >
+          {squareSize > 0
+            ? squares.map((state, index) => (
+                <DaySquare
+                  key={index}
+                  state={state}
+                  // Coloured by where the day sits in the run, the way the
+                  // ring's sweep is read off where a segment sits — peach
+                  // early on, lavender only near the end.
+                  color={accentAt((index + 0.5) / squares.length)}
+                  size={squareSize}
+                />
+              ))
+            : null}
+        </View>
+      </Pressable>
 
       <View style={styles.daysHeader}>
-        <Text variant="sectionHeading">Days</Text>
+        <Text variant="sectionHeading">{daysTitle}</Text>
         {/* Community's Friends | Members switch at its dense size, labels
             only, so the app's two-way switches match — here cut down to sit
             beside the heading rather than across the page. */}
@@ -834,32 +823,48 @@ const styles = StyleSheet.create({
   bio: {
     marginTop: layout.line,
   },
-  // A white card resting on the white page: the card shadow is what lifts
-  // it off, and the squares still to come wear the fill grey as empty slots.
+  // Two equal buttons side by side, a stack's gap apart.
+  actions: {
+    flexDirection: 'row',
+    gap: layout.stack,
+    marginTop: layout.block,
+  },
+  action: {
+    flex: 1,
+  },
+  // The palette's fill grey rather than the pill's warmer muted tone, and
+  // stretched across its half of the row.
+  actionPill: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.surfaceSunken,
+  },
+  // A grey card rather than a white one with a shadow: on the white page the
+  // fill is what sets it apart, and the days still to come show as white
+  // slots on it.
   challengeCard: {
     marginTop: layout.section,
-  },
-  // The card role on every side, and a block's gap between its three parts:
-  // the name row, the squares and the lives line.
-  challengeBody: {
     padding: layout.card,
-    gap: layout.block,
+    gap: layout.heading,
+    borderRadius: radii.card,
+    backgroundColor: colors.surfaceSunken,
   },
   challengeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.inline,
   },
-  challengeName: {
+  challengeThumb: {
+    width: CHALLENGE_THUMB,
+    height: CHALLENGE_THUMB,
+    borderRadius: radii.sm,
+  },
+  challengeText: {
     flex: 1,
   },
-  daysPanel: {
-    gap: layout.heading,
-  },
-  daysPanelHead: {
+  challengeMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: layout.line,
   },
   squares: {
     flexDirection: 'row',
@@ -868,7 +873,7 @@ const styles = StyleSheet.create({
   },
   square: {
     borderRadius: SQUARE_RADIUS,
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: colors.surface,
   },
   squareMissed: {
     backgroundColor: colors.inkGhost,
@@ -876,12 +881,6 @@ const styles = StyleSheet.create({
   squareToday: {
     borderWidth: SQUARE_TODAY_BORDER,
     borderColor: colors.ink,
-  },
-  hearts: {
-    flexDirection: 'row',
-    // Hearts drawn edge to edge touch at their widest point; a hair of room
-    // keeps them three hearts rather than one lumpy shape.
-    gap: spacing.xs / 2,
   },
   daysHeader: {
     flexDirection: 'row',

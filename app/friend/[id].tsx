@@ -19,7 +19,7 @@ const DAY_MS = 86_400_000;
 export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { challenge, totalDays, livesTotal } = useApp();
+  const { challenge, totalDays } = useApp();
 
   const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
 
@@ -112,8 +112,6 @@ export default function FriendProfileScreen() {
           onOpenDay={openDay}
           today={today}
           emptyHint={`${friend.name} hasn't finished a day yet.`}
-          livesLeft={friend.livesLeft}
-          livesTotal={livesTotal}
         />
       </ScreenScroll>
     </View>

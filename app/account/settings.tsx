@@ -131,7 +131,7 @@ export default function SettingsScreen() {
           />
         </Group>
 
-        <Text variant="badge" color={colors.inkMuted} style={styles.version}>
+        <Text variant="metaBold" color={colors.inkMuted} style={styles.version}>
           Her 75 · version {APP_VERSION}
         </Text>
       </ScreenScroll>

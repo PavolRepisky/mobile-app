@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Share, StyleSheet, View } from 'react-native';
 
 import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { ProfileView, type ProfileDay } from '@/components/ProfileView';
@@ -17,7 +17,7 @@ import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 export default function ProfileScreen() {
   const router = useRouter();
   const {
-    profile, currentDay, totalDays, startDate, challenge, tasks, progress, livesLeft, livesTotal,
+    profile, currentDay, totalDays, startDate, challenge, tasks, progress,
   } = useApp();
 
   const dayOf = useCallback(
@@ -103,8 +103,21 @@ export default function ProfileScreen() {
           onOpenDay={openDay}
           today={today}
           emptyHint="Finish a day's tasks to see it here."
-          livesLeft={livesLeft}
-          livesTotal={livesTotal}
+          daysTitle="My days"
+          // Edit profile is Settings under a friendlier name: the name,
+          // handle, bio and photo are all changed there. Share hands the
+          // profile to the phone's own share sheet.
+          actions={[
+            { label: 'Edit profile', onPress: () => router.push('/account/settings') },
+            {
+              label: 'Share profile',
+              onPress: () => {
+                Share.share({ message: `${profile.name} (${profile.handle}) on Her 75` }).catch(
+                  () => {},
+                );
+              },
+            },
+          ]}
         />
       </ScreenScroll>
     </View>
