@@ -153,7 +153,9 @@ interface AppActions {
   setAvatarSeed: (seed: string | null) => void;
   setAvatarPhoto: (photo: TaskPhoto | null) => void;
 
-  selectChallenge: (id: string) => void;
+  /** Takes the challenge on. A round everyone shares passes its Day 1, so
+   * your days count from the same morning as everyone else's. */
+  selectChallenge: (id: string, startDate?: Date) => void;
   /** Builds a new custom challenge from the create-challenge form, adds it to
    * the challenges `selectChallenge` can pick, and hands it back so the screen
    * can navigate on. */
@@ -395,7 +397,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const selectChallenge = useCallback(
-    (id: string) => {
+    (id: string, start?: Date) => {
       const next =
         id === CUSTOM_CHALLENGE.id
           ? CUSTOM_CHALLENGE
@@ -403,6 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setChallenge(next);
       setTasksState([...next.tasks]);
       setTotalDays(next.defaultDays);
+      if (start) setStartDateState(start);
       setProgress({});
       setCaptions({});
     },

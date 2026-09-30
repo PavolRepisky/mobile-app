@@ -120,21 +120,15 @@ function roundStatus(
  * round.
  */
 export function useChallengeCards(): readonly ChallengeCard[] {
-  const { challenge, tasks, currentDay, totalDays } = useApp();
+  const { challenge, tasks, startDate, totalDays } = useApp();
 
   return useMemo<ChallengeCard[]>(() => {
     const listing = DISCOVER.find((section) => section.id === challenge.id);
-    const daysLeft = Math.max(totalDays - currentDay, 0);
-    // Filed by its listing's round like every other card, so a round that
-    // has ended sits under Finished even while it's the one you're on.
-    const mineStart = listing ? localDay(listing.startDate) : undefined;
-    const mineStatus = mineStart
-      ? roundStatus(mineStart, totalDays)
-      : {
-          phase: 'active' as const,
-          statusLabel: `${daysLeft} days left`,
-          shortStatus: `${daysLeft} left`,
-        };
+    // Filed by your own round — your Day 1 and length, the ones the Tasks
+    // tab counts — the way the challenge's page tells it, rather than by the
+    // listing's round for everyone else.
+    const mineStart = startDate;
+    const mineStatus = roundStatus(mineStart, totalDays);
     const mine: ChallengeCard = {
       id: challenge.id,
       title: challenge.name,
@@ -172,7 +166,7 @@ export function useChallengeCards(): readonly ChallengeCard[] {
     );
 
     return [mine, ...listed];
-  }, [challenge, tasks, currentDay, totalDays]);
+  }, [challenge, tasks, startDate, totalDays]);
 }
 
 const terms = (query: string) => query.trim().toLowerCase().split(/\s+/).filter(Boolean);

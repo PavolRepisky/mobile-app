@@ -3,18 +3,16 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, type AvatarSource } from '@/components/Avatar';
+import { CheckCircle } from '@/components/CheckCircle';
 import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
-import { PhotoStrip } from '@/components/PhotoStrip';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { Pill } from '@/components/Pill';
 import { PrimaryButton } from '@/components/Buttons';
 import { headerLineTop, ScreenScroll, topPadding } from '@/components/Screen';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { DateRange } from '@/components/DateRange';
 import { Text } from '@/components/Text';
 import {
   absoluteFill,
@@ -44,9 +42,6 @@ const SECOND_MS = 1_000;
 const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
 
-/** The disc holding the lock (or the flag, once a round is over). */
-const STATUS_ICON_SIZE = 40;
-
 /** The photos across the top: one tall beside two stacked, edge to edge and
  * butted together with no seam, so the three read as one picture. As tall as
  * the design draws them. */
@@ -63,8 +58,8 @@ const HEART_SIZE = 22;
 const TERM_ICON_SIZE = 36;
 const TERM_RULE = 1;
 
-/** The empty circle leading each task — hollow, since nothing is ticked
- * until Day 1 — in the ring weight of the create form's focus ring. */
+/** The circle leading each task — hollow while it's open, the tick once
+ * today's photo is in — in the ring weight of the create form's focus ring. */
 const TASK_CIRCLE_SIZE = 22;
 const TASK_CIRCLE_RULE = 2;
 
@@ -76,15 +71,6 @@ const FACE_RIM = 2;
 
 /** "Lose all three": the lives spelled out, up to the most a round offers. */
 const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five'];
-
-/** The creator's face, leading the row with their name. */
-const CREATOR_AVATAR_SIZE = 40;
-
-/** The still-going row: how many faces it shows before the "+N" circle,
- * their size, and how far each laps over the last. */
-const GOING_FACES = 6;
-const GOING_FACE_SIZE = 48;
-const GOING_FACE_OVERLAP = -12;
 
 /** The podium's faces: the middle spot's a size up from its neighbours,
  * lapped by about a third, with at most two faces before the "+N". White
@@ -121,107 +107,79 @@ const RANK_WIDTH = 20;
 const RAN_OUT_PREVIEW = 3;
 
 /**
- * A challenge's page, in one of two shapes. Before its Day 1 it is the
- * invitation, with Join docked at the bottom leading on to the pledge.
- * Once it has started, or finished, joining is closed, so the page shows how
- * the round is going instead.
+ * A challenge's page. Before Day 1 and while it runs it is one page — the
+ * photos, the round's terms, what it asks each day, the lives rule and who's
+ * in it, with one action docked at the bottom — told from where you stand:
+ * invited, joined and waiting, in it today, or watching a round you can no
+ * longer join. A round that is over gets its own page, `Finished`.
  */
 export default function FeedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
-  const [openPhotoIndex, setOpenPhotoIndex] = useState<number | null>(null);
+  const { challenge: mine, startDate, totalDays: myDays } = useApp();
 
   const section = DISCOVER.find((s) => s.id === String(id)) ?? DISCOVER[0];
   const challenge = challengeById(section.id);
-  const creator = PEOPLE.find((p) => p.id === section.creatorId) ?? PEOPLE[0];
-  const totalDays = challenge.defaultDays;
-  const start = localDay(section.startDate);
+  // The challenge you've taken on is told by your own round — your Day 1 and
+  // length — so its page stands where your Tasks tab does, whatever date the
+  // listing gives the round everyone else sees.
+  const joined = mine.id === section.id;
+  const totalDays = joined ? myDays : challenge.defaultDays;
+  const start = joined ? startDate : localDay(section.startDate);
   const end = addDays(start, totalDays - 1);
   const state = roundState(start, totalDays);
 
-  if (state.kind === 'upcoming') {
-    return <Preview section={section} start={start} end={end} totalDays={totalDays} />;
-  }
-  if (state.kind === 'ended' && section.results) {
+  if (state.kind === 'ended') {
     return (
-      <Finished section={section} start={start} end={end} results={section.results} />
+      <Finished
+        section={section}
+        start={start}
+        end={end}
+        results={section.results ?? { finished: 0, groups: [] }}
+      />
     );
   }
 
-  const openProfile = (personId: string) =>
-    router.push({ pathname: '/friend/[id]', params: { id: personId } });
-
-  return (
-    <View style={styles.screenRoot}>
-      {/* The title and the way back share the scroll's fixed header, so the
-          back button stays level with the name instead of floating over the
-          photos once they scroll up under it. */}
-      <ScreenScroll header={<ScreenHeader plainTitle={challenge.name} />}>
-        <PhotoStrip
-          photos={section.photos}
-          height={170}
-          onPressPhoto={setOpenPhotoIndex}
-          style={styles.strip}
-        />
-
-        <View style={styles.body}>
-          {/* Whose challenge this is — a fact about it that happens to open
-              their profile, the same pair a post's avatar and name open one
-              from. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`View ${creator.name}'s profile`}
-            onPress={() => openProfile(creator.id)}
-            style={({ pressed }) => [styles.creator, pressed && styles.pressed]}
-          >
-            <Avatar source={creator.avatar} size={CREATOR_AVATAR_SIZE} />
-            <View>
-              <Text variant="copyBold">{creator.name}</Text>
-              <Text variant="meta" color={colors.inkMuted} style={styles.creatorHandle}>
-                Created by {creator.handle}
-              </Text>
-            </View>
-          </Pressable>
-
-          <Started
-            section={section}
-            start={start}
-            end={end}
-            totalDays={totalDays}
-            day={state.kind === 'running' ? state.day : null}
-          />
-        </View>
-      </ScreenScroll>
-
-      <PhotoViewer
-        photos={section.photos}
-        index={openPhotoIndex}
-        onDismiss={() => setOpenPhotoIndex(null)}
-      />
-    </View>
-  );
+  const page = { section, start, end, totalDays };
+  if (state.kind === 'upcoming') {
+    return <ChallengePage {...page} mode={joined ? 'waiting' : 'preview'} day={null} />;
+  }
+  return <ChallengePage {...page} mode={joined ? 'active' : 'closed'} day={state.day} />;
 }
 
 /**
- * The page before Day 1, the invitation to join: the photos edge to edge
- * with the name, when it starts and whose it is laid over them; then the
- * round at a glance, the clock to Day 1, what it asks of you each day, the
- * lives rule spelled out, and who is already in. Join is docked at the
- * bottom and leads on to the pledge.
+ * Where you stand with a round: `preview` — it hasn't started and you could
+ * join; `waiting` — you've joined and Day 1 is still to come; `active` —
+ * it's under way and you're in it; `closed` — it's under way without you.
  */
-function Preview({
+type PageMode = 'preview' | 'waiting' | 'active' | 'closed';
+
+/**
+ * The page itself, the same in every mode: the photos edge to edge with the
+ * name, where the round stands and whose it is laid over them; then How it
+ * works with a clock to the moment that matters now, the description, the
+ * daily tasks, the lives rule and who's in it. What changes with the mode is
+ * the words, the clock's target, today's ticks once you're in, and the one
+ * action docked at the bottom.
+ */
+function ChallengePage({
   section,
   start,
   end,
   totalDays,
+  mode,
+  day,
 }: {
   section: DiscoverSection;
   start: Date;
   end: Date;
   totalDays: number;
+  mode: PageMode;
+  /** Today's day of the round once it has started. */
+  day: number | null;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { profile, progress, tasks, currentDay, livesLeft } = useApp();
   const [openPhotoIndex, setOpenPhotoIndex] = useState<number | null>(null);
   // Measured rather than assumed, so the scroll clears the dock's two lines
   // whatever they wrap to.
@@ -233,19 +191,68 @@ function Preview({
 
   const challenge = challengeById(section.id);
   const lives = challenge.lives ?? LIVES_PER_CHALLENGE;
+  const inIt = mode === 'waiting' || mode === 'active';
+  const going = mode === 'active' || mode === 'closed';
+
+  // Today's ticks, only once you're in a round that has started, read in the
+  // challenge's own list order, the way the page lists the tasks.
+  const todays = mode === 'active' ? progress[currentDay] : undefined;
+  const doneToday = challenge.tasks.filter((task) => todays?.[task.id]?.done).length;
+  // Days in a row with every task shot, counted back from yesterday, and
+  // today too once it's complete.
+  const streak = (() => {
+    if (mode !== 'active') return 0;
+    const complete = (d: number) => tasks.every((task) => progress[d]?.[task.id]?.done);
+    let run = 0;
+    for (let d = currentDay - 1; d >= 1 && complete(d); d -= 1) run += 1;
+    return complete(currentDay) ? run + 1 : run;
+  })();
+
   const daysToGo = Math.round((start.getTime() - today.getTime()) / DAY_MS);
   const startsIn = daysToGo <= 1 ? 'Starts tomorrow' : `Starts in ${daysToGo} days`;
-  // Friends stand in for whoever has joined so far, the way the browse
-  // cards' own face stacks do — `PEOPLE` leads with them — and the names
-  // are theirs.
-  const faces = PEOPLE.slice(0, WHO_FACES);
-  const named = FRIENDS.slice(0, 2).map((f) => f.name);
-  const others = section.members - named.length;
+  const badge: { label: string; icon?: keyof typeof Ionicons.glyphMap } = {
+    preview: { label: `${startsIn} · ${longDate(start)}` },
+    waiting: { label: `You're in · starts ${longDate(start)}`, icon: 'checkmark' as const },
+    active: { label: `Day ${day} of ${totalDays} · you're in` },
+    closed: { label: `Day ${day} of ${totalDays} · closed to join`, icon: 'lock-closed' as const },
+  }[mode];
+
+  // The clock counts to whatever is next: Day 1 before the start, midnight
+  // while today's tasks are yours to shoot, the last midnight while you watch.
+  const toDayOne = {
+    label: 'Starts in',
+    to: start,
+    hint: `${longDate(start)} — everyone starts together`,
+  };
+  const clock = {
+    preview: toDayOne,
+    waiting: toDayOne,
+    active: {
+      label: 'Today ends in',
+      to: addDays(today, 1),
+      hint: `${doneToday} of ${challenge.tasks.length} done today`,
+    },
+    closed: { label: 'Ends in', to: addDays(end, 1), hint: `Day ${day} of ${totalDays}` },
+  }[mode];
+
+  // Friends stand in for whoever else is in, the way the browse cards' own
+  // face stacks do — `PEOPLE` leads with them — and the names are theirs;
+  // once you're in, you lead.
+  const friends = FRIENDS.slice(0, 2);
+  const faces: AvatarSource[] = [
+    ...(inIt ? [profile.avatar ?? profile.avatarSeed] : []),
+    ...PEOPLE.slice(0, WHO_FACES - (inIt ? 1 : 0)).map((p) => p.avatar),
+  ];
+  const named = [...(inIt ? ['You'] : []), ...friends.map((f) => f.name)];
+  const inCount = going ? (section.stillGoing ?? section.members) : section.members;
+  const others = inCount - friends.length - (inIt && going ? 1 : 0);
+  const members = section.members.toLocaleString('en-US');
 
   // The same gap the floating tab bar keeps off the bottom edge, so the dock
   // reads as that bar filled in rather than a button adrift over a long
   // stretch of safe area.
   const dockGap = tabBarBottom(insets.bottom);
+  const toTasks = () => router.navigate('/(tabs)/tasks');
 
   return (
     <View style={styles.screenRoot}>
@@ -256,7 +263,8 @@ function Preview({
       >
         <Hero
           section={section}
-          badge={`${startsIn} · ${longDate(start)}`}
+          badge={badge.label}
+          badgeIcon={badge.icon}
           onOpenPhoto={setOpenPhotoIndex}
         />
 
@@ -268,9 +276,9 @@ function Preview({
             <View style={styles.terms}>
               <Term
                 icon="time-outline"
-                label="Starts in"
-                value={<Countdown to={start} />}
-                hint={`${longDate(start)} — everyone starts together`}
+                label={clock.label}
+                value={<Countdown to={clock.to} />}
+                hint={clock.hint}
               />
               <Term
                 icon="calendar-outline"
@@ -304,37 +312,68 @@ function Preview({
             {challenge.description}
           </Text>
 
+          {/* Once you're in and it's running, the list is today's: a shot
+              task ticked, with the time it was taken. */}
           <View style={styles.block}>
-            <Text variant="sectionHeading">Every day you'll</Text>
-            {challenge.tasks.map((task) => (
-              <View key={task.id} style={styles.taskRow}>
-                <View style={styles.taskCircle} />
-                <View style={styles.taskText}>
-                  <Text variant="copyBold">{task.label}</Text>
-                  {task.note ? (
-                    <Text variant="meta" color={colors.inkMuted}>
-                      {task.note}
-                    </Text>
-                  ) : null}
+            <Text variant="sectionHeading">
+              {mode === 'active' ? "Today's tasks" : "Every day you'll"}
+            </Text>
+            {challenge.tasks.map((task) => {
+              const entry = todays?.[task.id];
+              return (
+                <View key={task.id} style={styles.taskRow}>
+                  {entry?.done ? (
+                    <CheckCircle size={TASK_CIRCLE_SIZE} style={styles.taskTick} />
+                  ) : (
+                    <View style={styles.taskCircle} />
+                  )}
+                  <View style={styles.taskText}>
+                    <Text variant="copyBold">{task.label}</Text>
+                    {entry?.done ? (
+                      <Text variant="meta" color={colors.inkMuted}>
+                        {entry.time ? `Done at ${entry.time}` : 'Done'}
+                      </Text>
+                    ) : task.note ? (
+                      <Text variant="meta" color={colors.inkMuted}>
+                        {task.note}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
 
           {/* The rule that costs people a run, spelled out before they join
-              rather than discovered on the day they miss. */}
+              rather than discovered on the day they miss — and once you're
+              in, how many of yours are left. */}
           <View style={styles.livesCard}>
             {lives > 0 ? (
               <View style={styles.hearts}>
-                {Array.from({ length: lives }, (_, i) => (
-                  <Ionicons key={i} name="heart" size={HEART_SIZE} color={colors.ink} />
-                ))}
+                {Array.from({ length: lives }, (_, i) => {
+                  const kept = mode !== 'active' || i < livesLeft;
+                  return (
+                    <Ionicons
+                      key={i}
+                      name={kept ? 'heart' : 'heart-outline'}
+                      size={HEART_SIZE}
+                      color={kept ? colors.ink : colors.inkGhost}
+                    />
+                  );
+                })}
               </View>
             ) : null}
             <Text variant="itemTitle">
-              {lives === 0
-                ? 'No lives'
-                : `You have ${lives} ${lives === 1 ? 'life' : 'lives'}`}
+              {mode === 'active'
+                ? [
+                    lives === 0 ? 'No lives' : `${livesLeft} of ${lives} lives left`,
+                    streak > 0 ? `${streak}-day streak` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : lives === 0
+                  ? 'No lives'
+                  : `You have ${lives} ${lives === 1 ? 'life' : 'lives'}`}
             </Text>
             <Text variant="copy" color={colors.inkMuted}>
               {livesRule(lives)}
@@ -342,20 +381,27 @@ function Preview({
           </View>
 
           <View style={styles.whoBlock}>
-            <Text variant="sectionHeading">Who's in</Text>
+            <View style={styles.podiumHeading}>
+              <Text variant="sectionHeading">{going ? 'Still going' : "Who's in"}</Text>
+              {going ? (
+                <Text variant="metaBold" color={colors.inkMuted}>
+                  {inCount.toLocaleString('en-US')} of {members}
+                </Text>
+              ) : null}
+            </View>
             <View style={styles.whoRow}>
               <View style={styles.faces}>
-                {faces.map((friend, i) => (
+                {faces.map((face, i) => (
                   <Avatar
-                    key={friend.id}
-                    source={friend.avatar}
+                    key={i}
+                    source={face}
                     size={WHO_FACE_SIZE}
                     style={[styles.face, i > 0 && styles.faceOverlap]}
                   />
                 ))}
               </View>
               <Text variant="copy" color={colors.inkMuted} style={styles.whoText}>
-                <Text variant="copyBold">{named.join(' and ')}</Text>
+                <Text variant="copyBold">{listNames(named)}</Text>
                 {others > 0 ? ` + ${others.toLocaleString('en-US')} others` : ''}
               </Text>
             </View>
@@ -363,18 +409,45 @@ function Preview({
         </View>
       </ScreenScroll>
 
-      <View
-        onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
-        style={[styles.dock, { paddingTop: layout.block, paddingBottom: dockGap }]}
-      >
-        <PrimaryButton
-          label={`Join · starts ${longDate(start)}`}
-          onPress={() => router.push({ pathname: '/join/[id]', params: { id: section.id } })}
-        />
-        <Text variant="meta" color={colors.inkMuted} center>
-          Joining closes when it starts · ends {longDate(end)}
-        </Text>
-      </View>
+      {/* Once it's under way there is nothing left to do here — joining has
+          closed, and today's photos are the Tasks tab's — so the page ends
+          with the people still in it. */}
+      {!going ? (
+        <View
+          onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
+          style={[styles.dock, { paddingTop: layout.block, paddingBottom: dockGap }]}
+        >
+          {mode === 'preview' ? (
+            <>
+              <PrimaryButton
+                label={`Join · starts ${longDate(start)}`}
+                onPress={() => router.push({ pathname: '/join/[id]', params: { id: section.id } })}
+              />
+              <Text variant="meta" color={colors.inkMuted} center>
+                Joining closes when it starts · ends {longDate(end)}
+              </Text>
+            </>
+          ) : (
+            <>
+              <PrimaryButton
+                label="Invite a friend"
+                icon="person-add-outline"
+                onPress={() => {
+                  Share.share({
+                    message: `Join me on ${challenge.name} — we start ${longDate(start)}.`,
+                  }).catch(() => {});
+                }}
+              />
+              <Text variant="meta" color={colors.inkMuted} center>
+                They can join until it starts ·{' '}
+                <Text variant="metaBold" onPress={toTasks}>
+                  Edit reminders
+                </Text>
+              </Text>
+            </>
+          )}
+        </View>
+      ) : null}
 
       <PhotoViewer
         photos={section.photos}
@@ -383,6 +456,12 @@ function Preview({
       />
     </View>
   );
+}
+
+/** "You, Lily and Zoe": names run together the way you'd say them. */
+function listNames(names: readonly string[]): string {
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 /**
@@ -394,11 +473,15 @@ function Preview({
 function Hero({
   section,
   badge,
+  badgeIcon,
   badgeTo,
   onOpenPhoto,
 }: {
   section: DiscoverSection;
   badge: string;
+  /** A mark in front of the badge's words: a tick once you're in, a lock
+   * once joining has closed. */
+  badgeIcon?: keyof typeof Ionicons.glyphMap;
   /** The far end of a range in the badge, "Jun 1 → Aug 14". */
   badgeTo?: string;
   onOpenPhoto: (index: number) => void;
@@ -449,6 +532,7 @@ function Hero({
       <View style={styles.heroCaption}>
         <Pill
           label={badge}
+          icon={badgeIcon}
           to={badgeTo}
           size="sm"
           tone="floating"
@@ -923,92 +1007,9 @@ function Term({
 }
 
 /**
- * The body once Day 1 has passed: where the round is and that joining has
- * closed, then how many are still in it. A finished round with its standings
- * gets its own page, `Finished`.
- */
-function Started({
-  section,
-  start,
-  end,
-  totalDays,
-  day,
-}: {
-  section: DiscoverSection;
-  start: Date;
-  end: Date;
-  totalDays: number;
-  /** Today's day of the round, or null once it has finished. */
-  day: number | null;
-}) {
-  const members = section.members.toLocaleString('en-US');
-  const goingFaces = PEOPLE.slice(0, GOING_FACES);
-  const goingRest = (section.stillGoing ?? 0) - goingFaces.length;
-  return (
-    <>
-      <View style={styles.statusCard}>
-        <View style={styles.statusIcon}>
-          <Ionicons name={day ? 'lock-closed' : 'flag'} size={18} color={colors.ink} />
-        </View>
-        <View style={styles.statusText}>
-          <Text variant="itemTitle">
-            {day
-              ? `Day ${day} of ${totalDays} · joining closed`
-              : `Finished · all ${totalDays} days`}
-          </Text>
-          <DateRange
-            from={longDate(start)}
-            to={longDate(end)}
-            variant="meta"
-            color={colors.inkMuted}
-          />
-          <Text variant="meta" color={colors.inkMuted}>
-            {members} members
-          </Text>
-        </View>
-      </View>
-
-      {day !== null && section.stillGoing !== undefined ? (
-        // While it runs, the people still in it rather than a figure about
-        // them: a row of faces ending in how many more there are, the way the
-        // who's-in row before Day 1 reads, only bigger.
-        <View style={styles.finishersBlock}>
-          <View style={styles.finishersHeading}>
-            <Text variant="sectionHeading">Still going</Text>
-            <Text variant="metaBold" color={colors.inkMuted}>
-              {section.stillGoing.toLocaleString('en-US')} of {members}
-            </Text>
-          </View>
-          <View style={styles.goingRow}>
-            {goingFaces.map((person, i) => (
-              <Avatar
-                key={person.id}
-                source={person.avatar}
-                size={GOING_FACE_SIZE}
-                style={[styles.goingFace, i > 0 && styles.goingFaceOverlap]}
-              />
-            ))}
-            {goingRest > 0 ? (
-              <View style={[styles.goingFace, styles.goingFaceOverlap, styles.goingMore]}>
-                <Text variant="metaBold">+{goingRest.toLocaleString('en-US')}</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text variant="meta" color={colors.inkMuted}>
-            {(section.members - section.stillGoing).toLocaleString('en-US')} have dropped
-            out since Day 1
-          </Text>
-        </View>
-      ) : null}
-    </>
-  );
-}
-
-/**
- * The time to Day 1 as a clock, "17:03:38", with the days in front once
- * there are any — "3d 07:21". Under a day the seconds show, since they are
- * what make it read as a clock running rather than a date; ticks every
- * second.
+ * The time left, spelled out by unit — "47d 18h 21m". Under a day the
+ * days drop off and the seconds come in, "18h 21m 05s", since they are what
+ * make it read as a clock running rather than a date; ticks every second.
  */
 function Countdown({ to }: { to: Date }) {
   const [now, setNow] = useState(() => Date.now());
@@ -1020,14 +1021,14 @@ function Countdown({ to }: { to: Date }) {
 
   const left = Math.max(0, to.getTime() - now);
   const days = Math.floor(left / DAY_MS);
-  const two = (n: number) => String(n).padStart(2, '0');
-  const hours = two(Math.floor((left % DAY_MS) / HOUR_MS));
-  const minutes = two(Math.floor((left % HOUR_MS) / MINUTE_MS));
-  const seconds = two(Math.floor((left % MINUTE_MS) / SECOND_MS));
+  const hours = Math.floor((left % DAY_MS) / HOUR_MS);
+  const minutes = Math.floor((left % HOUR_MS) / MINUTE_MS);
+  // Two figures, so the last unit doesn't jump in width as it ticks.
+  const seconds = String(Math.floor((left % MINUTE_MS) / SECOND_MS)).padStart(2, '0');
 
   return (
     <Text variant="copyBold" numberOfLines={1} style={styles.clock}>
-      {days > 0 ? `${days}d ${hours}:${minutes}` : `${hours}:${minutes}:${seconds}`}
+      {days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m ${seconds}s`}
     </Text>
   );
 }
@@ -1036,25 +1037,6 @@ const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
     backgroundColor: colors.backgroundPlain,
-  },
-  strip: {
-    marginBottom: layout.section,
-  },
-  body: {
-    gap: layout.block,
-  },
-  // Only as wide as its contents, so the tap lands on the person and not on
-  // the empty width of the page beside them.
-  // Pulled up into the name's leading: the two lines are one caption, and
-  // the gap their line heights leave on their own splits them apart.
-  creatorHandle: {
-    marginTop: -spacing.xs,
-  },
-  creator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: layout.inline,
   },
   // The page runs up under the status bar: the photos are its top edge.
   previewScroll: {
@@ -1139,6 +1121,10 @@ const styles = StyleSheet.create({
     borderWidth: TASK_CIRCLE_RULE,
     borderColor: colors.inkGhost,
   },
+  // The tick takes the ring's place on the task name's line.
+  taskTick: {
+    marginTop: layout.line / 2,
+  },
   taskText: {
     flex: 1,
   },
@@ -1154,26 +1140,6 @@ const styles = StyleSheet.create({
   },
   whoBlock: {
     gap: layout.heading,
-  },
-  statusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-    padding: layout.card,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceSunken,
-  },
-  statusText: {
-    flex: 1,
-    gap: layout.line,
-  },
-  statusIcon: {
-    width: STATUS_ICON_SIZE,
-    height: STATUS_ICON_SIZE,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   whoRow: {
     flexDirection: 'row',
@@ -1192,37 +1158,6 @@ const styles = StyleSheet.create({
   },
   whoText: {
     flex: 1,
-  },
-  // A section's room above, since this is a new block rather than another
-  // fact about the round.
-  finishersBlock: {
-    marginTop: layout.section - layout.block,
-    gap: layout.heading,
-  },
-  finishersHeading: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  goingRow: {
-    flexDirection: 'row',
-  },
-  // White-rimmed so each face stays whole where the next one laps over it.
-  goingFace: {
-    width: GOING_FACE_SIZE,
-    height: GOING_FACE_SIZE,
-    borderRadius: radii.pill,
-    borderWidth: FACE_RIM,
-    borderColor: colors.surface,
-  },
-  goingFaceOverlap: {
-    marginLeft: GOING_FACE_OVERLAP,
-  },
-  // The count takes a face's place at the end of the row, in the fill grey.
-  goingMore: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceSunken,
   },
   finishedBody: {
     paddingTop: layout.section,

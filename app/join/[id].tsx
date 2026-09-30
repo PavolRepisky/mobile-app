@@ -96,7 +96,7 @@ export default function JoinScreen() {
           label="Sign & join"
           disabled={!signed}
           onPress={() => {
-            selectChallenge(section.id);
+            selectChallenge(section.id, start);
             // Straight onto the day's tasks, where the reminders are set.
             router.dismissTo('/(tabs)/tasks');
           }}
