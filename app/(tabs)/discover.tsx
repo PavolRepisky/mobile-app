@@ -1,25 +1,16 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { ChallengeRow } from '@/components/ChallengeRow';
 import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
-import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, radii, shadows, spacing } from '@/constants/theme';
 import { FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { CATEGORIES, useChallengeCards, type ChallengeCard } from '@/hooks/useChallengeCards';
@@ -36,19 +27,20 @@ const COVER_FACES = FRIENDS.slice(0, 2);
 const COVER_FACE_SIZE = 24;
 /** The thumbnail on "You're in", a step smaller than a list row's. */
 const MINE_THUMB = 44;
-/** The slider's dots, under it: the current one stretched into a short
- * bar, so where you are reads at a glance. */
-const DOT = 6;
-const DOT_ACTIVE = 18;
+/** A Starting soon card: portrait, so a row of them reads as a shelf of
+ * posters — two and the edge of a third across a phone, saying it scrolls. */
+const SOON_WIDTH = 156;
+const SOON_HEIGHT = 216;
+
+const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 /**
  * Challenges. From the top: the one you're in, the soonest round you can
- * still join as a cover, every other one you can join in a Starting soon
- * slider under it — one row a swipe, dots underneath — and a tile per
+ * still join as a cover, every other one you can join as a row of photo
+ * cards under it — See all opens the whole joinable list — and a tile per
  * topic. Every round starts on one shared day and joining shuts on it, so
- * both are ordered by that date — what's about to close first. The slider
- * is the whole joinable list, so there's no separate page for it; everything else — rounds under way or finished —
- * lives behind the topic tiles and search.
+ * both are ordered by that date — what's about to close first. Rounds under
+ * way or finished live behind the topic tiles and search.
  *
  * The title row is the scroll's fixed header: search and "+" stay put while
  * the page moves under them, so neither ever floats over a cover.
@@ -58,7 +50,6 @@ export default function DiscoverScreen() {
   const { width } = useWindowDimensions();
   const { currentDay, totalDays } = useApp();
   const cards = useChallengeCards();
-  const [slide, setSlide] = useState(0);
 
   const coverWidth = width - layout.gutter * 2;
   const tileWidth = (coverWidth - layout.stack) / 2;
@@ -72,11 +63,6 @@ export default function DiscoverScreen() {
     [cards],
   );
   const [cover, ...soon] = upcoming;
-  // Each row is the column's full width, with a gutter's worth of gap either
-  // side of it, so the next one sits wholly off screen until it's swiped in.
-  const slideStep = coverWidth + layout.gutter * 2;
-  const onSlide = (event: NativeSyntheticEvent<NativeScrollEvent>) =>
-    setSlide(Math.round(event.nativeEvent.contentOffset.x / slideStep));
 
   // One tile per topic that has anything in it, fronted by its first
   // challenge's first photo.
@@ -160,40 +146,31 @@ export default function DiscoverScreen() {
         <View style={styles.section}>
           <View style={styles.heading}>
             <Text variant="sectionHeading">Starting soon</Text>
+            {/* Every round you can still join — the All topics page opens on
+                starting soon. */}
+            <Text
+              variant="metaBold"
+              color={colors.inkMuted}
+              accessibilityRole="link"
+              onPress={() =>
+                router.push({ pathname: '/challenges/[filter]', params: { filter: 'all' } })
+              }
+            >
+              See all {upcoming.length}
+            </Text>
           </View>
-          {/* Run to the screen edges so a row sliding in isn't clipped at the
-              gutter, and snapped a row at a time so each swipe lands the
-              next one exactly where the last one sat. */}
+          {/* Run to the screen edges, so a card scrolls in from under the edge
+              rather than stopping short at the gutter. */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={slideStep}
-            decelerationRate="fast"
-            onScroll={onSlide}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.slider}
-            style={styles.sliderBleed}
+            contentContainerStyle={styles.soonRow}
+            style={styles.soonBleed}
           >
             {soon.map((card) => (
-              <ChallengeRow
-                key={card.id}
-                card={card}
-                showDate={false}
-                detail={[card.statusLabel, card.category, `${card.days} days`]
-                  .filter(Boolean)
-                  .join(' · ')}
-                onPress={() => openChallenge(card)}
-                style={{ width: coverWidth }}
-              />
+              <SoonCard key={card.id} card={card} onPress={() => openChallenge(card)} />
             ))}
           </ScrollView>
-          {soon.length > 1 ? (
-            <View style={styles.dots}>
-              {soon.map((card, i) => (
-                <View key={card.id} style={[styles.dot, i === slide && styles.dotActive]} />
-              ))}
-            </View>
-          ) : null}
         </View>
       ) : null}
 
@@ -225,7 +202,7 @@ export default function DiscoverScreen() {
             </Pressable>
           ))}
           {/* The last tile is the way into everything at once — every round
-              in every phase, where the slider is only the ones you can still
+              in every phase, where Starting soon is only the ones you can still
               join. Drawn as a plain fill so it reads as "the rest", not as
               one more topic. */}
           <Pressable
@@ -336,6 +313,40 @@ function Cover({
   );
 }
 
+/**
+ * One more round you can join, as a small poster: its first photo, the day it
+ * starts on a white pill at the top, and its name with how long it runs and
+ * what a day asks over the shade at its foot.
+ */
+function SoonCard({ card, onPress }: { card: ChallengeCard; onPress: () => void }) {
+  const starts = card.start ? `${WEEKDAYS[card.start.getDay()]} ${card.start.getDate()}` : null;
+  const perDay = card.tasksCount === 1 ? '1 task' : `${card.tasksCount} tasks`;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${card.title}, ${card.statusLabel}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.soonCard, pressed && styles.pressed]}
+    >
+      <View style={styles.soonClip}>
+        <Image source={card.photos[0]} style={absoluteFill} contentFit="cover" />
+        <LinearGradient colors={gradients.coverShade} style={absoluteFill} />
+        {starts ? (
+          <Pill label={starts} tone="floating" size="sm" bold style={styles.soonDate} />
+        ) : null}
+        <View style={styles.soonText}>
+          <Text variant="copyBold" color={colors.inkInverse} numberOfLines={2}>
+            {card.title}
+          </Text>
+          <Text variant="badge" color={colors.onMediaSoft}>
+            {card.days} days · {perDay}
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   section: {
     marginBottom: layout.section,
@@ -396,28 +407,42 @@ const styles = StyleSheet.create({
   faceOverlap: {
     marginLeft: -spacing.sm,
   },
-  sliderBleed: {
+  // Pulled back out by the row's own top and bottom padding, so the cards
+  // keep the heading's usual gap.
+  soonBleed: {
     marginHorizontal: -layout.gutter,
+    marginVertical: -layout.stack,
   },
-  slider: {
+  // Room above and below for the cards' shadows, which a horizontal scroll
+  // would otherwise clip.
+  soonRow: {
     paddingHorizontal: layout.gutter,
-    gap: layout.gutter * 2,
+    paddingVertical: layout.stack,
+    gap: layout.stack,
   },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: DOT,
-    marginTop: layout.stack,
+  // A photo tile's soft shadow, on an outer box: the clipped one inside would
+  // cut it off.
+  soonCard: {
+    width: SOON_WIDTH,
+    height: SOON_HEIGHT,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceSunken,
+    ...shadows.soft,
   },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.inkGhost,
+  soonClip: {
+    flex: 1,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  dotActive: {
-    width: DOT_ACTIVE,
-    backgroundColor: colors.ink,
+  soonDate: {
+    position: 'absolute',
+    top: layout.heading,
+    left: layout.heading,
+  },
+  soonText: {
+    padding: layout.heading,
+    gap: layout.line,
   },
   heading: {
     flexDirection: 'row',
