@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import {
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -61,15 +63,34 @@ export function AlertDialog({
   actions,
   input,
 }: AlertDialogProps) {
+  // Only the dim behind the dialog fades in. The Modal's own fade took the
+  // panel with it, so for its first few hundred milliseconds the card and its
+  // words read washed out, see-through over the page. The dialog itself is
+  // there at full strength from the first frame.
+  const scrim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible) return;
+    scrim.setValue(0);
+    Animated.timing(scrim, {
+      toValue: 1,
+      duration: SCRIM_FADE_MS,
+      useNativeDriver: true,
+    }).start();
+  }, [visible, scrim]);
+
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onDismiss}
       statusBarTranslucent
     >
       <View style={styles.root}>
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.scrim, { opacity: scrim }]}
+        />
         <Pressable
           accessibilityLabel="Dismiss"
           style={StyleSheet.absoluteFill}
@@ -164,9 +185,14 @@ export function AlertDialog({
   );
 }
 
+/** Quick enough that the dim lands with the dialog rather than after it. */
+const SCRIM_FADE_MS = 160;
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  scrim: {
     backgroundColor: colors.scrimLight,
   },
   centre: {

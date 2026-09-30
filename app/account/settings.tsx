@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -9,7 +10,7 @@ import { PhotoViewer } from '@/components/PhotoViewer';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
-import { colors, layout, radii } from '@/constants/theme';
+import { colors, layout, radii, spacing } from '@/constants/theme';
 import { useApp } from '@/hooks/useAppState';
 
 
@@ -17,7 +18,20 @@ const BIO_MAX = 120;
 
 /** The photo row's thumbnail — a row-height glance at the current photo, not
  * a second hero circle. */
-const PHOTO_THUMB = 32;
+const PHOTO_THUMB = 30;
+
+/** The rounded square each row's glyph sits in, and the glyph inside it —
+ * the square is what lines the labels up down the page, not the glyphs'
+ * own uneven widths. */
+const ROW_ICON_TILE = 32;
+const ROW_ICON = 17;
+const ROW_CHEVRON = 18;
+
+/** A row's value stops here and ellipsises, so a long bio can't push the
+ * label onto a second line. */
+const ROW_VALUE_MAX = 150;
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0';
 
 export default function SettingsScreen() {
   const { profile, setName, setBio, setHandle, setAvatarPhoto, setAvatarSeed, resetAll } =
@@ -60,12 +74,14 @@ export default function SettingsScreen() {
       >
         <Group title="Profile">
           <Row
+            icon="camera-outline"
             label="Profile photo"
             accessory={<Avatar source={avatarSource} size={PHOTO_THUMB} />}
             onPress={() => (hasAvatar ? setPhotoOpen(true) : setLibraryOpen(true))}
           />
           <Row
-            label="Your name"
+            icon="person-outline"
+            label="Name"
             value={profile.name}
             onPress={() => {
               setDraftName(profile.name);
@@ -73,6 +89,7 @@ export default function SettingsScreen() {
             }}
           />
           <Row
+            icon="at-outline"
             label="Username"
             value={profile.handle}
             onPress={() => {
@@ -81,6 +98,7 @@ export default function SettingsScreen() {
             }}
           />
           <Row
+            icon="reorder-three-outline"
             label="Bio"
             value={profile.bio ?? 'Add a bio'}
             onPress={() => {
@@ -91,28 +109,31 @@ export default function SettingsScreen() {
           />
         </Group>
 
+        <Group title="About">
+          <Row icon="shield-outline" label="Privacy Policy" onPress={() => {}} />
+          <Row icon="document-outline" label="Terms of Service" onPress={() => {}} last />
+        </Group>
+
+        {/* Log out first and in ink: it's the one people come here for, and
+            logging back in undoes it. Delete sits last and in red. */}
         <Group title="Account">
           <Row
-            label="Delete account"
-            destructive
-            icon="trash-outline"
-            onPress={() => setDeleteOpen(true)}
+            icon="log-out-outline"
+            label="Log out"
+            onPress={() => setLogoutOpen(true)}
           />
           <Row
-            label="Log out"
+            icon="trash-outline"
+            label="Delete account"
             destructive
-            icon="log-out-outline"
-            onPress={() => setLogoutOpen(true)}
+            onPress={() => setDeleteOpen(true)}
             last
           />
         </Group>
 
-        {/* The fine print under everything, as links rather than rows: they
-            are documents to read, not settings with a value to change. */}
-        <View style={styles.legal}>
-          <LegalLink label="Privacy Policy" onPress={() => {}} />
-          <LegalLink label="Terms of Service" onPress={() => {}} />
-        </View>
+        <Text variant="badge" color={colors.inkMuted} style={styles.version}>
+          Her 75 · version {APP_VERSION}
+        </Text>
       </ScreenScroll>
 
       <AlertDialog
@@ -285,26 +306,11 @@ function Group({
 }) {
   return (
     <View style={styles.group}>
-      <Text variant="copy" color={colors.inkMuted} style={styles.groupTitle}>
+      <Text variant="metaBold" color={colors.inkMuted} style={styles.groupTitle}>
         {title}
       </Text>
       <View style={styles.groupCard}>{children}</View>
     </View>
-  );
-}
-
-function LegalLink({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
-      hitSlop={layout.stack}
-      style={({ pressed }) => pressed && styles.pressed}
-    >
-      <Text variant="metaBold" color={colors.inkMuted}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -323,9 +329,10 @@ function Row({
   accessory?: React.ReactNode;
   onPress?: () => void;
   destructive?: boolean;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon: keyof typeof Ionicons.glyphMap;
   last?: boolean;
 }) {
+  const ink = destructive ? colors.destructive : colors.ink;
   return (
     <Pressable
       accessibilityRole="button"
@@ -336,27 +343,30 @@ function Row({
         pressed && styles.pressed,
       ]}
     >
-      <Text
-        variant="copy"
-        color={destructive ? colors.destructive : colors.ink}
-        style={styles.rowLabel}
-      >
+      <View style={styles.rowIcon}>
+        <Ionicons name={icon} size={ROW_ICON} color={ink} />
+      </View>
+
+      <Text variant="copy" color={ink} style={styles.rowLabel}>
         {label}
       </Text>
 
       {value ? (
-        <Text variant="copy" color={colors.inkMuted} style={styles.rowValue}>
+        <Text
+          variant="copy"
+          color={colors.inkMuted}
+          numberOfLines={1}
+          style={styles.rowValue}
+        >
           {value}
         </Text>
       ) : null}
 
-      {accessory ? <View style={styles.rowValue}>{accessory}</View> : null}
+      {accessory}
 
-      <Ionicons
-        name={icon ?? 'chevron-forward'}
-        size={20}
-        color={destructive ? colors.destructive : colors.inkMuted}
-      />
+      {/* Faint: the whole row is the button; the chevron only says there's
+          more behind it. */}
+      <Ionicons name="chevron-forward" size={ROW_CHEVRON} color={colors.inkGhost} />
     </Pressable>
   );
 }
@@ -368,11 +378,11 @@ const styles = StyleSheet.create({
   group: {
     marginBottom: layout.section,
   },
-  // Indented by the card role, so each group's title lines up with the row
-  // text inside the card under it.
+  // Nudged in off the card's corner, so the title sits over the card rather
+  // than hanging off its rounded edge.
   groupTitle: {
-    marginBottom: layout.heading,
-    marginLeft: layout.card,
+    marginBottom: layout.stack,
+    marginLeft: spacing.xs,
   },
   groupCard: {
     backgroundColor: colors.surface,
@@ -382,8 +392,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: layout.card,
-    paddingHorizontal: layout.card,
+    gap: layout.inline,
+    paddingVertical: layout.inline,
+    paddingHorizontal: spacing.lg,
   },
   rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -391,18 +402,22 @@ const styles = StyleSheet.create({
     // screen keeps to My Profile's colours.
     borderBottomColor: colors.surfaceSunken,
   },
+  rowIcon: {
+    width: ROW_ICON_TILE,
+    height: ROW_ICON_TILE,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rowLabel: {
     flex: 1,
   },
   rowValue: {
-    marginRight: layout.inline,
+    maxWidth: ROW_VALUE_MAX,
   },
-  // Centred side by side under the last group, which already leaves a
-  // section's room above them.
-  legal: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: layout.card,
+  version: {
+    textAlign: 'center',
   },
   pressed: {
     opacity: 0.7,
