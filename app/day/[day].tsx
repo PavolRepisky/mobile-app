@@ -127,6 +127,7 @@ export default function DayPostScreen() {
           >
             <FriendCard
               friend={me}
+              presentation="feed"
               post={{ id: `day-${day}`, day, tasks: tasksFor(day), caption: captions[day] }}
             />
           </View>

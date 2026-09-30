@@ -1,7 +1,8 @@
+import { useId } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
-import { colors, gradients, layout, radii } from '@/constants/theme';
+import { colors, gradients, layout, radii, shadows } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
 import { Text } from './Text';
 
@@ -21,6 +22,20 @@ const BADGE_BORDER = 2;
  * colour, so it reads as seen rather than as a different kind of mark, and
  * clearly quieter than what's new beside it. */
 const WATCHED_OPACITY = 0.35;
+
+/**
+ * My Profile's ring, as fractions of the photo inside it: its 120pt face
+ * wears a 6pt band 5pt clear of the photo, with 7pt between segments. The
+ * `profile` look keeps exactly those proportions at any size.
+ */
+const PROFILE_STROKE = 6 / 120;
+const PROFILE_GAP = 5 / 120;
+const PROFILE_SEGMENT_GAP = 7 / 120;
+/** The profile ring's sweep: thin flat-coloured arcs standing in for the
+ * conic gradient SVG doesn't have, each overlapping the next a touch so no
+ * seam of background shows between them. */
+const SWEEP_SLICES = 90;
+const SWEEP_OVERLAP = 0.6;
 
 /** Blends two `#RRGGBB` colours, `t` of the way from `a` to `b`. */
 function mixHex(a: string, b: string, t: number): string {
@@ -52,6 +67,16 @@ export interface TaskRingProps {
   watched?: number;
   /** Outer diameter, ring included. */
   size: number;
+  /** The "3/5" across the ring's bottom. Off where the ring is too small to
+   * carry it — a post's face beside the poster's name. */
+  badge?: boolean;
+  /**
+   * `story` is the story row's ring: a heavier band, each done segment one
+   * flat accent. `profile` is My Profile's own ring at this size — its
+   * proportions, the accent sweeping continuously round the circle behind
+   * the done segments, and the photo lifted on its hard shadow.
+   */
+  look?: 'story' | 'profile';
   onPress?: () => void;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
@@ -74,10 +99,86 @@ export function TaskRing({
   total,
   watched = 0,
   size,
+  badge = true,
+  look = 'story',
   onPress,
   accessibilityLabel,
   style,
 }: TaskRingProps) {
+  // Unique per ring, so two profile rings on one screen don't share a mask.
+  const maskId = `ringDone${useId().replace(/[^A-Za-z0-9]/g, '')}`;
+
+  if (look === 'profile') {
+    const face = size / (1 + 2 * (PROFILE_STROKE + PROFILE_GAP));
+    const stroke = face * PROFILE_STROKE;
+    const inset = face * (PROFILE_STROKE + PROFILE_GAP);
+    const r = (size - stroke) / 2;
+    const around = 2 * Math.PI * r;
+    const count = Math.max(total, 1);
+    const segGap = face * PROFILE_SEGMENT_GAP;
+    const centre = size / 2;
+    const segment = (i: number, colour: string) => (
+      <Circle
+        key={i}
+        cx={centre}
+        cy={centre}
+        r={r}
+        stroke={colour}
+        strokeWidth={stroke}
+        strokeLinecap={count > 1 ? 'round' : 'butt'}
+        fill="none"
+        strokeDasharray={`${count > 1 ? Math.max(0.01, around / count - segGap - stroke) : around} ${around}`}
+        transform={`rotate(${-90 + (i * 360) / count + (count > 1 ? ((segGap + stroke) / 2 / around) * 360 : 0)} ${centre} ${centre})`}
+      />
+    );
+
+    return (
+      <Pressable
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={accessibilityLabel ?? `${done} of ${total} tasks done`}
+        disabled={!onPress}
+        onPress={onPress}
+        style={({ pressed }) => [{ width: size, height: size }, pressed && styles.pressed, style]}
+      >
+        <Svg width={size} height={size} style={styles.ring}>
+          <Defs>
+            <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={size} height={size}>
+              {Array.from({ length: Math.min(done, count) }, (_, i) =>
+                segment(i, colors.inkInverse),
+              )}
+            </Mask>
+          </Defs>
+          {Array.from({ length: count }, (_, i) => (i < done ? null : segment(i, colors.inkGhost)))}
+          <G mask={`url(#${maskId})`}>
+            {Array.from({ length: SWEEP_SLICES }, (_, i) => (
+              <Circle
+                key={i}
+                cx={centre}
+                cy={centre}
+                r={r}
+                stroke={accentAt((i + 0.5) / SWEEP_SLICES)}
+                strokeWidth={stroke}
+                fill="none"
+                strokeDasharray={`${around / SWEEP_SLICES + SWEEP_OVERLAP} ${around}`}
+                transform={`rotate(${-90 + (i * 360) / SWEEP_SLICES} ${centre} ${centre})`}
+              />
+            ))}
+          </G>
+        </Svg>
+        <View
+          style={[
+            styles.photo,
+            styles.profileDisc,
+            shadows.hard,
+            { top: inset, left: inset, width: face, height: face, borderRadius: face / 2 },
+          ]}
+        >
+          <Avatar source={avatar} size={face} />
+        </View>
+      </Pressable>
+    );
+  }
+
   const radius = (size - ringWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const count = Math.max(total, 1);
@@ -117,16 +218,18 @@ export function TaskRing({
       <View style={[styles.photo, { top: ringWidth + RING_GAP, left: ringWidth + RING_GAP }]}>
         <Avatar source={avatar} size={avatarSize} />
       </View>
-      <View
-        pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={styles.badge}
-      >
-        <Text variant="badge" color={colors.inkInverse}>
-          {`${done}/${total}`}
-        </Text>
-      </View>
+      {badge ? (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.badge}
+        >
+          <Text variant="badge" color={colors.inkInverse}>
+            {`${done}/${total}`}
+          </Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -137,6 +240,11 @@ const styles = StyleSheet.create({
   },
   photo: {
     position: 'absolute',
+  },
+  // The avatar's own shape behind the photo, so the hard shadow has
+  // something solid to cast from — My Profile's disc.
+  profileDisc: {
+    backgroundColor: colors.backgroundPlain,
   },
   // Centred on the ring's bottom stroke, ringed in the page's white so it
   // reads as sitting on the gauge rather than merging into it.

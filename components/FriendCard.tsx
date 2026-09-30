@@ -22,6 +22,7 @@ import { useApp } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';
 import { Avatar } from './Avatar';
 import { CommentsSheet } from './CommentsSheet';
+import { TaskRing } from './TaskRing';
 import { LockedOverlay } from './LockedOverlay';
 import { MosaicArrangement, type CollageCell } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
@@ -59,6 +60,13 @@ export interface FriendCardProps {
   locked?: boolean;
   /** Drawn at the far end of the identity row — the Members feed's Add. */
   accessory?: React.ReactNode;
+  /**
+   * `feed` is a run of one person's posts read top to bottom — My days: the
+   * face wears that day's task ring, the reactions come a size up, and a
+   * "View all N comments" line sits under the caption. `card`, the default,
+   * is the Community feed's leaner post.
+   */
+  presentation?: 'card' | 'feed';
   style?: StyleProp<ViewStyle>;
   /**
    * Renders one of the friend's earlier days instead of their current one —
@@ -117,12 +125,20 @@ const HEART_LANDED = 0.16;
  * across with the comment count on one row. */
 const REACTION_CHIP = 32;
 
+/** The reactions a step up, for a feed of posts read one after another. */
+const REACTION_CHIP_LARGE = 34;
+
 /** The poster's avatar beside their name — the same height as a reaction
  * pill, so the identity row and the action row sit on one scale. */
 const POST_AVATAR = 32;
+/** A feed post's face in My Profile's ring: the photo stays the bare
+ * avatar's size, and the band and its gap are added around it in the
+ * profile's own proportions (6 and 5 on a 120 face). */
+const POST_RING = POST_AVATAR * (1 + (2 * (6 + 5)) / 120);
 /** The comment glyph in its pill, drawn to the emoji's own size beside it so
  * the comment pill reads as one more of the reactions' row. */
 const COMMENT_ICON = 16;
+const COMMENT_ICON_LARGE = 18;
 /** The drawn dot between the challenge and "Day N". */
 const SUBTITLE_DOT = 3;
 /** One carousel page marker riding the photo's bottom edge. */
@@ -135,6 +151,11 @@ const clockMinutes = (time: string) => {
   const hour = (Number(match[1]) % 12) + (match[3].toUpperCase() === 'PM' ? 12 : 0);
   return hour * 60 + Number(match[2]);
 };
+
+/** "9:40pm" as "9:40 PM" — a space before the half of the day, in capitals,
+ * however the time was stored. */
+const displayTime = (time: string) =>
+  time.trim().replace(/\s*([ap])\.?m\.?$/i, (_, half: string) => ` ${half.toUpperCase()}M`);
 
 /** When the day became a post: the latest time on any of its tasks — the
  * checklist's order isn't the order they were done in. */
@@ -160,7 +181,16 @@ const finishedAt = (tasks: readonly { time?: string }[]) =>
  * Only the avatar and the name lead to their profile — the photo itself is
  * just the post's own image, not a control.
  */
-export function FriendCard({ friend, onPress, locked, accessory, style, post }: FriendCardProps) {
+export function FriendCard({
+  friend,
+  onPress,
+  locked,
+  accessory,
+  presentation = 'card',
+  style,
+  post,
+}: FriendCardProps) {
+  const feed = presentation === 'feed';
   const router = useRouter();
   const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
     useApp();
@@ -380,6 +410,26 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
     setDraft('');
   };
 
+  const challengeLink = (
+    <Text
+      variant="meta"
+      color={colors.inkMuted}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${challenge.name}`}
+      onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+      // Underlined as a link on Community; plain on a feed of your own days,
+      // where it's the same challenge on every post.
+      style={feed ? undefined : styles.challengeLink}
+    >
+      {challenge.name}
+    </Text>
+  );
+  const dayLabel = (
+    <Text variant="meta" color={colors.inkMuted}>
+      Day {day}
+    </Text>
+  );
+
   return (
     <View style={style}>
       {/* Avatar and name lead to the profile; the subtitle's own challenge
@@ -391,7 +441,21 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
           accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
           onPress={onPress}
         >
-          <Avatar source={friend.avatar} size={POST_AVATAR} />
+          {feed ? (
+            // The day's own ring, the one My Profile draws: a segment per
+            // task, the done ones in the accent — so each post says at a
+            // glance how full that day was.
+            <TaskRing
+              avatar={friend.avatar}
+              done={postTasks.filter((task) => task.done).length}
+              total={postTasks.length}
+              size={POST_RING}
+              badge={false}
+              look="profile"
+            />
+          ) : (
+            <Avatar source={friend.avatar} size={POST_AVATAR} />
+          )}
         </Pressable>
         <View style={styles.identityText}>
           <View style={styles.subtitleRow}>
@@ -407,27 +471,17 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
             </Text>
             {time ? (
               <Text variant="meta" color={colors.inkMuted}>
-                {time}
+                {displayTime(time)}
               </Text>
             ) : null}
           </View>
+          {/* The day leads on a feed of one person's days — it's what
+              tells one post from the next; the challenge is the same on
+              every one. */}
           <View style={styles.subtitleRow}>
-            <Text
-              variant="meta"
-              color={colors.inkMuted}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${challenge.name}`}
-              onPress={() =>
-                router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })
-              }
-              style={styles.challengeLink}
-            >
-              {challenge.name}
-            </Text>
+            {feed ? dayLabel : challengeLink}
             <View style={styles.subtitleDot} />
-            <Text variant="meta" color={colors.inkMuted}>
-              Day {day}
-            </Text>
+            {feed ? challengeLink : dayLabel}
           </View>
         </View>
         {accessory}
@@ -539,11 +593,12 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
               onPress={() => reactToPost(postId, reaction.emoji)}
               style={({ pressed }) => [
                 styles.reaction,
+                feed && styles.reactionLarge,
                 reaction.selected && styles.reactionSelected,
                 pressed && styles.pressed,
               ]}
             >
-              <Text variant="meta">{reaction.emoji}</Text>
+              <Text variant={feed ? 'copy' : 'meta'}>{reaction.emoji}</Text>
               <Text
                 variant="badge"
                 color={reaction.selected ? colors.inkInverse : colors.ink}
@@ -560,9 +615,17 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
           accessibilityRole="button"
           accessibilityLabel={`Comments, ${commentCount}`}
           onPress={() => setCommentsOpen(true)}
-          style={({ pressed }) => [styles.reaction, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.reaction,
+            feed && styles.reactionLarge,
+            pressed && styles.pressed,
+          ]}
         >
-          <Ionicons name="chatbubble-outline" size={COMMENT_ICON} color={colors.ink} />
+          <Ionicons
+            name="chatbubble-outline"
+            size={feed ? COMMENT_ICON_LARGE : COMMENT_ICON}
+            color={colors.ink}
+          />
           <Text variant="badge">{commentCount}</Text>
         </Pressable>
       </View>
@@ -577,6 +640,20 @@ export function FriendCard({ friend, onPress, locked, accessory, style, post }: 
             {friend.handle}{' '}
           </Text>
           {caption}
+        </Text>
+      ) : null}
+
+      {/* The way into the thread in words, under the caption — the pill
+          above says how many, this says there's more to read. */}
+      {feed && commentCount > 0 ? (
+        <Text
+          variant="meta"
+          color={colors.inkMuted}
+          accessibilityRole="button"
+          onPress={() => setCommentsOpen(true)}
+          style={styles.viewComments}
+        >
+          {commentCount === 1 ? 'View 1 comment' : `View all ${commentCount} comments`}
         </Text>
       ) : null}
 
@@ -790,11 +867,17 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceSunken,
   },
+  reactionLarge: {
+    height: REACTION_CHIP_LARGE,
+  },
   reactionSelected: {
     backgroundColor: colors.ink,
   },
   caption: {
     marginTop: layout.stack,
+  },
+  viewComments: {
+    marginTop: layout.line,
   },
   // Centred over the photo, never in the way of a touch.
   heartBurst: {
