@@ -215,10 +215,13 @@ function ChallengePage({
 
   const daysToGo = Math.round((start.getTime() - today.getTime()) / DAY_MS);
   const startsIn = daysToGo <= 1 ? 'Starts tomorrow' : `Starts in ${daysToGo} days`;
-  const badge: { label: string; icon?: keyof typeof Ionicons.glyphMap } = {
-    preview: { label: `${startsIn} · ${longDate(start)}` },
+  // Every stage's badge leads with a mark: the calendar before Day 1, the
+  // tick once you're in, the hourglass while it runs (the browse lists'
+  // own "under way"), the lock once joining has closed.
+  const badge: { label: string; icon: keyof typeof Ionicons.glyphMap } = {
+    preview: { label: `${startsIn} · ${longDate(start)}`, icon: 'calendar-outline' as const },
     waiting: { label: `You're in · starts ${longDate(start)}`, icon: 'checkmark' as const },
-    active: { label: `Day ${day} of ${totalDays} · you're in` },
+    active: { label: `Day ${day} of ${totalDays} · you're in`, icon: 'hourglass-outline' as const },
     closed: { label: `Day ${day} of ${totalDays} · closed to join`, icon: 'lock-closed' as const },
   }[mode];
 
