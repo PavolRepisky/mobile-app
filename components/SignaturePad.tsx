@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import {
   PanResponder,
-  Pressable,
   StyleSheet,
   View,
   type LayoutChangeEvent,
@@ -11,6 +10,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 import { colors, layout, radii, spacing } from '@/constants/theme';
+import { Pill } from './Pill';
 import { Text } from './Text';
 
 /** Tall enough for a signature's loops with room over the line, sampled off
@@ -134,18 +134,20 @@ export function SignaturePad({
         ) : null}
       </View>
 
+      {/* A pill of its own in the fill grey rather than muted text — a
+          faint word in the corner went unseen over a fresh signature. */}
       {strokes.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Clear signature"
-          onPress={clear}
-          hitSlop={spacing.sm}
-          style={({ pressed }) => [styles.clear, pressed && styles.pressed]}
-        >
-          <Text variant="metaBold" color={colors.inkMuted}>
-            Clear
-          </Text>
-        </Pressable>
+        <View style={styles.clear}>
+          <Pill
+            label="Clear"
+            tone="muted"
+            size="sm"
+            bold
+            labelVariant="metaBold"
+            onPress={clear}
+            style={styles.clearPill}
+          />
+        </View>
       ) : null}
     </View>
   );
@@ -176,10 +178,10 @@ const styles = StyleSheet.create({
   clear: {
     position: 'absolute',
     top: layout.heading,
-    right: layout.block,
+    right: layout.heading,
   },
-  pressed: {
-    opacity: 0.7,
+  clearPill: {
+    backgroundColor: colors.surfaceSunken,
   },
 });
 

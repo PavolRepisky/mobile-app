@@ -53,10 +53,14 @@ export default function JoinScreen() {
         bottomExtra={layout.block + buttonHeight + dockGap - insets.bottom}
         // The pad takes the drag while a finger is signing.
         scrollEnabled={!signing}
-        header={<ScreenHeader />}
+        // Says what the page is before the pledge does — the back button
+        // alone left the bar reading as blank.
+        header={<ScreenHeader plainTitle="Join challenge" />}
       >
         <View style={styles.question}>
-          <Text variant="headlineSm">Make it official</Text>
+          {/* A step under the bar's "Join challenge", so the page's own title
+              stays the biggest thing on it. */}
+          <Text variant="sectionHeading">Make it official</Text>
           <Text variant="copy" color={colors.inkMuted}>
             Read it, then sign with your finger.
           </Text>
