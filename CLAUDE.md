@@ -154,7 +154,8 @@ task ring with its "3/5" badge · `CalendarMonth` month grid · `WeekPosts`
 the week as a row of little posts · `PhotoCollage` the day's photo mosaic ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
-`FriendCard` · `LockedOverlay` · `ChallengeRow` a
+`FriendCard` · `PostHeader` who posted a day — face (in its task ring on My
+days and a story), name, time, "Day N · challenge" · `LockedOverlay` · `ChallengeRow` a
 challenge in a list, photo first, its start date at the end while it can be joined
 · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.

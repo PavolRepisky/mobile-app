@@ -20,9 +20,8 @@ import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/const
 import { REACTIONS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';
-import { Avatar } from './Avatar';
 import { CommentsSheet } from './CommentsSheet';
-import { TaskRing } from './TaskRing';
+import { PostHeader } from './PostHeader';
 import { LockedOverlay } from './LockedOverlay';
 import { MosaicArrangement, type CollageCell } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
@@ -128,19 +127,10 @@ const REACTION_CHIP = 32;
 /** The reactions a step up, for a feed of posts read one after another. */
 const REACTION_CHIP_LARGE = 34;
 
-/** The poster's avatar beside their name — the same height as a reaction
- * pill, so the identity row and the action row sit on one scale. */
-const POST_AVATAR = 32;
-/** A feed post's face in My Profile's ring: the photo stays the bare
- * avatar's size, and the band and its gap are added around it in the
- * profile's own proportions (6 and 5 on a 120 face). */
-const POST_RING = POST_AVATAR * (1 + (2 * (6 + 5)) / 120);
 /** The comment glyph in its pill, drawn to the emoji's own size beside it so
  * the comment pill reads as one more of the reactions' row. */
 const COMMENT_ICON = 16;
 const COMMENT_ICON_LARGE = 18;
-/** The drawn dot between the challenge and "Day N". */
-const SUBTITLE_DOT = 3;
 /** One carousel page marker riding the photo's bottom edge. */
 const CAROUSEL_DOT = 6;
 
@@ -151,11 +141,6 @@ const clockMinutes = (time: string) => {
   const hour = (Number(match[1]) % 12) + (match[3].toUpperCase() === 'PM' ? 12 : 0);
   return hour * 60 + Number(match[2]);
 };
-
-/** "9:40pm" as "9:40 PM" — a space before the half of the day, in capitals,
- * however the time was stored. */
-const displayTime = (time: string) =>
-  time.trim().replace(/\s*([ap])\.?m\.?$/i, (_, half: string) => ` ${half.toUpperCase()}M`);
 
 /** When the day became a post: the latest time on any of its tasks — the
  * checklist's order isn't the order they were done in. */
@@ -410,82 +395,23 @@ export function FriendCard({
     setDraft('');
   };
 
-  const challengeLink = (
-    <Text
-      variant="meta"
-      color={colors.inkMuted}
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${challenge.name}`}
-      onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-      // Underlined as a link on Community; plain on a feed of your own days,
-      // where it's the same challenge on every post.
-      style={feed ? undefined : styles.challengeLink}
-    >
-      {challenge.name}
-    </Text>
-  );
-  const dayLabel = (
-    <Text variant="meta" color={colors.inkMuted}>
-      Day {day}
-    </Text>
-  );
-
   return (
     <View style={style}>
-      {/* Avatar and name lead to the profile; the subtitle's own challenge
-          link leads somewhere else entirely — two separate tap targets, so
-          neither is a Pressable nested inside the other. */}
-      <View style={styles.identity}>
-        <Pressable
-          accessibilityRole={onPress ? 'button' : undefined}
-          accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
-          onPress={onPress}
-        >
-          {feed ? (
-            // The day's own ring, the one My Profile draws: a segment per
-            // task, the done ones in the accent — so each post says at a
-            // glance how full that day was.
-            <TaskRing
-              avatar={friend.avatar}
-              done={postTasks.filter((task) => task.done).length}
-              total={postTasks.length}
-              size={POST_RING}
-              badge={false}
-              look="profile"
-            />
-          ) : (
-            <Avatar source={friend.avatar} size={POST_AVATAR} />
-          )}
-        </Pressable>
-        <View style={styles.identityText}>
-          <View style={styles.subtitleRow}>
-            <Text
-              variant="itemTitle"
-              numberOfLines={1}
-              accessibilityRole={onPress ? 'button' : undefined}
-              accessibilityLabel={onPress ? `${friend.name}'s profile` : undefined}
-              onPress={onPress}
-              style={styles.nameText}
-            >
-              {friend.name}
-            </Text>
-            {time ? (
-              <Text variant="meta" color={colors.inkMuted}>
-                {displayTime(time)}
-              </Text>
-            ) : null}
-          </View>
-          {/* The day leads on a feed of one person's days — it's what
-              tells one post from the next; the challenge is the same on
-              every one. */}
-          <View style={styles.subtitleRow}>
-            {feed ? dayLabel : challengeLink}
-            <View style={styles.subtitleDot} />
-            {feed ? challengeLink : dayLabel}
-          </View>
-        </View>
-        {accessory}
-      </View>
+      <PostHeader
+        avatar={friend.avatar}
+        name={friend.name}
+        time={time}
+        day={day}
+        challengeName={challenge.name}
+        presentation={presentation}
+        done={postTasks.filter((task) => task.done).length}
+        total={postTasks.length}
+        onPressProfile={onPress}
+        onPressChallenge={() =>
+          router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })
+        }
+        accessory={accessory}
+      />
 
       {slides.length ? (
         // The bleed and the top gap both sit outside the lock, on this
@@ -760,39 +686,6 @@ export function DayStamp({ day, kicker, referenceWidth, style }: DayStampProps) 
 }
 
 const styles = StyleSheet.create({
-  identity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  identityText: {
-    flex: 1,
-    marginLeft: layout.inline,
-  },
-  // A bare step rather than a `layout` role: the air either side of the
-  // separator dot is an optical call — close enough that the challenge, the
-  // dot and the day read as one line of detail.
-  subtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs + spacing.xs / 2,
-  },
-  // Gives way before the time does, so a long name ellipsizes rather than
-  // pushing the time off the row.
-  nameText: {
-    flexShrink: 1,
-  },
-  challengeLink: {
-    textDecorationLine: 'underline',
-  },
-  // A drawn dot rather than a "·" glyph — the post-detail screen's own
-  // separator, so its size and either gap is its own to set, not whatever a
-  // character happens to render at.
-  subtitleDot: {
-    width: SUBTITLE_DOT,
-    height: SUBTITLE_DOT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.inkMuted,
-  },
   // The gap before the photo and the full-bleed width both live here, kept
   // outside `LockedOverlay`: bled *inside* it, the overlay's own
   // `overflow: hidden` would clip the bleed straight back to this view's

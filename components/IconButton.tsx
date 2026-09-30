@@ -10,6 +10,7 @@ import {
 
 import { colors, shadows } from '@/constants/theme';
 import { GlassSurface } from './GlassSurface';
+import { Text } from './Text';
 
 /**
  * Set by `ScreenHeader`'s bar, so every button in it — its own back button
@@ -41,6 +42,9 @@ export interface IconButtonProps {
   /** Can't be pressed right now — the glyph drops to `inkGhost`, the app's
    * "not available" grey, and the button stops taking taps. */
   disabled?: boolean;
+  /** Drawn in place of the glyph — a story's reactions button, once a
+   * reaction has been left, wears it. */
+  emoji?: string;
 }
 
 /**
@@ -59,6 +63,7 @@ export function IconButton({
   accessibilityLabel,
   shadow = true,
   disabled,
+  emoji,
 }: IconButtonProps) {
   const inHeader = useContext(InHeaderBar);
   const radius = size / 2;
@@ -68,7 +73,9 @@ export function IconButton({
     borderRadius: radius,
   };
 
-  const glyph = (
+  const glyph = emoji ? (
+    <Text variant="sectionHeading">{emoji}</Text>
+  ) : (
     <Ionicons name={name} size={iconSize ?? size * 0.44} color={disabled ? colors.inkGhost : color} />
   );
 

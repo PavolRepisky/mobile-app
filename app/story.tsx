@@ -2,17 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar } from '@/components/Avatar';
 import { DayStamp, LOCK_BLUR_RADIUS } from '@/components/FriendCard';
+import { IconButton } from '@/components/IconButton';
 import { MosaicArrangement } from '@/components/PhotoCollage';
-import { Pill } from '@/components/Pill';
+import { Pill, pillHeights } from '@/components/Pill';
 import { Placeholder } from '@/components/Placeholder';
+import { PostHeader } from '@/components/PostHeader';
 import { Text } from '@/components/Text';
-import { absoluteFill, colors, radii, spacing } from '@/constants/theme';
-import { PEOPLE } from '@/data/content';
+import { absoluteFill, colors, layout, radii, spacing } from '@/constants/theme';
+import { PEOPLE, REACTIONS } from '@/data/content';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 
 /** How long a story holds before it moves on. */
@@ -22,9 +23,20 @@ const STORY_MS = 5000;
 const HOLD_MS = 200;
 /** The queue's name for your own story; everyone else goes by their id. */
 const ME = 'me';
-const HEAD_AVATAR = 34;
-/** The post's own separator dot, so the two headers read alike. */
-const HEAD_DOT = 3;
+/** The close glyph at the end of the header. */
+const CLOSE_ICON = 26;
+/** Where a sent reaction's burst sets off from, above the foot. */
+const BURST_START = 44;
+/** The reactions button's glyph inside its circle. */
+const REACTIONS_ICON = 20;
+/** How many of an emoji rise when it's sent, how long each takes, and how
+ * far apart they set off — a burst, not a single sticker. */
+const BURST_COUNT = 8;
+const BURST_MS = 1300;
+const BURST_STAGGER = 70;
+/** How far a sent emoji can drift sideways on its way up. */
+const BURST_SPREAD = 140;
+
 
 /** Handed to `Image` as often as to a `View`, so it's kept out of the
  * stylesheet the way the post's own grid cell is. */
@@ -59,7 +71,9 @@ const SUMMARY_CELL = { flex: 1 } as const;
 export default function StoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, challenge, currentDay, markStoryWatched, hasPhotographedTask } = useApp();
+  const {
+    profile, challenge, currentDay, markStoryWatched, hasPhotographedTask, postReactions, reactToPost,
+  } = useApp();
   const params = useLocalSearchParams<{ day?: string; friend?: string; queue?: string }>();
 
   // Whose story is playing. Held here rather than read off the params, so
@@ -79,6 +93,14 @@ export default function StoryScreen() {
   const rows = useDayProgress(viewing);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Instagram's quick reactions: open, they hold the story where it is until
+  // one is sent or the tray is put away.
+  const [trayOpen, setTrayOpen] = useState(false);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  /** The emoji rising after a send — each with its own drift and timing. */
+  const [bursts, setBursts] = useState<
+    { id: string; emoji: string; drift: number; value: Animated.Value }[]
+  >([]);
 
   /**
    * One story per task with a photo on it, in checklist order — read off your
@@ -93,6 +115,7 @@ export default function StoryScreen() {
             .filter((task) => task.photo || task.photoSeed)
             .map((task) => ({
               key: task.label,
+              label: task.label,
               photo: task.photo ?? null,
               seed: task.photoSeed ?? task.label,
               time: task.time ?? null,
@@ -101,6 +124,7 @@ export default function StoryScreen() {
             .filter((row) => row.photo || row.photoSeed)
             .map((row) => ({
               key: row.task.id,
+              label: row.task.label,
               photo: row.photo ?? null,
               seed: row.photoSeed ?? row.task.id,
               time: row.time ?? null,
@@ -126,11 +150,52 @@ export default function StoryScreen() {
     ? [
         ...stories.map((story) => ({ ...story, summary: false })),
         ...(finished && !locked
-          ? [{ key: 'post', photo: null, seed: '', time: null, summary: true }]
+          ? [{ key: 'post', label: '', photo: null, seed: '', time: null, summary: true }]
           : []),
       ]
-    : [{ key: 'empty', photo: null, seed: 'story-empty', time: null, summary: false }];
+    : [{ key: 'empty', label: '', photo: null, seed: 'story-empty', time: null, summary: false }];
   const current = frames[Math.min(index, frames.length - 1)];
+
+  // The day's whole checklist, for the ring and the task badge — every task,
+  // not only the ones with a photo on them.
+  const taskTotal = person ? person.tasks.length : rows.length;
+  const taskDone = person
+    ? person.tasks.filter((task) => task.done).length
+    : rows.filter((row) => row.done).length;
+
+  // The same post the feed shows for this day, so a reaction left on the
+  // story is the one on the post.
+  const postId = person ? person.id : `day-${viewing}`;
+  const myReaction = postReactions[postId] ?? null;
+  /**
+   * Sends a reaction from the tray: it becomes the post's reaction — the one the feed
+   * shows — and a burst of it floats up the screen, the way Instagram's
+   * quick reactions go off. Sending the one already left keeps it rather
+   * than taking it back.
+   */
+  const sendReaction = (emoji: string) => {
+    if (myReaction !== emoji) reactToPost(postId, emoji);
+    setTrayOpen(false);
+    const batch = Date.now().toString();
+    const particles = Array.from({ length: BURST_COUNT }, (_, i) => ({
+      id: `${batch}-${i}`,
+      emoji,
+      drift: (Math.random() - 0.5) * BURST_SPREAD,
+      value: new Animated.Value(0),
+    }));
+    setBursts((now) => [...now, ...particles]);
+    Animated.stagger(
+      BURST_STAGGER,
+      particles.map((particle) =>
+        Animated.timing(particle.value, {
+          toValue: 1,
+          duration: BURST_MS,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ),
+    ).start(() => setBursts((now) => now.filter((b) => !b.id.startsWith(`${batch}-`))));
+  };
 
   // Each photo counts as watched the moment it's up, the way the ring that
   // opened it reads it back. The empty frame and the post at the end aren't
@@ -195,7 +260,7 @@ export default function StoryScreen() {
     elapsed.current = 0;
   }, [index, owner]);
   useEffect(() => {
-    if (paused) return;
+    if (paused || trayOpen) return;
     fill.setValue(Math.min(elapsed.current / STORY_MS, 1));
     const startedAt = Date.now();
     const run = Animated.timing(fill, {
@@ -217,7 +282,7 @@ export default function StoryScreen() {
     // `advance` is rebuilt every render; the run only has to restart when the
     // story it is timing changes or a hold lets go.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, owner, frames.length, paused, fill]);
+  }, [index, owner, frames.length, paused, trayOpen, fill]);
 
   // The face and the name lead to the profile, the way they do on a post:
   // a friend's opens in place of the story, yours drops back to your tab.
@@ -320,68 +385,33 @@ export default function StoryScreen() {
           ))}
         </View>
 
-        {/* A post's own header, set on the photo: face and name to the
-            profile, the challenge under them to its feed — separate tap
-            targets, so neither is nested inside the other. */}
-        <View style={styles.head}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${person ? person.name : profile.name}'s profile`}
-            onPress={openProfile}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Avatar
-              source={person ? person.avatar : (profile.avatar ?? profile.avatarSeed)}
-              size={HEAD_AVATAR}
-            />
-          </Pressable>
-          <View style={styles.identity}>
-            <View style={styles.nameRow}>
-              <Text
-                variant="bodyBold"
-                color={colors.inkInverse}
-                accessibilityRole="button"
-                onPress={openProfile}
-                style={styles.name}
-              >
-                {person ? person.name : profile.name}
-              </Text>
-              {current.time ? (
-                <Text variant="body" color={colors.onMediaSoft}>
-                  {current.time}
-                </Text>
-              ) : null}
-            </View>
-            <View style={styles.nameRow}>
-              <Text
-                variant="meta"
-                color={colors.onMediaSoft}
-                numberOfLines={1}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${challenge.name}`}
-                onPress={openChallenge}
-                style={[styles.challengeLink, styles.shrink]}
-              >
-                {challenge.name}
-              </Text>
-              <View style={styles.headDot} />
-              <Text variant="meta" color={colors.onMediaSoft}>
-                Day {viewing}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.spacer} />
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            onPress={() => router.back()}
-            hitSlop={12}
-          >
-            <Ionicons name="close" size={26} color={colors.inkInverse} />
-          </Pressable>
-        </View>
+        {/* The post's own header — the one My days wears — set on the
+            photo. */}
+        <PostHeader
+          avatar={person ? person.avatar : (profile.avatar ?? profile.avatarSeed)}
+          name={person ? person.name : profile.name}
+          time={current.time ?? undefined}
+          day={viewing}
+          challengeName={challenge.name}
+          presentation="feed"
+          done={taskDone}
+          total={taskTotal}
+          onMedia
+          onPressProfile={openProfile}
+          onPressChallenge={openChallenge}
+          accessory={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              onPress={() => router.back()}
+              hitSlop={12}
+              style={styles.close}
+            >
+              <Ionicons name="close" size={CLOSE_ICON} color={colors.inkInverse} />
+            </Pressable>
+          }
+          style={styles.head}
+        />
       </View>
 
       {/* Tap zones sit under the chrome so the close button still wins, and
@@ -404,6 +434,102 @@ export default function StoryScreen() {
           />
         ))}
       </View>
+
+      {/* Which task this photo proves, in the white pill a story's labels
+          wear, and a round button of the same white for the quick
+          reactions. Neither over a locked story, nor over the post frame at
+          the end, which carries its own way through. */}
+      {!locked && !current.summary && stories.length ? (
+        <View
+          pointerEvents="box-none"
+          style={[styles.foot, { paddingBottom: insets.bottom + spacing.md }]}
+        >
+          <Pill tone="floating" label={current.label} bold style={styles.task} />
+          <IconButton
+            name="happy-outline"
+            size={pillHeights.md}
+            iconSize={REACTIONS_ICON}
+            background={colors.surface}
+            // Once a reaction is left, the button wears it — what you sent,
+            // at a glance, and still the way to change it.
+            emoji={myReaction ?? undefined}
+            onPress={() => setTrayOpen(true)}
+            accessibilityLabel={myReaction ? `Reactions, you sent ${myReaction}` : 'Reactions'}
+          />
+        </View>
+      ) : null}
+
+      {/* The quick reactions over a dimmed story; a tap anywhere else puts
+          them away without sending. */}
+      {trayOpen ? (
+        <Pressable
+          accessibilityLabel="Close reactions"
+          onPress={() => setTrayOpen(false)}
+          style={[absoluteFill, styles.tray]}
+        >
+          <Text variant="copyBold" color={colors.inkInverse}>
+            Quick reactions
+          </Text>
+          <View style={styles.trayRow}>
+            {REACTIONS.map((emoji) => (
+              <Pressable
+                key={emoji}
+                accessibilityRole="button"
+                accessibilityLabel={`Send ${emoji}`}
+                accessibilityState={{ selected: myReaction === emoji }}
+                onPress={() => sendReaction(emoji)}
+                style={({ pressed }) => pressed && styles.trayPressed}
+              >
+                <Text variant="burst">{emoji}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      ) : null}
+
+      {/* A sent reaction, rising from the foot and fading out on the way. */}
+      {bursts.length ? (
+        <View pointerEvents="none" style={[absoluteFill, styles.bursts]}>
+          {bursts.map((burst) => (
+            <Animated.View
+              key={burst.id}
+              style={[
+                styles.burst,
+                {
+                  left: screenWidth / 2 + burst.drift - BURST_START / 2,
+                  bottom: insets.bottom + BURST_START,
+                  opacity: burst.value.interpolate({
+                    inputRange: [0, 0.1, 0.7, 1],
+                    outputRange: [0, 1, 1, 0],
+                  }),
+                  transform: [
+                    {
+                      translateY: burst.value.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -screenHeight * 0.6],
+                      }),
+                    },
+                    {
+                      translateX: burst.value.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, burst.drift / 2],
+                      }),
+                    },
+                    {
+                      scale: burst.value.interpolate({
+                        inputRange: [0, 0.2, 1],
+                        outputRange: [0.4, 1.1, 0.9],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Text variant="burst">{burst.emoji}</Text>
+            </Animated.View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -451,37 +577,54 @@ const styles = StyleSheet.create({
     transform: [{ scaleX: 0 }],
   },
   head: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginTop: spacing.md,
   },
-  identity: {
-    flexShrink: 1,
-    marginLeft: spacing.md,
+  close: {
+    marginLeft: layout.inline,
   },
-  // The post's subtitle spacing: close enough that name and time, or
-  // challenge, dot and day, read as one line.
-  nameRow: {
+  // The task and the reactions button on one line along the bottom, clear
+  // of the home indicator, over the tap zones so pressing them doesn't skip
+  // the story.
+  foot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs + spacing.xs / 2,
+    justifyContent: 'space-between',
+    gap: layout.inline,
+    paddingHorizontal: spacing.lg,
+    zIndex: 2,
   },
-  headDot: {
-    width: HEAD_DOT,
-    height: HEAD_DOT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.onMediaSoft,
-  },
-  shrink: {
+  // Gives way before the button does, so a long task name shortens rather
+  // than pushing it off the row. Centred on the row: a `Pill` otherwise pins
+  // itself to the top of it, a step above the button beside it.
+  task: {
     flexShrink: 1,
+    alignSelf: 'center',
   },
-  name: {
-    fontSize: 17,
+  // Over the whole story, chrome included, so a tap outside the emoji only
+  // ever closes the tray.
+  tray: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: layout.section,
+    backgroundColor: colors.scrim,
+    zIndex: 3,
   },
-  // Underlined like the challenge under a post's name, so it reads as a
-  // link on a photo where there's no other cue.
-  challengeLink: {
-    textDecorationLine: 'underline',
+  trayRow: {
+    flexDirection: 'row',
+    gap: layout.section,
+  },
+  trayPressed: {
+    transform: [{ scale: 0.9 }],
+  },
+  bursts: {
+    zIndex: 4,
+  },
+  burst: {
+    position: 'absolute',
   },
   lockWash: {
     alignItems: 'center',
@@ -491,9 +634,6 @@ const styles = StyleSheet.create({
   // `Pill` shrink-wraps to the start of its row; the lock sits dead centre.
   lockPill: {
     alignSelf: 'center',
-  },
-  spacer: {
-    flex: 1,
   },
   zones: {
     ...absoluteFill,
