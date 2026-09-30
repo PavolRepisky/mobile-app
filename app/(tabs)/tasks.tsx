@@ -1,119 +1,101 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, View, type LayoutRectangle } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
-import { PhotoCollage } from '@/components/PhotoCollage';
-import { PopoverMenu } from '@/components/PopoverMenu';
+import { CameraSheet } from '@/components/CameraSheet';
+import { CheckCircle } from '@/components/CheckCircle';
+import { DayStamp } from '@/components/FriendCard';
 import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
-import { Screen } from '@/components/Screen';
+import { PhotoCollage } from '@/components/PhotoCollage';
+import { Placeholder } from '@/components/Placeholder';
+import { PopoverMenu } from '@/components/PopoverMenu';
+import { ReminderPill } from '@/components/ReminderPill';
+import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { TaskCameraGrid } from '@/components/TaskCameraGrid';
-import { WeekTracker, type WeekCellStatus } from '@/components/WeekTracker';
-import { colors, radii, screenPadding, spacing } from '@/constants/theme';
-import { useApp, useDayProgress } from '@/hooks/useAppState';
-import { addDays } from '@/lib/format';
+import { Text } from '@/components/Text';
+import { colors, layout, radii } from '@/constants/theme';
+import {
+  DEFAULT_LAST_CALL,
+  DEFAULT_TASK_REMINDER,
+  useApp,
+  useDayProgress,
+} from '@/hooks/useAppState';
+import { timeLeftToday } from '@/lib/format';
 
 /**
- * The day opens on the calm mosaic block the calendar's own day cells cut
- * theirs — photos merged edge to edge behind a hairline seam, the same cut
- * the live camera grid's own tiles draw — with an open task's tile inviting
- * a tap. That tap is the only way into the live camera grid, where every
- * other open task sits over the viewfinder as a frosted, labelled tile until
- * it is shot; closing the camera, or finishing the last task, drops back to
- * the calm view.
+ * The day as the post it's building: today's photos already sit in the
+ * square they'll be posted in, and every open square is a light tile with a
+ * camera. Tapping one raises the camera card over the page, any open task a
+ * swipe away, and the shot drops into the square that was tapped, so the
+ * post comes out laid the way its owner chose.
+ *
+ * Under the post, the day's tasks themselves — each with its note and its
+ * reminder while it's open, your shot and the time once it's done — then the
+ * last call. The tasks keep no order:
+ * nothing is "next", any of them can be done first.
  */
 
-/** The black seam between the mosaic's photos, and round its outer edge —
- * half the collage's default. At full ink, the default two read as a heavy
- * drawn grid over the prints; one keeps the cut without the weight. */
-const GRID_SEAM = 1;
-
-/** The carousel's page dots — the same 6px marks the multi-photo posts use. */
-const PAGE_DOT = 6;
+/** The lives, drawn small enough to sit on the status line's own height. */
+const HEART = 14;
+/** A done task's shot in its row — the reminder step's task photo size. */
+const ROW_PHOTO = 44;
+/** An open task's empty ring, centred in the column the done rows' shots
+ * use, so the names line up down the list whether a task is done or not. */
+const OPEN_RING = 26;
+const OPEN_RING_BORDER = 2;
+/** A done row's tick, a step under the ring it replaces. */
+const ROW_TICK = 24;
+/** The hairline between rows, as on the reminder step. */
+const ROW_RULE = 1;
 
 export default function TasksScreen() {
   const router = useRouter();
-  const { currentDay, startDate, totalDays, tasks, progress, undoTask, completeTaskWithPhoto } =
-    useApp();
+  const {
+    currentDay,
+    totalDays,
+    challenge,
+    tasks,
+    livesLeft,
+    livesTotal,
+    reminders,
+    setReminders,
+    undoTask,
+    completeTaskWithPhoto,
+  } = useApp();
 
-  // The page is today and nothing else: with the tick scrubber gone there is
-  // no way to park on another day, so the grid reads off the current one.
+  // In the post's own order, square by square.
   const rows = useDayProgress(currentDay);
   const done = rows.filter((row) => row.done).length;
   const allDone = rows.length > 0 && done === rows.length;
+  // A task tapped in the list has no square of its own yet, so its shot
+  // takes the first one still open.
+  const firstFreeSlot = rows.findIndex((row) => !row.done);
 
-  /**
-   * This calendar week, Monday first, read off the challenge's own progress.
-   * Each weekday is turned back into a challenge day by counting from the
-   * start date, so a week straddling the start or the end simply leaves
-   * those columns blank rather than inventing days either side.
-   */
-  const { weekDays, weekRows, todayIndex } = useMemo(() => {
-    const today = addDays(startDate, currentDay - 1);
-    const offset = (today.getDay() + 6) % 7;
-    const days = Array.from({ length: 7 }, (_, i) => currentDay - offset + i);
-    return {
-      weekDays: days,
-      todayIndex: offset,
-      weekRows: tasks.map((task) => ({
-        id: task.id,
-        label: task.label,
-        days: days.map((day): WeekCellStatus => {
-          if (day < 1 || day > totalDays) return 'outside';
-          if (progress[day]?.[task.id]?.done) return 'done';
-          if (day === currentDay) return 'today';
-          return day < currentDay ? 'missed' : 'future';
-        }),
-      })),
-    };
-  }, [startDate, currentDay, totalDays, tasks, progress]);
+  // The same rows in the challenge's own list order, open ones first: a
+  // grouping by what's left, not an order to do them in.
+  const listed = tasks.flatMap((task) => rows.filter((row) => row.task.id === task.id));
+  const openRows = listed.filter((row) => !row.done);
+  const doneRows = listed.filter((row) => row.done);
 
-  /**
-   * The grid pages sideways through this week's days, one mosaic a page —
-   * only the days the challenge actually covers, so a week straddling its
-   * start or end has no blank pages for days that were never part of it.
-   * It opens on today, and the tracker's weekday header follows whichever
-   * page is showing.
-   */
-  const pages = useMemo(
-    () =>
-      weekDays
-        .map((day, weekIndex) => ({ day, weekIndex }))
-        .filter(({ day }) => day >= 1 && day <= totalDays),
-    [weekDays, totalDays],
-  );
-  const todayPage = Math.max(0, pages.findIndex((page) => page.day === currentDay));
-  const [selectedWeekIndex, setSelectedWeekIndex] = useState(todayIndex);
-  const selectedPage = Math.max(
-    0,
-    pages.findIndex((page) => page.weekIndex === selectedWeekIndex),
-  );
-  const carousel = useRef<FlatList<(typeof pages)[number]>>(null);
-  // A new day starts back on today's page rather than wherever the last one
-  // was left.
-  useEffect(() => setSelectedWeekIndex(todayIndex), [currentDay, todayIndex]);
+  const reminderFor = (taskId: string) =>
+    taskId in reminders.tasks ? reminders.tasks[taskId] : DEFAULT_TASK_REMINDER;
+  const setReminderFor = (taskId: string, at: number | null) =>
+    setReminders({ ...reminders, tasks: { ...reminders.tasks, [taskId]: at } });
 
-  /**
-   * The camera is opt-in: the tab always opens on the calm view, and this
-   * only turns false while the live grid is up, from tapping an open tile.
-   * Closing it — there's nowhere else on the tab to go — drops back to the
-   * calm view the same way finishing the last task already does on its own.
-   * Reset whenever the day itself changes, so paging to a new day never
-   * carries the previous one's camera state with it.
-   */
-  const [cameraDismissed, setCameraDismissed] = useState(true);
-  useEffect(() => setCameraDismissed(true), [currentDay]);
-  const showCamera = !allDone && !cameraDismissed;
+  // The countdown only needs the minute, so it ticks once a minute.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
-  /**
-   * The space the calm mosaic leaves for its grid once the heading above it
-   * has taken its own room. Only the calm view needs this — the live camera
-   * grid is full-bleed and has no ratio to work out.
-   */
-  const [gridBox, setGridBox] = useState<LayoutRectangle | null>(null);
-  const gridWidth = gridBox ? gridBox.width - screenPadding * 2 : 0;
-  const gridRatio = gridWidth > 0 && gridBox ? gridBox.height / gridWidth : 1;
+  /** The square the camera card is filling and the task picked for it;
+   * null while the card is down. */
+  const [shooting, setShooting] = useState<{ slot: number; taskId: string } | null>(null);
+  useEffect(() => setShooting(null), [currentDay]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
@@ -122,140 +104,184 @@ export default function TasksScreen() {
    * undo-or-cancel. */
   const [doneFor, setDoneFor] = useState<{ taskId: string; day: number } | null>(null);
 
-
   return (
     <>
-      {showCamera ? (
-        // Full-bleed and bare, the way a capture screen should be — no day
-        // heading, no settings menu, no tab bar. Restart/End/Change Challenge
-        // stay reachable from the calm view's settings glyph below, not from here.
-        <TaskCameraGrid
-          day={currentDay}
-          rows={rows}
-          onCapture={completeTaskWithPhoto}
-          onUndo={undoTask}
-          onClose={() => setCameraDismissed(true)}
-        />
-      ) : (
-        // Every tab root's fixed title row: the title on the gutter and the
-        // challenge's settings at the end, the same bar and the same white
-        // corner button My Profile and Community carry.
-        <Screen
-          padded={false}
-          tabBar
-          header={
-            <ScreenHeader
-              plainTitle="Tasks"
-              showBack={false}
-              right={
-                <IconButton
-                  name="settings-outline"
-                  size={cornerButtonSize}
-                  iconSize={cornerIconSize}
-                  background={colors.surface}
-                  onPress={() => setMenuOpen(true)}
-                  accessibilityLabel="Challenge settings"
-                />
-              }
-            />
-          }
-        >
-          <WeekTracker
-            rows={weekRows}
-            todayIndex={todayIndex}
-            selectedIndex={selectedWeekIndex}
-            style={styles.tracker}
+      <ScreenScroll
+        tabBar
+        header={
+          <ScreenHeader
+            plainTitle="Tasks"
+            showBack={false}
+            right={
+              <IconButton
+                name="ellipsis-horizontal"
+                size={cornerButtonSize}
+                iconSize={cornerIconSize}
+                background={colors.surface}
+                onPress={() => setMenuOpen(true)}
+                accessibilityLabel="Challenge options"
+              />
+            }
           />
+        }
+      >
+        {/* Which challenge these are the tasks of — the tab is shared by
+            whatever you've joined, so it says so before anything else. */}
+        <Text variant="itemTitle" numberOfLines={1}>
+          {challenge.name}
+        </Text>
 
-          {/* The calm record: every task a tile in its own mosaic, the print
-              itself standing in for the tick a row used to carry. Tapping a
-              done tile offers to undo it; tapping an open one (closed out of
-              the camera without finishing the day) drops straight back into
-              the live grid. */}
-          <View style={styles.gridArea}>
-            <View style={styles.carousel} onLayout={(e) => setGridBox(e.nativeEvent.layout)}>
-              {gridBox ? (
-                <FlatList
-                  ref={carousel}
-                  // Re-keyed on the measured width so a relayout rebuilds the
-                  // pages at their new size instead of scrolling mid-page.
-                  key={gridBox.width}
-                  data={pages}
-                  keyExtractor={(page) => String(page.day)}
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  initialScrollIndex={todayPage}
-                  getItemLayout={(_, index) => ({
-                    length: gridBox.width,
-                    offset: gridBox.width * index,
-                    index,
-                  })}
-                  // Follows the swipe as it happens rather than once it settles,
-                  // so the dots and the tracker's weekday move with the finger.
-                  scrollEventThrottle={16}
-                  onScroll={(e) => {
-                    const index = Math.round(e.nativeEvent.contentOffset.x / gridBox.width);
-                    const page = pages[index];
-                    if (page) setSelectedWeekIndex(page.weekIndex);
-                  }}
-                  renderItem={({ item: page }) => {
-                    const isToday = page.day === currentDay;
-                    const entries = progress[page.day] ?? {};
-                    return (
-                      <View style={{ width: gridBox.width, height: gridBox.height }}>
-                        <PhotoCollage
-                          // Barely rounded — the smallest cut in the scale, so
-                          // the block reads as a contact sheet with its corners
-                          // just eased rather than a card sitting on the page.
-                          radius={radii.sm}
-                          seam={GRID_SEAM}
-                          ratio={gridRatio}
-                          style={styles.grid}
-                          cells={tasks.map((task) => {
-                            const entry = entries[task.id];
-                            const done = !!entry?.done;
-                            return {
-                              key: task.id,
-                              label: task.label,
-                              photo: entry?.photo,
-                              seed: entry?.photoSeed,
-                              time: entry?.time,
-                              // A done tile offers to undo it on any day; an
-                              // open one only opens the camera on today — a
-                              // day gone by or still to come can't be shot now.
-                              onPress: done
-                                ? () => setDoneFor({ taskId: task.id, day: page.day })
-                                : isToday
-                                  ? () => setCameraDismissed(false)
-                                  : undefined,
-                            };
-                          })}
-                        />
-                      </View>
-                    );
-                  }}
+        {/* Where the day stands, in one line: the count, then the clock in
+            ink since it's the part that changes what to do next; the lives
+            left sit at the far end. */}
+        <View style={styles.status}>
+          <Text variant="meta" color={colors.inkMuted} style={styles.statusText} numberOfLines={1}>
+            {`Day ${currentDay} of ${totalDays} · `}
+            {allDone ? (
+              <Text variant="meta">Posted</Text>
+            ) : (
+              <>
+                {`${done} of ${rows.length} in · `}
+                <Text variant="meta">{`${timeLeftToday(now)} left`}</Text>
+              </>
+            )}
+          </Text>
+          <View style={styles.hearts} accessibilityLabel={`${livesLeft} of ${livesTotal} lives left`}>
+            {Array.from({ length: livesTotal }, (_, i) => (
+              <Ionicons
+                key={i}
+                name="heart"
+                size={HEART}
+                color={i < livesLeft ? colors.ink : colors.inkGhost}
+              />
+            ))}
+          </View>
+        </View>
+
+        <PhotoCollage
+          style={styles.post}
+          radius={0}
+          cells={rows.map((row, slot) => ({
+            key: row.task.id,
+            label: row.task.label,
+            photo: row.photo,
+            seed: row.photoSeed,
+            time: row.time,
+            onPress: row.done
+              ? () => setDoneFor({ taskId: row.task.id, day: currentDay })
+              : () => setShooting({ slot, taskId: row.task.id }),
+          }))}
+        >
+          {/* Once the last square is in, the post is stamped the way it goes
+              up on Community. */}
+          {allDone ? <DayStamp day={currentDay} kicker={challenge.name} /> : null}
+        </PhotoCollage>
+
+        <View style={styles.heading}>
+          <Text variant="itemTitle">Today</Text>
+          <Text variant="meta" color={colors.inkMuted}>
+            {allDone ? `All ${rows.length} in` : `any order · ${openRows.length} open`}
+          </Text>
+        </View>
+        <View>
+          {[...openRows, ...doneRows].map((row, i) => (
+            // The pill is a button of its own, so it sits beside the row's
+            // tap area rather than inside it.
+            <View key={row.task.id} style={[styles.row, i > 0 && styles.rowRule]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  row.done
+                    ? `${row.task.label}, done at ${row.time}. Undo`
+                    : `${row.task.label}. Take its photo`
+                }
+                onPress={
+                  row.done
+                    ? () => setDoneFor({ taskId: row.task.id, day: currentDay })
+                    : () => setShooting({ slot: firstFreeSlot, taskId: row.task.id })
+                }
+                style={({ pressed }) => [styles.rowTap, pressed && styles.pressed]}
+              >
+                {/* No photo until there's a shot: an open task is an empty
+                    ring, a done one shows what you took. */}
+                <View style={styles.rowLead}>
+                  {!row.done ? (
+                    <View style={styles.openRing} />
+                  ) : row.photo ? (
+                    <Image source={row.photo} style={styles.rowPhoto} contentFit="cover" />
+                  ) : (
+                    <Placeholder
+                      seed={row.photoSeed ?? row.task.id}
+                      radius={radii.sm}
+                      style={styles.rowPhoto}
+                    />
+                  )}
+                </View>
+                <View style={styles.rowText}>
+                  <Text variant="copy">{row.task.label}</Text>
+                  {row.task.note ? (
+                    <Text variant="meta" color={colors.inkMuted}>
+                      {row.task.note}
+                    </Text>
+                  ) : null}
+                </View>
+                {row.done ? (
+                  <View style={styles.rowDone}>
+                    <CheckCircle size={ROW_TICK} />
+                    <Text variant="badge" color={colors.inkMuted}>
+                      {row.time}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+              {!row.done ? (
+                <ReminderPill
+                  value={reminderFor(row.task.id)}
+                  onChange={(at) => setReminderFor(row.task.id, at)}
+                  title={row.task.label}
+                  fallback={DEFAULT_TASK_REMINDER}
                 />
               ) : null}
             </View>
+          ))}
+        </View>
 
-            {/* The tell that the grid swipes: one dot a day, the one showing in
-                ink. Under the grid on the page rather than riding the photos
-                the way a post's dots do — the tiles' own labels already hold
-                the bottom edge of the prints. */}
-            {pages.length > 1 ? (
-              <View style={styles.dots}>
-                {pages.map((page, i) => (
-                  <View
-                    key={page.day}
-                    style={[styles.dot, i === selectedPage && styles.dotActive]}
-                  />
-                ))}
-              </View>
-            ) : null}
+        {/* The one nudge that isn't tied to a task, shown while one is still
+            open: it only comes when the day is about to cost a life. */}
+        {!allDone ? (
+          <View style={styles.lastCall}>
+            <View style={styles.rowText}>
+              <Text variant="copyBold">Last call</Text>
+              <Text variant="meta" color={colors.inkMuted}>
+                Only if a task is still missing, so you don't lose a life.
+              </Text>
+            </View>
+            <ReminderPill
+              value={reminders.lastCall}
+              onChange={(at) => setReminders({ ...reminders, lastCall: at })}
+              title="Last call"
+              fallback={DEFAULT_LAST_CALL}
+              onFill
+            />
           </View>
-        </Screen>
-      )}
+        ) : null}
+      </ScreenScroll>
+
+      <CameraSheet
+        visible={shooting !== null}
+        tasks={rows.filter((row) => !row.done).map((row) => ({ id: row.task.id, label: row.task.label }))}
+        taskId={shooting?.taskId ?? null}
+        // Any open task can go in the tapped square, not only the one it
+        // suggested — swiping through them is how the owner lays out their
+        // own post.
+        swipeTasks
+        onChangeTask={(taskId) => setShooting((open) => (open ? { ...open, taskId } : open))}
+        onCapture={(taskId, photo) => {
+          completeTaskWithPhoto(taskId, photo, undefined, shooting?.slot);
+          setShooting(null);
+        }}
+        onClose={() => setShooting(null)}
+      />
 
       <PopoverMenu
         visible={menuOpen}
@@ -340,43 +366,86 @@ export default function TasksScreen() {
 }
 
 const styles = StyleSheet.create({
-  // The fixed header already leaves a title's gap above the page, the same
-  // as every other tab root, so the tracker needs none of its own.
-  tracker: {
-    paddingHorizontal: screenPadding,
-  },
-  gridArea: {
-    flex: 1,
-    // Clear of the tracker above it, and of the floating tab bar below —
-    // both margins shrink `gridArea`'s own measured box, which the ratio
-    // handed to the mosaic is worked out from, so the block itself ends up
-    // that much short of full-bleed on each edge rather than crowding them.
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  carousel: {
-    flex: 1,
-  },
-  dots: {
+  // Tucked under the challenge's name as its second line.
+  status: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.md,
+    alignItems: 'center',
+    gap: layout.inline,
+    marginTop: layout.line,
   },
-  dot: {
-    width: PAGE_DOT,
-    height: PAGE_DOT,
+  statusText: {
+    flex: 1,
+  },
+  hearts: {
+    flexDirection: 'row',
+    gap: layout.line / 2,
+  },
+  // Edge to edge with square corners, the way a post sits on Community, so
+  // today's grid already reads as the post it's about to become.
+  post: {
+    marginTop: layout.heading,
+    marginHorizontal: -layout.gutter,
+  },
+  heading: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: layout.section,
+    marginBottom: layout.stack,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+    paddingVertical: layout.inline,
+  },
+  rowTap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+  },
+  rowRule: {
+    borderTopWidth: ROW_RULE,
+    borderTopColor: colors.surfaceSunken,
+  },
+  rowLead: {
+    width: ROW_PHOTO,
+    alignItems: 'center',
+  },
+  openRing: {
+    width: OPEN_RING,
+    height: OPEN_RING,
     borderRadius: radii.pill,
-    backgroundColor: colors.inkGhost,
+    borderWidth: OPEN_RING_BORDER,
+    borderColor: colors.inkGhost,
   },
-  dotActive: {
-    backgroundColor: colors.ink,
+  rowPhoto: {
+    width: ROW_PHOTO,
+    height: ROW_PHOTO,
+    borderRadius: radii.sm,
   },
-  grid: {
-    // The tile hangs off the page's own gutter, the same one every other
-    // screen hangs off. Subtracted by hand from `gridArea`'s own measured
-    // width to work out the ratio the block is asked to fill — the two have
-    // to agree on the same inset.
-    paddingHorizontal: screenPadding,
+  rowText: {
+    flex: 1,
+    gap: layout.line / 2,
+  },
+  rowDone: {
+    alignItems: 'flex-end',
+    gap: layout.line,
+  },
+  // Dims the whole row on press, the way a Settings row answers a tap.
+  pressed: {
+    opacity: 0.6,
+  },
+  // The reminder step's own last-call card: the fill grey, with its pill
+  // turned white to stand off it.
+  lastCall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+    marginTop: layout.heading,
+    padding: layout.card,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceSunken,
   },
 });

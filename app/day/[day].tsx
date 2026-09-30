@@ -7,7 +7,7 @@ import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { layout } from '@/constants/theme';
 import { FRIENDS, type Friend } from '@/data/content';
-import { useApp, usePostedDays } from '@/hooks/useAppState';
+import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 
 /**
  * Your own days, opened the way an Instagram post does rather than a story —
@@ -51,7 +51,7 @@ export default function DayPostScreen() {
   );
 
   const tasksFor = (day: number): Friend['tasks'] =>
-    tasks.map((task) => {
+    orderBySlot(tasks, progress[day]).map((task) => {
       const entry = progress[day]?.[task.id];
       return {
         label: task.label,

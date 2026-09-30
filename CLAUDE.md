@@ -143,16 +143,16 @@ actions · `Card` white surface · `EmptyState` icon + title + hint.
 **Controls** · `PrimaryButton` · `IconButton` circular · `Pill`
 (`floating`|`solid`|`muted`|`outline` × `sm`|`md`|`lg`) · `SegmentedTabs` the pill
 switch · `StepBar` a flow's segmented progress · `SignaturePad`
-a finger-drawn signature · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
+a finger-drawn signature · `ReminderPill` a reminder's time or Never, with its menu and wheel · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
 `SearchBar`.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
 **Content** · `CheckCircle` a done task's tick · `TaskRing` a face in the split
-task ring with its "3/5" badge · `CalendarMonth` month grid · `WeekTracker`
-task × weekday habit grid · `PhotoCollage` the day's photo mosaic ·
-`TaskCameraGrid` the live camera over that mosaic · `PhotoSlot` · `PhotoStrip`
+task ring with its "3/5" badge · `CalendarMonth` month grid · `WeekPosts`
+the week as a row of little posts · `PhotoCollage` the day's photo mosaic ·
+`CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
 `FriendCard` · `LockedOverlay` · `ChallengeRow` a
 challenge in a list, photo first, its start date at the end while it can be joined

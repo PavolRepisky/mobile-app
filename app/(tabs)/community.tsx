@@ -17,7 +17,7 @@ import { TaskRing } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
 import { colors, layout, radii } from '@/constants/theme';
 import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
-import { useApp } from '@/hooks/useAppState';
+import { orderBySlot, useApp } from '@/hooks/useAppState';
 
 type Tab = 'friends' | 'members';
 
@@ -154,7 +154,9 @@ export default function CommunityScreen() {
       trophies,
       livesLeft,
       caption: captions[currentDay],
-      tasks: tasks.map((task) => {
+      // In the squares they were shot into on the Tasks tab, so the post
+      // goes up the way it was laid out there.
+      tasks: orderBySlot(tasks, progress[currentDay]).map((task) => {
         const entry = progress[currentDay]?.[task.id];
         return {
           label: task.label,

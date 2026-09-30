@@ -189,28 +189,29 @@ not; dates either side of the run stay bare numbers. A bare numeral stays
 quiet — `inkMuted` for a day already gone, `inkGhost` for one still to come —
 and today wears a black border.
 
-**`WeekTracker`** — `rows` (`id` · `label` · seven `days`, Monday first, each
-`done`|`today`|`missed`|`future`|`outside`) · `todayIndex` · `selectedIndex`
-(the weekday letter picked out in ink — the day the photo carousel below is
-showing; defaults to today). The Tasks tab's habit grid: one row per task, one
-24px disc per weekday. A kept day is a solid ink disc with a white tick, today
-an ink ring, a missed day a `surfaceMuted` blank — never red, the tracker
-records rather than scolds — and a day still to come a hairline ring. Days
-outside the challenge draw nothing.
+**`WeekPosts`** — `days` (`key` · `letter` · `date` · `today` · `cells`, or
+`null` for a day still to come) · `size` · `lettersAbove`. The week, Monday
+first, as a row of little posts: a day gone by is its own bare photo mosaic,
+today sits in a 2px ink ring, and a day still to come is a `surfaceSunken`
+square with its date in `inkGhost`. `useWeekPostsDays()` builds the row from
+the challenge's own progress.
 
 **`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `time` · `label` ·
-`onPress`) · `radius` · `ratio` · `seam`. The day's proof photos merged edge
-to edge into one block behind an ink seam: one fills it, two split it, three
-put one over a pair, four take a corner each, and past four the rest fall in
-rows of two under the first. Every tile carries its task's name; a photographed
-one also its time, and an open one a camera glyph inviting the tap.
-`MosaicArrangement` is the same cut, generic over what a cell renders — the
-live camera grid lays its cells out through it.
+`next` · `onPress`) · `radius` · `bare` · `children`. Today's post as a square
+of its photos behind a white 3px seam: one fills it, two split it, three put
+one over a pair, four take a corner each, and past four the rest fall in rows
+of two under the first. A shot tile carries its time; an open one is a
+`surfaceSunken` tile with a 44pt camera disc and the task's name — the `next`
+one's disc in ink, the rest on white. `bare` drops discs, names and times for
+a thumbnail. `children` draw over the block (the `DayStamp` once complete).
+`MosaicArrangement` is the same cut, generic over what a cell renders.
 
-**`TaskCameraGrid`** — `day` · `rows` · `onCapture` · `onUndo` · `onClose`.
-The Tasks tab's live camera: full-bleed, the day's mosaic laid over the feed,
-each open task a frosted tile until tapped. The shot is cropped back to the
-tile it was framed through, so the print matches the preview.
+**`CameraSheet`** — `visible` · `tasks` · `taskId` · `chips` · `onChangeTask`
+· `onCapture` · `onClose`. The camera, opened only from a tap: the page dims
+and a 44-corner card rises over its lower part with the live camera, a square
+guide for what goes into the post, and the task's name on a pill — or, with
+`chips`, every open task as a swipeable chip row. The shot is cropped back to
+the guide square.
 
 **`PhotoSlot`** — `photo` · `width` / `height` / `radius` · `emptyLabel` (a
 dashed outline and a caption under the `+`) · `tilt` · `onPress`. A photo, or

@@ -37,6 +37,12 @@ export interface TaskProgress {
    * through as a `require`d module rather than a path, so this holds either.
    */
   photo?: TaskPhoto | null;
+  /**
+   * Which cell of the day's grid the photo was shot into, counted in the
+   * grid's own order. Left out where nobody chose — seeded history — and the
+   * task takes the first free cell instead; see `orderBySlot`.
+   */
+  slot?: number;
 }
 
 /** A camera / library shot by URI, or one of the bundled collection photos. */
@@ -60,6 +66,26 @@ export interface Profile {
  * threads never go past a single level — a reply to a reply still hangs off
  * the top-level comment, not off the reply itself.
  */
+/**
+ * When the app nudges you, picked while joining, as minutes after midnight or
+ * null for Never: a time for each task, by task id — a task with no entry
+ * takes `DEFAULT_TASK_REMINDER` — and the last call, which only fires if a
+ * task is still missing. Saved only for now — nothing schedules them yet.
+ */
+export interface Reminders {
+  tasks: Record<string, number | null>;
+  lastCall: number | null;
+}
+
+/** Eight in the morning: early enough to plan the day round. */
+export const DEFAULT_TASK_REMINDER = 8 * 60;
+
+/** Ten at night: two hours before midnight ends the day, time enough to
+ * still take a photo. */
+export const DEFAULT_LAST_CALL = 22 * 60;
+
+export const DEFAULT_REMINDERS: Reminders = { tasks: {}, lastCall: DEFAULT_LAST_CALL };
+
 export interface FriendComment {
   id: string;
   text: string;
@@ -98,6 +124,9 @@ interface AppState {
 
   /** Challenges carried to the last day. One trophy, one finish. */
   trophies: number;
+
+  /** The two nudges picked while joining a challenge. */
+  reminders: Reminders;
 
   /** 1-indexed, clamped to the challenge length. */
   currentDay: number;
@@ -139,6 +168,7 @@ interface AppActions {
     lives: number;
   }) => Challenge;
   setTotalDays: (days: number) => void;
+  setReminders: (reminders: Reminders) => void;
   setTabBarHidden: (hidden: boolean) => void;
 
   /**
@@ -146,7 +176,7 @@ interface AppActions {
    * tick land together rather than through two calls that could be left half
    * applied. Retaking a photo on an already-done task keeps it done.
    */
-  completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number) => void;
+  completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number, slot?: number) => void;
   /** The other half of that bargain: the tick goes, and the proof goes with it. */
   undoTask: (taskId: string, day?: number) => void;
 
@@ -304,6 +334,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // app observes, so the list is seeded and left alone until finishing a
   // challenge is wired up.
   const [trophies] = useState(TROPHIES.length);
+  const [reminders, setReminders] = useState<Reminders>(DEFAULT_REMINDERS);
 
   // -- derived ---------------------------------------------------------------
 
@@ -410,7 +441,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const completeTaskWithPhoto = useCallback(
-    (taskId: string, photo: TaskPhoto, day?: number) => {
+    (taskId: string, photo: TaskPhoto, day?: number, slot?: number) => {
       const target = day ?? currentDay;
       setProgress((prev) => {
         const dayMap = prev[target] ?? {};
@@ -429,6 +460,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               // A real photo replaces the seeded stand-in rather than sitting
               // behind it.
               photoSeed: null,
+              // A retake without a cell of its own stays where it was.
+              slot: slot ?? existing?.slot,
             },
           },
         };
@@ -451,6 +484,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               time: undefined,
               photo: null,
               photoSeed: null,
+              slot: undefined,
             },
           },
         };
@@ -511,6 +545,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       avatar: require('../assets/ambassadors/amb-3.jpg'),
     });
     setFriendComments({});
+    setReminders(DEFAULT_REMINDERS);
   }, []);
 
   const value = useMemo<AppContextValue>(
@@ -527,6 +562,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       friendComments,
       watchedStories,
       trophies,
+      reminders,
       currentDay,
       livesTotal,
       livesLeft,
@@ -540,6 +576,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       selectChallenge,
       addChallenge,
       setTotalDays,
+      setReminders,
       setTabBarHidden,
       completeTaskWithPhoto,
       undoTask,
@@ -551,6 +588,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       profile, challenge, tasks, startDate, totalDays,
       tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, trophies,
+      reminders,
       currentDay, livesLeft, hasPhotographedTask,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge,
       setTabBarHidden, completeTaskWithPhoto, undoTask,
@@ -567,12 +605,36 @@ export function useApp(): AppContextValue {
   return ctx;
 }
 
-/** Progress for one day, defaulted so callers never deal with undefined. */
+/**
+ * A day's tasks in the order its grid shows them — the Tasks tab, the post it
+ * goes up as, the profile tile and the week row all read this, so a photo
+ * sits in the same cell everywhere. A done task stays in the cell it was shot
+ * into; one with no cell of its own (seeded history) and the tasks still open
+ * fill the free cells in checklist order, so an open cell always suggests
+ * the next task on the list.
+ */
+export function orderBySlot<T extends { id: string }>(
+  tasks: readonly T[],
+  day: Record<string, TaskProgress> | undefined,
+): T[] {
+  const cells: (T | null)[] = tasks.map(() => null);
+  const loose: T[] = [];
+  for (const task of tasks) {
+    const entry = day?.[task.id];
+    const slot = entry?.done ? entry.slot : undefined;
+    if (slot !== undefined && slot >= 0 && slot < cells.length && !cells[slot]) cells[slot] = task;
+    else loose.push(task);
+  }
+  return cells.map((cell) => cell ?? loose.shift()!);
+}
+
+/** Progress for one day in its grid's order, defaulted so callers never deal
+ * with undefined. */
 export function useDayProgress(day: number) {
   const { progress, tasks } = useApp();
   return useMemo(() => {
     const map = progress[day] ?? {};
-    return tasks.map((task) => ({
+    return orderBySlot(tasks, map).map((task) => ({
       task,
       ...(map[task.id] ?? { done: false, photoSeed: null }),
     }));

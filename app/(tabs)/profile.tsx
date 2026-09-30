@@ -7,7 +7,7 @@ import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { colors } from '@/constants/theme';
-import { useApp, usePostedDays } from '@/hooks/useAppState';
+import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 
 /**
  * Your own profile. The page itself is `ProfileView`, the same one anyone
@@ -22,7 +22,7 @@ export default function ProfileScreen() {
 
   const dayOf = useCallback(
     (day: number): ProfileDay => ({
-      shots: tasks.flatMap((task) => {
+      shots: orderBySlot(tasks, progress[day]).flatMap((task) => {
         const entry = progress[day]?.[task.id];
         return entry?.photo || entry?.photoSeed
           ? [{ key: task.id, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }]

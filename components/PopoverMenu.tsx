@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -17,6 +18,11 @@ export interface PopoverItem {
   label: string;
   onPress: () => void;
   destructive?: boolean;
+  /** The option already in force: ticked, on the fill band. */
+  checked?: boolean;
+  /** An option that means "none" — Never beside the times — in the muted
+   * grey. */
+  muted?: boolean;
 }
 
 export interface PopoverMenuProps {
@@ -132,17 +138,28 @@ export function PopoverMenu({
                     // spot.
                     if (Platform.OS !== 'ios') runPending();
                   }}
+                  accessibilityState={{ selected: !!item.checked }}
                   style={({ pressed }) => [
                     styles.item,
+                    item.checked && styles.itemChecked,
                     pressed && styles.pressed,
                   ]}
                 >
                   <Text
                     variant="cardTitle"
-                    color={item.destructive ? colors.destructive : colors.ink}
+                    color={
+                      item.destructive
+                        ? colors.destructive
+                        : item.muted
+                          ? colors.inkMuted
+                          : colors.ink
+                    }
                   >
                     {item.label}
                   </Text>
+                  {item.checked ? (
+                    <Ionicons name="checkmark" size={18} color={colors.ink} />
+                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -175,9 +192,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing['2xl'],
-    alignItems: 'flex-start',
+  },
+  // The picked option sits on the fill band, inset from the menu's edge so
+  // it reads as a highlight rather than a stripe.
+  itemChecked: {
+    marginHorizontal: spacing.sm,
+    paddingHorizontal: spacing['2xl'] - spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSunken,
   },
   pressed: {
     opacity: 0.6,

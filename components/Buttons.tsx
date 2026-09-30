@@ -13,6 +13,9 @@ interface BaseProps {
   style?: StyleProp<ViewStyle>;
   /** Full-width is the default; pass false for the side-by-side pairs. */
   fullWidth?: boolean;
+  /** White with ink type, for a button sitting on the camera's black — the
+   * ink pill would vanish there. */
+  inverse?: boolean;
 }
 
 /** Solid black pill. The app's single primary action style. */
@@ -23,7 +26,9 @@ export function PrimaryButton({
   icon,
   style,
   fullWidth = true,
+  inverse,
 }: BaseProps) {
+  const ink = disabled ? colors.disabledInk : inverse ? colors.ink : colors.inkInverse;
   return (
     <Pressable
       accessibilityRole="button"
@@ -32,7 +37,7 @@ export function PrimaryButton({
       style={({ pressed }) => [
         styles.base,
         fullWidth && styles.fullWidth,
-        disabled ? styles.primaryDisabled : styles.primary,
+        disabled ? styles.primaryDisabled : inverse ? styles.inverse : styles.primary,
         !disabled && shadows.soft,
         pressed && !disabled && styles.pressed,
         style,
@@ -43,11 +48,11 @@ export function PrimaryButton({
           <Ionicons
             name={icon}
             size={19}
-            color={disabled ? colors.disabledInk : colors.inkInverse}
+            color={ink}
             style={styles.icon}
           />
         ) : null}
-        <Text variant="button" color={disabled ? colors.disabledInk : colors.inkInverse}>
+        <Text variant="button" color={ink}>
           {label}
         </Text>
       </View>
@@ -72,6 +77,9 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.ink,
+  },
+  inverse: {
+    backgroundColor: colors.surface,
   },
   primaryDisabled: {
     backgroundColor: colors.disabled,
