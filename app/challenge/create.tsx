@@ -523,12 +523,13 @@ export default function CreateChallengeScreen() {
                     <Text variant="copyBold" style={styles.inviteName}>
                       {friend.name}
                     </Text>
+                    {/* The Add a post carries, so asking someone in reads
+                        the same everywhere: solid with the person icon, then
+                        the muted grey with just the words once sent. */}
                     <Pill
                       label={sent ? 'Invited' : 'Invite'}
-                      icon={sent ? 'checkmark' : undefined}
-                      // An ink ring, as the design draws it: two solid pills
-                      // down the list would stack into a wall of black.
-                      tone="outline"
+                      icon={sent ? undefined : 'person-add'}
+                      tone={sent ? 'muted' : 'solid'}
                       size="sm"
                       bold
                       onPress={
