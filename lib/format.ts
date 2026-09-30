@@ -10,6 +10,25 @@ export function longDate(date: Date): string {
   return `${DAYS[date.getDay()]}, ${MONTHS_LONG[date.getMonth()]} ${date.getDate()}`;
 }
 
+/** "Jun 1" — one end of a range whose weekday doesn't matter, like a
+ * finished round's dates. */
+export function shortDate(date: Date): string {
+  return `${MONTHS_LONG[date.getMonth()]} ${date.getDate()}`;
+}
+
+/** "Sep 30, 2026" — a date that stands on its own, like the one under a
+ * signature. */
+export function fullDate(date: Date): string {
+  return `${MONTHS_LONG[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+/** "4th" — for the miss that ends a run. */
+export function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+}
+
 /** "7:19am" — the completion stamp on task rows. */
 export function timeStamp(date: Date): string {
   const hours = date.getHours();

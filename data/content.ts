@@ -516,6 +516,32 @@ export const FEED_AUTHORS: readonly Friend[] = [
 /** Everyone the profile screen can open, whether or not they are a friend. */
 export const PEOPLE: readonly Friend[] = [...FRIENDS, ...FEED_AUTHORS];
 
+/** Stands for the signed-in account in a round's standings, which otherwise
+ * name people by their id in `PEOPLE`. */
+export const ME = 'me';
+
+/** One person in a finished round's standings. */
+export interface Standing {
+  name: string;
+  /** An id into `PEOPLE`, or `ME`. Left off for a member with no profile
+   * here, who shows as their initial instead of a face. */
+  personId?: string;
+}
+
+/**
+ * Everyone who ended a round on the same longest streak — the days in a
+ * row they kept up. They share a place: a tie is one spot on the podium and
+ * one rank in the list, not an order someone had to pick.
+ */
+export interface StreakGroup {
+  days: number;
+  /** How many share it; more than are named once it runs long. */
+  count: number;
+  /** Whether they made it to the last day, a life or two spent or not. */
+  finished: boolean;
+  named: readonly Standing[];
+}
+
 export interface DiscoverSection {
   id: string;
   title: string;
@@ -538,6 +564,15 @@ export interface DiscoverSection {
   /** Who started this round. An id into `PEOPLE`, so the preview's "Created
    * by" row opens the same profile screen the Friends tab does. */
   creatorId: string;
+  /**
+   * How a round that is over ended: how many of `members` reached the last
+   * day, and the standings by longest streak, best first. Only a finished
+   * round has them.
+   */
+  results?: {
+    finished: number;
+    groups: readonly StreakGroup[];
+  };
 }
 
 export const DISCOVER: readonly DiscoverSection[] = [
@@ -553,6 +588,64 @@ export const DISCOVER: readonly DiscoverSection[] = [
     members: 248,
     startDate: '2026-06-01',
     creatorId: 'mia',
+    results: {
+      finished: 18,
+      groups: [
+        {
+          days: 75,
+          count: 12,
+          finished: true,
+          named: [
+            { name: 'Lily', personId: 'lily' },
+            { name: 'Zoe', personId: 'zoe' },
+            { name: 'Elena', personId: 'elena' },
+          ],
+        },
+        {
+          days: 74,
+          count: 4,
+          finished: true,
+          named: [
+            { name: 'You', personId: ME },
+            { name: 'Ava' },
+            { name: 'Grace' },
+            { name: 'Hana' },
+          ],
+        },
+        {
+          days: 73,
+          count: 2,
+          finished: true,
+          named: [
+            { name: 'Mia', personId: 'mia' },
+            { name: 'Sofia', personId: 'sofia' },
+          ],
+        },
+        { days: 61, count: 1, finished: false, named: [{ name: 'Isla' }] },
+        {
+          days: 58,
+          count: 2,
+          finished: false,
+          named: [{ name: 'Maya' }, { name: 'Nora', personId: 'nora' }],
+        },
+        {
+          days: 52,
+          count: 1,
+          finished: false,
+          named: [{ name: 'Camila', personId: 'camila' }],
+        },
+        {
+          days: 47,
+          count: 2,
+          finished: false,
+          named: [{ name: 'Priya' }, { name: 'June' }],
+        },
+        { days: 40, count: 1, finished: false, named: [{ name: 'Ruby' }] },
+        { days: 33, count: 1, finished: false, named: [{ name: 'Chloe' }] },
+        { days: 21, count: 1, finished: false, named: [{ name: 'Tara' }] },
+        { days: 9, count: 1, finished: false, named: [{ name: 'Lena' }] },
+      ],
+    },
   },
   {
     id: 'hard',

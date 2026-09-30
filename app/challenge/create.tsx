@@ -24,6 +24,7 @@ import { PhotoSlot } from '@/components/PhotoSlot';
 import { Pill, pillHeights } from '@/components/Pill';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { StepBar } from '@/components/StepBar';
 import { Text } from '@/components/Text';
 import { WheelPicker } from '@/components/WheelPicker';
 import {
@@ -50,9 +51,6 @@ const PHOTO_COUNT = 3;
  * so the lead photo beside them reads as the one people see first. */
 const COVER_TILE = 84;
 const COVER_HEIGHT = COVER_TILE * 2 + layout.grid;
-
-/** The step bar's segments: thin enough to read as a track, not a button. */
-const STEP_BAR = 6;
 
 /** The number square leading each task, and the tap target for its X. */
 const TASK_NUMBER = 32;
@@ -251,7 +249,7 @@ export default function CreateChallengeScreen() {
       <ScreenHeader
         backIcon={step === 1 ? 'close' : 'chevron-back'}
         onBack={step === 1 ? undefined : () => goTo((step - 1) as Step)}
-        middle={<StepBar step={step} />}
+        middle={<StepBar step={step} total={STEPS} />}
         right={
           <Text variant="metaBold" color={colors.inkMuted}>
             {step} of {STEPS}
@@ -625,18 +623,6 @@ export default function CreateChallengeScreen() {
   );
 }
 
-/** How far along the three steps you are: one segment each, filled in ink
- * as you reach it, the rest in the not-yet grey. */
-function StepBar({ step }: { step: number }) {
-  return (
-    <View style={styles.stepBar}>
-      {Array.from({ length: STEPS }, (_, i) => (
-        <View key={i} style={[styles.stepSegment, i < step && styles.stepSegmentOn]} />
-      ))}
-    </View>
-  );
-}
-
 /** Each step's one question, with the line under it saying what it's for. */
 function Question({ title, hint }: { title: string; hint?: string }) {
   return (
@@ -792,19 +778,6 @@ function Print({
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  stepBar: {
-    flexDirection: 'row',
-    gap: layout.grid,
-  },
-  stepSegment: {
-    flex: 1,
-    height: STEP_BAR,
-    borderRadius: radii.pill,
-    backgroundColor: colors.inkGhost,
-  },
-  stepSegmentOn: {
-    backgroundColor: colors.ink,
   },
   question: {
     gap: layout.line,

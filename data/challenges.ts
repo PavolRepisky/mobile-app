@@ -44,7 +44,8 @@ export interface Challenge {
   lives?: number;
 }
 
-const task = (id: string, label: string): ChallengeTask => ({ id, label });
+const task = (id: string, label: string, note?: string): ChallengeTask =>
+  note ? { id, label, note } : { id, label };
 
 export const CHALLENGES: readonly Challenge[] = [
   {
@@ -58,11 +59,11 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['her75-a', 'her75-b', 'her75-c', 'her75-d'],
     defaultDays: 75,
     tasks: [
-      task('h1', 'Eat clean'),
-      task('h2', 'Drink only water'),
-      task('h3', 'Walk 10k steps'),
-      task('h4', 'Work out 45 min'),
-      task('h5', 'Read 10 pages'),
+      task('h1', 'Eat clean', 'Whole foods, nothing fried or processed.'),
+      task('h2', 'Drink only water', 'No soda, juice or alcohol — tea and coffee are fine.'),
+      task('h3', 'Walk 10k steps', 'Photo your step count before bed.'),
+      task('h4', 'Work out 45 min', 'Gym, class, run or ride — any sweat counts.'),
+      task('h5', 'Read 10 pages', 'A real book, not a screen.'),
     ],
   },
   {
@@ -76,11 +77,11 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['hard-a', 'hard-b', 'hard-c', 'hard-d'],
     defaultDays: 75,
     tasks: [
-      task('d1', 'Strict diet'),
-      task('d2', 'Drink water'),
-      task('d3', 'Two workouts, one outside'),
-      task('d4', 'Read 10 pages'),
-      task('d5', 'Progress photo'),
+      task('d1', 'Strict diet', 'Pick one and stick to it. No cheat meals.'),
+      task('d2', 'Drink water', 'A full gallon, spread across the day.'),
+      task('d3', 'Two workouts, one outside', '45 minutes each, whatever the weather.'),
+      task('d4', 'Read 10 pages', 'Non-fiction, a real book.'),
+      task('d5', 'Progress photo', 'Same spot, same light, every day.'),
     ],
   },
   {
@@ -94,11 +95,11 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['med-a', 'med-b', 'med-c', 'med-d'],
     defaultDays: 75,
     tasks: [
-      task('m1', 'Eat well'),
-      task('m2', 'Drink 3L water'),
-      task('m3', 'Work out 45 min'),
-      task('m4', 'Read 10 pages'),
-      task('m5', 'Progress photo'),
+      task('m1', 'Eat well', 'No junk food. One flexible meal a week.'),
+      task('m2', 'Drink 3L water', 'Photo your bottle any time of day.'),
+      task('m3', 'Work out 45 min', 'Any movement counts — a walk, a class, a run.'),
+      task('m4', 'Read 10 pages', 'A real book, not a screen.'),
+      task('m5', 'Progress photo', 'Same spot, same light, every day.'),
     ],
   },
   {
@@ -112,10 +113,10 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['soft-a', 'soft-b', 'soft-c', 'soft-d'],
     defaultDays: 75,
     tasks: [
-      task('s1', 'Eat mostly clean'),
-      task('s2', 'Drink water'),
-      task('s3', 'Walk 10k steps'),
-      task('s4', 'Listen to a podcast'),
+      task('s1', 'Eat mostly clean', 'Good food most of the time, a treat now and then.'),
+      task('s2', 'Drink water', 'Photo your bottle any time of day.'),
+      task('s3', 'Walk 10k steps', 'Photo your step count before bed.'),
+      task('s4', 'Listen to a podcast', 'Something that teaches you a thing or two.'),
     ],
   },
   {
@@ -128,7 +129,7 @@ export const CHALLENGES: readonly Challenge[] = [
     joined: 212,
     photoSeeds: ['steps-a', 'steps-b', 'steps-c', 'steps-d'],
     defaultDays: 30,
-    tasks: [task('w1', 'Walk 10k steps')],
+    tasks: [task('w1', 'Walk 10k steps', 'Photo your step count before bed.')],
   },
   {
     id: 'pages',
@@ -140,7 +141,10 @@ export const CHALLENGES: readonly Challenge[] = [
     joined: 48,
     photoSeeds: ['pages-a', 'pages-b', 'pages-c', 'pages-d'],
     defaultDays: 21,
-    tasks: [task('p1', 'Write three pages'), task('p2', 'Read 10 pages')],
+    tasks: [
+      task('p1', 'Write three pages', 'By hand, first thing, whatever comes out.'),
+      task('p2', 'Read 10 pages', 'A real book, not a screen.'),
+    ],
   },
   {
     id: 'rainbow',
@@ -153,9 +157,9 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['rainbow-a', 'rainbow-b', 'rainbow-c', 'rainbow-d'],
     defaultDays: 30,
     tasks: [
-      task('e1', 'Fruit or veg at every meal'),
-      task('e2', 'Eat a proper breakfast'),
-      task('e3', 'Drink 2L water'),
+      task('e1', 'Fruit or veg at every meal', 'The more colours on the plate, the better.'),
+      task('e2', 'Eat a proper breakfast', 'Sat down, not grabbed on the way out.'),
+      task('e3', 'Drink 2L water', 'Photo your bottle any time of day.'),
     ],
   },
   {
@@ -169,9 +173,9 @@ export const CHALLENGES: readonly Challenge[] = [
     photoSeeds: ['study-a', 'study-b', 'study-c', 'study-d'],
     defaultDays: 30,
     tasks: [
-      task('t1', 'Two focus hours'),
-      task('t2', 'Review your notes'),
-      task('t3', 'Read a chapter'),
+      task('t1', 'Two focus hours', 'Phone away, one subject at a time.'),
+      task('t2', 'Review your notes', 'Go back over what you covered today.'),
+      task('t3', 'Read a chapter', 'From a course book or anything you are studying.'),
     ],
   },
 ];

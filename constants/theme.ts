@@ -307,6 +307,18 @@ export const type = {
     letterSpacing: bodyTracking,
   },
 
+  /**
+   * A figure that is the block's headline rather than a detail in it: how
+   * many made it to the last day of a finished round, "18 of 248". Bigger
+   * than any title, since the number is what the page is there to say.
+   */
+  stat: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 44,
+    lineHeight: 46,
+    letterSpacing: bodyTracking,
+  },
+
   sectionTitle: hierarchy.pageTitle,
   cardTitle: {
     fontFamily: fonts.bodySemi,

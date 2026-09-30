@@ -44,6 +44,18 @@ export interface PillProps {
    * from the small bold default, to read at a glance over the photo.
    */
   labelVariant?: TextProps['variant'];
+  /**
+   * The label's and leading icon's colour, when the word stands for an
+   * absence rather than a value — a reminder set to Never reads in the
+   * muted grey beside the times that are set.
+   */
+  labelColor?: string;
+  /**
+   * A range's far end, so the pill reads "label → to" — a finished round's
+   * "Finished · Jun 1 → Aug 14". The arrow is an icon because Quicksand has
+   * no glyph for it.
+   */
+  to?: string;
 }
 
 /**
@@ -61,41 +73,54 @@ export function Pill({
   trailingIcon,
   bold,
   labelVariant,
+  labelColor,
+  to,
 }: PillProps) {
+  const ink = labelColor ?? (tone === 'solid' ? colors.inkInverse : colors.ink);
+  const variant: NonNullable<TextProps['variant']> =
+    labelVariant ??
+    (bold
+      ? size === 'sm'
+        ? // `solid` and `floating` size=sm bold pills are, today, the
+          // my-challenge card's two photo badges — they earn the
+          // heaviest small cut Quicksand has, the same one the profile
+          // grid's own photo-badge counts use, so the pair reads as
+          // one weight rather than two.
+          tone === 'solid' || tone === 'floating'
+          ? 'microBold'
+          : 'labelBold'
+        : 'bodyBold'
+      : size === 'sm'
+        ? 'label'
+        : size === 'lg'
+          ? 'button'
+          : 'bodyStrong');
   const content = (
     <>
       {icon ? (
         <Ionicons
           name={icon}
           size={size === 'sm' ? 13 : 16}
-          color={tone === 'solid' ? colors.inkInverse : colors.ink}
+          color={ink}
           style={styles.icon}
         />
       ) : null}
-      <Text
-        variant={
-          labelVariant ??
-          (bold
-            ? size === 'sm'
-              ? // `solid` and `floating` size=sm bold pills are, today, the
-                // my-challenge card's two photo badges — they earn the
-                // heaviest small cut Quicksand has, the same one the profile
-                // grid's own photo-badge counts use, so the pair reads as
-                // one weight rather than two.
-                tone === 'solid' || tone === 'floating'
-                ? 'microBold'
-                : 'labelBold'
-              : 'bodyBold'
-            : size === 'sm'
-              ? 'label'
-              : size === 'lg'
-                ? 'button'
-                : 'bodyStrong')
-        }
-        color={tone === 'solid' ? colors.inkInverse : colors.ink}
-      >
+      <Text variant={variant} color={ink}>
         {label}
       </Text>
+      {to ? (
+        <>
+          <Ionicons
+            name="arrow-forward"
+            size={size === 'sm' ? 12 : 14}
+            color={ink}
+            style={styles.rangeArrow}
+          />
+          <Text variant={variant} color={ink}>
+            {to}
+          </Text>
+        </>
+      ) : null}
       {trailingIcon ? (
         <Ionicons
           name={trailingIcon}
@@ -175,6 +200,9 @@ const styles = StyleSheet.create({
   },
   trailingIcon: {
     marginLeft: spacing.xs,
+  },
+  rangeArrow: {
+    marginHorizontal: spacing.xs,
   },
   pressed: {
     opacity: 0.85,

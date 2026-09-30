@@ -75,6 +75,7 @@ export default function RootLayout() {
               options={{ presentation: 'fullScreenModal' }}
             />
             <Stack.Screen name="feed/[id]" />
+            <Stack.Screen name="join/[id]" />
             <Stack.Screen name="challenges/search" />
             <Stack.Screen name="challenges/[filter]" />
             <Stack.Screen name="challenge/create" />

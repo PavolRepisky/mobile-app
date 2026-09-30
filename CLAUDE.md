@@ -142,7 +142,8 @@ actions · `Card` white surface · `EmptyState` icon + title + hint.
 
 **Controls** · `PrimaryButton` · `IconButton` circular · `Pill`
 (`floating`|`solid`|`muted`|`outline` × `sm`|`md`|`lg`) · `SegmentedTabs` the pill
-switch · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
+switch · `StepBar` a flow's segmented progress · `SignaturePad`
+a finger-drawn signature · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
 `SearchBar`.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
