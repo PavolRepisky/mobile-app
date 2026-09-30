@@ -344,19 +344,9 @@ export default function StoryScreen() {
         <Placeholder seed={current.seed} radius={0} style={absoluteFill} />
       )}
 
-      {/* A locked post's own wash and pill, just a label here: the taps
-          either side still step through the story. */}
-      {locked ? (
-        <View pointerEvents="none" style={[absoluteFill, styles.lockWash]}>
-          <Pill
-            tone="floating"
-            icon="lock-closed"
-            label="Unlocks when you post"
-            bold
-            style={styles.lockPill}
-          />
-        </View>
-      ) : null}
+      {/* A locked post's own wash. Its pill sits above the tap zones,
+          further down, so it can be pressed. */}
+      {locked ? <View pointerEvents="none" style={[absoluteFill, styles.lockWash]} /> : null}
 
       <View style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.bars}>
@@ -393,7 +383,6 @@ export default function StoryScreen() {
           time={current.time ?? undefined}
           day={viewing}
           challengeName={challenge.name}
-          presentation="feed"
           done={taskDone}
           total={taskTotal}
           onMedia
@@ -434,6 +423,22 @@ export default function StoryScreen() {
           />
         ))}
       </View>
+
+      {/* The locked post's own pill, and what it does on a post: straight
+          to Tasks, where the photo that opens it gets taken. Only the pill
+          takes the tap — either side of it still steps through the story. */}
+      {locked ? (
+        <View pointerEvents="box-none" style={[absoluteFill, styles.lockLayer]}>
+          <Pill
+            tone="floating"
+            icon="lock-closed"
+            label="Unlocks when you post"
+            bold
+            onPress={() => router.dismissTo('/(tabs)/tasks')}
+            style={styles.lockPill}
+          />
+        </View>
+      ) : null}
 
       {/* Which task this photo proves, in the white pill a story's labels
           wear, and a round button of the same white for the quick
@@ -627,9 +632,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   lockWash: {
+    backgroundColor: colors.scrimLock,
+  },
+  // Over the tap zones, so the pill in it can be pressed.
+  lockLayer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.scrimLock,
+    zIndex: 2,
   },
   // `Pill` shrink-wraps to the start of its row; the lock sits dead centre.
   lockPill: {

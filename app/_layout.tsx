@@ -60,20 +60,12 @@ export default function RootLayout() {
             />
             <Stack.Screen name="add-friends" />
             <Stack.Screen name="add-friend/[handle]" />
-            <Stack.Screen
-              name="friend/[id]"
-              options={{
-                presentation: 'fullScreenModal',
-                animation: 'slide_from_bottom',
-              }}
-            />
-            {/* Opened from inside the friend sheet, so it has to cover the
-                whole screen the way that sheet does — otherwise it reads as
-                a panel over the profile rather than a page of its own. */}
-            <Stack.Screen
-              name="friend/post/[id]"
-              options={{ presentation: 'fullScreenModal' }}
-            />
+            {/* Someone else's profile and days are ordinary pages, pushed
+                the way your own Profile's are. As a modal, everything opened
+                from them — the challenge, their days — came up as a sheet
+                over it instead of a page of its own. */}
+            <Stack.Screen name="friend/[id]" />
+            <Stack.Screen name="friend/post/[id]" />
             <Stack.Screen name="feed/[id]" />
             <Stack.Screen name="join/[id]" />
             <Stack.Screen name="challenges/search" />

@@ -135,7 +135,8 @@ ramp; plain copy sits on Medium, and Regular isn't loaded at all. Don't
 ## Component inventory
 
 **Layout** · `Screen` / `ScreenScroll` page shell · `ProfileView` a whole
-profile page — yours and anyone else's · `ScreenHeader` back + title +
+profile page — yours and anyone else's · `DaysFeed` a profile's days as
+one scrolling feed — My days and anyone else's · `ScreenHeader` back + title +
 actions · `Card` white surface · `EmptyState` icon + title + hint.
 
 **Type** · `Text` (variant).

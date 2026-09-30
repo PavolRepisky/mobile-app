@@ -54,9 +54,8 @@ const ROW_AVATAR = 48;
  */
 export default function AddFriendsScreen() {
   const router = useRouter();
-  const { challenge } = useApp();
+  const { challenge, friendRequests: requested, toggleFriendRequest } = useApp();
   const [query, setQuery] = useState('');
-  const [requested, setRequested] = useState<ReadonlySet<string>>(new Set());
   const [codeOpen, setCodeOpen] = useState(false);
 
   // The challenge's own page, where its Join button is — what a scan or a
@@ -111,22 +110,15 @@ export default function AddFriendsScreen() {
         {isFriend ? (
           <Pill tone="muted" size="sm" bold icon="people-outline" label="Friends" />
         ) : (
-          // The Members feed's own pill: a request, not a friend yet, so a
-          // clock rather than a check, and a second tap takes it back.
+          // The Members feed's own pill: a request, not a friend yet, so just
+          // the words once sent, and a second tap takes it back.
           <Pill
             tone={isRequested ? 'muted' : 'solid'}
             size="sm"
             bold
-            icon={isRequested ? 'time-outline' : 'person-add'}
+            icon={isRequested ? undefined : 'person-add'}
             label={isRequested ? 'Request sent' : 'Add'}
-            onPress={() =>
-              setRequested((prev) => {
-                const next = new Set(prev);
-                if (isRequested) next.delete(person.id);
-                else next.add(person.id);
-                return next;
-              })
-            }
+            onPress={() => toggleFriendRequest(person.id)}
           />
         )}
       </View>

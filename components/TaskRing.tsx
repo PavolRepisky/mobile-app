@@ -22,6 +22,13 @@ const BADGE_BORDER = 2;
  * colour, so it reads as seen rather than as a different kind of mark, and
  * clearly quieter than what's new beside it. */
 const WATCHED_OPACITY = 0.35;
+/**
+ * Room the SVG gets past the ring on every side. The band's outer edge sits
+ * exactly on `size`, so with no margin its anti-aliased rim fell outside the
+ * canvas and got clipped — worst at a fractional size like a post's 37.9,
+ * where the right edge snapped to the pixel short of it.
+ */
+const SVG_BLEED = 1;
 
 /**
  * My Profile's ring, as fractions of the photo inside it: its 120pt face
@@ -116,7 +123,8 @@ export function TaskRing({
     const around = 2 * Math.PI * r;
     const count = Math.max(total, 1);
     const segGap = face * PROFILE_SEGMENT_GAP;
-    const centre = size / 2;
+    const canvas = size + SVG_BLEED * 2;
+    const centre = canvas / 2;
     const segment = (i: number, colour: string) => (
       <Circle
         key={i}
@@ -140,9 +148,9 @@ export function TaskRing({
         onPress={onPress}
         style={({ pressed }) => [{ width: size, height: size }, pressed && styles.pressed, style]}
       >
-        <Svg width={size} height={size} style={styles.ring}>
+        <Svg width={canvas} height={canvas} style={styles.ring}>
           <Defs>
-            <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={size} height={size}>
+            <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={canvas} height={canvas}>
               {Array.from({ length: Math.min(done, count) }, (_, i) =>
                 segment(i, colors.inkInverse),
               )}
@@ -188,7 +196,8 @@ export function TaskRing({
   const length = count === 1 ? circumference : Math.max(0.01, slot - SEGMENT_GAP - ringWidth);
   const inset = count === 1 ? 0 : (((SEGMENT_GAP + ringWidth) / 2) / circumference) * 360;
   const avatarSize = size - (ringWidth + RING_GAP) * 2;
-  const centre = size / 2;
+  const canvas = size + SVG_BLEED * 2;
+  const centre = canvas / 2;
 
   return (
     <Pressable
@@ -198,7 +207,7 @@ export function TaskRing({
       onPress={onPress}
       style={({ pressed }) => [{ width: size, height: size }, pressed && styles.pressed, style]}
     >
-      <Svg width={size} height={size} style={styles.ring}>
+      <Svg width={canvas} height={canvas} style={styles.ring}>
         {Array.from({ length: count }, (_, i) => (
           <Circle
             key={i}
@@ -235,8 +244,11 @@ export function TaskRing({
 }
 
 const styles = StyleSheet.create({
+  // Pulled back by its bleed, so the ring itself still lands on the box.
   ring: {
     position: 'absolute',
+    top: -SVG_BLEED,
+    left: -SVG_BLEED,
   },
   photo: {
     position: 'absolute',

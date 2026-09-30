@@ -121,6 +121,10 @@ interface AppState {
   /** The story photos you've already seen, by whose story it is (a friend's
    * id, or `me-<day>` for yours) — the keys the story viewer gives each. */
   watchedStories: Record<string, readonly string[]>;
+  /** People you've sent a friend request to, by id — a request, not a
+   * friend yet. Held here so every Add (Members, In it with you, Find
+   * friends, a profile) shows the same state. */
+  friendRequests: ReadonlySet<string>;
 
   /** Challenges carried to the last day. One trophy, one finish. */
   trophies: number;
@@ -184,6 +188,8 @@ interface AppActions {
 
   /** Tapping the emoji already on a post takes it back off. */
   reactToPost: (postId: string, emoji: string) => void;
+  /** Sends a friend request, or takes back one already sent. */
+  toggleFriendRequest: (id: string) => void;
   /** Marks one photo in someone's story as seen; seeing it again is a no-op. */
   markStoryWatched: (owner: string, story: string) => void;
   /** Appends a comment to a friend's post — a reply to `parentId` if given,
@@ -331,6 +337,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [friendComments, setFriendComments] = useState<Record<string, FriendComment[]>>({});
   const [watchedStories, setWatchedStories] = useState<Record<string, readonly string[]>>({});
+  const [friendRequests, setFriendRequests] = useState<ReadonlySet<string>>(new Set());
   // Challenges the seeded account has already finished — see data/trophies.
   // Nothing increments this yet: reaching the last day is not an event the
   // app observes, so the list is seeded and left alone until finishing a
@@ -506,6 +513,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const toggleFriendRequest = useCallback((id: string) => {
+    setFriendRequests((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   const markStoryWatched = useCallback((owner: string, story: string) => {
     setWatchedStories((map) =>
       map[owner]?.includes(story) ? map : { ...map, [owner]: [...(map[owner] ?? []), story] },
@@ -548,6 +564,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       avatar: require('../assets/ambassadors/amb-3.jpg'),
     });
     setFriendComments({});
+    setFriendRequests(new Set());
     setReminders(DEFAULT_REMINDERS);
   }, []);
 
@@ -564,6 +581,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       postReactions,
       friendComments,
       watchedStories,
+      friendRequests,
       trophies,
       reminders,
       currentDay,
@@ -584,18 +602,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       completeTaskWithPhoto,
       undoTask,
       reactToPost,
+      toggleFriendRequest,
       markStoryWatched,
       addFriendComment,
       resetAll,
     }),
     [
       profile, challenge, tasks, startDate, totalDays,
-      tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, trophies,
-      reminders,
+      tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, friendRequests,
+      trophies, reminders,
       currentDay, livesLeft, hasPhotographedTask,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge,
       setTabBarHidden, completeTaskWithPhoto, undoTask,
-      reactToPost, markStoryWatched, addFriendComment, resetAll,
+      reactToPost, toggleFriendRequest, markStoryWatched, addFriendComment, resetAll,
     ],
   );
 

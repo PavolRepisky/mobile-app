@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Share, StyleSheet, View } from 'react-native';
 
 import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { PEOPLE } from '@/data/content';
+import { FRIENDS, PEOPLE } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
+import { possessive } from '@/lib/names';
 
 const DAY_MS = 86_400_000;
 
@@ -19,7 +20,7 @@ const DAY_MS = 86_400_000;
 export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { challenge, totalDays } = useApp();
+  const { challenge, totalDays, friendRequests, toggleFriendRequest } = useApp();
 
   const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
 
@@ -87,9 +88,29 @@ export default function FriendProfileScreen() {
     [hasStoryToday, playStory],
   );
 
-  // Set like your own "My Profile", so the two titles read as a pair. A
-  // name ending in "s" takes the apostrophe alone.
-  const title = `${friend.name}${/s$/i.test(friend.name) ? "'" : "'s"} Profile`;
+  // Set like your own "My Profile" and "My days", so the titles read as
+  // pairs.
+  const title = `${possessive(friend.name)} Profile`;
+
+  // Your own page's two buttons, turned to someone else: where you stand
+  // with them in place of Edit — a friend is a status, a member gets the
+  // same Add as everywhere else — and Share as it is.
+  const isFriend = FRIENDS.some((person) => person.id === friend.id);
+  const requested = friendRequests.has(friend.id);
+  const actions = [
+    isFriend
+      ? { label: 'Friends' }
+      : {
+          label: requested ? 'Request sent' : 'Add friend',
+          onPress: () => toggleFriendRequest(friend.id),
+        },
+    {
+      label: 'Share profile',
+      onPress: () => {
+        Share.share({ message: `${friend.name} (${friend.handle}) on Her 75` }).catch(() => {});
+      },
+    },
+  ];
 
   return (
     <View style={styles.screenRoot}>
@@ -112,6 +133,8 @@ export default function FriendProfileScreen() {
           onOpenDay={openDay}
           today={today}
           emptyHint={`${friend.name} hasn't finished a day yet.`}
+          daysTitle={`${possessive(friend.name)} days`}
+          actions={actions}
         />
       </ScreenScroll>
     </View>

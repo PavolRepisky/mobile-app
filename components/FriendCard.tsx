@@ -59,13 +59,6 @@ export interface FriendCardProps {
   locked?: boolean;
   /** Drawn at the far end of the identity row — the Members feed's Add. */
   accessory?: React.ReactNode;
-  /**
-   * `feed` is a run of one person's posts read top to bottom — My days: the
-   * face wears that day's task ring, the reactions come a size up, and a
-   * "View all N comments" line sits under the caption. `card`, the default,
-   * is the Community feed's leaner post.
-   */
-  presentation?: 'card' | 'feed';
   style?: StyleProp<ViewStyle>;
   /**
    * Renders one of the friend's earlier days instead of their current one —
@@ -122,15 +115,11 @@ const HEART_LANDED = 0.16;
 
 /** A reaction pill's height — a thumb-sized target that still sits four
  * across with the comment count on one row. */
-const REACTION_CHIP = 32;
-
-/** The reactions a step up, for a feed of posts read one after another. */
-const REACTION_CHIP_LARGE = 34;
+const REACTION_CHIP = 34;
 
 /** The comment glyph in its pill, drawn to the emoji's own size beside it so
  * the comment pill reads as one more of the reactions' row. */
-const COMMENT_ICON = 16;
-const COMMENT_ICON_LARGE = 18;
+const COMMENT_ICON = 18;
 /** One carousel page marker riding the photo's bottom edge. */
 const CAROUSEL_DOT = 6;
 
@@ -154,10 +143,10 @@ const finishedAt = (tasks: readonly { time?: string }[]) =>
   );
 
 /**
- * A friend's day as one flat post — avatar, name and the time the day was
- * finished, the way a story carries the time its photo was taken, then the
- * post-detail screen's own subtitle (the challenge, linked, then "Day N")
- * leading, then the same edge-to-edge photo mosaic the post-detail screen's
+ * A day as one flat post, the same wherever it's met — Community, My days, a
+ * friend's days — so it only ever changes here. `PostHeader` leads: the face
+ * in that day's task ring, name and the time the day was finished, then
+ * "Day N · challenge"; then the same edge-to-edge photo mosaic the post-detail screen's
  * own grid slide cuts, just their shot tasks and nothing standing in for the
  * rest, and a like/comment action row. The comments themselves are never on
  * the card — Instagram's own thread lives behind the comment icon, in the
@@ -171,11 +160,9 @@ export function FriendCard({
   onPress,
   locked,
   accessory,
-  presentation = 'card',
   style,
   post,
 }: FriendCardProps) {
-  const feed = presentation === 'feed';
   const router = useRouter();
   const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
     useApp();
@@ -403,7 +390,6 @@ export function FriendCard({
         time={time}
         day={day}
         challengeName={challenge.name}
-        presentation={presentation}
         done={postTasks.filter((task) => task.done).length}
         total={postTasks.length}
         onPressProfile={onPress}
@@ -519,12 +505,11 @@ export function FriendCard({
               onPress={() => reactToPost(postId, reaction.emoji)}
               style={({ pressed }) => [
                 styles.reaction,
-                feed && styles.reactionLarge,
                 reaction.selected && styles.reactionSelected,
                 pressed && styles.pressed,
               ]}
             >
-              <Text variant={feed ? 'copy' : 'meta'}>{reaction.emoji}</Text>
+              <Text variant="copy">{reaction.emoji}</Text>
               <Text
                 variant="badge"
                 color={reaction.selected ? colors.inkInverse : colors.ink}
@@ -543,13 +528,12 @@ export function FriendCard({
           onPress={() => setCommentsOpen(true)}
           style={({ pressed }) => [
             styles.reaction,
-            feed && styles.reactionLarge,
             pressed && styles.pressed,
           ]}
         >
           <Ionicons
             name="chatbubble-outline"
-            size={feed ? COMMENT_ICON_LARGE : COMMENT_ICON}
+            size={COMMENT_ICON}
             color={colors.ink}
           />
           <Text variant="badge">{commentCount}</Text>
@@ -571,7 +555,7 @@ export function FriendCard({
 
       {/* The way into the thread in words, under the caption — the pill
           above says how many, this says there's more to read. */}
-      {feed && commentCount > 0 ? (
+      {commentCount > 0 ? (
         <Text
           variant="meta"
           color={colors.inkMuted}
@@ -759,9 +743,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.pill,
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceSunken,
-  },
-  reactionLarge: {
-    height: REACTION_CHIP_LARGE,
   },
   reactionSelected: {
     backgroundColor: colors.ink,

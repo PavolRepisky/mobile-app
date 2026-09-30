@@ -1,17 +1,17 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, layout, radii, spacing } from '@/constants/theme';
-import { Avatar, type AvatarSource } from './Avatar';
+import { type AvatarSource } from './Avatar';
 import { TaskRing } from './TaskRing';
 import { Text } from './Text';
 
 /** The poster's face beside their name — the height of a reaction pill, so
  * the header and the action row under a post sit on one scale. */
 const POST_AVATAR = 32;
-/** The same face in My Profile's ring: the photo stays the bare avatar's
- * size, and the band and its gap go around it in the profile's own
- * proportions (6 and 5 on a 120 face). */
-const POST_RING = POST_AVATAR * (1 + (2 * (6 + 5)) / 120);
+/** That face in My Profile's ring: the photo stays at `POST_AVATAR`, and the
+ * band and its gap go around it in the profile's own proportions (6 and 5 on
+ * a 120 face). */
+const POST_RING = Math.round(POST_AVATAR * (1 + (2 * (6 + 5)) / 120));
 /** The drawn dot between the day and the challenge. */
 const SUBTITLE_DOT = 3;
 
@@ -27,12 +27,6 @@ export interface PostHeaderProps {
   time?: string;
   day: number;
   challengeName: string;
-  /**
-   * `feed` — My days and a story: the face in that day's task ring, the day
-   * leading the subtitle, the challenge plain. `card` — Community's leaner
-   * post: a bare face, the challenge first and underlined as a link.
-   */
-  presentation?: 'feed' | 'card';
   /** The day's tasks, done and all — what the ring is drawn from. */
   done?: number;
   total?: number;
@@ -59,7 +53,6 @@ export function PostHeader({
   time,
   day,
   challengeName,
-  presentation = 'card',
   done = 0,
   total = 0,
   onMedia,
@@ -68,7 +61,6 @@ export function PostHeader({
   accessory,
   style,
 }: PostHeaderProps) {
-  const feed = presentation === 'feed';
   const ink = onMedia ? colors.inkInverse : colors.ink;
   const soft = onMedia ? colors.onMediaSoft : colors.inkMuted;
 
@@ -80,9 +72,9 @@ export function PostHeader({
       accessibilityRole={onPressChallenge ? 'button' : undefined}
       accessibilityLabel={onPressChallenge ? `Open ${challengeName}` : undefined}
       onPress={onPressChallenge}
-      // Underlined as a link on Community; plain where the day leads, since
-      // it's the same challenge on every post.
-      style={[styles.shrink, !feed && styles.challengeLink]}
+      // Plain, not underlined: the day leads, and the challenge is the same
+      // one on every post.
+      style={styles.shrink}
     >
       {challengeName}
     </Text>
@@ -101,21 +93,17 @@ export function PostHeader({
         onPress={onPressProfile}
         style={({ pressed }) => pressed && onPressProfile && styles.pressed}
       >
-        {feed ? (
-          // The day's own ring, the one My Profile draws: a segment per
-          // task, the done ones in the accent — so each day says at a
-          // glance how full it was.
-          <TaskRing
-            avatar={avatar}
-            done={done}
-            total={total}
-            size={POST_RING}
-            badge={false}
-            look="profile"
-          />
-        ) : (
-          <Avatar source={avatar} size={POST_AVATAR} />
-        )}
+        {/* The day's own ring, the one My Profile draws: a segment per
+            task, the done ones in the accent — so each day says at a
+            glance how full it was. */}
+        <TaskRing
+          avatar={avatar}
+          done={done}
+          total={total}
+          size={POST_RING}
+          badge={false}
+          look="profile"
+        />
       </Pressable>
 
       <View style={styles.text}>
@@ -137,11 +125,11 @@ export function PostHeader({
             </Text>
           ) : null}
         </View>
-        {/* The day leads where it's what tells one post from the next. */}
+        {/* The day leads: it's what tells one post from the next. */}
         <View style={styles.line}>
-          {feed ? dayLabel : challengeLink}
+          {dayLabel}
           <View style={[styles.dot, { backgroundColor: soft }]} />
-          {feed ? challengeLink : dayLabel}
+          {challengeLink}
         </View>
       </View>
 
@@ -171,9 +159,6 @@ const styles = StyleSheet.create({
   // ellipsizes rather than pushing the rest off the row.
   shrink: {
     flexShrink: 1,
-  },
-  challengeLink: {
-    textDecorationLine: 'underline',
   },
   // A drawn dot rather than a "·" glyph, so its size and the gap either side
   // are its own to set, not whatever a character happens to render at.

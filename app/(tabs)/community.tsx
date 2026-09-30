@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Avatar, type AvatarSource } from '@/components/Avatar';
 import { PrimaryButton } from '@/components/Buttons';
@@ -21,9 +21,10 @@ import { orderBySlot, useApp } from '@/hooks/useAppState';
 
 type Tab = 'friends' | 'members';
 
-/** A face in the "Still going today" row — big enough to know who it is at
- * a glance, small enough that five sit across a phone before it scrolls. */
-const STORY_RING = 64;
+/** A face in the "Still going today" row — the canvas's 72, a step up from
+ * the old 64 so the row reads as stories rather than a strip of avatars;
+ * four and a bit sit across a phone, the cut-off face saying it scrolls. */
+const STORY_RING = 72;
 /** The round badges leading the lock card and the empty "Finished today"
  * card — the size of the corner button, so the two read as the same kind of
  * mark. */
@@ -37,6 +38,12 @@ const MINI_RING = 2;
 /** A face on a progress row — a step under a post's own avatar, since the
  * row is a line of detail, not a post. */
 const ROW_AVATAR = 28;
+/** A face on a member card — the size of the old story ring, big enough to
+ * know a stranger by before adding them. */
+const MEMBER_AVATAR = 64;
+/** Two cards and most of a third across a phone, so the row says it
+ * scrolls — and wide enough that "Request sent" fits the pill on one line. */
+const MEMBER_CARD = 140;
 /** Wide enough for a first name, so every row's bar starts on one line. */
 const ROW_NAME = 56;
 /** The ring's own stroke — the bars are the ring laid straight, the way the
@@ -77,13 +84,10 @@ export default function CommunityScreen() {
     trophies,
     livesLeft,
     watchedStories,
+    friendRequests: added,
+    toggleFriendRequest: toggleAdded,
   } = useApp();
   const [tab, setTab] = useState<Tab>('friends');
-  // Friend requests sent from the Members feed — a stranger has to accept,
-  // so the pill says the request went, not that they're a friend. Held here
-  // the way Add Friends holds its own, since there is no friend graph to
-  // write to yet.
-  const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
 
   // A story's last frame links the post it became: `post` names it, and the
   // feed opens on the tab it's in and scrolls it up under the title. Stories
@@ -406,6 +410,34 @@ export default function CommunityScreen() {
           </>
         ) : (
           <>
+            {/* Everyone else on the challenge, finished today or not, as
+                faces to add — the feed below only shows who's done. Shares
+                the posts' requests, so adding here flips their Add too. */}
+            {FEED_AUTHORS.length ? (
+              <View style={styles.section}>
+                <SectionHeading
+                  title="In it with you"
+                  meta={challenge.joined.toLocaleString('en-US')}
+                />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.storyBleed}
+                  contentContainerStyle={styles.memberRow}
+                >
+                  {FEED_AUTHORS.map((person) => (
+                    <MemberCard
+                      key={person.id}
+                      person={person}
+                      added={added.has(person.id)}
+                      onPress={() => openProfile(person.id)}
+                      onToggleAdd={() => toggleAdded(person.id)}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
             <SectionHeading title="Finished today" meta={String(membersFinished.length)} />
 
             {membersFinished.length ? (
@@ -421,19 +453,11 @@ export default function CommunityScreen() {
                       tone={isAdded ? 'muted' : 'solid'}
                       size="sm"
                       bold
-                      // A clock rather than a check: the request is waiting
-                      // on them, not done.
-                      icon={isAdded ? 'time-outline' : 'person-add'}
+                      // Just the words once sent: the request is waiting on
+                      // them, and a check would say it's done.
+                      icon={isAdded ? undefined : 'person-add'}
                       label={isAdded ? 'Request sent' : 'Add'}
-                      // A second tap takes the request back.
-                      onPress={() =>
-                        setAdded((prev) => {
-                          const next = new Set(prev);
-                          if (isAdded) next.delete(person.id);
-                          else next.add(person.id);
-                          return next;
-                        })
-                      }
+                      onPress={() => toggleAdded(person.id)}
                     />,
                   );
                 })}
@@ -495,6 +519,56 @@ function StoryFace({
       <Text variant="meta" numberOfLines={1} center style={styles.storyName}>
         {name}
       </Text>
+    </View>
+  );
+}
+
+/** A stranger on the challenge as a card to add: face, name, how their
+ * today is going, and the same Add the Members posts carry. Not their day —
+ * everyone here is on the challenge's same day, so it would read the same on
+ * every card. */
+function MemberCard({
+  person,
+  added,
+  onPress,
+  onToggleAdd,
+}: {
+  person: Friend;
+  added: boolean;
+  onPress: () => void;
+  onToggleAdd: () => void;
+}) {
+  return (
+    <View style={styles.memberCard}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${person.name}'s profile`}
+        onPress={onPress}
+        style={({ pressed }) => [styles.memberWho, pressed && styles.pressed]}
+      >
+        <Avatar source={person.avatar} size={MEMBER_AVATAR} />
+        <View style={styles.memberText}>
+          <Text variant="copyBold" numberOfLines={1} center>
+            {person.name}
+          </Text>
+          <Text variant="badge" color={colors.inkMuted} center>
+            {finished(person)
+              ? 'Done today'
+              : `${doneCount(person)}/${person.tasks.length} today`}
+          </Text>
+        </View>
+      </Pressable>
+      {/* Sent, the pill turns white rather than the posts' muted grey — on
+          the card's own fill grey, grey vanished. */}
+      <Pill
+        tone={added ? 'floating' : 'solid'}
+        size="sm"
+        bold
+        icon={added ? undefined : 'person-add'}
+        label={added ? 'Request sent' : 'Add'}
+        onPress={onToggleAdd}
+        style={styles.memberAdd}
+      />
     </View>
   );
 }
@@ -619,6 +693,32 @@ const styles = StyleSheet.create({
   },
   storyName: {
     alignSelf: 'stretch',
+  },
+  memberRow: {
+    paddingHorizontal: layout.gutter,
+    gap: layout.stack,
+  },
+  // The fill grey the page's other cards sit in; stretched so the Add runs
+  // the card's width.
+  memberCard: {
+    width: MEMBER_CARD,
+    padding: layout.block,
+    gap: layout.stack,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceSunken,
+  },
+  memberWho: {
+    alignItems: 'center',
+    gap: layout.stack,
+  },
+  memberText: {
+    alignSelf: 'stretch',
+  },
+  memberAdd: {
+    alignSelf: 'stretch',
+  },
+  pressed: {
+    opacity: 0.7,
   },
   sectionHeading: {
     flexDirection: 'row',

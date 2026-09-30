@@ -45,10 +45,6 @@ const POST_TILE_RADIUS = 5;
  * than the flat 1:1 an Instagram grid usually cuts its own tiles to. */
 const POST_TILE_RATIO = 0.85;
 
-/** The "3/5" count on a partly done day's tile: small enough to leave the
- * photo the main thing, big enough to read as a mark rather than a speck. */
-const TILE_MARK = 22;
-
 /** Wide enough for "Grid" and "Month" side by side at the switch's dense
  * size; the pill track splits it evenly so the chip slides between two fixed
  * stops. */
@@ -268,8 +264,9 @@ export interface ProfileViewProps {
   /** The heading over the days — "My days" on your own page. */
   daysTitle?: string;
   /** A row of buttons under the bio — Edit profile and Share profile on your
-   * own page; left out on anyone else's. */
-  actions?: readonly { label: string; onPress: () => void }[];
+   * own page, where you stand with them and Share on anyone else's. One
+   * without `onPress` is a status, not a button — "Friends". */
+  actions?: readonly { label: string; onPress?: () => void }[];
   style?: StyleProp<ViewStyle>;
 }
 
@@ -727,17 +724,10 @@ export function ProfileView({
                       — its photos run edge to edge, so the window's — and
                       scaled down whole, so the tile is a miniature of the
                       post rather than a pile of photos with a label. */}
+                  {/* No task count on the tile, finished or not — a day is
+                      its photos, and how many tasks it got is one tap away
+                      on the post, the way a calendar cell leaves it. */}
                   <DayStamp day={post.day} kicker={challenge.name} referenceWidth={windowWidth} />
-
-                  {/* Only a day that fell short says so — a finished day is
-                      just its photos. */}
-                  {finished ? null : (
-                    <View style={styles.tileCount}>
-                      <Text variant="badge" color={colors.ink}>
-                        {`${post.done}/${taskCount}`}
-                      </Text>
-                    </View>
-                  )}
                 </Pressable>
               </View>
             );
@@ -949,16 +939,6 @@ const styles = StyleSheet.create({
     borderRadius: POST_TILE_RADIUS,
     overflow: 'hidden',
     backgroundColor: colors.surfaceSunken,
-  },
-  tileCount: {
-    position: 'absolute',
-    right: spacing.xs,
-    bottom: spacing.xs,
-    height: TILE_MARK,
-    paddingHorizontal: layout.pill,
-    borderRadius: radii.pill,
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
 });
 
