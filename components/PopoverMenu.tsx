@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 
 import { absoluteFill, colors, layout, radii, shadows, spacing } from '@/constants/theme';
-import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
 export interface PopoverItem {
@@ -34,7 +33,7 @@ export interface PopoverMenuProps {
 }
 
 /**
- * The frosted rounded menu that drops from the pencil button on the To-do home
+ * The white rounded menu that drops from the pencil button on the To-do home
  * (Edit / Restart / Change Challenge).
  *
  * It grows out of the corner it is anchored to rather than fading in on the
@@ -124,7 +123,7 @@ export function PopoverMenu({
             },
           ]}
         >
-          <GlassSurface radius={radii.xl} shadow={false}>
+          <View style={styles.panel}>
             <View style={styles.items}>
               {items.map((item) => (
                 <Pressable
@@ -163,7 +162,7 @@ export function PopoverMenu({
                 </Pressable>
               ))}
             </View>
-          </GlassSurface>
+          </View>
         </Animated.View>
       </Pressable>
     </Modal>
@@ -175,18 +174,24 @@ const styles = StyleSheet.create({
     ...absoluteFill,
     backgroundColor: colors.frostBackdrop,
   },
-  // Left unfilled, and padded on the inside instead: a background here would
-  // sit behind the lens, and the blur would sample it rather than the screen
-  // the menu is covering. The drop stays out here too — on iOS a view cannot
-  // both clip its children and cast one.
-  // Pinned under the corner button on the gutter, so it grows out of the
-  // control it drops from rather than swelling from its own middle.
+  // The drop stays out here, on the unclipped wrapper — on iOS a view
+  // cannot both clip its children and cast one. Pinned under the corner
+  // button on the gutter, so it grows out of the control it drops from
+  // rather than swelling from its own middle.
   menu: {
     position: 'absolute',
     right: layout.gutter,
     minWidth: 240,
     borderRadius: radii.xl,
     ...shadows.floating,
+  },
+  // Solid white rather than the liquid glass it used to be: over a busy
+  // photo the lens let the picture through and the options read faint.
+  // Clipped here so the checked band keeps to the rounded corners.
+  panel: {
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
   },
   items: {
     paddingVertical: spacing.sm,

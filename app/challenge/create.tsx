@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   Pressable,
@@ -18,6 +18,7 @@ import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
 import { buttonHeight, PrimaryButton } from '@/components/Buttons';
 import { ChallengeLengthSheet } from '@/components/ChallengeLengthSheet';
+import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
@@ -36,11 +37,12 @@ import {
   tabBarBottom,
   type as typeScale,
 } from '@/constants/theme';
-import { CHALLENGES, type ChallengeCategory } from '@/data/challenges';
+import { CHALLENGES, type Challenge, type ChallengeCategory } from '@/data/challenges';
 import { FRIENDS } from '@/data/content';
 import { LIVES_PER_CHALLENGE, useApp, type TaskPhoto } from '@/hooks/useAppState';
 import { CATEGORIES } from '@/hooks/useChallengeCards';
 import { addDays, longDate } from '@/lib/format';
+import { DAY_MS, localDay, roundState } from '@/lib/round';
 
 /** The photos that stand for a challenge everywhere else — its strip on
  * Challenges and on its preview are drawn from these. Three fill the cover
@@ -125,6 +127,11 @@ function defaultStartOffset(today: Date): number {
   return JOIN_WINDOW_DAYS + ((MONDAY - weekOut + 7) % 7);
 }
 
+/** Days from today to a challenge's Day 1 — what the start wheel counts in. */
+function offsetTo(today: Date, start: Date): number {
+  return Math.round((start.getTime() - today.getTime()) / DAY_MS);
+}
+
 const livesLabel = (n: number) => `${n} ${n === 1 ? 'life' : 'lives'}`;
 
 function livesHint(n: number): string {
@@ -141,39 +148,63 @@ function livesHint(n: number): string {
  * that everyone in it shares, so a created one gets a start date too —
  * friends join before it. Saving adds it to the picker's Custom tab rather
  * than making it the active challenge.
+ *
+ * Opened with `edit`, the same three steps carry a challenge you built,
+ * filled in, and the last one saves the changes and goes back instead of
+ * announcing it. That holds only until Day 1: once it has started, people
+ * are in on its terms, so the form says so and changes nothing.
  */
 export default function CreateChallengeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { addChallenge } = useApp();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { addChallenge, updateChallenge, customChallenges } = useApp();
   const scroll = useRef<ScrollView>(null);
 
+  // Read once: the form holds its own draft from here, so the saved
+  // challenge changing underneath it doesn't reset what's being typed.
+  const [editing] = useState<Challenge | undefined>(() =>
+    edit ? customChallenges.find((c) => c.id === edit) : undefined,
+  );
   const [step, setStep] = useState<Step>(1);
   const [today] = useState(startOfToday);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [topic, setTopic] = useState<ChallengeCategory | null>(null);
-  const [photos, setPhotos] = useState<TaskPhoto[]>([]);
+  const [name, setName] = useState(editing?.name ?? '');
+  const [description, setDescription] = useState(editing?.description ?? '');
+  const [topic, setTopic] = useState<ChallengeCategory | null>(editing?.category ?? null);
+  const [photos, setPhotos] = useState<TaskPhoto[]>(() => [...(editing?.photos ?? [])]);
   // The photo being replaced, or the next free one when adding.
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [tasks, setTasks] = useState<DraftTask[]>([
-    { id: 'draft-task-0', label: '', note: '' },
-  ]);
+  // An edited challenge's tasks keep their ids, so the save can tell the
+  // ones carried over from the ones added.
+  const [tasks, setTasks] = useState<DraftTask[]>(() =>
+    editing
+      ? editing.tasks.map((t) => ({ id: t.id, label: t.label, note: t.note ?? '' }))
+      : [{ id: 'draft-task-0', label: '', note: '' }],
+  );
   const [focusedTask, setFocusedTask] = useState<string | null>(null);
-  const [startOffset, setStartOffset] = useState(() => defaultStartOffset(today));
+  const [startOffset, setStartOffset] = useState(() =>
+    editing?.startDate
+      ? Math.max(1, offsetTo(today, localDay(editing.startDate)))
+      : defaultStartOffset(today),
+  );
   const [pendingOffset, setPendingOffset] = useState(startOffset);
   const [startOpen, setStartOpen] = useState(false);
-  const [days, setDays] = useState(DEFAULT_DAYS);
+  const [days, setDays] = useState(editing?.defaultDays ?? DEFAULT_DAYS);
   const [lengthOpen, setLengthOpen] = useState(false);
-  const [lives, setLives] = useState(LIVES_PER_CHALLENGE);
+  const [lives, setLives] = useState(editing?.lives ?? LIVES_PER_CHALLENGE);
   const [pendingLives, setPendingLives] = useState(lives);
   const [livesOpen, setLivesOpen] = useState(false);
   const [invited, setInvited] = useState<readonly string[]>([]);
 
   const startDate = addDays(today, startOffset);
   const endDate = addDays(startDate, days - 1);
-  const startOffsets = Array.from({ length: START_WINDOW_DAYS }, (_, i) => i + 1);
+  // Stretched to reach a start already picked further out than the window,
+  // so opening the wheel on an edit never moves it.
+  const startOffsets = Array.from(
+    { length: Math.max(START_WINDOW_DAYS, startOffset) },
+    (_, i) => i + 1,
+  );
 
   const goTo = (next: Step) => {
     setStep(next);
@@ -215,22 +246,37 @@ export default function CreateChallengeScreen() {
   const basicsDone = name.trim().length > 0 && photos.length === PHOTO_COUNT;
   const tasksDone = filledTasks.length > 0;
 
+  const kept = new Set(editing?.tasks.map((t) => t.id));
+  const input = () => ({
+    name: name.trim(),
+    description: description.trim(),
+    category: topic ?? undefined,
+    photos,
+    tasks: filledTasks.map((t) => ({
+      ...(kept.has(t.id) ? { id: t.id } : null),
+      label: t.label.trim(),
+      ...(t.note.trim() ? { note: t.note.trim() } : null),
+    })),
+    days,
+    startDate,
+    lives,
+  });
+
   const create = () => {
-    addChallenge({
-      name: name.trim(),
-      description: description.trim(),
-      category: topic ?? undefined,
-      photos,
-      tasks: filledTasks.map((t) => ({
-        label: t.label.trim(),
-        ...(t.note.trim() ? { note: t.note.trim() } : null),
-      })),
-      days,
-      startDate,
-      lives,
-    });
+    if (editing) {
+      updateChallenge(editing.id, input());
+      router.back();
+      return;
+    }
+    addChallenge(input());
     goTo('live');
   };
+
+  // Gone, or under way: either way there's nothing left here to change.
+  const locked =
+    edit !== undefined &&
+    (!editing?.startDate ||
+      roundState(localDay(editing.startDate), editing.defaultDays).kind !== 'upcoming');
 
   const shareInvite = () => {
     Share.share({
@@ -264,7 +310,7 @@ export default function CreateChallengeScreen() {
     ) : step === 2 ? (
       <PrimaryButton label="Next: rules" disabled={!tasksDone} onPress={() => goTo(3)} />
     ) : step === 3 ? (
-      <PrimaryButton label="Create challenge" onPress={create} />
+      <PrimaryButton label={editing ? 'Save changes' : 'Create challenge'} onPress={create} />
     ) : (
       <View style={styles.liveActions}>
         <PrimaryButton label="Share invite link" icon="share-outline" onPress={shareInvite} />
@@ -281,6 +327,20 @@ export default function CreateChallengeScreen() {
 
   // The finished page's dock carries a text link under the button as well.
   const dockHeight = step === 'live' ? buttonHeight + layout.block + typeScale.copyBold.lineHeight : buttonHeight;
+
+  if (locked) {
+    return (
+      <ScreenScroll tone="plain" header={<ScreenHeader backIcon="close" />}>
+        <EmptyState
+          icon="lock-closed"
+          disc
+          title={editing ? `${editing.name} has started` : 'Challenge not found'}
+          hint="A challenge can be changed until its Day 1. After that, everyone in it keeps the rules they joined on."
+          style={styles.lockedState}
+        />
+      </ScreenScroll>
+    );
+  }
 
   return (
     // Absolute overlays need a positioned parent, otherwise their offsets
@@ -300,8 +360,12 @@ export default function CreateChallengeScreen() {
         {step === 1 ? (
           <>
             <Question
-              title="What's your challenge?"
-              hint="A name and a few photos people will see first."
+              title={editing ? 'Edit your challenge' : "What's your challenge?"}
+              hint={
+                editing
+                  ? `Change anything until it starts on ${longDate(startDate)}.`
+                  : 'A name and a few photos people will see first.'
+              }
             />
 
             <Cover
@@ -946,6 +1010,9 @@ const styles = StyleSheet.create({
   },
   inviteName: {
     flex: 1,
+  },
+  lockedState: {
+    paddingTop: spacing['4xl'],
   },
   invitePill: {
     alignSelf: 'center',

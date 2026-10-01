@@ -129,6 +129,10 @@ interface AppState {
   /** Challenges carried to the last day. One trophy, one finish. */
   trophies: number;
 
+  /** The challenges you've built yourself, oldest first — what Search's
+   * Created by you lists, and what can still be edited until Day 1. */
+  customChallenges: readonly Challenge[];
+
   /** The two nudges picked while joining a challenge. */
   reminders: Reminders;
 
@@ -150,6 +154,19 @@ interface AppState {
   hasPhotographedTask: boolean;
 }
 
+/** What the create-challenge form hands over. A task keeps its `id` when
+ * it's being edited, so anything keyed by it survives the edit. */
+export interface ChallengeInput {
+  name: string;
+  description: string;
+  category?: ChallengeCategory;
+  photos: readonly TaskPhoto[];
+  tasks: readonly { id?: string; label: string; note?: string }[];
+  days: number;
+  startDate: Date;
+  lives: number;
+}
+
 interface AppActions {
   setName: (name: string) => void;
   setBio: (bio: string | null) => void;
@@ -163,16 +180,14 @@ interface AppActions {
   /** Builds a new custom challenge from the create-challenge form, adds it to
    * the challenges `selectChallenge` can pick, and hands it back so the screen
    * can navigate on. */
-  addChallenge: (input: {
-    name: string;
-    description: string;
-    category?: ChallengeCategory;
-    photos: readonly TaskPhoto[];
-    tasks: readonly { label: string; note?: string }[];
-    days: number;
-    startDate: Date;
-    lives: number;
-  }) => Challenge;
+  addChallenge: (input: ChallengeInput) => Challenge;
+  /** Rewrites a challenge you built from the same form. Only before Day 1 —
+   * once it has started, people have joined on its terms. If it's the one
+   * you're on, your round follows the new start, length and tasks. */
+  updateChallenge: (id: string, input: ChallengeInput) => void;
+  /** Takes a challenge you built down. If it's the one you're on, you go
+   * back to the seeded challenge, the way a fresh install opens. */
+  deleteChallenge: (id: string) => void;
   setTotalDays: (days: number) => void;
   setReminders: (reminders: Reminders) => void;
   setTabBarHidden: (hidden: boolean) => void;
@@ -261,6 +276,26 @@ const SEED_DAY_PHOTOS: Readonly<Record<number, Readonly<Record<string, TaskPhoto
     h5: require('../assets/feed/posts/park-bench-reading.jpg'),
   },
 };
+
+/** A custom challenge out of the form's fields. Tasks carried over from an
+ * edit keep their ids; new ones get fresh ones. */
+function buildChallenge(id: string, input: ChallengeInput): Challenge {
+  const stamp = Date.now();
+  return {
+    id,
+    name: input.name,
+    stamp: 'Custom',
+    description: input.description,
+    category: input.category,
+    joined: 0,
+    photoSeeds: [],
+    photos: input.photos,
+    defaultDays: input.days,
+    startDate: isoDay(input.startDate),
+    lives: input.lives,
+    tasks: input.tasks.map(({ id: taskId, ...t }, i) => ({ id: taskId ?? `ct${stamp}-${i}`, ...t })),
+  };
+}
 
 function startOfToday(): Date {
   const now = new Date();
@@ -419,35 +454,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [customChallenges],
   );
 
-  const addChallenge = useCallback(
-    (input: {
-      name: string;
-      description: string;
-      category?: ChallengeCategory;
-      photos: readonly TaskPhoto[];
-      tasks: readonly { label: string; note?: string }[];
-      days: number;
-      startDate: Date;
-      lives: number;
-    }) => {
-      const built: Challenge = {
-        id: `custom-${Date.now()}`,
-        name: input.name,
-        stamp: 'Custom',
-        description: input.description,
-        category: input.category,
-        joined: 0,
-        photoSeeds: [],
-        photos: input.photos,
-        defaultDays: input.days,
-        startDate: isoDay(input.startDate),
-        lives: input.lives,
-        tasks: input.tasks.map((t, i) => ({ id: `ct${Date.now()}-${i}`, ...t })),
-      };
-      setCustomChallenges((list) => [...list, built]);
-      return built;
+  const addChallenge = useCallback((input: ChallengeInput) => {
+    const built = buildChallenge(`custom-${Date.now()}`, input);
+    setCustomChallenges((list) => [...list, built]);
+    return built;
+  }, []);
+
+  const updateChallenge = useCallback(
+    (id: string, input: ChallengeInput) => {
+      const existing = customChallenges.find((c) => c.id === id);
+      if (!existing) return;
+      const built: Challenge = { ...buildChallenge(id, input), joined: existing.joined };
+      setCustomChallenges((list) => list.map((c) => (c.id === id ? built : c)));
+      if (challenge.id === id) {
+        setChallenge(built);
+        setTasksState([...built.tasks]);
+        setTotalDays(built.defaultDays);
+        setStartDateState(input.startDate);
+      }
     },
-    [],
+    [customChallenges, challenge.id],
+  );
+
+  const deleteChallenge = useCallback(
+    (id: string) => {
+      setCustomChallenges((list) => list.filter((c) => c.id !== id));
+      if (challenge.id === id) {
+        setChallenge(SEED_CHALLENGE);
+        setTasksState([...SEED_CHALLENGE.tasks]);
+        setTotalDays(SEED_CHALLENGE.defaultDays);
+        setStartDateState(addDays(startOfToday(), -(SEED_DAY - 1)));
+        setProgress(seedProgress(SEED_CHALLENGE.tasks));
+        setCaptions(SEED_CAPTIONS);
+      }
+    },
+    [challenge.id],
   );
 
   const completeTaskWithPhoto = useCallback(
@@ -583,6 +624,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       watchedStories,
       friendRequests,
       trophies,
+      customChallenges,
       reminders,
       currentDay,
       livesTotal,
@@ -596,6 +638,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAvatarPhoto,
       selectChallenge,
       addChallenge,
+      updateChallenge,
+      deleteChallenge,
       setTotalDays,
       setReminders,
       setTabBarHidden,
@@ -610,9 +654,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       profile, challenge, tasks, startDate, totalDays,
       tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, friendRequests,
-      trophies, reminders,
+      trophies, customChallenges, reminders,
       currentDay, livesLeft, hasPhotographedTask,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge,
+      updateChallenge, deleteChallenge,
       setTabBarHidden, completeTaskWithPhoto, undoTask,
       reactToPost, toggleFriendRequest, markStoryWatched, addFriendComment, resetAll,
     ],

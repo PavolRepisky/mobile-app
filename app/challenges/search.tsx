@@ -17,6 +17,8 @@ import {
   matchedTask,
   matchesQuery,
   useChallengeCards,
+  useCreatedChallengeCards,
+  type ChallengeCard,
   type LengthBucket,
   type Phase,
 } from '@/hooks/useChallengeCards';
@@ -25,6 +27,9 @@ import {
  * a short list rather than a menu. */
 const RECENT_HEIGHT = 48;
 const MAX_RECENT = 5;
+/** Your own challenges shown before anything is typed — enough to reach the
+ * one you just made; See all filters down to every one. */
+const CREATED_PREVIEW = 3;
 /** Joinable rounds first, then the ones already running, then the finished. */
 const PHASE_ORDER: Record<Phase, number> = { upcoming: 0, active: 1, finished: 2 };
 
@@ -41,13 +46,23 @@ let recentSearches: string[] = [];
  * the three lengths. A query matches names, topics and tasks, so "walk"
  * finds the rounds that have you walking and says which task it found. The
  * rounds you can join come first; the rest say they're closed. Nothing
- * found offers to start that challenge yourself.
+ * found offers to start that challenge yourself. The challenges you've built
+ * are searched too, and filtered to on their own with Created by you; each
+ * opens on its page like any other, where its ⋯ edits or deletes it.
  */
 export default function ChallengeSearchScreen() {
   const router = useRouter();
-  const cards = useChallengeCards();
+  const listed = useChallengeCards();
+  const created = useCreatedChallengeCards();
+  // Yours replace their own entry when you're on one, so it shows once and
+  // as something you made.
+  const cards = useMemo(
+    () => [...listed.filter((card) => !created.some((c) => c.id === card.id)), ...created],
+    [listed, created],
+  );
   const [query, setQuery] = useState('');
   const [length, setLength] = useState<LengthBucket>();
+  const [ownOnly, setOwnOnly] = useState(false);
   const [recent, setRecent] = useState(recentSearches);
 
   const remember = (text: string) => {
@@ -63,25 +78,39 @@ export default function ChallengeSearchScreen() {
 
   const topics = CATEGORIES.map((name) => ({
     name,
-    count: cards.filter((card) => card.category === name).length,
+    // Counted off the listings alone: a topic's page has no place for yours.
+    count: listed.filter((card) => card.category === name).length,
   })).filter((t) => t.count > 0);
 
-  const searching = query.trim().length > 0 || length !== undefined;
+  const searching = query.trim().length > 0 || length !== undefined || ownOnly;
   const results = useMemo(
     () =>
       cards
         .filter(
           (card) =>
-            matchesQuery(card, query) && (!length || lengthBucket(card.days) === length),
+            matchesQuery(card, query) &&
+            (!length || lengthBucket(card.days) === length) &&
+            (!ownOnly || card.createdByMe),
         )
         .sort(
           (a, b) =>
             PHASE_ORDER[a.phase] - PHASE_ORDER[b.phase] ||
             (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0),
         ),
-    [cards, query, length],
+    [cards, query, length, ownOnly],
   );
   const joinable = results.filter((card) => card.phase === 'upcoming' && !card.mine).length;
+  const editable = results.filter((card) => card.createdByMe && card.phase === 'upcoming').length;
+
+  const open = (card: ChallengeCard) => () => {
+    remember(query);
+    router.push({ pathname: '/feed/[id]', params: { id: card.id } });
+  };
+
+  const detailFor = (card: ChallengeCard) =>
+    card.phase === 'upcoming'
+      ? [card.category, `${card.days} days`].filter(Boolean).join(' · ')
+      : challengeDetail(card, false);
 
   const openTopic = (name: string) =>
     router.push({ pathname: '/challenges/[filter]', params: { filter: name } });
@@ -129,6 +158,34 @@ export default function ChallengeSearchScreen() {
     >
       {!searching ? (
         <>
+          {created.length > 0 ? (
+            <View style={styles.section}>
+              <View style={styles.labelRow}>
+                <Text variant="metaBold" color={colors.inkMuted}>
+                  CREATED BY YOU
+                </Text>
+                {created.length > CREATED_PREVIEW ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setOwnOnly(true)}
+                    hitSlop={spacing.sm}
+                    style={({ pressed }) => pressed && styles.pressed}
+                  >
+                    <Text variant="metaBold">See all {created.length}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              {created.slice(0, CREATED_PREVIEW).map((card) => (
+                <ChallengeRow
+                  key={card.id}
+                  card={card}
+                  detail={detailFor(card)}
+                  onPress={open(card)}
+                />
+              ))}
+            </View>
+          ) : null}
+
           {recent.length > 0 ? (
             <View style={styles.section}>
               <Text variant="metaBold" color={colors.inkMuted}>
@@ -189,7 +246,13 @@ export default function ChallengeSearchScreen() {
           <EmptyState
             icon="search"
             disc
-            title={query.trim() ? `No challenges match "${query.trim()}"` : 'No challenges that long'}
+            title={
+              query.trim()
+                ? ownOnly
+                  ? `None of yours match "${query.trim()}"`
+                  : `No challenges match "${query.trim()}"`
+                : 'No challenges that long'
+            }
             hint="Try a topic, or start this one yourself — friends can join on the day it begins."
             action={{
               label: query.trim() ? `Create "${query.trim()}"` : 'Create a challenge',
@@ -213,6 +276,16 @@ export default function ChallengeSearchScreen() {
       ) : (
         <>
           <View style={styles.summary}>
+            {ownOnly ? (
+              <Pill
+                label="Created by you"
+                tone="solid"
+                size="sm"
+                bold
+                trailingIcon="close"
+                onPress={() => setOwnOnly(false)}
+              />
+            ) : null}
             {length ? (
               <Pill
                 label={LENGTHS.find((l) => l.key === length)?.label ?? ''}
@@ -225,7 +298,7 @@ export default function ChallengeSearchScreen() {
             ) : null}
             <Text variant="metaBold" color={colors.inkMuted}>
               {results.length === 1 ? '1 CHALLENGE' : `${results.length} CHALLENGES`} ·{' '}
-              {joinable} YOU CAN JOIN
+              {ownOnly ? `${editable} YOU CAN EDIT` : `${joinable} YOU CAN JOIN`}
             </Text>
           </View>
           {results.map((card) => {
@@ -234,16 +307,9 @@ export default function ChallengeSearchScreen() {
               <ChallengeRow
                 key={card.id}
                 card={card}
-                detail={
-                  card.phase === 'upcoming'
-                    ? [card.category, `${card.days} days`].filter(Boolean).join(' · ')
-                    : challengeDetail(card, false)
-                }
+                detail={detailFor(card)}
                 note={task ? `Task: ${task.toLowerCase()}` : undefined}
-                onPress={() => {
-                  remember(query);
-                  router.push({ pathname: '/feed/[id]', params: { id: card.id } });
-                }}
+                onPress={open(card)}
               />
             );
           })}
@@ -267,6 +333,11 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: layout.heading,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   recent: {
     height: RECENT_HEIGHT,

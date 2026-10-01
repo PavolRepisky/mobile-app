@@ -6,11 +6,13 @@ import { useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AlertDialog } from '@/components/AlertDialog';
 import { Avatar, type AvatarSource } from '@/components/Avatar';
 import { CheckCircle } from '@/components/CheckCircle';
 import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { Pill } from '@/components/Pill';
+import { PopoverMenu } from '@/components/PopoverMenu';
 import { PrimaryButton } from '@/components/Buttons';
 import { headerLineTop, ScreenScroll, topPadding } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
@@ -25,9 +27,7 @@ import {
   spacing,
   tabBarBottom,
 } from '@/constants/theme';
-import { challengeById } from '@/data/challenges';
 import {
-  DISCOVER,
   FRIENDS,
   ME,
   PEOPLE,
@@ -36,6 +36,7 @@ import {
   type StreakGroup,
 } from '@/data/content';
 import { LIVES_PER_CHALLENGE, useApp } from '@/hooks/useAppState';
+import { useChallengeListing } from '@/hooks/useChallengeCards';
 import { addDays, longDate, ordinal, shortDate } from '@/lib/format';
 import { DAY_MS, localDay, roundState } from '@/lib/round';
 
@@ -122,8 +123,7 @@ export default function FeedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { challenge: mine, startDate, totalDays: myDays } = useApp();
 
-  const section = DISCOVER.find((s) => s.id === String(id)) ?? DISCOVER[0];
-  const challenge = challengeById(section.id);
+  const { section, challenge } = useChallengeListing(String(id));
   // The challenge you've taken on is told by your own round — your Day 1 and
   // length — so its page stands where your Tasks tab does, whatever date the
   // listing gives the round everyone else sees.
@@ -194,7 +194,7 @@ function ChallengePage({
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   });
 
-  const challenge = challengeById(section.id);
+  const { challenge } = useChallengeListing(section.id);
   const lives = challenge.lives ?? LIVES_PER_CHALLENGE;
   const inIt = mode === 'waiting' || mode === 'active';
   const going = mode === 'active' || mode === 'closed';
@@ -273,6 +273,7 @@ function ChallengePage({
           section={section}
           badge={badge.label}
           badgeIcon={badge.icon}
+          editable={!going}
           onOpenPhoto={setOpenPhotoIndex}
         />
 
@@ -477,12 +478,17 @@ function listNames(names: readonly string[]): string {
  * name, where it stands and whose it is laid over them. The way back sits on
  * the photo rather than in a bar, so the picture runs up to the top edge; it
  * scrolls away with it, and the edge swipe is the way back from further down.
+ *
+ * A challenge you built carries a ⋯ in the opposite corner, with Edit while
+ * Day 1 is still to come and Delete always — yours to take down, behind a
+ * confirmation since it can't be brought back.
  */
 function Hero({
   section,
   badge,
   badgeIcon,
   badgeTo,
+  editable = false,
   onOpenPhoto,
 }: {
   section: DiscoverSection;
@@ -492,13 +498,23 @@ function Hero({
   badgeIcon?: keyof typeof Ionicons.glyphMap;
   /** The far end of a range in the badge, "Jun 1 → Aug 14". */
   badgeTo?: string;
+  /** Before Day 1, a challenge of yours can still be changed. */
+  editable?: boolean;
   onOpenPhoto: (index: number) => void;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const challenge = challengeById(section.id);
-  const creator = PEOPLE.find((p) => p.id === section.creatorId) ?? PEOPLE[0];
+  const { profile, deleteChallenge } = useApp();
+  const { challenge, createdByMe } = useChallengeListing(section.id);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  // Yours is told with your own face and handle, and opens your profile.
+  const person = PEOPLE.find((p) => p.id === section.creatorId) ?? PEOPLE[0];
+  const creator = createdByMe
+    ? { name: 'your', handle: profile.handle, avatar: profile.avatar ?? profile.avatarSeed }
+    : person;
+  const cornerTop = Math.max(headerLineTop, topPadding(insets.top));
 
   const half = width / 2;
   const quarter = HERO_HEIGHT / 2;
@@ -535,8 +551,19 @@ function Hero({
         background={colors.surface}
         onPress={() => router.back()}
         accessibilityLabel="Go back"
-        style={[styles.heroBack, { top: Math.max(headerLineTop, topPadding(insets.top)) }]}
+        style={[styles.heroBack, { top: cornerTop }]}
       />
+      {createdByMe ? (
+        <IconButton
+          name="ellipsis-horizontal"
+          size={cornerButtonSize}
+          iconSize={cornerIconSize}
+          background={colors.surface}
+          onPress={() => setMenuOpen(true)}
+          accessibilityLabel="Challenge options"
+          style={[styles.heroMore, { top: cornerTop }]}
+        />
+      ) : null}
       <View style={styles.heroCaption}>
         <Pill
           label={badge}
@@ -553,7 +580,11 @@ function Hero({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`View ${creator.name}'s profile`}
-          onPress={() => router.push({ pathname: '/friend/[id]', params: { id: creator.id } })}
+          onPress={() =>
+            createdByMe
+              ? router.navigate('/(tabs)/profile')
+              : router.push({ pathname: '/friend/[id]', params: { id: person.id } })
+          }
           style={({ pressed }) => [styles.heroCreator, pressed && styles.pressed]}
         >
           <Avatar source={creator.avatar} size={HERO_AVATAR_SIZE} />
@@ -562,6 +593,46 @@ function Hero({
           </Text>
         </Pressable>
       </View>
+
+      {createdByMe ? (
+        <>
+          <PopoverMenu
+            visible={menuOpen}
+            onDismiss={() => setMenuOpen(false)}
+            top={cornerTop + cornerButtonSize + layout.stack}
+            items={[
+              ...(editable
+                ? [
+                    {
+                      label: 'Edit Challenge',
+                      onPress: () =>
+                        router.push({ pathname: '/challenge/create', params: { edit: section.id } }),
+                    },
+                  ]
+                : []),
+              { label: 'Delete Challenge', destructive: true, onPress: () => setDeleteOpen(true) },
+            ]}
+          />
+          <AlertDialog
+            visible={deleteOpen}
+            title="Delete Challenge"
+            message={`${challenge.name} will be gone for you and anyone who joined. This can't be undone.`}
+            onDismiss={() => setDeleteOpen(false)}
+            actions={[
+              { label: 'Cancel', onPress: () => setDeleteOpen(false) },
+              {
+                label: 'Delete',
+                destructive: true,
+                onPress: () => {
+                  setDeleteOpen(false);
+                  router.back();
+                  deleteChallenge(section.id);
+                },
+              },
+            ]}
+          />
+        </>
+      ) : null}
     </View>
   );
 }
@@ -591,7 +662,7 @@ function Finished({
   const [showAll, setShowAll] = useState(false);
   const [board, setBoard] = useState<'everyone' | 'friends'>('everyone');
 
-  const challenge = challengeById(section.id);
+  const { challenge } = useChallengeListing(section.id);
   const totalDays = challenge.defaultDays;
   const lives = challenge.lives ?? LIVES_PER_CHALLENGE;
   const members = section.members.toLocaleString('en-US');
@@ -1136,6 +1207,10 @@ const styles = StyleSheet.create({
   heroBack: {
     position: 'absolute',
     left: layout.gutter,
+  },
+  heroMore: {
+    position: 'absolute',
+    right: layout.gutter,
   },
   previewBody: {
     padding: layout.gutter,

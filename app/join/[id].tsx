@@ -10,9 +10,8 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SignaturePad } from '@/components/SignaturePad';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, tabBarBottom } from '@/constants/theme';
-import { challengeById } from '@/data/challenges';
-import { DISCOVER } from '@/data/content';
 import { LIVES_PER_CHALLENGE, useApp } from '@/hooks/useAppState';
+import { useChallengeListing } from '@/hooks/useChallengeCards';
 import { addDays, fullDate, longDate, ordinal } from '@/lib/format';
 import { localDay } from '@/lib/round';
 
@@ -30,8 +29,7 @@ export default function JoinScreen() {
   const insets = useSafeAreaInsets();
   const { selectChallenge, profile } = useApp();
 
-  const section = DISCOVER.find((s) => s.id === String(id)) ?? DISCOVER[0];
-  const challenge = challengeById(section.id);
+  const { section, challenge } = useChallengeListing(String(id));
   const totalDays = challenge.defaultDays;
   const start = localDay(section.startDate);
   const end = addDays(start, totalDays - 1);
