@@ -30,6 +30,8 @@ import { Text } from './Text';
 export interface CameraSheetTask {
   id: string;
   label: string;
+  /** The task's one-line note, read under its name. */
+  note?: string;
 }
 
 export interface CameraSheetProps {
@@ -45,26 +47,31 @@ export interface CameraSheetProps {
    */
   swipeTasks?: boolean;
   onChangeTask?: (taskId: string) => void;
+  /** Where today stands, pinned to the picture's corner — "Day 5 · 3 left". */
+  kicker?: string;
   onCapture: (taskId: string, photo: TaskPhoto) => void;
   onClose: () => void;
 }
 
-/** The card's own corner — the phone's, so the card reads as a second screen
- * rising inside the first. */
-const CARD_RADIUS = 44;
-/** How far down the screen the card starts: the top of today's post stays in
- * view above it, so it's clear what the photo is going into. */
-const CARD_TOP = 0.37;
-const CONTROL = 56;
+/** The card's own corner — the signature card cut, so it reads as one more
+ * of the app's cards risen over the page. */
+const CARD_RADIUS = radii.card;
+/** The picture's corner, concentric with the card's around the gap between
+ * them, so the two curves run parallel. */
+const VIEWFINDER_RADIUS = radii.card - layout.stack;
+/** Close and flip: a thumb's target, a step under the shutter. */
+const CONTROL = 48;
+const CONTROL_ICON = 22;
+/** The flash in the picture's corner, the height of the pill opposite it. */
+const TOP_CONTROL = 36;
+const TOP_ICON = 18;
+const KICKER_HEIGHT = 30;
 const SHUTTER = 80;
 const SHUTTER_FACE = 64;
 const SHUTTER_RING = 4;
-const CHIP_HEIGHT = 34;
-/** The arrows either side of the task: discs the chip's own height, so the
- * three read as one control rather than a label with buttons stuck on. */
-const ARROW_ICON = 18;
-/** The carousel's dots — small enough to read as a count, not as buttons. */
-const DOT = 6;
+/** The dot under the task in focus — small enough to read as a mark, not a
+ * button. */
+const DOT = 5;
 const RISE_MS = 280;
 /** The furthest the pinch goes, as the pill reads it. Past this the picture
  * is only a blown-up crop, the point where the phone's own camera stops too. */
@@ -98,11 +105,12 @@ function formatZoom(factor: number): string {
 }
 
 /**
- * The camera, opened from a square of today's post: the page dims and a card
- * rises over its lower part with the live camera in it and the task it's for
- * across the top. The whole shot is kept; its square in the post shows it
- * cropped to fill, the way every photo in the grid is. Closing it drops
- * straight back to the page.
+ * The camera, opened from a task: the page dims and a black card rises from
+ * the bottom with the live picture square in it, where today stands and the
+ * flash on its corners, the task it's for under it between its neighbours,
+ * and close, shutter and flip along the bottom. The whole shot is kept; its
+ * square in the post shows it cropped to fill, the way every photo in the
+ * grid is. Closing it drops straight back to the page.
  */
 export function CameraSheet({
   visible,
@@ -110,6 +118,7 @@ export function CameraSheet({
   taskId,
   swipeTasks,
   onChangeTask,
+  kicker,
   onCapture,
   onClose,
 }: CameraSheetProps) {
@@ -118,6 +127,7 @@ export function CameraSheet({
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<'front' | 'back'>('back');
   const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState(false);
   /** The zoom as the pill reads it: 1 is the main lens, 2 is twice as close. */
   const [zoom, setZoom] = useState(1);
   const pinchFrom = useRef(1);
@@ -189,7 +199,12 @@ export function CameraSheet({
   const zoomed = zoom > 1;
   const canSwitch = !!swipeTasks && tasks.length > 1;
 
-  const task = tasks.find((t) => t.id === taskId) ?? null;
+  const at = tasks.findIndex((t) => t.id === taskId);
+  const task = at >= 0 ? tasks[at] : null;
+  // The neighbours either side of the task, wrapping like the swipe does.
+  // With only two open, the other one is both, so it's shown once, ahead.
+  const previous = canSwitch && tasks.length > 2 ? tasks[(at - 1 + tasks.length) % tasks.length] : null;
+  const next = canSwitch ? tasks[(at + 1) % tasks.length] : null;
 
   const capture = async () => {
     if (busy || !task) return;
@@ -214,157 +229,191 @@ export function CameraSheet({
         <Animated.View
           style={[
             styles.card,
-            { top: screenHeight * CARD_TOP, bottom: Math.max(insets.bottom / 2, spacing.sm) },
+            { bottom: Math.max(insets.bottom / 2, spacing.sm) },
             { transform: [{ translateY }] },
           ]}
         >
-          {permission?.granted ? (
-            <>
-              <GestureDetector gesture={gestures}>
-                <View style={absoluteFill} collapsable={false}>
-                  <CameraView ref={camera} facing={facing} zoom={toCameraZoom(zoom)} style={absoluteFill} />
-                </View>
-              </GestureDetector>
+          {/* The shot itself, square like its place in the post, so what the
+              viewfinder frames is what the post will show. */}
+          <View style={styles.viewfinder}>
+            {permission?.granted ? (
+              <>
+                <GestureDetector gesture={gestures}>
+                  <View style={absoluteFill} collapsable={false}>
+                    <CameraView
+                      ref={camera}
+                      facing={facing}
+                      flash={flash ? 'on' : 'off'}
+                      zoom={toCameraZoom(zoom)}
+                      style={absoluteFill}
+                    />
+                  </View>
+                </GestureDetector>
 
-              <View style={styles.top} pointerEvents="box-none">
-                {/* One task at a time, whichever the next shot is for. With
-                    others open, arrows either side say which way the rest
-                    lie — and take a tap as well as the swipe they point
-                    along — while the dots under it count the open tasks and
-                    mark this one, the way a photo carousel shows there is
-                    more. A screen reader steps through them the same way. */}
-                {task ? (
-                  <View style={styles.taskRow} pointerEvents="box-none">
-                    {canSwitch ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Previous task"
-                        hitSlop={spacing.sm}
-                        onPress={() => stepTask.current(-1)}
-                        style={({ pressed }) => [styles.arrow, pressed && styles.arrowPressed]}
-                      >
-                        <Ionicons name="chevron-back" size={ARROW_ICON} color={colors.inkInverse} />
-                      </Pressable>
-                    ) : null}
-                    <View
-                      accessibilityRole={canSwitch ? 'adjustable' : undefined}
-                      accessibilityLabel={`Task: ${task.label}`}
-                      accessibilityActions={
-                        canSwitch ? [{ name: 'increment' }, { name: 'decrement' }] : undefined
-                      }
-                      onAccessibilityAction={(e) =>
-                        stepTask.current(e.nativeEvent.actionName === 'increment' ? 1 : -1)
-                      }
-                      style={[styles.chip, styles.chipAlone]}
-                    >
-                      <Text variant="metaBold" color={colors.inkInverse} numberOfLines={1}>
-                        {task.label}
+                <View style={styles.top} pointerEvents="box-none">
+                  {kicker ? (
+                    <View style={styles.kicker} pointerEvents="none">
+                      <Text variant="badge" color={colors.inkInverse}>
+                        {kicker}
                       </Text>
                     </View>
-                    {canSwitch ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Next task"
-                        hitSlop={spacing.sm}
-                        onPress={() => stepTask.current(1)}
-                        style={({ pressed }) => [styles.arrow, pressed && styles.arrowPressed]}
-                      >
-                        <Ionicons name="chevron-forward" size={ARROW_ICON} color={colors.inkInverse} />
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ) : null}
-                {canSwitch ? (
-                  <View
-                    style={styles.dots}
-                    pointerEvents="none"
-                    accessibilityElementsHidden
-                    importantForAccessibility="no-hide-descendants"
+                  ) : (
+                    <View />
+                  )}
+                  {/* Flash turns white while it's on, the way the zoom pill
+                      does once zoomed. */}
+                  <IconButton
+                    name={flash ? 'flash' : 'flash-outline'}
+                    size={TOP_CONTROL}
+                    iconSize={TOP_ICON}
+                    background={flash ? colors.surface : colors.scrim}
+                    color={flash ? colors.ink : colors.inkInverse}
+                    shadow={false}
+                    onPress={() => setFlash((on) => !on)}
+                    accessibilityLabel={flash ? 'Flash on, tap to turn off' : 'Flash off, tap to turn on'}
+                  />
+                </View>
+
+                {/* The zoom shows only while there is some, and a tap takes it
+                    back to 1× — the pinch is the way in. */}
+                {zoomed ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Zoomed ${formatZoom(zoom)}×, tap to zoom back out`}
+                    onPress={() => setZoom(1)}
+                    style={({ pressed }) => [styles.zoom, pressed && styles.zoomPressed]}
                   >
-                    {tasks.map((t) => (
-                      <View key={t.id} style={[styles.dot, t.id === taskId && styles.dotOn]} />
-                    ))}
-                  </View>
+                    <Text variant="badge" color={colors.ink}>
+                      {`${formatZoom(zoom)}×`}
+                    </Text>
+                  </Pressable>
                 ) : null}
-              </View>
-
-              {/* The zoom's one control besides the pinch, where the phone's
-                  camera keeps it: just above the shutter. It reads the zoom
-                  as it moves — "2.3×" — and once zoomed turns white, and a
-                  tap takes it back to 1×. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={zoomed ? `Zoomed ${formatZoom(zoom)}×, tap to zoom back out` : 'Not zoomed'}
-                disabled={!zoomed}
-                onPress={() => setZoom(1)}
-                style={({ pressed }) => [
-                  styles.zoom,
-                  zoomed && styles.zoomOn,
-                  pressed && styles.zoomPressed,
-                ]}
-              >
-                <Text variant="badge" color={zoomed ? colors.ink : colors.inkInverse}>
-                  {`${formatZoom(zoom)}×`}
+              </>
+            ) : (
+              <View style={styles.gate}>
+                <Text variant="sectionHeading" color={colors.inkInverse} center>
+                  Camera access
                 </Text>
-              </Pressable>
-
-              <View style={styles.controls}>
-                <IconButton
-                  name="chevron-back"
-                  size={CONTROL}
-                  iconSize={24}
-                  background={colors.scrim}
-                  color={colors.inkInverse}
-                  shadow={false}
-                  onPress={onClose}
-                  accessibilityLabel="Close camera"
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={task ? `Take the photo for ${task.label}` : 'Take photo'}
-                  onPress={capture}
-                  style={({ pressed }) => [styles.shutter, pressed && styles.shutterPressed]}
-                >
-                  <View style={styles.shutterFace}>
-                    {busy ? <ActivityIndicator color={colors.ink} /> : null}
-                  </View>
-                </Pressable>
-                <IconButton
-                  name="camera-reverse-outline"
-                  size={CONTROL}
-                  iconSize={24}
-                  background={colors.scrim}
-                  color={colors.inkInverse}
-                  shadow={false}
-                  onPress={() => {
-                    // The other lens has its own range, so the zoom starts over.
-                    setZoom(1);
-                    setFacing((f) => (f === 'back' ? 'front' : 'back'));
-                  }}
-                  accessibilityLabel="Flip camera"
+                <Text variant="copy" color={colors.onMediaSoft} center>
+                  Her 75 needs the camera to photograph today’s tasks.
+                </Text>
+                <PrimaryButton
+                  label={permission?.canAskAgain === false ? 'Open Settings' : 'Allow camera'}
+                  onPress={
+                    permission?.canAskAgain === false
+                      ? () => Linking.openSettings().catch(() => {})
+                      : () => requestPermission()
+                  }
+                  inverse
+                  style={styles.gateAction}
                 />
               </View>
-            </>
-          ) : (
-            <View style={styles.gate}>
-              <Text variant="sectionHeading" color={colors.inkInverse} center>
-                Camera access
-              </Text>
-              <Text variant="copy" color={colors.onMediaSoft} center>
-                Her 75 needs the camera to photograph today’s tasks.
-              </Text>
-              <PrimaryButton
-                label={permission?.canAskAgain === false ? 'Open Settings' : 'Allow camera'}
-                onPress={
-                  permission?.canAskAgain === false
-                    ? () => Linking.openSettings().catch(() => {})
-                    : () => requestPermission()
-                }
-                inverse
-                style={styles.gateAction}
-              />
+            )}
+          </View>
+
+          {/* The task the shot is for, centred and white, with its neighbours
+              either side in grey the way a camera app lays out its modes: a
+              tap on one, or a swipe across the picture, moves to it. The dot
+              under the middle marks the one in focus. */}
+          {task ? (
+            <View style={styles.picker}>
+              <View style={styles.pickerRow}>
+                <View style={[styles.side, styles.sideStart]}>
+                  {previous ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Previous task: ${previous.label}`}
+                      hitSlop={spacing.sm}
+                      onPress={() => stepTask.current(-1)}
+                      style={({ pressed }) => pressed && styles.sidePressed}
+                    >
+                      <Text variant="copy" color={colors.inkMuted} numberOfLines={1}>
+                        {previous.label}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <View
+                  accessibilityRole={canSwitch ? 'adjustable' : undefined}
+                  accessibilityLabel={`Task: ${task.label}`}
+                  accessibilityActions={
+                    canSwitch ? [{ name: 'increment' }, { name: 'decrement' }] : undefined
+                  }
+                  onAccessibilityAction={(e) =>
+                    stepTask.current(e.nativeEvent.actionName === 'increment' ? 1 : -1)
+                  }
+                  style={styles.current}
+                >
+                  <Text variant="itemTitle" color={colors.inkInverse} numberOfLines={1}>
+                    {task.label}
+                  </Text>
+                  {canSwitch ? <View style={styles.dot} /> : null}
+                </View>
+                <View style={[styles.side, styles.sideEnd]}>
+                  {next ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Next task: ${next.label}`}
+                      hitSlop={spacing.sm}
+                      onPress={() => stepTask.current(1)}
+                      style={({ pressed }) => pressed && styles.sidePressed}
+                    >
+                      <Text variant="copy" color={colors.inkMuted} numberOfLines={1}>
+                        {next.label}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+              {task.note ? (
+                <Text variant="meta" color={colors.onMediaSoft} center numberOfLines={2} style={styles.note}>
+                  {task.note}
+                </Text>
+              ) : null}
             </View>
-          )}
+          ) : null}
+
+          <View style={styles.controls}>
+            <IconButton
+              name="close"
+              size={CONTROL}
+              iconSize={CONTROL_ICON}
+              background={colors.onInkFill}
+              color={colors.inkInverse}
+              shadow={false}
+              onPress={onClose}
+              accessibilityLabel="Close camera"
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={task ? `Take the photo for ${task.label}` : 'Take photo'}
+              disabled={!permission?.granted}
+              onPress={capture}
+              style={({ pressed }) => [
+                styles.shutter,
+                !permission?.granted && styles.shutterOff,
+                pressed && styles.shutterPressed,
+              ]}
+            >
+              <View style={styles.shutterFace}>
+                {busy ? <ActivityIndicator color={colors.ink} /> : null}
+              </View>
+            </Pressable>
+            <IconButton
+              name="camera-reverse-outline"
+              size={CONTROL}
+              iconSize={CONTROL_ICON}
+              background={colors.onInkFill}
+              color={colors.inkInverse}
+              shadow={false}
+              onPress={() => {
+                // The other lens has its own range, so the zoom starts over.
+                setZoom(1);
+                setFacing((f) => (f === 'back' ? 'front' : 'back'));
+              }}
+              accessibilityLabel="Flip camera"
+            />
+          </View>
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
@@ -381,92 +430,96 @@ const styles = StyleSheet.create({
     ...absoluteFill,
     backgroundColor: colors.scrim,
   },
+  // Sized by what's in it and set on the bottom of the screen, so the page
+  // the shot is going into stays in view above it.
   card: {
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
+    padding: layout.stack,
     borderRadius: CARD_RADIUS,
+    backgroundColor: colors.mediaBackdrop,
+  },
+  viewfinder: {
+    aspectRatio: 1,
+    borderRadius: VIEWFINDER_RADIUS,
     overflow: 'hidden',
     backgroundColor: colors.mediaBackdrop,
   },
   top: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: layout.card,
+    top: layout.inline,
+    left: layout.inline,
+    right: layout.inline,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  chip: {
-    height: CHIP_HEIGHT,
+  kicker: {
+    height: KICKER_HEIGHT,
     paddingHorizontal: layout.inline,
     borderRadius: radii.pill,
     backgroundColor: colors.scrim,
     justifyContent: 'center',
   },
-  chipAlone: {
-    alignSelf: 'center',
-    // Gives way before the arrows do, so a long task name is cut short
-    // rather than pushing them off the card.
-    flexShrink: 1,
-  },
-  taskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: layout.stack,
-    paddingHorizontal: layout.gutter,
-  },
-  arrow: {
-    width: CHIP_HEIGHT,
-    height: CHIP_HEIGHT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.scrim,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrowPressed: {
-    opacity: 0.6,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: layout.line + layout.line / 2,
-    marginTop: layout.stack,
-  },
-  // The others as faint white on the preview, this one solid — the same
-  // pair of whites the rest of the card's type on the photo wears.
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.onMediaTrack,
-  },
-  dotOn: {
-    backgroundColor: colors.inkInverse,
-  },
-  // Sits one shutter-height plus a row's gap above the card's bottom, so it
-  // clears the shutter's ring the way the camera app's own zoom pill does.
   zoom: {
     position: 'absolute',
     alignSelf: 'center',
-    bottom: layout.section + SHUTTER + layout.block,
+    bottom: layout.inline,
     width: ZOOM_PILL,
     height: ZOOM_PILL,
     borderRadius: radii.pill,
-    backgroundColor: colors.scrim,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  zoomOn: {
-    backgroundColor: colors.surface,
   },
   zoomPressed: {
     opacity: 0.7,
   },
+  picker: {
+    marginTop: layout.block,
+    paddingHorizontal: layout.stack,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: layout.inline,
+  },
+  // The neighbours share what the task in the middle leaves, and give way
+  // first, so a long name in focus is never the one cut short.
+  side: {
+    flex: 1,
+    minWidth: 0,
+    paddingTop: layout.line / 2,
+  },
+  sideStart: {
+    alignItems: 'flex-start',
+  },
+  sideEnd: {
+    alignItems: 'flex-end',
+  },
+  sidePressed: {
+    opacity: 0.6,
+  },
+  current: {
+    alignItems: 'center',
+    gap: layout.line,
+    maxWidth: '60%',
+  },
+  dot: {
+    width: DOT,
+    height: DOT,
+    borderRadius: radii.pill,
+    backgroundColor: colors.inkInverse,
+  },
+  note: {
+    marginTop: layout.stack,
+    paddingHorizontal: layout.card,
+  },
   controls: {
-    position: 'absolute',
-    left: layout.section,
-    right: layout.section,
-    bottom: layout.section,
+    marginTop: layout.section,
+    marginBottom: layout.block,
+    paddingHorizontal: layout.section,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -487,6 +540,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  shutterOff: {
+    opacity: 0.4,
   },
   shutterPressed: {
     transform: [{ scale: 0.94 }],

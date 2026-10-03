@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, layout, radii } from '@/constants/theme';
 import { challengeStrip } from '@/data/content';
@@ -11,8 +11,6 @@ import { accentAt } from './TaskRing';
 import { Text } from './Text';
 
 
-/** The card's "opens a page" chevron — a Settings row's own size. */
-const CHALLENGE_CHEVRON = 20;
 /** The challenge's own photo leading its card — a list row's thumbnail, so
  * the challenge looks the same here as where it was joined. */
 const CHALLENGE_THUMB = 40;
@@ -48,7 +46,6 @@ export interface ChallengeRunProps {
   /** A day's record, or null where there's none to show — left blank rather
    * than marked missed. */
   dayOf: (day: number) => RunDay | null;
-  onPress: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -103,7 +100,6 @@ export function ChallengeRun({
   totalDays,
   taskCount,
   dayOf,
-  onPress,
   style,
 }: ChallengeRunProps) {
   const [squaresWidth, setSquaresWidth] = useState(0);
@@ -131,12 +127,12 @@ export function ChallengeRun({
     squaresWidth > 0 ? (squaresWidth - layout.grid * (SQUARES_PER_ROW - 1)) / SQUARES_PER_ROW : 0;
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    // Only to read, not a way off the page: the tasks are where the day is
+    // done, so the run sits above them without pulling you elsewhere.
+    <View
+      accessible
       accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}, ${dateLabel(startDate)} to ${dateLabel(endDate)}`}
-      accessibilityHint="Opens the challenge"
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed, style]}
+      style={[styles.card, style]}
     >
       <View style={styles.row}>
         <Image source={photo} style={styles.thumb} contentFit="cover" />
@@ -154,9 +150,6 @@ export function ChallengeRun({
             </Text>
           </View>
         </View>
-        {/* The same chevron a Settings row ends on — the one cue the app
-            already uses for "this opens a page". */}
-        <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
       </View>
 
       {/* Read out once, in the card's own label — seventy-five squares one
@@ -181,7 +174,7 @@ export function ChallengeRun({
             ))
           : null}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -229,8 +222,5 @@ const styles = StyleSheet.create({
   squareToday: {
     borderWidth: SQUARE_TODAY_BORDER,
     borderColor: colors.inkInverse,
-  },
-  pressed: {
-    opacity: 0.85,
   },
 });

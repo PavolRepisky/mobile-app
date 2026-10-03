@@ -40,7 +40,8 @@ export interface PhotoCollageProps {
   radius?: number;
   /**
    * A thumbnail of the day rather than the day itself — the week row's small
-   * posts: photos and blanks only, no discs, names or times, a hairline seam.
+   * the same grid as the full post, seams and grey open squares alike, only
+   * without discs, names or times, which wouldn't fit at that size.
    */
   bare?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -52,8 +53,6 @@ export interface PhotoCollageProps {
  * white cut: the page no longer shows through the grid, so it reads as one
  * post, but two open tiles side by side still read as two squares to fill. */
 const MOSAIC_SEAM = 1;
-/** A thumbnail's seam: at 40pt the full cut would eat the photos. */
-const BARE_SEAM = 1;
 
 /** Every piece of the mosaic takes an equal share of whatever row or column
  * it falls in, whatever shape that row or column ends up. */
@@ -71,7 +70,7 @@ function MosaicTile({ cell, bare }: { cell: CollageCell; bare?: boolean }) {
   ) : filled ? (
     <Placeholder seed={cell.seed ?? cell.key} radius={0} style={MOSAIC_PIECE} />
   ) : (
-    <View style={[MOSAIC_PIECE, styles.empty, bare && styles.emptyBare]}>
+    <View style={[MOSAIC_PIECE, styles.empty]}>
       {bare ? null : (
         // The next square to take carries the ink disc; the rest wait on
         // white, so the eye lands on one place to start.
@@ -203,13 +202,13 @@ export function PhotoCollage({ cells, radius = radii.lg, bare, style, children }
         <View
           style={[
             styles.block,
-            !bare && [styles.blockLined, shadows.soft],
+            styles.blockLined,
+            shadows.soft,
             { width, height: width, borderRadius: radius },
           ]}
         >
           <MosaicArrangement
             cells={cells}
-            seam={bare ? BARE_SEAM : MOSAIC_SEAM}
             renderCell={(cell) => <MosaicTile key={cell.key} cell={cell} bare={bare} />}
           />
           {children}
@@ -228,11 +227,6 @@ const styles = StyleSheet.create({
   // dark enough to part two grey open tiles, soft enough not to cage photos.
   blockLined: {
     backgroundColor: colors.inkGhost,
-  },
-  // A thumbnail's open squares are white: it sits on the week's grey strip,
-  // where the fill grey would melt into the strip around it.
-  emptyBare: {
-    backgroundColor: colors.surface,
   },
   empty: {
     backgroundColor: colors.surfaceSunken,
