@@ -150,9 +150,8 @@ a finger-drawn signature · `ReminderPill` a reminder's time or Never, with its 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
-**Content** · `CheckCircle` a done task's tick · `TaskRing` a face in the split
-task ring with its "3/5" badge · `CalendarMonth` month grid · `WeekPosts`
-the week as a row of little posts · `PhotoCollage` the day's photo mosaic ·
+**Content** · `ChallengeRun` the run you're on as one square a day, on ink, leading Tasks · `CheckCircle` a done task's tick · `TaskRing` a face in the split
+task ring with its "3/5" badge · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
 `FriendCard` · `PostHeader` who posted a day — face (in its task ring on My

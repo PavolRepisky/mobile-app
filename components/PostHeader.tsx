@@ -17,7 +17,7 @@ const SUBTITLE_DOT = 3;
 
 /** "9:40pm" as "9:40 PM" — a space before the half of the day, in capitals,
  * however the time was stored. */
-export const displayTime = (time: string) =>
+const displayTime = (time: string) =>
   time.trim().replace(/\s*([ap])\.?m\.?$/i, (_, half: string) => ` ${half.toUpperCase()}M`);
 
 export interface PostHeaderProps {

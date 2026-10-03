@@ -16,7 +16,8 @@ export function localDay(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function startOfToday(): Date {
+/** Midnight this morning, local time. */
+export function startOfToday(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }

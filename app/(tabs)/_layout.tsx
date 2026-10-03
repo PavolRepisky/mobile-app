@@ -2,7 +2,6 @@ import { StyleSheet } from 'react-native';
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
 
 import { FloatingTabBar, TabBarButton } from '@/components/FloatingTabBar';
-import { useApp } from '@/hooks/useAppState';
 
 /**
  * Headless tabs so the bar can be a floating pill drawn over the content
@@ -17,8 +16,6 @@ import { useApp } from '@/hooks/useAppState';
  * label under it.
  */
 export default function TabsLayout() {
-  const { tabBarHidden } = useApp();
-
   return (
     // `flex: 1` on both the root and the slot keeps each screen exactly one
     // viewport tall, so scroll views scroll internally and absolutely
@@ -28,7 +25,7 @@ export default function TabsLayout() {
       <TabSlot style={styles.slot} />
 
       <TabList asChild>
-        <FloatingTabBar hidden={tabBarHidden}>
+        <FloatingTabBar>
           <TabTrigger name="discover" href="/discover" asChild>
             <TabBarButton icon="discover" label="Challenges" />
           </TabTrigger>

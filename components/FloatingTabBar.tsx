@@ -103,28 +103,14 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
  */
 export interface FloatingTabBarProps {
   children?: React.ReactNode;
-  /**
-   * Drops the bar out rather than unmounting it — a screen wanting the tabs
-   * gone (the to-do tab's full-bleed camera grid) still needs `TabTrigger`
-   * routing to keep working underneath.
-   */
-  hidden?: boolean;
 }
 
 export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
-  function FloatingTabBar({ children, hidden }, ref) {
+  function FloatingTabBar({ children }, ref) {
     const insets = useSafeAreaInsets();
 
     return (
-      <View
-        ref={ref}
-        pointerEvents={hidden ? 'none' : 'auto'}
-        style={[
-          styles.bar,
-          { bottom: tabBarBottom(insets.bottom) },
-          hidden && styles.barHidden,
-        ]}
-      >
+      <View ref={ref} style={[styles.bar, { bottom: tabBarBottom(insets.bottom) }]}>
         <View style={styles.row}>{children}</View>
       </View>
     );
@@ -139,9 +125,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.surface,
     ...shadows.floating,
-  },
-  barHidden: {
-    opacity: 0,
   },
   row: {
     height: tabBar.height,

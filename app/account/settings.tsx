@@ -7,11 +7,12 @@ import { AlertDialog } from '@/components/AlertDialog';
 import { Avatar } from '@/components/Avatar';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoViewer } from '@/components/PhotoViewer';
+import { ReminderRow } from '@/components/ReminderPill';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, spacing } from '@/constants/theme';
-import { useApp } from '@/hooks/useAppState';
+import { DEFAULT_TASK_REMINDER, useApp } from '@/hooks/useAppState';
 
 
 const BIO_MAX = 120;
@@ -34,8 +35,27 @@ const ROW_VALUE_MAX = 150;
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0';
 
 export default function SettingsScreen() {
-  const { profile, setName, setBio, setHandle, setAvatarPhoto, setAvatarSeed, resetAll } =
-    useApp();
+  const {
+    profile,
+    setName,
+    setBio,
+    setHandle,
+    setAvatarPhoto,
+    setAvatarSeed,
+    resetAll,
+    tasks,
+    reminders,
+    setReminders,
+  } = useApp();
+
+  const reminderFor = (taskId: string) =>
+    taskId in reminders.tasks ? reminders.tasks[taskId] : DEFAULT_TASK_REMINDER;
+  const setReminderFor = (taskId: string, at: number | null) =>
+    setReminders({ ...reminders, tasks: { ...reminders.tasks, [taskId]: at } });
+  // Every task's nudge and the last call, counting the ones not set to Never.
+  const remindersOn =
+    tasks.filter((task) => reminderFor(task.id) !== null).length +
+    (reminders.lastCall !== null ? 1 : 0);
 
   // Changing the photo lives here rather than on the profile, where a tap on
   // the photo plays today's story instead. With a photo set, the row opens it
@@ -59,6 +79,17 @@ export default function SettingsScreen() {
   // shared value would swap the copy mid-animation.
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  /** The one reminder whose wheel is open in the window — a task's id, or
+   * `lastCall`. One at a time, so the window never grows past the screen. */
+  const [editingReminder, setEditingReminder] = useState<string | null>(null);
+  const toggleReminder = (key: string) =>
+    setEditingReminder((current) => (current === key ? null : key));
+  const closeReminders = () => {
+    setRemindersOpen(false);
+    setEditingReminder(null);
+  };
 
   return (
     <View style={styles.screenRoot}>
@@ -105,6 +136,25 @@ export default function SettingsScreen() {
               setDraftBio(profile.bio ?? '');
               setBioOpen(true);
             }}
+            last
+          />
+        </Group>
+
+        {/* The challenge you're on: when it nudges you, folded to one row
+            that opens its own window, then ending it — in red like Delete
+            account, since it costs the whole run. */}
+        <Group title="Challenge">
+          <Row
+            icon="notifications-outline"
+            label="Reminders"
+            value={remindersOn === 0 ? 'Off' : `${remindersOn} on`}
+            onPress={() => setRemindersOpen(true)}
+          />
+          <Row
+            icon="flag-outline"
+            label="End challenge"
+            destructive
+            onPress={() => setEndOpen(true)}
             last
           />
         </Group>
@@ -222,12 +272,64 @@ export default function SettingsScreen() {
           { label: 'Cancel', onPress: () => setDeleteOpen(false) },
           {
             label: 'Delete',
+            // The black pill, like Log out and End Challenge: every
+            // confirmation's way forward reads the same.
             destructive: true,
             primary: true,
             onPress: () => {
               setDeleteOpen(false);
               resetAll();
             },
+          },
+        ]}
+      />
+
+      {/* When each of today's tasks nudges you, and the one nudge that isn't a
+          task's: the last call, which only comes while one is still missing.
+          A pill opens its wheel in place, under its row, rather than a menu
+          and a sheet stacked over this window. */}
+      <AlertDialog
+        visible={remindersOpen}
+        title="Reminders"
+        message="When each task nudges you, every day of the challenge."
+        onDismiss={closeReminders}
+        actions={[{ label: 'Done', primary: true, onPress: closeReminders }]}
+      >
+        {tasks.map((task) => (
+          <ReminderRow
+            key={task.id}
+            label={task.label}
+            value={reminderFor(task.id)}
+            onChange={(at) => setReminderFor(task.id, at)}
+            open={editingReminder === task.id}
+            onToggle={() => toggleReminder(task.id)}
+            divider
+          />
+        ))}
+        <ReminderRow
+          label="Last call"
+          hint="Only if a task is still missing"
+          value={reminders.lastCall}
+          onChange={(at) => setReminders({ ...reminders, lastCall: at })}
+          open={editingReminder === 'lastCall'}
+          onToggle={() => toggleReminder('lastCall')}
+        />
+      </AlertDialog>
+
+      <AlertDialog
+        visible={endOpen}
+        title="End Challenge"
+        message="Are you sure you want to end this challenge? Your progress will be lost."
+        onDismiss={() => setEndOpen(false)}
+        actions={[
+          { label: 'Cancel', onPress: () => setEndOpen(false) },
+          {
+            label: 'End Challenge',
+            destructive: true,
+            primary: true,
+            // Still a stub, as it was on Tasks: confirming only closes the
+            // dialog until there is somewhere for ending a challenge to lead.
+            onPress: () => setEndOpen(false),
           },
         ]}
       />

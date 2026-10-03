@@ -42,7 +42,7 @@ import { FRIENDS } from '@/data/content';
 import { LIVES_PER_CHALLENGE, useApp, type TaskPhoto } from '@/hooks/useAppState';
 import { CATEGORIES } from '@/hooks/useChallengeCards';
 import { addDays, longDate } from '@/lib/format';
-import { DAY_MS, localDay, roundState } from '@/lib/round';
+import { DAY_MS, localDay, roundState, startOfToday } from '@/lib/round';
 
 /** The photos that stand for a challenge everywhere else — its strip on
  * Challenges and on its preview are drawn from these. Three fill the cover
@@ -113,11 +113,6 @@ interface DraftTask {
   id: string;
   label: string;
   note: string;
-}
-
-function startOfToday(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 /** The first Monday at least a week out: a week for friends to join, and

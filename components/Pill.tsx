@@ -16,9 +16,10 @@ export interface PillProps {
    * `floating` is the white overlay pill ("+10,000 joined", "Day 5").
    * `outline` is an ink ring on the page's white: an action repeated down a
    * list, like Invite, where a row of solid pills would stack into a wall
-   * of black.
+   * of black. `onInk` is the quieter of two buttons on an `ink` card: a
+   * lighter patch of the card with a white label.
    */
-  tone?: 'floating' | 'solid' | 'muted' | 'outline';
+  tone?: 'floating' | 'solid' | 'muted' | 'outline' | 'onInk';
   size?: 'sm' | 'md' | 'lg';
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -76,7 +77,8 @@ export function Pill({
   labelColor,
   to,
 }: PillProps) {
-  const ink = labelColor ?? (tone === 'solid' ? colors.inkInverse : colors.ink);
+  const ink =
+    labelColor ?? (tone === 'solid' || tone === 'onInk' ? colors.inkInverse : colors.ink);
   const variant: NonNullable<TextProps['variant']> =
     labelVariant ??
     (bold
@@ -185,6 +187,7 @@ const TONES = StyleSheet.create({
     borderWidth: OUTLINE_RULE,
     borderColor: colors.ink,
   },
+  onInk: { backgroundColor: colors.onInkFill },
 });
 
 const styles = StyleSheet.create({

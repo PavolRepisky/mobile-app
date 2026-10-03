@@ -1,12 +1,8 @@
-import { useRef, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, layout } from '@/constants/theme';
 import { clockTime } from '@/lib/format';
-import { BottomSheet } from './BottomSheet';
-import { PrimaryButton } from './Buttons';
 import { Pill } from './Pill';
-import { PopoverMenu, type PopoverItem } from './PopoverMenu';
 import { Text } from './Text';
 import { WheelPicker } from './WheelPicker';
 
@@ -14,18 +10,22 @@ import { WheelPicker } from './WheelPicker';
  * the wheel still flicks from morning to night. */
 const QUARTER_HOURS = Array.from({ length: 24 * 4 }, (_, i) => i * 15);
 
+/** Never, as a stop on the wheel — ahead of the first time, so turning a
+ * reminder off is the same flick as moving it. */
+const NEVER = -1;
+const REMINDER_STOPS = [NEVER, ...QUARTER_HOURS];
+
 /** The ring round an open pill. Always drawn, in the pill's own fill until
- * its menu opens, so opening one doesn't nudge its row by the ring's width. */
+ * its wheel opens, so opening one doesn't nudge its row by the ring's width. */
 const OPEN_RING = 2;
 
 export interface ReminderPillProps {
   /** Minutes after midnight, or null for Never. */
   value: number | null;
-  onChange: (value: number | null) => void;
-  /** What the wheel is setting — the task's name, or "Last call". */
-  title: string;
-  /** Where the wheel starts while there's no time set yet. */
-  fallback: number;
+  onPress: () => void;
+  /** Whether its wheel is out — the pill takes an ink ring and its caret
+   * turns up. */
+  open?: boolean;
   /** Set on a fill-grey card, where the pill's own grey would vanish: it
    * turns white instead. */
   onFill?: boolean;
@@ -33,78 +33,83 @@ export interface ReminderPillProps {
 }
 
 /**
- * A reminder, the way the join flow sets one: its time, or Never in the
- * muted grey with the bell struck through. A tap drops a menu from under it
- * — the time in force, "Pick a time…", Never — and picking a time raises the
- * same date-wheel drum the create form picks a start day on.
- *
- * The menu and sheet live inside the pill, so a screen with a reminder on
- * every row doesn't have to track which one is open.
+ * A reminder's time, or Never in the muted grey with the bell struck
+ * through. It only says what's set; the wheel that changes it is laid out
+ * by the list it sits in — see `ReminderRow`.
  */
-export function ReminderPill({ value, onChange, title, fallback, onFill, style }: ReminderPillProps) {
-  const box = useRef<View>(null);
-  const [menuTop, setMenuTop] = useState<number | null>(null);
-  const [wheelOpen, setWheelOpen] = useState(false);
-  const [pending, setPending] = useState(fallback);
-
-  const items: PopoverItem[] = [
-    ...(value !== null ? [{ label: clockTime(value), checked: true, onPress: () => {} }] : []),
-    {
-      label: 'Pick a time…',
-      onPress: () => {
-        setPending(value ?? fallback);
-        setWheelOpen(true);
-      },
-    },
-    { label: 'Never', muted: true, checked: value === null, onPress: () => onChange(null) },
-  ];
-
+export function ReminderPill({ value, onPress, open, onFill, style }: ReminderPillProps) {
   return (
-    <View ref={box} collapsable={false} style={style}>
-      <Pill
-        label={value === null ? 'Never' : clockTime(value)}
-        icon={value === null ? 'notifications-off-outline' : 'notifications-outline'}
-        labelColor={value === null ? colors.inkMuted : undefined}
-        trailingIcon={menuTop !== null ? 'chevron-up' : 'chevron-down'}
-        tone="muted"
-        size="sm"
-        labelVariant="metaBold"
-        onPress={() =>
-          box.current?.measureInWindow((_x, y, _w, h) => setMenuTop(y + h + layout.stack))
-        }
-        style={[styles.pill, onFill && styles.pillOnFill, menuTop !== null && styles.pillOpen]}
-      />
+    <Pill
+      label={value === null ? 'Never' : clockTime(value)}
+      icon={value === null ? 'notifications-off-outline' : 'notifications-outline'}
+      labelColor={value === null ? colors.inkMuted : undefined}
+      trailingIcon={open ? 'chevron-up' : 'chevron-down'}
+      tone="muted"
+      size="sm"
+      labelVariant="metaBold"
+      onPress={onPress}
+      style={[styles.pill, onFill && styles.pillOnFill, open && styles.pillOpen, style]}
+    />
+  );
+}
 
-      <PopoverMenu
-        visible={menuTop !== null}
-        top={menuTop ?? 0}
-        items={items}
-        onDismiss={() => setMenuTop(null)}
-      />
+export interface ReminderRowProps {
+  label: string;
+  /** A muted line under the label — a task's note, what the last call is. */
+  hint?: string;
+  /** The label in `copyBold`, for a list that is the page's whole point
+   * rather than one Settings line among others. */
+  strong?: boolean;
+  value: number | null;
+  onChange: (value: number | null) => void;
+  /** Whether this row's wheel is out. The list holds which one is, so only
+   * one is open at a time. */
+  open: boolean;
+  onToggle: () => void;
+  /** Rules the row off from the one below it. */
+  divider?: boolean;
+}
 
-      {/* Done sets it; tapping away leaves it as it was. */}
-      <BottomSheet visible={wheelOpen} onDismiss={() => setWheelOpen(false)}>
-        <Text variant="sectionHeading" center>
-          {title}
-        </Text>
+/**
+ * One reminder as a line of a list: what it's for, and its pill. Tapping the
+ * pill opens the wheel under the line, in place — Never at its top, then
+ * every quarter hour — and each stop it turns to is kept as it goes, so
+ * there's no menu or sheet stacked over the page or window it sits in.
+ */
+export function ReminderRow({
+  label,
+  hint,
+  strong,
+  value,
+  onChange,
+  open,
+  onToggle,
+  divider,
+}: ReminderRowProps) {
+  return (
+    <View style={divider && styles.rowDivider}>
+      <View style={styles.row}>
+        <View style={styles.rowText}>
+          <Text variant={strong ? 'copyBold' : 'copy'} numberOfLines={1}>
+            {label}
+          </Text>
+          {hint ? (
+            <Text variant="meta" color={colors.inkMuted} numberOfLines={strong ? 1 : undefined}>
+              {hint}
+            </Text>
+          ) : null}
+        </View>
+        <ReminderPill value={value} open={open} onPress={onToggle} />
+      </View>
+      {open ? (
         <WheelPicker
-          // Remounted on every open, so the drum starts on the time already
-          // set rather than wherever it was last left.
-          key={wheelOpen ? 'open' : 'closed'}
-          values={QUARTER_HOURS}
-          value={pending}
-          onChange={setPending}
-          format={clockTime}
-          style={styles.wheel}
+          values={REMINDER_STOPS}
+          value={value ?? NEVER}
+          onChange={(stop) => onChange(stop === NEVER ? null : stop)}
+          format={(stop) => (stop === NEVER ? 'Never' : clockTime(stop))}
+          style={styles.rowWheel}
         />
-        <PrimaryButton
-          label="Done"
-          onPress={() => {
-            onChange(pending);
-            setWheelOpen(false);
-          }}
-        />
-      </BottomSheet>
+      ) : null}
     </View>
   );
 }
@@ -124,7 +129,21 @@ const styles = StyleSheet.create({
   pillOpen: {
     borderColor: colors.ink,
   },
-  wheel: {
-    marginVertical: layout.block,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+    paddingVertical: layout.inline,
+  },
+  rowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.surfaceSunken,
+  },
+  rowText: {
+    flex: 1,
+    gap: layout.line / 2,
+  },
+  rowWheel: {
+    marginBottom: layout.inline,
   },
 });

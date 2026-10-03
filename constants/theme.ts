@@ -66,13 +66,17 @@ export const colors = {
   inkGhost: palette.greyLight,
   /** Text on dark fills. */
   inkInverse: palette.white,
+  /**
+   * A second button sitting on an `ink` card beside a white one — Find
+   * friends' Show code next to Share link. White held to a seventh, so it
+   * reads as a lighter patch of the card rather than a grey button of its own.
+   */
+  onInkFill: 'rgba(255,255,255,0.14)',
 
   /** Text input fills and unselected control strokes. */
   field: '#CDCDCD',
   /** Hairlines, and the light pill behind the active tab. */
   divider: '#E9E8E2',
-  /** Slightly stronger separator inside cards. */
-  dividerStrong: '#E2E0DA',
 
   /**
    * Destructive rows and the Restart action. A saturated red rather than the

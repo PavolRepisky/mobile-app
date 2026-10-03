@@ -8,7 +8,6 @@ import {
 } from 'react';
 
 import {
-  CHALLENGES,
   CUSTOM_CHALLENGE,
   challengeById,
   type Challenge,
@@ -16,14 +15,23 @@ import {
   type ChallengeTask,
 } from '@/data/challenges';
 import { FEED_POSTS } from '@/data/content';
+import {
+  SEED_CAPTIONS,
+  SEED_CHALLENGE,
+  SEED_PROFILE,
+  seedProgress,
+  seedStartDate,
+} from '@/data/seed';
 import { TROPHIES } from '@/data/trophies';
-import { addDays, isoDay, timeStamp } from '@/lib/format';
+import { isoDay, timeStamp } from '@/lib/format';
+import { DAY_MS, startOfToday } from '@/lib/round';
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * All app state lives here, in memory. There is no backend — the provider is
- * seeded so the app opens on Day 5 of Her 75 with a few days of history, which
- * is the state the reference screenshots were taken in.
+ * All app state lives here, in memory. There is no backend yet — the
+ * provider starts from the demo account in `data/seed`, Day 5 of Her 75 with
+ * a few days of history, and goes back to it on reset. The actions below are
+ * the app's whole write surface: each is where a call to the backend goes.
  */
 
 export interface TaskProgress {
@@ -82,9 +90,9 @@ export const DEFAULT_TASK_REMINDER = 8 * 60;
 
 /** Ten at night: two hours before midnight ends the day, time enough to
  * still take a photo. */
-export const DEFAULT_LAST_CALL = 22 * 60;
+const DEFAULT_LAST_CALL = 22 * 60;
 
-export const DEFAULT_REMINDERS: Reminders = { tasks: {}, lastCall: DEFAULT_LAST_CALL };
+const DEFAULT_REMINDERS: Reminders = { tasks: {}, lastCall: DEFAULT_LAST_CALL };
 
 export interface FriendComment {
   id: string;
@@ -100,12 +108,6 @@ interface AppState {
   tasks: ChallengeTask[];
   startDate: Date;
   totalDays: number;
-  /**
-   * The floating tab bar is drawn once, at the `(tabs)` layout, so a screen
-   * wanting it gone — the to-do tab's live camera grid, full-bleed — has no
-   * view of its own to hide it on. This is that switch.
-   */
-  tabBarHidden: boolean;
 
   progress: Progress;
   /** What you wrote under each day's post, by challenge day — the caption
@@ -190,7 +192,6 @@ interface AppActions {
   deleteChallenge: (id: string) => void;
   setTotalDays: (days: number) => void;
   setReminders: (reminders: Reminders) => void;
-  setTabBarHidden: (hidden: boolean) => void;
 
   /**
    * A task is only ever ticked off by photographing it, so the shot and the
@@ -225,17 +226,6 @@ const AppContext = createContext<AppContextValue | null>(null);
 // Seed
 // ---------------------------------------------------------------------------
 
-const SEED_DAY = 5;
-
-/** The seeded account's own captions for the days it has already posted —
- * today, still in progress, has none yet. */
-const SEED_CAPTIONS: Readonly<Record<number, string>> = {
-  1: 'Day one done. Slow start, but I showed up.',
-  2: 'Legs are sore and the bottle is empty. Counting that as a win.',
-  3: 'Sunday meal prep paid off today.',
-  4: "Almost skipped the walk. So glad I didn't.",
-};
-
 /**
  * Days you are allowed to miss before the challenge is lost. Three whatever
  * the challenge and however long it runs — a rule you can hold in your head
@@ -244,38 +234,6 @@ const SEED_CAPTIONS: Readonly<Record<number, string>> = {
  * set its own on the create form; this is where that form starts.
  */
 export const LIVES_PER_CHALLENGE = 3;
-
-const SEED_CHALLENGE = CHALLENGES[0];
-
-/**
- * The history behind today, day -> task id -> shot. Photos already bundled for
- * the feed and the challenge tiles are reused here rather than
- * shipping a second copy of the same kind of picture: what each one shows
- * matches the task it is filed under, which is what the drawn stand-ins could
- * never do. Days list three of the five tasks, the way a real week looks.
- */
-const SEED_DAY_PHOTOS: Readonly<Record<number, Readonly<Record<string, TaskPhoto>>>> = {
-  1: {
-    h1: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg'),
-    h3: require('../assets/challenges/soft/sunset-walk.jpg'),
-    h4: require('../assets/wall/workouts/home-mat-core.jpg'),
-  },
-  2: {
-    h1: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
-    h4: require('../assets/wall/workouts/gym-plank.jpg'),
-    h5: require('../assets/challenges/medium/book-in-bed.jpg'),
-  },
-  3: {
-    h1: require('../assets/wall/eat/salmon-rice-asparagus.jpg'),
-    h2: require('../assets/challenges/medium/infused-water.jpg'),
-    h3: require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
-  },
-  4: {
-    h1: require('../assets/wall/eat/berry-watermelon-plate.jpg'),
-    h4: require('../assets/challenges/medium/outdoor-run.jpg'),
-    h5: require('../assets/feed/posts/park-bench-reading.jpg'),
-  },
-};
 
 /** A custom challenge out of the form's fields. Tasks carried over from an
  * edit keep their ids; new ones get fresh ones. */
@@ -297,67 +255,20 @@ function buildChallenge(id: string, input: ChallengeInput): Challenge {
   };
 }
 
-function startOfToday(): Date {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return now;
-}
-
-/**
- * Builds a few days of plausible history so the profile grid and calendar are
- * not empty on first launch.
- */
-function seedProgress(tasks: readonly ChallengeTask[]): Progress {
-  const progress: Progress = {};
-
-  for (let day = 1; day < SEED_DAY; day += 1) {
-    progress[day] = {};
-    const shots = SEED_DAY_PHOTOS[day];
-    tasks.forEach((t, i) => {
-      // The bundled shots are keyed to this challenge's tasks; a challenge
-      // with ids of its own falls back to the drawn stand-ins.
-      const photo = shots?.[t.id] ?? null;
-      progress[day][t.id] = {
-        done: true,
-        time: `${7 + i}:${(12 + i * 7) % 60}`.padEnd(5, '0') + 'am',
-        photo,
-        photoSeed: !shots && i < 3 ? `day${day}-${t.id}` : null,
-      };
-    });
-  }
-
-  // Today is left with nothing seeded: `useDayProgress` already defaults a
-  // day with no entry to every task open, so the live camera grid greets a
-  // fresh launch with a clean slate rather than someone else's shots.
-
-  return progress;
-}
-
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<Profile>({
-    name: 'Julia',
-    handle: '@julia_575',
-    bio: 'clean plates, daily walks, no excuses',
-    avatarSeed: null,
-    // Face-forward and not used as anyone else's avatar, so the crop reads
-    // as "you" without colliding with a friend's or an author's photo.
-    avatar: require('../assets/ambassadors/amb-3.jpg'),
-  });
+  const [profile, setProfile] = useState<Profile>(SEED_PROFILE);
 
   const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
     [...SEED_CHALLENGE.tasks],
   );
   const [customChallenges, setCustomChallenges] = useState<Challenge[]>([]);
-  const [startDate, setStartDateState] = useState<Date>(
-    addDays(startOfToday(), -(SEED_DAY - 1)),
-  );
+  const [startDate, setStartDateState] = useState<Date>(seedStartDate);
   const [totalDays, setTotalDays] = useState(SEED_CHALLENGE.defaultDays);
-  const [tabBarHidden, setTabBarHidden] = useState(false);
   const [progress, setProgress] = useState<Progress>(() =>
     seedProgress(SEED_CHALLENGE.tasks),
   );
@@ -384,7 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const currentDay = useMemo(() => {
     const elapsed = Math.floor(
-      (startOfToday().getTime() - startDate.getTime()) / 86_400_000,
+      (startOfToday().getTime() - startDate.getTime()) / DAY_MS,
     );
     return Math.min(Math.max(elapsed + 1, 1), totalDays);
   }, [startDate, totalDays]);
@@ -483,7 +394,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setChallenge(SEED_CHALLENGE);
         setTasksState([...SEED_CHALLENGE.tasks]);
         setTotalDays(SEED_CHALLENGE.defaultDays);
-        setStartDateState(addDays(startOfToday(), -(SEED_DAY - 1)));
+        setStartDateState(seedStartDate());
         setProgress(seedProgress(SEED_CHALLENGE.tasks));
         setCaptions(SEED_CAPTIONS);
       }
@@ -591,19 +502,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const resetAll = useCallback(() => {
     setChallenge(SEED_CHALLENGE);
     setTasksState([...SEED_CHALLENGE.tasks]);
-    setStartDateState(addDays(startOfToday(), -(SEED_DAY - 1)));
+    setStartDateState(seedStartDate());
     setTotalDays(SEED_CHALLENGE.defaultDays);
     setProgress(seedProgress(SEED_CHALLENGE.tasks));
     setCaptions(SEED_CAPTIONS);
-    setProfile({
-      name: 'Julia',
-      handle: '@julia_575',
-      bio: null,
-      avatarSeed: null,
-      // Face-forward and not used as anyone else's avatar, so the crop
-      // reads as "you" without colliding with a friend's or an author's photo.
-      avatar: require('../assets/ambassadors/amb-3.jpg'),
-    });
+    // Back to the demo account, less its bio — a reset reads as starting
+    // over, not as the seeded page coming back word for word.
+    setProfile({ ...SEED_PROFILE, bio: null });
     setFriendComments({});
     setFriendRequests(new Set());
     setReminders(DEFAULT_REMINDERS);
@@ -616,7 +521,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       tasks,
       startDate,
       totalDays,
-      tabBarHidden,
       progress,
       captions,
       postReactions,
@@ -642,7 +546,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteChallenge,
       setTotalDays,
       setReminders,
-      setTabBarHidden,
       completeTaskWithPhoto,
       undoTask,
       reactToPost,
@@ -653,12 +556,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       profile, challenge, tasks, startDate, totalDays,
-      tabBarHidden, progress, captions, postReactions, friendComments, watchedStories, friendRequests,
+      progress, captions, postReactions, friendComments, watchedStories, friendRequests,
       trophies, customChallenges, reminders,
       currentDay, livesLeft, hasPhotographedTask,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge,
       updateChallenge, deleteChallenge,
-      setTabBarHidden, completeTaskWithPhoto, undoTask,
+      completeTaskWithPhoto, undoTask,
       reactToPost, toggleFriendRequest, markStoryWatched, addFriendComment, resetAll,
     ],
   );

@@ -8,8 +8,8 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { FRIENDS, PEOPLE } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { possessive } from '@/lib/names';
+import { DAY_MS } from '@/lib/round';
 
-const DAY_MS = 86_400_000;
 
 /**
  * A friend's or a challenge member's profile, opened from the Community tab,

@@ -1,70 +1,84 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { CameraSheet } from '@/components/CameraSheet';
+import { ChallengeRun, type RunDay } from '@/components/ChallengeRun';
 import { CheckCircle } from '@/components/CheckCircle';
 import { DayStamp } from '@/components/FriendCard';
-import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { Placeholder } from '@/components/Placeholder';
-import { PopoverMenu } from '@/components/PopoverMenu';
-import { ReminderPill } from '@/components/ReminderPill';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
 import { colors, layout, radii } from '@/constants/theme';
 import {
-  DEFAULT_LAST_CALL,
-  DEFAULT_TASK_REMINDER,
   useApp,
   useDayProgress,
 } from '@/hooks/useAppState';
 import { timeLeftToday } from '@/lib/format';
 
 /**
- * The day as the post it's building: today's photos already sit in the
- * square they'll be posted in, and every open square is a light tile with a
- * camera. Tapping one raises the camera card over the page, any open task a
- * swipe away, and the shot drops into the square that was tapped, so the
- * post comes out laid the way its owner chose.
+ * The run you're on leads, one square a day on a block of ink, with where
+ * today stands under it. Then the day's tasks, first and biggest: each open one a card with its note
+ * and a camera, each done one your shot and the time. When each one nudges
+ * you is set in Settings, off My Profile, so the page is only the doing. Tapping a
+ * task raises the camera card over the page, any open task a swipe away. The
+ * tasks keep no order: nothing is "next", any of them can be done first.
  *
- * Under the post, the day's tasks themselves — each with its note and its
- * reminder while it's open, your shot and the time once it's done — then the
- * last call. The tasks keep no order:
- * nothing is "next", any of them can be done first.
+ * Under them, the post the photos are building, folded to one line with a
+ * thumbnail of it. Tapped, it opens in a window over the page as the post
+ * will go up — every shot in its square, the Day stamp once the last one is
+ * in.
  */
 
 /** The lives, drawn small enough to sit on the status line's own height. */
 const HEART = 14;
-/** A done task's shot in its row — the reminder step's task photo size. */
-const ROW_PHOTO = 44;
-/** An open task's empty ring, centred in the column the done rows' shots
- * use, so the names line up down the list whether a task is done or not. */
-const OPEN_RING = 26;
-const OPEN_RING_BORDER = 2;
-/** A done row's tick, a step under the ring it replaces. */
+/** A done task's shot in its card — big enough to tell which photo it was. */
+const DONE_PHOTO = 52;
+/** A done card's tick. */
 const ROW_TICK = 24;
-/** The hairline between rows, as on the reminder step. */
-const ROW_RULE = 1;
+/** The camera on an open task: the card's one call to act, a full thumb's
+ * target in ink so it reads before the words do. */
+const SHOOT = 52;
+const SHOOT_ICON = 22;
+/** The folded post's glimpse of itself — the week row's little posts, a
+ * size up so the squares can still be told apart. */
+const POST_THUMB = 56;
+const POST_CHEVRON = 20;
+/** The folded post's outline — the hairline the old rows were ruled with. */
+const POST_RULE = 1;
 
 export default function TasksScreen() {
   const router = useRouter();
   const {
     currentDay,
     totalDays,
+    startDate,
+    progress,
     challenge,
     tasks,
     livesLeft,
     livesTotal,
-    reminders,
-    setReminders,
     undoTask,
     completeTaskWithPhoto,
   } = useApp();
+
+  // Each day of the run as the card squares it: how many tasks got done,
+  // and how many photos came of it.
+  const runDay = useCallback(
+    (day: number): RunDay => ({
+      done: tasks.filter((task) => progress[day]?.[task.id]?.done).length,
+      shots: tasks.filter((task) => {
+        const entry = progress[day]?.[task.id];
+        return entry?.photo || entry?.photoSeed;
+      }).length,
+    }),
+    [tasks, progress],
+  );
 
   // In the post's own order, square by square.
   const rows = useDayProgress(currentDay);
@@ -80,10 +94,6 @@ export default function TasksScreen() {
   const openRows = listed.filter((row) => !row.done);
   const doneRows = listed.filter((row) => row.done);
 
-  const reminderFor = (taskId: string) =>
-    taskId in reminders.tasks ? reminders.tasks[taskId] : DEFAULT_TASK_REMINDER;
-  const setReminderFor = (taskId: string, at: number | null) =>
-    setReminders({ ...reminders, tasks: { ...reminders.tasks, [taskId]: at } });
 
   // The countdown only needs the minute, so it ticks once a minute.
   const [now, setNow] = useState(() => new Date());
@@ -97,46 +107,38 @@ export default function TasksScreen() {
   const [shooting, setShooting] = useState<{ slot: number; taskId: string } | null>(null);
   useEffect(() => setShooting(null), [currentDay]);
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [restartOpen, setRestartOpen] = useState(false);
-  const [endOpen, setEndOpen] = useState(false);
   /** The done task whose photo was tapped, and on which day, waiting on
    * undo-or-cancel. */
   const [doneFor, setDoneFor] = useState<{ taskId: string; day: number } | null>(null);
+  /** Today's post, opened in its window to show how it will look. */
+  const [postOpen, setPostOpen] = useState(false);
 
   return (
     <>
       <ScreenScroll
         tabBar
         header={
-          <ScreenHeader
-            plainTitle="Tasks"
-            showBack={false}
-            right={
-              <IconButton
-                name="ellipsis-horizontal"
-                size={cornerButtonSize}
-                iconSize={cornerIconSize}
-                background={colors.surface}
-                onPress={() => setMenuOpen(true)}
-                accessibilityLabel="Challenge options"
-              />
-            }
-          />
+          <ScreenHeader plainTitle="Tasks" showBack={false} />
         }
       >
         {/* Which challenge these are the tasks of — the tab is shared by
-            whatever you've joined, so it says so before anything else. */}
-        <Text variant="itemTitle" numberOfLines={1}>
-          {challenge.name}
-        </Text>
+            whatever you've joined — as the whole run so far, and a way into
+            its page. */}
+        <ChallengeRun
+          challenge={challenge}
+          startDate={startDate}
+          currentDay={currentDay}
+          totalDays={totalDays}
+          taskCount={tasks.length}
+          dayOf={runDay}
+          onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+        />
 
-        {/* Where the day stands, in one line: the count, then the clock in
+        {/* Where today stands, in one line: the count, then the clock in
             ink since it's the part that changes what to do next; the lives
             left sit at the far end. */}
         <View style={styles.status}>
           <Text variant="meta" color={colors.inkMuted} style={styles.statusText} numberOfLines={1}>
-            {`Day ${currentDay} of ${totalDays} · `}
             {allDone ? (
               <Text variant="meta">Posted</Text>
             ) : (
@@ -158,114 +160,128 @@ export default function TasksScreen() {
           </View>
         </View>
 
+        <View style={styles.heading}>
+          <Text variant="sectionHeading">Today</Text>
+          <Text variant="meta" color={colors.inkMuted}>
+            {allDone ? `All ${rows.length} in` : `any order · ${openRows.length} open`}
+          </Text>
+        </View>
+
+        {/* The tasks lead the page, each its own card: the name big, the
+            note under it and the camera in ink beside it, so what's left to
+            do today is the first thing read. */}
+        <View style={styles.tasks}>
+          {openRows.map((row) => (
+            <Pressable
+              key={row.task.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${row.task.label}. Take its photo`}
+              onPress={() => setShooting({ slot: firstFreeSlot, taskId: row.task.id })}
+              style={({ pressed }) => [styles.task, styles.taskRow, pressed && styles.pressed]}
+            >
+              <View style={styles.taskText}>
+                <Text variant="itemTitle">{row.task.label}</Text>
+                {row.task.note ? (
+                  <Text variant="meta" color={colors.inkMuted}>
+                    {row.task.note}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.shoot}>
+                <Ionicons name="camera" size={SHOOT_ICON} color={colors.inkInverse} />
+              </View>
+            </Pressable>
+          ))}
+
+          {/* Done, a task keeps its card but gives up the camera for the
+              shot you took, so the open ones above still pull the eye. */}
+          {doneRows.map((row) => (
+            <Pressable
+              key={row.task.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${row.task.label}, done at ${row.time}. Undo`}
+              onPress={() => setDoneFor({ taskId: row.task.id, day: currentDay })}
+              style={({ pressed }) => [styles.task, styles.taskRow, pressed && styles.pressed]}
+            >
+              {row.photo ? (
+                <Image source={row.photo} style={styles.donePhoto} contentFit="cover" />
+              ) : (
+                <Placeholder
+                  seed={row.photoSeed ?? row.task.id}
+                  radius={radii.sm}
+                  style={styles.donePhoto}
+                />
+              )}
+              <View style={styles.taskText}>
+                <Text variant="copyBold">{row.task.label}</Text>
+                <Text variant="meta" color={colors.inkMuted}>
+                  {row.time ? `Done at ${row.time}` : 'Done'}
+                </Text>
+              </View>
+              <CheckCircle size={ROW_TICK} />
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Today's post, folded down to a line: what the photos are
+            building, a glance at it, and a tap to see it as it will go up. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Your Day ${currentDay} post, ${done} of ${rows.length} photos. Open`}
+          onPress={() => setPostOpen(true)}
+          style={({ pressed }) => [styles.postCard, pressed && styles.pressed]}
+        >
+          <PhotoCollage
+            bare
+            radius={radii.sm}
+            style={styles.postThumb}
+            cells={rows.map((row) => ({
+              key: row.task.id,
+              photo: row.photo,
+              seed: row.photoSeed,
+            }))}
+          />
+          <View style={styles.taskText}>
+            <Text variant="copyBold">Your Day {currentDay} post</Text>
+            <Text variant="meta" color={colors.inkMuted}>
+              {allDone
+                ? 'Posted to Community'
+                : `${done} of ${rows.length} photos · goes up at ${rows.length}/${rows.length}`}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={POST_CHEVRON} color={colors.inkMuted} />
+        </Pressable>
+
+      </ScreenScroll>
+
+      {/* The post on its own, in a window over the page: only to look at —
+          the shots are taken and undone from the task cards, so it never has
+          to hand over to the camera's own sheet mid-close. */}
+      <AlertDialog
+        visible={postOpen}
+        title={`Your Day ${currentDay} post`}
+        message={
+          allDone
+            ? 'Posted to Community'
+            : `${done} of ${rows.length} photos · goes up when all are in`
+        }
+        onDismiss={() => setPostOpen(false)}
+        actions={[{ label: 'Close', onPress: () => setPostOpen(false) }]}
+      >
         <PhotoCollage
-          style={styles.post}
-          radius={0}
-          cells={rows.map((row, slot) => ({
+          cells={rows.map((row) => ({
             key: row.task.id,
             label: row.task.label,
             photo: row.photo,
             seed: row.photoSeed,
             time: row.time,
-            onPress: row.done
-              ? () => setDoneFor({ taskId: row.task.id, day: currentDay })
-              : () => setShooting({ slot, taskId: row.task.id }),
           }))}
         >
           {/* Once the last square is in, the post is stamped the way it goes
               up on Community. */}
           {allDone ? <DayStamp day={currentDay} kicker={challenge.name} /> : null}
         </PhotoCollage>
-
-        <View style={styles.heading}>
-          <Text variant="itemTitle">Today</Text>
-          <Text variant="meta" color={colors.inkMuted}>
-            {allDone ? `All ${rows.length} in` : `any order · ${openRows.length} open`}
-          </Text>
-        </View>
-        <View>
-          {[...openRows, ...doneRows].map((row, i) => (
-            // The pill is a button of its own, so it sits beside the row's
-            // tap area rather than inside it.
-            <View key={row.task.id} style={[styles.row, i > 0 && styles.rowRule]}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  row.done
-                    ? `${row.task.label}, done at ${row.time}. Undo`
-                    : `${row.task.label}. Take its photo`
-                }
-                onPress={
-                  row.done
-                    ? () => setDoneFor({ taskId: row.task.id, day: currentDay })
-                    : () => setShooting({ slot: firstFreeSlot, taskId: row.task.id })
-                }
-                style={({ pressed }) => [styles.rowTap, pressed && styles.pressed]}
-              >
-                {/* No photo until there's a shot: an open task is an empty
-                    ring, a done one shows what you took. */}
-                <View style={styles.rowLead}>
-                  {!row.done ? (
-                    <View style={styles.openRing} />
-                  ) : row.photo ? (
-                    <Image source={row.photo} style={styles.rowPhoto} contentFit="cover" />
-                  ) : (
-                    <Placeholder
-                      seed={row.photoSeed ?? row.task.id}
-                      radius={radii.sm}
-                      style={styles.rowPhoto}
-                    />
-                  )}
-                </View>
-                <View style={styles.rowText}>
-                  <Text variant="copy">{row.task.label}</Text>
-                  {row.task.note ? (
-                    <Text variant="meta" color={colors.inkMuted}>
-                      {row.task.note}
-                    </Text>
-                  ) : null}
-                </View>
-                {row.done ? (
-                  <View style={styles.rowDone}>
-                    <CheckCircle size={ROW_TICK} />
-                    <Text variant="badge" color={colors.inkMuted}>
-                      {row.time}
-                    </Text>
-                  </View>
-                ) : null}
-              </Pressable>
-              {!row.done ? (
-                <ReminderPill
-                  value={reminderFor(row.task.id)}
-                  onChange={(at) => setReminderFor(row.task.id, at)}
-                  title={row.task.label}
-                  fallback={DEFAULT_TASK_REMINDER}
-                />
-              ) : null}
-            </View>
-          ))}
-        </View>
-
-        {/* The one nudge that isn't tied to a task, shown while one is still
-            open: it only comes when the day is about to cost a life. */}
-        {!allDone ? (
-          <View style={styles.lastCall}>
-            <View style={styles.rowText}>
-              <Text variant="copyBold">Last call</Text>
-              <Text variant="meta" color={colors.inkMuted}>
-                Only if a task is still missing, so you don't lose a life.
-              </Text>
-            </View>
-            <ReminderPill
-              value={reminders.lastCall}
-              onChange={(at) => setReminders({ ...reminders, lastCall: at })}
-              title="Last call"
-              fallback={DEFAULT_LAST_CALL}
-              onFill
-            />
-          </View>
-        ) : null}
-      </ScreenScroll>
+      </AlertDialog>
 
       <CameraSheet
         visible={shooting !== null}
@@ -281,29 +297,6 @@ export default function TasksScreen() {
           setShooting(null);
         }}
         onClose={() => setShooting(null)}
-      />
-
-      <PopoverMenu
-        visible={menuOpen}
-        onDismiss={() => setMenuOpen(false)}
-        top={96}
-        items={[
-          {
-            label: 'Restart Challenge',
-            onPress: () => setRestartOpen(true),
-          },
-          {
-            label: 'End Challenge',
-            onPress: () => setEndOpen(true),
-          },
-          {
-            label: 'Change Challenge',
-            // The in-app select/custom-build screen is gone — browsing and
-            // joining a challenge now happens the one way Discover already
-            // does it for everyone else.
-            onPress: () => router.push('/discover'),
-          },
-        ]}
       />
 
       <AlertDialog
@@ -328,50 +321,17 @@ export default function TasksScreen() {
         ]}
       />
 
-      <AlertDialog
-        visible={restartOpen}
-        title="Restart Challenge"
-        message="Are you sure? This will reset your challenge to day 1 starting today."
-        onDismiss={() => setRestartOpen(false)}
-        actions={[
-          { label: 'Cancel', onPress: () => setRestartOpen(false) },
-          {
-            label: 'Restart',
-            destructive: true,
-            // Confirming only closes the dialog: the challenge is left where
-            // it is until there is somewhere for a restart to lead.
-            onPress: () => setRestartOpen(false),
-          },
-        ]}
-      />
-
-      <AlertDialog
-        visible={endOpen}
-        title="End Challenge"
-        message="Are you sure you want to end this challenge? Your progress will be lost."
-        onDismiss={() => setEndOpen(false)}
-        actions={[
-          { label: 'Cancel', onPress: () => setEndOpen(false) },
-          {
-            label: 'End Challenge',
-            destructive: true,
-            // Same stub as Restart above: confirming only closes the dialog
-            // until there is somewhere for ending a challenge to actually lead.
-            onPress: () => setEndOpen(false),
-          },
-        ]}
-      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  // Tucked under the challenge's name as its second line.
+  // Under the run card, today's part of it.
   status: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.inline,
-    marginTop: layout.line,
+    marginTop: layout.heading,
   },
   statusText: {
     flex: 1,
@@ -380,72 +340,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: layout.line / 2,
   },
-  // Edge to edge with square corners, the way a post sits on Community, so
-  // today's grid already reads as the post it's about to become.
-  post: {
-    marginTop: layout.heading,
-    marginHorizontal: -layout.gutter,
-  },
   heading: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    marginTop: layout.section,
-    marginBottom: layout.stack,
+    marginTop: layout.title,
+    marginBottom: layout.heading,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-    paddingVertical: layout.inline,
+  tasks: {
+    gap: layout.stack,
   },
-  rowTap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-  },
-  rowRule: {
-    borderTopWidth: ROW_RULE,
-    borderTopColor: colors.surfaceSunken,
-  },
-  rowLead: {
-    width: ROW_PHOTO,
-    alignItems: 'center',
-  },
-  openRing: {
-    width: OPEN_RING,
-    height: OPEN_RING,
-    borderRadius: radii.pill,
-    borderWidth: OPEN_RING_BORDER,
-    borderColor: colors.inkGhost,
-  },
-  rowPhoto: {
-    width: ROW_PHOTO,
-    height: ROW_PHOTO,
-    borderRadius: radii.sm,
-  },
-  rowText: {
-    flex: 1,
-    gap: layout.line / 2,
-  },
-  rowDone: {
-    alignItems: 'flex-end',
-    gap: layout.line,
-  },
-  // Dims the whole row on press, the way a Settings row answers a tap.
-  pressed: {
-    opacity: 0.6,
-  },
-  // The reminder step's own last-call card: the fill grey, with its pill
-  // turned white to stand off it.
-  lastCall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-    marginTop: layout.heading,
+  task: {
     padding: layout.card,
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceSunken,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+  },
+  taskText: {
+    flex: 1,
+    gap: layout.line,
+  },
+  shoot: {
+    width: SHOOT,
+    height: SHOOT,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  donePhoto: {
+    width: DONE_PHOTO,
+    height: DONE_PHOTO,
+    borderRadius: radii.sm,
+  },
+  // Outlined rather than filled, so it reads as a step back from the task
+  // cards above it rather than one more of them.
+  postCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+    marginTop: layout.section,
+    padding: layout.stack,
+    paddingRight: layout.card,
+    borderRadius: radii.lg,
+    borderWidth: POST_RULE,
+    borderColor: colors.surfaceSunken,
+  },
+  postThumb: {
+    width: POST_THUMB,
+  },
+  // Dims a card on press, the way a Settings row answers a tap.
+  pressed: {
+    opacity: 0.6,
   },
 });

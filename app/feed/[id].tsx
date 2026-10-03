@@ -38,7 +38,7 @@ import {
 import { LIVES_PER_CHALLENGE, useApp } from '@/hooks/useAppState';
 import { useChallengeListing } from '@/hooks/useChallengeCards';
 import { addDays, longDate, ordinal, shortDate } from '@/lib/format';
-import { DAY_MS, localDay, roundState } from '@/lib/round';
+import { DAY_MS, localDay, roundState, startOfToday } from '@/lib/round';
 
 const SECOND_MS = 1_000;
 const MINUTE_MS = 60 * SECOND_MS;
@@ -189,10 +189,7 @@ function ChallengePage({
   // Measured rather than assumed, so the scroll clears the dock's two lines
   // whatever they wrap to.
   const [dockHeight, setDockHeight] = useState(0);
-  const [today] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  });
+  const [today] = useState(startOfToday);
 
   const { challenge } = useChallengeListing(section.id);
   const lives = challenge.lives ?? LIVES_PER_CHALLENGE;
@@ -260,7 +257,7 @@ function ChallengePage({
   // reads as that bar filled in rather than a button adrift over a long
   // stretch of safe area.
   const dockGap = tabBarBottom(insets.bottom);
-  const toTasks = () => router.navigate('/(tabs)/tasks');
+  const toSettings = () => router.push('/account/settings');
 
   return (
     <View style={styles.screenRoot}>
@@ -449,7 +446,7 @@ function ChallengePage({
               />
               <Text variant="meta" color={colors.inkMuted} center>
                 They can join until it starts ·{' '}
-                <Text variant="metaBold" onPress={toTasks}>
+                <Text variant="metaBold" onPress={toSettings}>
                   Edit reminders
                 </Text>
               </Text>

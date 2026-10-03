@@ -74,7 +74,7 @@ export interface Friend {
  * The checklist everyone in a challenge is working through — read from the
  * seed challenge itself (`useAppState`'s own `SEED_CHALLENGE`, `CHALLENGES[0]`)
  * rather than copied out by hand, so a friend's or member's grid always has
- * exactly as many cells as the to-do tab's own, whatever that challenge's
+ * exactly as many cells as the Tasks tab's own, whatever that challenge's
  * task list happens to be.
  */
 const CHALLENGE_TASKS = CHALLENGES[0].tasks.map((task) => task.label);

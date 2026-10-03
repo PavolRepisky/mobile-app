@@ -26,7 +26,7 @@ everywhere else keeps to the semantic names.
 | Backgrounds | `backgroundPlain` `backgroundAlt` |
 | Surfaces | `surface` (white) · `surfaceMuted` (inset panels) · `surfaceSunken` (empty photo slots) |
 | Ink | `ink` · `inkSoft` · `inkMuted` · `inkGhost` (not yet / not available) · `inkInverse` |
-| Lines | `field` · `divider` · `dividerStrong` |
+| Lines | `field` · `divider` |
 | State | `destructive` · `disabled` · `disabledInk` |
 | Scrims | `scrim` · `scrimLight` · `scrimPhoto` · `scrimLock` |
 | Media | `mediaBackdrop` · `onMediaSoft` · `onMediaTrack` · `onMediaBorder` · `onMediaShadow` |
@@ -188,13 +188,6 @@ four take a corner each. Every day of the challenge gets a grey cell, shot or
 not; dates either side of the run stay bare numbers. A bare numeral stays
 quiet — `inkMuted` for a day already gone, `inkGhost` for one still to come —
 and today wears a black border.
-
-**`WeekPosts`** — `days` (`key` · `letter` · `date` · `today` · `cells`, or
-`null` for a day still to come) · `size` · `lettersAbove`. The week, Monday
-first, as a row of little posts: a day gone by is its own bare photo mosaic,
-today sits in a 2px ink ring, and a day still to come is a `surfaceSunken`
-square with its date in `inkGhost`. `useWeekPostsDays()` builds the row from
-the challenge's own progress.
 
 **`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `time` · `label` ·
 `next` · `onPress`) · `radius` · `bare` · `children`. Today's post as a square

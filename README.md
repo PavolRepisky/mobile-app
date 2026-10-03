@@ -74,26 +74,38 @@ home and the initial route. The month calendar lives inside Profile.
 
 ## State
 
-There is no backend. `hooks/useAppState.tsx` holds everything in React state
-and is seeded so the app opens on **Day 5** of Her 75 with four days of
-history — the state the reference screenshots were taken in. State resets on
-reload.
+There is no backend yet. Everything lives in memory and resets on reload:
+
+- `data/seed.ts` — the demo account the app opens on: **Day 5** of Get Fit for
+  Summer with four days of history, its profile, captions and photos. This is
+  what the signed-in account's real data replaces.
+- `data/challenges.ts`, `data/content.ts`, `data/trophies.ts` — the listed
+  challenges and every other person: friends, members, feed posts, standings.
+  These become API reads.
+- `hooks/useAppState.tsx` — the provider. Its actions (`completeTaskWithPhoto`,
+  `addChallenge`, `updateChallenge`, `deleteChallenge`, `selectChallenge`,
+  `setReminders`, `reactToPost`, `addFriendComment`, `toggleFriendRequest`, …)
+  are the app's whole write surface, so each one is where a backend call goes.
+  `useChallengeCards` and `useChallengeListing` shape challenges for the
+  screens, so they're the read side of the same seam.
 
 ## Placeholder imagery
 
-The reference is full of lifestyle photography. `components/Placeholder.tsx`
-draws warm neutral tiles locally, keyed off a seed string so a given "photo"
-looks the same on every render. Nothing is fetched, so the app runs offline.
+The reference is full of lifestyle photography. Bundled photos under `assets/`
+stand in for people's shots; where none fits, `components/Placeholder.tsx`
+draws warm neutral tiles keyed off a seed string, so a given "photo" looks the
+same on every render. Nothing is fetched, so the app runs offline.
 
 ## Known gaps
 
 These are deliberate stopping points, not bugs:
 
-- **Task reordering** moves an item up one position when its handle is tapped;
-  it is not a true drag gesture.
-- **Photos** are simulated — tapping a task's photo slot attaches or clears a
-  placeholder rather than opening the camera.
-- **Save sticker** and **Send invites** are no-ops; no share sheet or file
-  writing is wired up.
-- A few secondary rows are inert: the profile's "Her 75 support" and
-  "We're hiring" cards, and Settings → Duration / Privacy Policy / Terms.
+- **Reminders** are stored per task (set while joining, changed in Settings)
+  but no notification is scheduled yet.
+- **End challenge** in Settings asks to confirm, then does nothing — there is
+  no state yet for having no challenge.
+- **Log out** and **Delete account** reset the demo account rather than
+  touching any server.
+- **Invites** on a new challenge's finished page only mark the friend as
+  invited; Share opens the system share sheet.
+- **Privacy Policy** and **Terms of Service** rows in Settings are inert.

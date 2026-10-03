@@ -33,13 +33,13 @@ export interface PopoverMenuProps {
 }
 
 /**
- * The white rounded menu that drops from the pencil button on the To-do home
- * (Edit / Restart / Change Challenge).
+ * The white rounded menu that drops from a corner button — the ⋯ on a
+ * challenge you built (Edit / Delete).
  *
  * It grows out of the corner it is anchored to rather than fading in on the
  * spot, which is how iOS opens its own context menus: a short spring on scale
  * with the origin pinned to the trigger, so the menu reads as unfolding from
- * the pencil instead of appearing over it. Dismissal is a quicker collapse —
+ * the button instead of appearing over it. Dismissal is a quicker collapse —
  * closing should not cost the user the same wait as opening.
  */
 export function PopoverMenu({

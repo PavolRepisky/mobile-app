@@ -16,7 +16,7 @@ import { Text } from './Text';
 export interface AlertAction {
   label: string;
   onPress: () => void;
-  /** Red label — Restart, Delete. */
+  /** Red label — Delete, End Challenge. */
   destructive?: boolean;
   /**
    * The action the dialog is asking for — Update, Delete, Log out — set as a
@@ -44,11 +44,15 @@ export interface AlertDialogProps {
     /** Shown as a counter under the field when `multiline` is set. */
     maxLength?: number;
   };
+  /** Something to look at between the message and the actions — today's
+   * post, opened from its line on Tasks. */
+  children?: React.ReactNode;
 }
 
 /**
- * The iOS-style centred dialog used by "Today's Photo", "Restart Challenge"
- * and "Update Username": title, message, optional field, then pills. The
+ * The iOS-style centred dialog used by "Undo Task", "End Challenge" and
+ * "Update Username": title, message, optional field, optional content, then
+ * pills. The
  * panel is a plain white card rather than the tab bar's liquid glass — an
  * alert reads a decision, not a surface floating over a photo.
  *
@@ -62,6 +66,7 @@ export function AlertDialog({
   onDismiss,
   actions,
   input,
+  children,
 }: AlertDialogProps) {
   // Only the dim behind the dialog fades in. The Modal's own fade took the
   // panel with it, so for its first few hundred milliseconds the card and its
@@ -116,6 +121,8 @@ export function AlertDialog({
                   {message}
                 </Text>
               ) : null}
+
+              {children ? <View style={styles.content}>{children}</View> : null}
 
               {input ? (
                 <>
@@ -210,6 +217,9 @@ const styles = StyleSheet.create({
   },
   message: {
     marginTop: spacing.sm,
+  },
+  content: {
+    marginTop: spacing.lg,
   },
   input: {
     marginTop: spacing.lg,
