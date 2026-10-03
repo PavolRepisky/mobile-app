@@ -490,7 +490,10 @@ export const radii = {
 export const tabBar = {
   height: 68,
   bottomOffset: 12,
-  horizontalInset: 20,
+  // Tighter than the page gutter on purpose: at 20 each of the four equal
+  // cells was so narrow that "Community" ran almost into the active pill's
+  // rounded end.
+  horizontalInset: spacing.md,
 } as const;
 
 export const tabBarClearance =

@@ -10,7 +10,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
-import { GlassSurface } from './GlassSurface';
 import { Text } from './Text';
 
 export type TabIcon = 'discover' | 'community' | 'tasks' | 'profile';
@@ -89,16 +88,18 @@ export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
         style={[styles.tab, isFocused && styles.tabActive]}
       >
         <Glyph icon={icon} active={!!isFocused} />
-        <Text variant="tab">{label}</Text>
+        <Text variant="tab" numberOfLines={1}>
+          {label}
+        </Text>
       </Pressable>
     );
   },
 );
 
 /**
- * The pill that floats above the content near the bottom edge. Content scrolls
- * beneath it, so it is the liquid-glass lens rather than a tinted fill — the
- * page melts through it as it passes.
+ * The pill that floats above the content near the bottom edge. A solid white
+ * surface rather than a liquid-glass lens — content scrolls beneath it
+ * unseen, and the floating shadow is what lifts it off the white page.
  */
 export interface FloatingTabBarProps {
   children?: React.ReactNode;
@@ -124,11 +125,7 @@ export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
           hidden && styles.barHidden,
         ]}
       >
-        {/* The lens takes its height from the row inside it, so the bar's own
-            height lives on that row rather than on the surface. */}
-        <GlassSurface radius={radii.pill} shadow={false} style={styles.lens}>
-          <View style={styles.row}>{children}</View>
-        </GlassSurface>
+        <View style={styles.row}>{children}</View>
       </View>
     );
   },
@@ -140,13 +137,11 @@ const styles = StyleSheet.create({
     left: tabBar.horizontalInset,
     right: tabBar.horizontalInset,
     borderRadius: radii.pill,
+    backgroundColor: colors.surface,
     ...shadows.floating,
   },
   barHidden: {
     opacity: 0,
-  },
-  lens: {
-    borderRadius: radii.pill,
   },
   row: {
     height: tabBar.height,
@@ -162,7 +157,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
+  // The palette's own fill grey, the one the cards and calendar cells use. The
+  // older warm `divider` grey suited the glass, but on solid white it read
+  // muddy and off-palette.
   tabActive: {
-    backgroundColor: colors.divider,
+    backgroundColor: colors.surfaceSunken,
   },
 });
