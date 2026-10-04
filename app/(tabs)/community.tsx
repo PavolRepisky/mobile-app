@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Avatar, type AvatarSource } from '@/components/Avatar';
@@ -16,8 +16,9 @@ import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { TaskRing } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
 import { colors, layout, radii } from '@/constants/theme';
-import { FEED_AUTHORS, FRIENDS, type Friend } from '@/data/content';
+import { type Friend } from '@/data/content';
 import { orderBySlot, useApp } from '@/hooks/useAppState';
+import { useSocial } from '@/hooks/useSocial';
 
 type Tab = 'friends' | 'members';
 
@@ -70,6 +71,9 @@ const finished = (person: Friend) =>
  * Both sit behind the lock until the account has proven today with one
  * photographed task of its own: the card at the top says what to do, and
  * every post's photos stay blurred under a pill saying when they open.
+ *
+ * Everyone here is a real account, loaded fresh each time the tab comes
+ * into view — with nobody to show yet, each tab says how to change that.
  */
 export default function CommunityScreen() {
   const router = useRouter();
@@ -83,12 +87,28 @@ export default function CommunityScreen() {
     progress,
     captions,
     currentDay,
-    livesLeft,
-    watchedStories,
-    friendRequests: added,
-    toggleFriendRequest: toggleAdded,
+    membershipId,
   } = useApp();
+  const {
+    friends,
+    members,
+    roundSize,
+    loaded,
+    relations,
+    seen,
+    refreshToday,
+    toggleRequest: toggleAdded,
+  } = useSocial();
+  const added = relations.outgoing;
   const [tab, setTab] = useState<Tab>('friends');
+
+  // Today moves on while the app is open — people finish, photos come in —
+  // so the tab loads afresh every time it's opened rather than once.
+  useFocusEffect(
+    useCallback(() => {
+      refreshToday();
+    }, [refreshToday]),
+  );
 
   // A story's last frame links the post it became: `post` names it, and the
   // feed opens on the tab it's in and scrolls it up under the title. Stories
@@ -101,7 +121,7 @@ export default function CommunityScreen() {
   const listY = useRef<Partial<Record<Tab, number>>>({});
   const postY = useRef<Record<string, number>>({});
   const focusTab: Tab | null = focusPost
-    ? FEED_AUTHORS.some((person) => person.id === focusPost)
+    ? members.some((person) => person.id === focusPost)
       ? 'members'
       : 'friends'
     : null;
@@ -162,9 +182,10 @@ export default function CommunityScreen() {
       avatar: myAvatar,
       day: currentDay,
       bio: profile.bio,
-      friendCount: FRIENDS.length,
-      livesLeft,
       caption: captions[currentDay],
+      membershipId: membershipId ?? undefined,
+      challengeId: challenge.id,
+      challengeName: challenge.name,
       // In the squares they were shot into on the Tasks tab, so the post
       // goes up the way it was laid out there.
       tasks: orderBySlot(tasks, progress[currentDay]).map((task) => {
@@ -178,9 +199,12 @@ export default function CommunityScreen() {
         };
       }),
     };
-  }, [myFinished, myAvatar, profile, tasks, progress, captions, currentDay, livesLeft]);
+  }, [myFinished, myAvatar, profile, tasks, progress, captions, currentDay, membershipId, challenge]);
 
-  const friendsGoing = FRIENDS.filter((friend) => !finished(friend));
+  const friendsGoing = friends.filter((friend) => !finished(friend));
+  /** How many of someone's photos today you've already seen. */
+  const watchedOf = (person: Friend) =>
+    person.tasks.filter((task) => task.completionId && seen.has(task.completionId)).length;
 
   // The "Still going today" row as the story viewer plays it through: you,
   // then everyone after you, skipping faces with no photo yet — there's no
@@ -191,8 +215,8 @@ export default function CommunityScreen() {
       .filter((friend) => friend.tasks.some((task) => task.photo || task.photoSeed))
       .map((friend) => friend.id),
   ].join(',');
-  const friendsFinished = FRIENDS.filter(finished);
-  const membersFinished = FEED_AUTHORS.filter(finished);
+  const friendsFinished = friends.filter(finished);
+  const membersFinished = members.filter(finished);
 
   // Everyone's day at a glance for the empty "Finished today" card, furthest
   // along first — you included, since your day is racing theirs.
@@ -200,7 +224,7 @@ export default function CommunityScreen() {
     ...(myDayRunning
       ? [{ id: 'you', name: 'You', avatar: myAvatar, done: myDone, total: tasks.length }]
       : []),
-    ...FRIENDS.map((friend) => ({
+    ...friends.map((friend) => ({
       id: friend.id,
       name: friend.name,
       avatar: friend.avatar,
@@ -209,18 +233,16 @@ export default function CommunityScreen() {
     })),
   ].sort((a, b) => b.done / Math.max(b.total, 1) - a.done / Math.max(a.total, 1));
 
-  // The challenge's whole membership, split in the proportion the members in
-  // the feed show — the only sample of today there is to read it from.
-  const finishedShare = FEED_AUTHORS.length ? membersFinished.length / FEED_AUTHORS.length : 0;
-  const membersDone = Math.round(challenge.joined * finishedShare);
-  const membersGoing = challenge.joined - membersDone;
+  // Everyone else in your round: the members the tab lists, plus friends of
+  // yours who are in it too — the round's own count, less you.
+  const othersInRound = Math.max(roundSize - (inChallenge ? 1 : 0), members.length);
+  const membersGoing = members.filter((person) => !finished(person));
 
   // The lock card speaks to the tab it's on: your friends, or everyone else
-  // in the challenge — counted across all of it, with faces from the
-  // members in the feed.
+  // in the challenge.
   const onFriends = tab === 'friends';
-  const lockFaces = onFriends ? friendsGoing : FEED_AUTHORS.filter((person) => !finished(person));
-  const lockCount = onFriends ? friendsGoing.length : membersGoing;
+  const lockFaces = onFriends ? friendsGoing : membersGoing;
+  const lockCount = lockFaces.length;
   const lockGoing = `${lockCount.toLocaleString('en-US')} ${onFriends ? 'friend' : 'member'}${
     lockCount === 1 ? '' : 's'
   } still going`;
@@ -338,7 +360,9 @@ export default function CommunityScreen() {
                       avatar={myAvatar}
                       done={myDone}
                       total={tasks.length}
-                      watched={watchedStories[`me-${currentDay}`]?.length ?? 0}
+                      // Your own photos are yours: there's nothing in them
+                      // you haven't seen.
+                      watched={myDone}
                       onPress={() =>
                         hasStoryToday
                           ? router.push({
@@ -356,7 +380,7 @@ export default function CommunityScreen() {
                       avatar={friend.avatar}
                       done={doneCount(friend)}
                       total={friend.tasks.length}
-                      watched={watchedStories[friend.id]?.length ?? 0}
+                      watched={watchedOf(friend)}
                       // The same story viewer yours opens in.
                       onPress={() =>
                         router.push({
@@ -370,12 +394,31 @@ export default function CommunityScreen() {
               </View>
             ) : null}
 
-            <SectionHeading
-              title="Finished today"
-              meta={String(friendsFinished.length + (myPost ? 1 : 0))}
-            />
+            {/* With no friends at all there's no "today" of theirs to count
+                — the empty state below says how to change that instead. */}
+            {loaded && !friends.length && !myPost ? null : (
+              <SectionHeading
+                title="Finished today"
+                meta={String(friendsFinished.length + (myPost ? 1 : 0))}
+              />
+            )}
 
-            {myPost || friendsFinished.length ? (
+            {loaded && !friends.length ? (
+              <>
+                {myPost ? (
+                  <View style={styles.posts}>
+                    <FriendCard friend={myPost} locked={false} />
+                  </View>
+                ) : null}
+                <EmptyState
+                  icon="people-outline"
+                  disc
+                  title="No friends here yet"
+                  hint="Add people and their days show up here as they go."
+                  action={{ label: 'Find friends', onPress: () => router.push('/add-friends') }}
+                />
+              </>
+            ) : myPost || friendsFinished.length ? (
               <View
                 style={styles.posts}
                 onLayout={(e) => onListLayout('friends')(e.nativeEvent.layout.y)}
@@ -422,11 +465,11 @@ export default function CommunityScreen() {
             {/* Everyone else on the challenge, finished today or not, as
                 faces to add — the feed below only shows who's done. Shares
                 the posts' requests, so adding here flips their Add too. */}
-            {FEED_AUTHORS.length ? (
+            {members.length ? (
               <View style={styles.section}>
                 <SectionHeading
                   title="In it with you"
-                  meta={challenge.joined.toLocaleString('en-US')}
+                  meta={othersInRound.toLocaleString('en-US')}
                 />
                 <ScrollView
                   horizontal
@@ -434,7 +477,7 @@ export default function CommunityScreen() {
                   style={styles.storyBleed}
                   contentContainerStyle={styles.memberRow}
                 >
-                  {FEED_AUTHORS.map((person) => (
+                  {members.map((person) => (
                     <MemberCard
                       key={person.id}
                       person={person}
@@ -471,6 +514,22 @@ export default function CommunityScreen() {
                   );
                 })}
               </View>
+            ) : loaded && !inChallenge ? (
+              <EmptyState
+                icon="flag-outline"
+                disc
+                title="Join a challenge first"
+                hint="Members are the people doing your challenge with you."
+                action={{ label: 'Find a challenge', onPress: () => router.navigate('/discover') }}
+              />
+            ) : loaded && !members.length ? (
+              <EmptyState
+                icon="people-outline"
+                disc
+                title="No one else in it yet"
+                hint="Bring a friend along — they'll show up here once their Day 1 comes."
+                action={{ label: 'Invite a friend', onPress: () => router.push('/add-friends') }}
+              />
             ) : (
               <EmptyState
                 icon="flag-outline"

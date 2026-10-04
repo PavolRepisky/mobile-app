@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 
 import { DaysFeed } from '@/components/DaysFeed';
 import { FriendCard } from '@/components/FriendCard';
-import { FRIENDS, type Friend } from '@/data/content';
+import { type Friend } from '@/data/content';
 import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 
 /**
@@ -25,7 +25,7 @@ export default function DayPostScreen() {
   // it shows just itself.
   const days = postedDays.includes(openedDay) ? postedDays : [openedDay];
 
-  const { profile, tasks, progress, captions, currentDay, livesLeft } = useApp();
+  const { profile, tasks, progress, captions, currentDay, membershipId, challenge } = useApp();
 
   // You, in the same `Friend` shape Community builds for your own card —
   // only the identity row reads off it; each day's photos come in through
@@ -38,11 +38,14 @@ export default function DayPostScreen() {
       avatar: profile.avatar ?? profile.avatarSeed,
       day: currentDay,
       bio: profile.bio,
-      friendCount: FRIENDS.length,
-      livesLeft,
       tasks: [],
+      // Your days are posts like anyone's: what's said and felt about them
+      // is kept against your membership.
+      membershipId: membershipId ?? undefined,
+      challengeId: challenge.id,
+      challengeName: challenge.name,
     }),
-    [profile, currentDay, livesLeft],
+    [profile, currentDay, membershipId, challenge],
   );
 
   const tasksFor = (day: number): Friend['tasks'] =>

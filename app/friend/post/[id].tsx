@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { DaysFeed } from '@/components/DaysFeed';
 import { FriendCard } from '@/components/FriendCard';
-import { PEOPLE } from '@/data/content';
+import { useSocial } from '@/hooks/useSocial';
 import { possessive } from '@/lib/names';
 
 /**
@@ -15,23 +15,31 @@ import { possessive } from '@/lib/names';
  */
 export default function FriendPostScreen() {
   const { id, day: dayParam } = useLocalSearchParams<{ id: string; day?: string }>();
+  const userId = String(id);
+  const social = useSocial();
+  const { loadPage } = social;
+  const page = social.page(userId);
 
-  const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
-  const openedDay = Number(dayParam) || friend.day;
+  // Opened from their profile, the page is already loaded; from a link it
+  // isn't yet.
+  useEffect(() => {
+    if (!page) loadPage(userId);
+  }, [page, userId, loadPage]);
+
+  const friend = page?.person;
+  const openedDay = Number(dayParam) || friend?.day || 1;
 
   const records = useMemo(() => {
+    if (!friend || !page) return [];
     const taskCount = friend.tasks.length;
-    return [
-      { day: friend.day, tasks: friend.tasks, caption: friend.caption },
-      ...(friend.pastPosts ?? []),
-    ]
+    return page.days
       .filter(
         ({ day, tasks }) =>
           tasks.some((task) => task.photo || task.photoSeed) &&
           (day < friend.day || tasks.filter((task) => task.done).length === taskCount),
       )
       .sort((a, b) => b.day - a.day);
-  }, [friend]);
+  }, [friend, page]);
 
   // A day reached by a link rather than a tap on the grid has no neighbours
   // to scroll onto, so it shows just itself — My days' own rule.
@@ -39,6 +47,8 @@ export default function FriendPostScreen() {
     const posted = records.map((record) => record.day);
     return posted.includes(openedDay) ? posted : [openedDay];
   }, [records, openedDay]);
+
+  if (!friend) return null;
 
   return (
     <DaysFeed

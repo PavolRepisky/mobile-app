@@ -13,8 +13,10 @@ import { Placeholder } from '@/components/Placeholder';
 import { PostHeader } from '@/components/PostHeader';
 import { Text } from '@/components/Text';
 import { absoluteFill, colors, layout, radii, spacing } from '@/constants/theme';
-import { PEOPLE, REACTIONS } from '@/data/content';
+import { REACTIONS } from '@/data/content';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
+import { useSocial } from '@/hooks/useSocial';
+import { postKey } from '@/lib/backend/social';
 
 /** How long a story holds before it moves on. */
 const STORY_MS = 5000;
@@ -71,9 +73,8 @@ const SUMMARY_CELL = { flex: 1 } as const;
 export default function StoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const {
-    profile, challenge, currentDay, markStoryWatched, feedLocked, postReactions, reactToPost,
-  } = useApp();
+  const { profile, challenge, currentDay, feedLocked, membershipId } = useApp();
+  const social = useSocial();
   const params = useLocalSearchParams<{ day?: string; friend?: string; queue?: string }>();
 
   // Whose story is playing. Held here rather than read off the params, so
@@ -83,8 +84,13 @@ export default function StoryScreen() {
   const queue = useMemo(() => (params.queue ? params.queue.split(',') : []), [params.queue]);
   const place = queue.indexOf(owner);
 
-  /** Whose story this is — someone else's when it isn't yours. */
-  const person = owner === ME ? undefined : PEOPLE.find((p) => p.id === owner);
+  /** Whose story this is — someone else's when it isn't yours. Whoever the
+   * row on Community showed is already loaded; anyone else is fetched. */
+  const person = owner === ME ? undefined : social.person(owner);
+  const { loadPage } = social;
+  useEffect(() => {
+    if (owner !== ME && !person) loadPage(owner);
+  }, [owner, person, loadPage]);
 
   // Your ring is tapped from whatever day the scrubber is parked on, so your
   // story follows that rather than always showing today; a friend's is the
@@ -114,7 +120,7 @@ export default function StoryScreen() {
         ? person.tasks
             .filter((task) => task.photo || task.photoSeed)
             .map((task) => ({
-              key: task.label,
+              key: task.completionId ?? task.label,
               label: task.label,
               photo: task.photo ?? null,
               seed: task.photoSeed ?? task.label,
@@ -166,8 +172,14 @@ export default function StoryScreen() {
 
   // The same post the feed shows for this day, so a reaction left on the
   // story is the one on the post.
-  const postId = person ? person.id : `day-${viewing}`;
-  const myReaction = postReactions[postId] ?? null;
+  const postMembership = person ? person.membershipId : membershipId ?? undefined;
+  const { ensureStats } = social;
+  useEffect(() => {
+    if (postMembership) ensureStats([{ membershipId: postMembership, day: viewing }]);
+  }, [postMembership, viewing, ensureStats]);
+  const myReaction = postMembership
+    ? social.stats[postKey(postMembership, viewing)]?.mine ?? null
+    : null;
   /**
    * Sends a reaction from the tray: it becomes the post's reaction — the one the feed
    * shows — and a burst of it floats up the screen, the way Instagram's
@@ -175,7 +187,7 @@ export default function StoryScreen() {
    * than taking it back.
    */
   const sendReaction = (emoji: string) => {
-    if (myReaction !== emoji) reactToPost(postId, emoji);
+    if (postMembership) social.love(postMembership, viewing, emoji);
     setTrayOpen(false);
     const batch = Date.now().toString();
     const particles = Array.from({ length: BURST_COUNT }, (_, i) => ({
@@ -198,14 +210,14 @@ export default function StoryScreen() {
     ).start(() => setBursts((now) => now.filter((b) => !b.id.startsWith(`${batch}-`))));
   };
 
-  // Each photo counts as watched the moment it's up, the way the ring that
-  // opened it reads it back. The empty frame and the post at the end aren't
-  // photos in the story, so they don't count.
-  const watchKey = person ? person.id : `me-${viewing}`;
+  // Each of someone else's photos counts as seen the moment it's up — their
+  // view count, and the ring that opened it. The empty frame and the post at
+  // the end aren't photos in the story, and your own aren't counted.
   const isPhoto = stories.length > 0 && !current.summary;
+  const { markSeen } = social;
   useEffect(() => {
-    if (isPhoto && !locked) markStoryWatched(watchKey, current.key);
-  }, [isPhoto, locked, watchKey, current.key, markStoryWatched]);
+    if (person && isPhoto && !locked) markSeen(current.key);
+  }, [person, isPhoto, locked, current.key, markSeen]);
 
   // Stories only last the day, so the post they link lands in the Community
   // feed, where it stays — back down the stack to the tabs rather than a new
@@ -322,7 +334,7 @@ export default function StoryScreen() {
                 )
               }
             />
-            <DayStamp day={viewing} kicker={challenge.name} />
+            <DayStamp day={viewing} kicker={person?.challengeName ?? challenge.name} />
           </Pressable>
           <Pill
             tone="floating"
@@ -383,7 +395,7 @@ export default function StoryScreen() {
           name={person ? person.name : profile.name}
           time={current.time ?? undefined}
           day={viewing}
-          challengeName={challenge.name}
+          challengeName={person?.challengeName ?? challenge.name}
           done={taskDone}
           total={taskTotal}
           onMedia

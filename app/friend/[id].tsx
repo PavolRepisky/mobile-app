@@ -1,109 +1,106 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
 import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { FRIENDS, PEOPLE } from '@/data/content';
-import { useApp } from '@/hooks/useAppState';
+import { useRelation, useSocial } from '@/hooks/useSocial';
 import { possessive } from '@/lib/names';
-import { DAY_MS } from '@/lib/round';
-
 
 /**
  * A friend's or a challenge member's profile, opened from the Community tab,
- * a story, or who posted in a challenge feed. It is your own Profile page —
- * `ProfileView`, the same ring, card and days — with "Lily's Profile" as the title
- * and the way back in place of Settings, since there's nothing here to edit.
+ * a story, Find friends, or who posted in a challenge feed. It is your own
+ * Profile page — `ProfileView`, the same ring, card and days — with
+ * "Lily's Profile" as the title and the way back in place of Settings, since
+ * there's nothing here to edit.
+ *
+ * Whoever Community already loaded shows at once; their whole run — every
+ * earlier day — fills in as it arrives. Their today keeps to the Community
+ * lock: until you've proven your own, its photos don't come through.
  */
 export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const userId = String(id);
   const router = useRouter();
-  const { challenge, totalDays, friendRequests, toggleFriendRequest } = useApp();
+  const social = useSocial();
+  const { loadPage, accept, toggleRequest } = social;
+  const relation = useRelation(userId);
 
-  const friend = PEOPLE.find((f) => f.id === String(id)) ?? PEOPLE[0];
+  useEffect(() => {
+    loadPage(userId);
+  }, [userId, loadPage]);
 
-  // Their day today plus every earlier one they've shared, by challenge day.
-  // Days they haven't shared aren't known here, so they stay out of the map
-  // and read as blank on the calendar rather than as missed.
+  const page = social.page(userId);
+  const friend = page?.person ?? social.person(userId);
+
   const days = useMemo(() => {
     const byDay = new Map<number, ProfileDay>();
-    for (const { day, tasks } of [
-      { day: friend.day, tasks: friend.tasks },
-      ...(friend.pastPosts ?? []),
-    ]) {
+    const records = page?.days ?? (friend ? [{ day: friend.day, tasks: friend.tasks }] : []);
+    for (const { day, tasks } of records) {
       byDay.set(day, {
+        // Tiles on the grid and calendar are small: thumbnails where there
+        // are any.
         shots: tasks.flatMap((task) =>
           task.photo || task.photoSeed
-            ? [{ key: task.label, photo: task.photo ?? null, seed: task.photoSeed ?? null }]
+            ? [{ key: task.label, photo: task.thumb ?? task.photo ?? null, seed: task.photoSeed ?? null }]
             : [],
         ),
         done: tasks.filter((task) => task.done).length,
       });
     }
     return byDay;
-  }, [friend]);
+  }, [page, friend]);
   const dayOf = useCallback((day: number) => days.get(day) ?? null, [days]);
 
-  const taskCount = friend.tasks.length;
-  const todayRecord = days.get(friend.day);
-  const hasStoryToday = Boolean(todayRecord?.shots.length);
+  const taskCount = friend?.tasks.length ?? 0;
+  const today = friend?.day ?? 0;
+  const hasStoryToday = Boolean(days.get(today)?.shots.length);
 
-  // Your grid's own rule: every earlier day with a photo, most recent first,
-  // and today only once it's finished — until then it's a story, and the
-  // ring shows it.
   const posted = [...days.entries()]
-    .filter(
-      ([day, record]) =>
-        record.shots.length > 0 && (day < friend.day || record.done === taskCount),
-    )
+    .filter(([day, record]) => record.shots.length > 0 && (day < today || record.done === taskCount))
     .map(([day]) => day)
     .sort((a, b) => b - a);
 
-  // They're in the same challenge, on their own day of it, so their start is
-  // counted back from today. A long run can take them past your length.
-  const startDate = useMemo(() => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    return new Date(start.getTime() - (friend.day - 1) * DAY_MS);
-  }, [friend.day]);
-
   const playStory = useCallback(
-    () => router.push({ pathname: '/story', params: { friend: friend.id } }),
-    [router, friend.id],
+    () => router.push({ pathname: '/story', params: { friend: userId } }),
+    [router, userId],
   );
   const openDay = useCallback(
     (day: number) =>
-      router.push({
-        pathname: '/friend/post/[id]',
-        params: { id: friend.id, day: String(day) },
-      }),
-    [router, friend.id],
+      router.push({ pathname: '/friend/post/[id]', params: { id: userId, day: String(day) } }),
+    [router, userId],
   );
-  // Their today is being done somewhere you can't see — its cell plays their
-  // story, the way the photo does, once there's one to play.
-  const today = useMemo(
+  const todayCell = useMemo(
     () => (hasStoryToday ? { onPress: playStory, hint: 'Plays their story.' } : undefined),
     [hasStoryToday, playStory],
   );
 
-  // Set like your own "My Profile" and "My days", so the titles read as
-  // pairs.
+  if (!friend) {
+    // Nothing loaded yet: the bar, so the way back is there from the start.
+    return (
+      <View style={styles.screenRoot}>
+        <ScreenScroll tone="plain" header={<ScreenHeader plainTitle="Profile" />}>
+          {null}
+        </ScreenScroll>
+      </View>
+    );
+  }
+
   const title = `${possessive(friend.name)} Profile`;
 
-  // Your own page's two buttons, turned to someone else: where you stand
-  // with them in place of Edit — a friend is a status, a member gets the
-  // same Add as everywhere else — and Share as it is.
-  const isFriend = FRIENDS.some((person) => person.id === friend.id);
-  const requested = friendRequests.has(friend.id);
-  const actions = [
-    isFriend
-      ? { label: 'Friends' }
+  // What the first button says follows where you stand with them: already
+  // friends, asked by them (one tap accepts), asked by you, or neither.
+  const relationAction = relation.isFriend
+    ? { label: 'Friends' }
+    : relation.requestReceived
+      ? { label: 'Accept request', onPress: () => accept(userId) }
       : {
-          label: requested ? 'Request sent' : 'Add friend',
-          onPress: () => toggleFriendRequest(friend.id),
-        },
+          label: relation.requestSent ? 'Request sent' : 'Add friend',
+          onPress: () => toggleRequest(userId),
+        };
+  const actions = [
+    relationAction,
     {
       label: 'Share profile',
       onPress: () => {
@@ -122,16 +119,16 @@ export default function FriendProfileScreen() {
           name={friend.name}
           handle={friend.handle}
           bio={friend.bio}
-          challenge={challenge}
-          startDate={startDate}
-          currentDay={friend.day}
-          totalDays={Math.max(totalDays, friend.day)}
+          challenge={page?.challenge ?? null}
+          startDate={page?.startDate ?? new Date()}
+          currentDay={today}
+          totalDays={page?.totalDays ?? today}
           taskCount={taskCount}
           dayOf={dayOf}
           posted={posted}
           onPlayStory={hasStoryToday ? playStory : undefined}
           onOpenDay={openDay}
-          today={today}
+          today={todayCell}
           emptyHint={`${friend.name} hasn't finished a day yet.`}
           daysTitle={`${possessive(friend.name)} days`}
           actions={actions}

@@ -1,13 +1,14 @@
 import type { Reminders } from '@/hooks/useAppState';
 import type { ChallengeCategory } from '@/data/challenges';
 import type { Database } from '@/lib/database.types';
-import { removePhotos, signedUrls, uploadTaskPhoto } from '@/lib/backend/photos';
+import { removePhotos, uploadTaskPhoto } from '@/lib/backend/photos';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Everything the app reads and writes, one function per thing it does —
- * named after the actions `useAppState` already has, so swapping the
- * in-memory provider for these is a change of insides, not of screens.
+ * Everything about your own account the app reads and writes, one function
+ * per thing it does — named after the actions `useAppState` already has.
+ * Everyone else (Community, friends, comments, reactions) is in
+ * `lib/backend/social`.
  *
  * Reads go straight at the tables, which row rules keep honest. Writes that
  * carry a rule — today only, Day 1 not passed, only the creator — go
@@ -22,11 +23,8 @@ export type TaskRow = Tables['challenge_tasks']['Row'];
 export type RoundRow = Tables['rounds']['Row'];
 export type MembershipRow = Tables['memberships']['Row'];
 export type CompletionRow = Tables['task_completions']['Row'];
-export type CommentRow = Tables['comments']['Row'];
 export type NotificationRow = Tables['notifications']['Row'];
 export type MembershipProgress = Views['membership_progress']['Row'];
-export type CommunityRow = Database['public']['Functions']['community_today']['Returns'][number];
-export type Emoji = '❤️' | '🔥' | '👏' | '😂';
 
 interface Result {
   data: unknown;
@@ -258,136 +256,6 @@ export async function updateChallenge(challengeId: string, form: ChallengeForm) 
 
 export async function deleteChallenge(challengeId: string) {
   must(await supabase.rpc('delete_challenge', { cid: challengeId }));
-}
-
-// ---------------------------------------------------------------------------
-// Community
-// ---------------------------------------------------------------------------
-
-/** Today on the Community tab, one row per person. */
-export async function fetchCommunity(scope: 'friends' | 'members'): Promise<CommunityRow[]> {
-  return must(await supabase.rpc('community_today', { scope }));
-}
-
-/**
- * One person's day as its grid shows it: each completion with links to its
- * photo and thumbnail. Behind the lock the links are missing — draw those
- * cells blurred.
- */
-export async function fetchDay(membershipId: string, day: number) {
-  const completions = must(
-    await supabase.from('task_completions').select('*').eq('membership_id', membershipId).eq('day', day),
-  );
-  const urls = await signedUrls(completions.flatMap((c) => [c.photo_path, c.thumb_path]));
-  return completions.map((c) => ({
-    ...c,
-    photoUrl: urls[c.photo_path] ?? null,
-    thumbUrl: urls[c.thumb_path] ?? null,
-  }));
-}
-
-/** Marks photos as seen — the story ring's "seen" and a post's view count.
- * Seeing one again is a no-op. */
-export async function markPhotosViewed(completionIds: readonly string[]) {
-  if (completionIds.length === 0) return;
-  const viewerId = await myId();
-  must(
-    await supabase
-      .from('photo_views')
-      .upsert(
-        completionIds.map((completion_id) => ({ completion_id, viewer_id: viewerId })),
-        { onConflict: 'completion_id,viewer_id', ignoreDuplicates: true },
-      ),
-  );
-}
-
-/** Tapping the emoji already on a post takes it back off. */
-export async function reactToPost(membershipId: string, day: number, emoji: Emoji) {
-  const userId = await myId();
-  const existing = maybe(
-    await supabase
-      .from('reactions')
-      .select('emoji')
-      .eq('membership_id', membershipId)
-      .eq('day', day)
-      .eq('user_id', userId)
-      .maybeSingle(),
-  );
-  if (existing?.emoji === emoji) {
-    must(
-      await supabase.from('reactions').delete()
-        .eq('membership_id', membershipId).eq('day', day).eq('user_id', userId),
-    );
-  } else if (existing) {
-    must(
-      await supabase.from('reactions').update({ emoji })
-        .eq('membership_id', membershipId).eq('day', day).eq('user_id', userId),
-    );
-  } else {
-    must(await supabase.from('reactions').insert({ membership_id: membershipId, day, user_id: userId, emoji }));
-  }
-}
-
-/** A post's comments with their authors, oldest first; nest them by
- * `parent_id`. */
-export async function fetchComments(membershipId: string, day: number) {
-  return must(
-    await supabase
-      .from('comments')
-      .select('*, author:profiles(id, name, handle, avatar_path)')
-      .eq('membership_id', membershipId)
-      .eq('day', day)
-      .order('created_at'),
-  );
-}
-
-export async function addComment(membershipId: string, day: number, text: string, parentId: string | null = null) {
-  const body = text.trim();
-  if (!body) return null;
-  const authorId = await myId();
-  return must(
-    await supabase
-      .from('comments')
-      .insert({ membership_id: membershipId, day, author_id: authorId, body, parent_id: parentId })
-      .select()
-      .single(),
-  );
-}
-
-export async function deleteComment(commentId: string) {
-  must(await supabase.from('comments').delete().eq('id', commentId));
-}
-
-// ---------------------------------------------------------------------------
-// Friends
-// ---------------------------------------------------------------------------
-
-/** Every friendship and request you're in, either way round. */
-export async function fetchFriendships() {
-  const id = await myId();
-  return must(
-    await supabase.from('friendships').select('*').or(`requester_id.eq.${id},addressee_id.eq.${id}`),
-  );
-}
-
-/** Add — or accept, if they'd already asked you. */
-export async function requestFriend(userId: string) {
-  return must(await supabase.rpc('request_friend', { target: userId }));
-}
-
-/** Takes back a request, declines one, or ends a friendship. */
-export async function unfriend(userId: string) {
-  must(await supabase.rpc('unfriend', { target: userId }));
-}
-
-/** Friends of friends, most mutual friends first. */
-export async function fetchSuggestions() {
-  return must(await supabase.rpc('friend_suggestions', {}));
-}
-
-export async function findByHandle(handle: string) {
-  const clean = handle.replace(/^@/, '').toLowerCase();
-  return maybe(await supabase.from('profiles').select('*').eq('handle', clean).maybeSingle());
 }
 
 // ---------------------------------------------------------------------------

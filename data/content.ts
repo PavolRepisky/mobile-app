@@ -25,19 +25,33 @@ export interface Friend {
    * from.
    */
   postedAgo?: string;
-  /** The stats their own profile reads under its bio — the same set
-   * your own Profile screen reads off `useApp()` for the signed-in account. */
-  friendCount: number;
-  livesLeft: number;
+  friendCount?: number;
+  livesLeft?: number;
   tasks: readonly {
     label: string;
     done: boolean;
     time?: string;
-    /** Bundled proof photo for a done task. */
+    /** Proof photo for a done task. */
     photo?: ImageSourcePropType;
+    /** The same shot at grid size, where a screen draws it small. */
+    thumb?: ImageSourcePropType;
     /** Stand-in seed, used whenever a done task has no bundled photo yet. */
     photoSeed?: string;
+    /** The photo's own record on the server — what "seen" is kept against. */
+    completionId?: string;
   }[];
+  /**
+   * Set for a real account: the membership their days belong to (a post is
+   * one membership's day), and the challenge it's in — named on their posts
+   * and opened from their profile.
+   */
+  membershipId?: string;
+  challengeId?: string;
+  challengeName?: string;
+  /** Where you stand with them. */
+  isFriend?: boolean;
+  requestSent?: boolean;
+  requestReceived?: boolean;
   /**
    * Other people already talking under this post — everyone here is someone
    * else in `PEOPLE`, the same closed roster the feed itself draws from,
@@ -822,74 +836,5 @@ const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.slice(0, 4).map(
 export function challengeStrip(id: string): readonly PhotoSource[] {
   return challengePhotos(id) ?? CUSTOM_PHOTOS;
 }
-
-export interface FeedPost {
-  id: string;
-  /** Who posted it — an id into PEOPLE, so the tile can open their profile. */
-  authorId: string;
-  /** What they posted. */
-  photo: ImageSourcePropType;
-  views: number;
-  time: string;
-  reaction?: string;
-}
-
-/**
- * The day's posts. Every challenge feed shows the same ones — the challenge
- * a feed belongs to only sets its header, not who posted in it.
- */
-export const FEED_POSTS: readonly FeedPost[] = [
-  {
-    id: 'p1',
-    authorId: 'mia',
-    photo: require('../assets/feed/posts/mountain-hike.jpg'),
-    views: 8,
-    time: '6:53 AM',
-  },
-  {
-    id: 'p2',
-    authorId: 'sofia',
-    photo: require('../assets/feed/posts/post-workout-smoothie.jpg'),
-    views: 10,
-    time: '6:54 AM',
-  },
-  {
-    id: 'p3',
-    authorId: 'elena',
-    photo: require('../assets/feed/posts/orange-chicken-fried-rice.jpg'),
-    views: 10,
-    time: '6:55 AM',
-    reaction: '🔥',
-  },
-  {
-    id: 'p4',
-    authorId: 'nora',
-    photo: require('../assets/feed/posts/canal-dog-walk.jpg'),
-    views: 3,
-    time: '2:06 PM',
-  },
-  {
-    id: 'p5',
-    authorId: 'camila',
-    photo: require('../assets/feed/posts/park-bench-reading.jpg'),
-    views: 21,
-    time: '4:18 PM',
-  },
-  {
-    id: 'p6',
-    authorId: 'mia',
-    photo: require('../assets/feed/posts/studying-in-bed.jpg'),
-    views: 14,
-    time: '8:41 PM',
-    reaction: '❤️',
-  },
-  {
-    id: 'p7',
-    authorId: 'sofia',
-    photo: require('../assets/feed/posts/golden-retriever-garden.jpg'),
-    views: 32,
-    time: '9:12 PM',
-  },
-];
 
 export const REACTIONS = ['❤️', '🔥', '👏', '😂'] as const;

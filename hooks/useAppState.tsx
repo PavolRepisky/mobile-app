@@ -16,7 +16,6 @@ import {
   type ChallengeCategory,
   type ChallengeTask,
 } from '@/data/challenges';
-import { FEED_POSTS } from '@/data/content';
 import { useSession } from '@/hooks/useSession';
 import * as api from '@/lib/backend/api';
 import { publicUrl, removePhotos, signedUrls, uploadPublicPhoto } from '@/lib/backend/photos';
@@ -102,12 +101,6 @@ const DEFAULT_LAST_CALL = 22 * 60;
 
 const DEFAULT_REMINDERS: Reminders = { tasks: {}, lastCall: DEFAULT_LAST_CALL };
 
-export interface FriendComment {
-  id: string;
-  text: string;
-  parentId: string | null;
-}
-
 interface AppState {
   profile: Profile;
 
@@ -121,21 +114,6 @@ interface AppState {
   /** What you wrote under each day's post, by challenge day — the caption
    * your own posts show. A day can go without one. */
   captions: Record<number, string>;
-  /** The emoji left on a feed post, by post id — also used for a friend's
-   * post on the Friends tab, keyed by their friend id. */
-  postReactions: Record<string, string>;
-  /** Comments the signed-in account has left on a friend's post, by friend
-   * id, oldest first — the seeded ones already on a post live in `Friend`
-   * itself, not here. */
-  friendComments: Record<string, FriendComment[]>;
-  /** The story photos you've already seen, by whose story it is (a friend's
-   * id, or `me-<day>` for yours) — the keys the story viewer gives each. */
-  watchedStories: Record<string, readonly string[]>;
-  /** People you've sent a friend request to, by id — a request, not a
-   * friend yet. Held here so every Add (Members, In it with you, Find
-   * friends, a profile) shows the same state. */
-  friendRequests: ReadonlySet<string>;
-
   /** The challenges you've built yourself, oldest first — what Search's
    * Created by you lists, and what can still be edited until Day 1. */
   customChallenges: readonly Challenge[];
@@ -153,6 +131,9 @@ interface AppState {
    * stand-in as yours.
    */
   inChallenge: boolean;
+  /** The server's id for your place in the challenge — what your own posts
+   * are kept against, so a reaction or comment on them lands. */
+  membershipId: string | null;
   /** Days until the round's Day 1, or 0 once it has started. Joining shuts
    * on Day 1, so a challenge you've just joined is almost always waiting. */
   daysUntilStart: number;
@@ -241,20 +222,6 @@ interface AppActions {
   completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number, slot?: number) => void;
   /** The other half of that bargain: the tick goes, and the proof goes with it. */
   undoTask: (taskId: string, day?: number) => void;
-
-  /** Tapping the emoji already on a post takes it back off. */
-  reactToPost: (postId: string, emoji: string) => void;
-  /** Sends a friend request, or takes back one already sent. */
-  toggleFriendRequest: (id: string) => void;
-  /** Marks one photo in someone's story as seen; seeing it again is a no-op. */
-  markStoryWatched: (owner: string, story: string) => void;
-  /** Appends a comment to a friend's post — a reply to `parentId` if given,
-   * a fresh top-level comment otherwise. Blank text is a no-op. */
-  addFriendComment: (
-    friendId: string,
-    text: string,
-    parentId?: string | null,
-  ) => void;
   resetAll: () => void;
 }
 
@@ -319,22 +286,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [totalDays, setTotalDays] = useState(STAND_IN.defaultDays);
   const [progress, setProgress] = useState<Progress>({});
   const [captions, setCaptions] = useState<Record<number, string>>({});
-  // Seeded from the posts that ship already reacted to, so those stay as they
-  // are until someone taps the emoji back off.
-  const [postReactions, setPostReactions] = useState<Record<string, string>>(
-    () =>
-      Object.fromEntries(
-        FEED_POSTS.filter((p) => p.reaction).map((p) => [p.id, p.reaction!]),
-      ),
-  );
-  const [friendComments, setFriendComments] = useState<Record<string, FriendComment[]>>({});
-  const [watchedStories, setWatchedStories] = useState<Record<string, readonly string[]>>({});
-  const [friendRequests, setFriendRequests] = useState<ReadonlySet<string>>(new Set());
   const [reminders, setRemindersState] = useState<Reminders>(DEFAULT_REMINDERS);
 
   const { session } = useSession();
   const userId = session?.user.id ?? null;
   const [inChallenge, setInChallenge] = useState(false);
+  const [membershipIdState, setMembership] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -372,6 +329,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         membershipId.current = null;
         taskUuids.current = {};
         setInChallenge(false);
+        setMembership(null);
         // A stand-in for screens that need a challenge to draw, with none of
         // the demo's history behind it.
         setChallenge(STAND_IN);
@@ -429,6 +387,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       membershipId.current = membership.id;
+      setMembership(membership.id);
       taskUuids.current = Object.fromEntries(mine.tasks.map((t) => [appTaskId(t), t.id]));
       setInChallenge(true);
       setChallenge(built);
@@ -691,50 +650,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentDay, putEntry],
   );
 
-  const reactToPost = useCallback((postId: string, emoji: string) => {
-    setPostReactions((map) => {
-      if (map[postId] === emoji) {
-        const { [postId]: _removed, ...rest } = map;
-        return rest;
-      }
-      return { ...map, [postId]: emoji };
-    });
-  }, []);
-
-  const toggleFriendRequest = useCallback((id: string) => {
-    setFriendRequests((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const markStoryWatched = useCallback((owner: string, story: string) => {
-    setWatchedStories((map) =>
-      map[owner]?.includes(story) ? map : { ...map, [owner]: [...(map[owner] ?? []), story] },
-    );
-  }, []);
-
-  const addFriendComment = useCallback(
-    (friendId: string, text: string, parentId: string | null = null) => {
-      const trimmed = text.trim();
-      if (!trimmed) return;
-      const entry: FriendComment = {
-        // No backend to hand out ids, so one is drawn from the clock and a
-        // few random characters — unique enough for a single running session.
-        id: `${friendId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-        text: trimmed,
-        parentId,
-      };
-      setFriendComments((map) => ({
-        ...map,
-        [friendId]: [...(map[friendId] ?? []), entry],
-      }));
-    },
-    [],
-  );
-
   // Logging out: forget the account on this phone. The next sign-in loads
   // its own.
   const resetAll = useCallback(() => {
@@ -745,8 +660,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProgress({});
     setCaptions({});
     setProfile(NO_PROFILE);
-    setFriendComments({});
-    setFriendRequests(new Set());
     // Only this phone's copy: a reset happens on logging out, and the
     // account keeps its reminders for the next sign-in.
     setRemindersState(DEFAULT_REMINDERS);
@@ -754,6 +667,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     taskUuids.current = {};
     avatarPath.current = null;
     setInChallenge(false);
+    setMembership(null);
   }, []);
 
   const value = useMemo<AppContextValue>(
@@ -765,10 +679,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       totalDays,
       progress,
       captions,
-      postReactions,
-      friendComments,
-      watchedStories,
-      friendRequests,
       customChallenges,
       reminders,
       currentDay,
@@ -777,6 +687,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hasPhotographedTask,
       feedLocked,
       inChallenge,
+      membershipId: membershipIdState,
       daysUntilStart,
       ready,
       loadFailed,
@@ -799,23 +710,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReminders,
       completeTaskWithPhoto,
       undoTask,
-      reactToPost,
-      toggleFriendRequest,
-      markStoryWatched,
-      addFriendComment,
       resetAll,
     }),
     [
       profile, challenge, tasks, startDate, totalDays,
-      progress, captions, postReactions, friendComments, watchedStories, friendRequests,
+      progress, captions,
       customChallenges, reminders,
-      currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, daysUntilStart, ready,
+      currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, membershipIdState, daysUntilStart, ready,
       loadFailed, syncError, clearSyncError, avatarError, clearAvatarError,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, leaveChallenge,
       reload, setReminders, addChallenge,
       updateChallenge, deleteChallenge,
       completeTaskWithPhoto, undoTask,
-      reactToPost, toggleFriendRequest, markStoryWatched, addFriendComment, resetAll,
+      resetAll,
     ],
   );
 

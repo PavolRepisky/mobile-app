@@ -16,6 +16,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '@/constants/theme';
 import { AppProvider, useApp } from '@/hooks/useAppState';
 import { SessionProvider, useSession } from '@/hooks/useSession';
+import { SocialProvider } from '@/hooks/useSocial';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* no-op: splash may already be hidden on fast refresh */
@@ -40,8 +41,10 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <SessionProvider>
           <AppProvider>
-            <StatusBar style="dark" />
-            <RootStack />
+            <SocialProvider>
+              <StatusBar style="dark" />
+              <RootStack />
+            </SocialProvider>
           </AppProvider>
         </SessionProvider>
       </SafeAreaProvider>

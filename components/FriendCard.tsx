@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -19,8 +19,9 @@ import {
 import { absoluteFill, colors, gradients, layout, radii } from '@/constants/theme';
 import { REACTIONS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
-import { countComments, mergeCommentThread } from '@/lib/comments';
-import { CommentsSheet } from './CommentsSheet';
+import { useSocial } from '@/hooks/useSocial';
+import { postKey } from '@/lib/backend/social';
+import { CommentsSheet, type CommentEntry } from './CommentsSheet';
 import { PostHeader } from './PostHeader';
 import { LockedOverlay } from './LockedOverlay';
 import { MosaicArrangement, type CollageCell } from './PhotoCollage';
@@ -77,28 +78,12 @@ export interface FriendCardProps {
   };
 }
 
-/** Stable per key rather than random, so a fake count doesn't reshuffle on
- * every render — the same trick the post-detail screen's own copy uses. */
-function fakeCount(key: string, min: number, max: number): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) | 0;
-  return min + (Math.abs(h) % (max - min + 1));
-}
-
-/**
- * How each reaction is read out, and the range its made-up count is drawn
- * from — hearts the most common, laughs the rarest, so the row reads like a
- * real post's rather than four equal numbers. Sized to a challenge of a
- * couple of hundred people, where a day gets a handful of hearts, not
- * hundreds.
- */
-const REACTION_INFO: Record<(typeof REACTIONS)[number], { name: string; min: number; max: number }> = {
-  '❤️': { name: 'Love', min: 4, max: 28 },
-  '🔥': { name: 'Fire', min: 1, max: 12 },
-  // At least one of each: a pill with a bare emoji and no count reads as a
-  // button waiting to be pressed rather than a reaction someone left.
-  '👏': { name: 'Clap', min: 1, max: 8 },
-  '😂': { name: 'Laugh', min: 1, max: 4 },
+/** How each reaction is read out. */
+const REACTION_NAMES: Record<(typeof REACTIONS)[number], string> = {
+  '❤️': 'Love',
+  '🔥': 'Fire',
+  '👏': 'Clap',
+  '😂': 'Laugh',
 };
 
 /** How close two taps have to land to count as a double tap — the window
@@ -164,35 +149,52 @@ export function FriendCard({
   post,
 }: FriendCardProps) {
   const router = useRouter();
-  const { profile, challenge, postReactions, reactToPost, friendComments, addFriendComment } =
-    useApp();
+  const { profile, challenge } = useApp();
+  const social = useSocial();
   const [draft, setDraft] = useState('');
   const [commentsOpen, setCommentsOpen] = useState(false);
 
-  const postId = post?.id ?? friend.id;
   const day = post?.day ?? friend.day;
   const postTasks = post?.tasks ?? friend.tasks;
   const time = finishedAt(postTasks);
+  // A post is one membership's day; everything said and felt about it is
+  // kept against that pair.
+  const membershipId = friend.membershipId;
+  const key = membershipId ? postKey(membershipId, day) : null;
+  const { ensureStats } = social;
+  useEffect(() => {
+    if (membershipId) ensureStats([{ membershipId, day }]);
+  }, [membershipId, day, ensureStats]);
+  const stats = key ? social.stats[key] : undefined;
 
   // One reaction per person per post: picking another moves it, picking
   // yours again takes it back.
-  const mine = postReactions[postId] ?? null;
+  const mine = stats?.mine ?? null;
   const LOVE = REACTIONS[0];
-  const reactions = REACTIONS.map((emoji) => {
-    const { name, min, max } = REACTION_INFO[emoji];
-    const selected = mine === emoji;
-    const count = fakeCount(`${postId}-${emoji}`, min, max) + (selected ? 1 : 0);
-    return { emoji, name, selected, count };
-  });
+  const reactions = REACTIONS.map((emoji) => ({
+    emoji,
+    name: REACTION_NAMES[emoji],
+    selected: mine === emoji,
+    count: stats?.reactions[emoji] ?? 0,
+  }));
+  const react = (emoji: string) => {
+    if (membershipId) social.react(membershipId, day, emoji);
+  };
 
-  const comments = mergeCommentThread(
-    post ? [] : friend.comments ?? [],
-    friendComments[postId] ?? [],
-    profile.avatar ?? profile.avatarSeed,
-  );
-  // Replies count toward the total at every depth — the icon reports the
+  // The thread loads when the sheet opens, and again after each comment,
+  // so what's there is what's on the server.
+  const [comments, setComments] = useState<CommentEntry[]>([]);
+  useEffect(() => {
+    if (!commentsOpen || !membershipId) return;
+    let live = true;
+    social.thread(membershipId, day).then((thread) => live && setComments(thread)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [commentsOpen, membershipId, day, social.thread]);
+  // Replies count toward the total at every depth — the pill reports the
   // size of the whole thread, not just its top row.
-  const commentCount = countComments(comments);
+  const commentCount = stats?.comments ?? 0;
 
   // Only the tasks they've actually shot — a post is the photos themselves,
   // the way the post-detail screen's own grid is, not a checklist with gaps
@@ -253,7 +255,7 @@ export function FriendCard({
       return;
     }
     lastTap.current = 0;
-    if (mine !== LOVE) reactToPost(postId, LOVE);
+    if (membershipId) social.love(membershipId, day, LOVE);
 
     // Measured at the tap rather than tracked: the feed scrolls, so any
     // stored position would be stale by the time the heart flies.
@@ -359,7 +361,7 @@ export function FriendCard({
               number floating over a blur reads as a
               teaser, not a post. */}
           {locked ? null : (
-            <DayStamp day={day} kicker={challenge.name} />
+            <DayStamp day={day} kicker={friend.challengeName ?? challenge.name} />
           )}
         </View>
       );
@@ -377,9 +379,14 @@ export function FriendCard({
   };
 
   const submit = (parentId: string | null) => {
-    if (!draft.trim()) return;
-    addFriendComment(postId, draft.trim(), parentId);
+    const text = draft.trim();
+    if (!text || !membershipId) return;
     setDraft('');
+    social
+      .comment(membershipId, day, text, parentId)
+      .then(setComments)
+      // Didn't send: the words come back to the composer to try again.
+      .catch(() => setDraft(text));
   };
 
   return (
@@ -389,12 +396,12 @@ export function FriendCard({
         name={friend.name}
         time={time}
         day={day}
-        challengeName={challenge.name}
+        challengeName={friend.challengeName ?? challenge.name}
         done={postTasks.filter((task) => task.done).length}
         total={postTasks.length}
         onPressProfile={onPress}
         onPressChallenge={() =>
-          router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })
+          router.push({ pathname: '/feed/[id]', params: { id: friend.challengeId ?? challenge.id } })
         }
         accessory={accessory}
       />
@@ -502,7 +509,7 @@ export function FriendCard({
               accessibilityRole="button"
               accessibilityLabel={`${reaction.name}, ${reaction.count}`}
               accessibilityState={{ selected: reaction.selected }}
-              onPress={() => reactToPost(postId, reaction.emoji)}
+              onPress={() => react(reaction.emoji)}
               style={({ pressed }) => [
                 styles.reaction,
                 reaction.selected && styles.reactionSelected,
@@ -510,12 +517,15 @@ export function FriendCard({
               ]}
             >
               <Text variant="copy">{reaction.emoji}</Text>
-              <Text
-                variant="badge"
-                color={reaction.selected ? colors.inkInverse : colors.ink}
-              >
-                {reaction.count}
-              </Text>
+              {/* Nobody yet is no number at all, not a "0". */}
+              {reaction.count > 0 ? (
+                <Text
+                  variant="badge"
+                  color={reaction.selected ? colors.inkInverse : colors.ink}
+                >
+                  {reaction.count}
+                </Text>
+              ) : null}
             </Pressable>
           ))}
         </View>
@@ -536,7 +546,7 @@ export function FriendCard({
             size={COMMENT_ICON}
             color={colors.ink}
           />
-          <Text variant="badge">{commentCount}</Text>
+          {commentCount > 0 ? <Text variant="badge">{commentCount}</Text> : null}
         </Pressable>
       </View>
 
