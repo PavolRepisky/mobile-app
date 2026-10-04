@@ -13,9 +13,14 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, spacing } from '@/constants/theme';
 import { DEFAULT_TASK_REMINDER, useApp } from '@/hooks/useAppState';
+import { updateProfile } from '@/lib/backend/api';
+import { deleteAccount, signOut } from '@/lib/backend/auth';
 
 
 const BIO_MAX = 120;
+
+/** What the server takes as a username — said before sending, not after. */
+const HANDLE_PATTERN = /^[a-z0-9_.]{3,30}$/;
 
 /** The photo row's thumbnail — a row-height glance at the current photo, not
  * a second hero circle. */
@@ -79,6 +84,13 @@ export default function SettingsScreen() {
   // shared value would swap the copy mid-animation.
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  // Why the open dialog's change didn't go through — a taken username, no
+  // connection — shown in that dialog's own message, which stays open to try
+  // again. A second dialog over it would be dropped on iOS while the first
+  // is still fading out.
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const failed = (e: unknown) =>
+    setSaveError(e instanceof Error ? e.message : 'That didn’t save. Try again.');
   const [endOpen, setEndOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   /** The one reminder whose wheel is open in the window — a task's id, or
@@ -116,6 +128,7 @@ export default function SettingsScreen() {
             value={profile.name}
             onPress={() => {
               setDraftName(profile.name);
+              setSaveError(null);
               setNameOpen(true);
             }}
           />
@@ -125,6 +138,7 @@ export default function SettingsScreen() {
             value={profile.handle}
             onPress={() => {
               setDraftHandle(profile.handle);
+              setSaveError(null);
               setHandleOpen(true);
             }}
           />
@@ -134,6 +148,7 @@ export default function SettingsScreen() {
             value={profile.bio ?? 'Add a bio'}
             onPress={() => {
               setDraftBio(profile.bio ?? '');
+              setSaveError(null);
               setBioOpen(true);
             }}
             last
@@ -176,7 +191,10 @@ export default function SettingsScreen() {
             icon="trash-outline"
             label="Delete account"
             destructive
-            onPress={() => setDeleteOpen(true)}
+            onPress={() => {
+              setSaveError(null);
+              setDeleteOpen(true);
+            }}
             last
           />
         </Group>
@@ -189,7 +207,7 @@ export default function SettingsScreen() {
       <AlertDialog
         visible={nameOpen}
         title="Update Username"
-        message="Enter your new username"
+        message={saveError ?? 'Enter your new username'}
         onDismiss={() => setNameOpen(false)}
         input={{
           value: draftName,
@@ -201,9 +219,16 @@ export default function SettingsScreen() {
           {
             label: 'Update',
             primary: true,
-            onPress: () => {
-              if (draftName.trim()) setName(draftName.trim());
-              setNameOpen(false);
+            onPress: async () => {
+              const next = draftName.trim();
+              if (!next) return setNameOpen(false);
+              try {
+                await updateProfile({ name: next });
+                setName(next);
+                setNameOpen(false);
+              } catch (e) {
+                failed(e);
+              }
             },
           },
         ]}
@@ -212,7 +237,7 @@ export default function SettingsScreen() {
       <AlertDialog
         visible={handleOpen}
         title="Update Username"
-        message="Enter your new username"
+        message={saveError ?? 'Enter your new username'}
         onDismiss={() => setHandleOpen(false)}
         input={{
           value: draftHandle,
@@ -224,10 +249,19 @@ export default function SettingsScreen() {
           {
             label: 'Update',
             primary: true,
-            onPress: () => {
-              const next = draftHandle.trim();
-              if (next) setHandle(next.startsWith('@') ? next : `@${next}`);
-              setHandleOpen(false);
+            onPress: async () => {
+              const next = draftHandle.trim().replace(/^@/, '').toLowerCase();
+              if (!next) return setHandleOpen(false);
+              if (!HANDLE_PATTERN.test(next)) {
+                return setSaveError('3 to 30 letters, numbers, dots or underscores.');
+              }
+              try {
+                await updateProfile({ handle: next });
+                setHandle(`@${next}`);
+                setHandleOpen(false);
+              } catch (e) {
+                failed(e);
+              }
             },
           },
         ]}
@@ -236,7 +270,7 @@ export default function SettingsScreen() {
       <AlertDialog
         visible={bioOpen}
         title="Update Bio"
-        message="Tell friends a little about yourself"
+        message={saveError ?? 'Tell friends a little about yourself'}
         onDismiss={() => setBioOpen(false)}
         input={{
           value: draftBio,
@@ -255,9 +289,15 @@ export default function SettingsScreen() {
           {
             label: 'Update',
             primary: true,
-            onPress: () => {
-              setBio(draftBio.trim() ? draftBio.trim() : null);
-              setBioOpen(false);
+            onPress: async () => {
+              const next = draftBio.trim() ? draftBio.trim() : null;
+              try {
+                await updateProfile({ bio: next });
+                setBio(next);
+                setBioOpen(false);
+              } catch (e) {
+                failed(e);
+              }
             },
           },
         ]}
@@ -266,7 +306,10 @@ export default function SettingsScreen() {
       <AlertDialog
         visible={deleteOpen}
         title="Delete Account"
-        message="Are you sure you want to delete your account? This action is irreversible."
+        message={
+          saveError ??
+          'Are you sure you want to delete your account? This action is irreversible.'
+        }
         onDismiss={() => setDeleteOpen(false)}
         actions={[
           { label: 'Cancel', onPress: () => setDeleteOpen(false) },
@@ -276,9 +319,16 @@ export default function SettingsScreen() {
             // confirmation's way forward reads the same.
             destructive: true,
             primary: true,
-            onPress: () => {
-              setDeleteOpen(false);
-              resetAll();
+            onPress: async () => {
+              try {
+                // The session ends with the account, which takes the app
+                // back to the sign-in page on its own.
+                await deleteAccount();
+                setDeleteOpen(false);
+                resetAll();
+              } catch (e) {
+                failed(e);
+              }
             },
           },
         ]}
@@ -345,8 +395,9 @@ export default function SettingsScreen() {
             label: 'Log out',
             destructive: true,
             primary: true,
-            onPress: () => {
+            onPress: async () => {
               setLogoutOpen(false);
+              await signOut();
               resetAll();
             },
           },

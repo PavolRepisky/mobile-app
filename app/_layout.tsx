@@ -15,6 +15,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/theme';
 import { AppProvider } from '@/hooks/useAppState';
+import { useProfileSync } from '@/hooks/useProfileSync';
+import { SessionProvider, useSession } from '@/hooks/useSession';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* no-op: splash may already be hidden on fast refresh */
@@ -28,12 +30,6 @@ export default function RootLayout() {
     Fraunces_900Black,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded, fontError]);
-
   // Headlines are the whole design; showing them in a fallback face first
   // would flash badly, so hold the splash until every face is ready.
   if (!fontsLoaded && !fontError) {
@@ -43,38 +39,72 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.backgroundPlain },
-              animation: 'slide_from_right',
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="story"
-              options={{ animation: 'fade', presentation: 'fullScreenModal' }}
-            />
-            <Stack.Screen name="add-friends" />
-            <Stack.Screen name="add-friend/[handle]" />
-            {/* Someone else's profile and days are ordinary pages, pushed
-                the way your own Profile's are. As a modal, everything opened
-                from them — the challenge, their days — came up as a sheet
-                over it instead of a page of its own. */}
-            <Stack.Screen name="friend/[id]" />
-            <Stack.Screen name="friend/post/[id]" />
-            <Stack.Screen name="feed/[id]" />
-            <Stack.Screen name="join/[id]" />
-            <Stack.Screen name="challenges/search" />
-            <Stack.Screen name="challenges/[filter]" />
-            <Stack.Screen name="challenge/create" />
-            <Stack.Screen name="account/settings" />
-          </Stack>
-        </AppProvider>
+        <SessionProvider>
+          <AppProvider>
+            <StatusBar style="dark" />
+            <RootStack />
+          </AppProvider>
+        </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * Signed out, the sign-in page is the only one there is; signed in, it's
+ * gone and the app is everything else. A session appearing or ending swaps
+ * one set for the other, so neither signing in nor out has to navigate.
+ */
+function RootStack() {
+  const { session, ready } = useSession();
+  useProfileSync();
+
+  // The splash also waits on the stored session being read back, so a
+  // signed-in launch never shows the sign-in page for a frame first.
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  if (!ready) {
+    return <View style={{ flex: 1, backgroundColor: colors.backgroundPlain }} />;
+  }
+
+  const signedIn = !!session;
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.backgroundPlain },
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Protected guard={!signedIn}>
+        <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={signedIn}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen
+          name="story"
+          options={{ animation: 'fade', presentation: 'fullScreenModal' }}
+        />
+        <Stack.Screen name="add-friends" />
+        <Stack.Screen name="add-friend/[handle]" />
+        {/* Someone else's profile and days are ordinary pages, pushed
+            the way your own Profile's are. As a modal, everything opened
+            from them — the challenge, their days — came up as a sheet
+            over it instead of a page of its own. */}
+        <Stack.Screen name="friend/[id]" />
+        <Stack.Screen name="friend/post/[id]" />
+        <Stack.Screen name="feed/[id]" />
+        <Stack.Screen name="join/[id]" />
+        <Stack.Screen name="challenges/search" />
+        <Stack.Screen name="challenges/[filter]" />
+        <Stack.Screen name="challenge/create" />
+        <Stack.Screen name="account/settings" />
+      </Stack.Protected>
+    </Stack>
   );
 }
