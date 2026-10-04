@@ -26,7 +26,7 @@ export default function ProfileScreen() {
       shots: orderBySlot(tasks, progress[day]).flatMap((task) => {
         const entry = progress[day]?.[task.id];
         return entry?.photo || entry?.photoSeed
-          ? [{ key: task.id, photo: entry.photo ?? null, seed: entry.photoSeed ?? null }]
+          ? [{ key: task.id, photo: entry.thumb ?? entry.photo ?? null, seed: entry.photoSeed ?? null }]
           : [];
       }),
       done: tasks.filter((task) => progress[day]?.[task.id]?.done).length,

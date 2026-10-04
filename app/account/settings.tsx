@@ -49,6 +49,8 @@ export default function SettingsScreen() {
     setAvatarSeed,
     resetAll,
     leaveChallenge,
+    avatarError,
+    clearAvatarError,
     inChallenge,
     tasks,
     reminders,
@@ -462,6 +464,17 @@ export default function SettingsScreen() {
         visible={libraryOpen}
         onPick={setAvatarPhoto}
         onDismiss={() => setLibraryOpen(false)}
+      />
+
+      {/* A new photo that didn't upload: the old one is already back, so
+          this only has to say so. It comes once the upload has failed, well
+          after the library sheet has gone, so it never stacks on it. */}
+      <AlertDialog
+        visible={avatarError !== null}
+        title="Not saved"
+        message={avatarError ?? ''}
+        onDismiss={clearAvatarError}
+        actions={[{ label: 'OK', primary: true, onPress: clearAvatarError }]}
       />
     </View>
   );

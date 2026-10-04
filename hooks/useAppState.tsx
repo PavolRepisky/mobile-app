@@ -19,7 +19,7 @@ import {
 import { FEED_POSTS } from '@/data/content';
 import { useSession } from '@/hooks/useSession';
 import * as api from '@/lib/backend/api';
-import { publicUrl, signedUrls } from '@/lib/backend/photos';
+import { publicUrl, removePhotos, signedUrls, uploadPublicPhoto } from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
 import { DAY_MS, localDay, startOfToday } from '@/lib/round';
 import type { ImageSourcePropType } from 'react-native';
@@ -44,6 +44,12 @@ export interface TaskProgress {
    * through as a `require`d module rather than a path, so this holds either.
    */
   photo?: TaskPhoto | null;
+  /**
+   * The same shot at grid size, for anywhere it's drawn small — a profile
+   * tile, a calendar cell, a task row. Loaded photos have one; a shot just
+   * taken doesn't need one, since the phone already holds it.
+   */
+  thumb?: TaskPhoto | null;
   /** The photo is still on its way to the server: shown already, saved not
    * yet. Cleared once it's in; if it doesn't make it, the tick comes back off. */
   pending?: boolean;
@@ -154,8 +160,12 @@ interface AppState {
   ready: boolean;
   /** The last load didn't reach the server; `reload` tries again. */
   loadFailed: boolean;
-  /** Why the last photo or undo didn't save, until it's been read. */
+  /** Why the last task photo or undo didn't save, until it's been read —
+   * shown on Tasks. */
   syncError: string | null;
+  /** Why a new profile photo didn't save — shown on Settings, a screen of
+   * its own, so the Tasks tab underneath doesn't raise it a second time. */
+  avatarError: string | null;
 
   /** The allowance a challenge starts with, so a screen can show "2 of 3". */
   livesTotal: number;
@@ -211,6 +221,7 @@ interface AppActions {
   reload: () => Promise<void>;
   /** Clears `syncError` once its message has been shown. */
   clearSyncError: () => void;
+  clearAvatarError: () => void;
   /** Builds a new custom challenge from the create-challenge form, adds it to
    * the challenges `selectChallenge` can pick, and hands it back so the screen
    * can navigate on. */
@@ -328,11 +339,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loadFailed, setLoadFailed] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const clearSyncError = useCallback(() => setSyncError(null), []);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const clearAvatarError = useCallback(() => setAvatarError(null), []);
   // The server's ids behind what the app keys things by: the membership the
   // days belong to, and each task's uuid by its app id (a preset's own key,
   // "h1", so its bundled photos and reminders keep lining up).
   const membershipId = useRef<string | null>(null);
   const taskUuids = useRef<Record<string, string>>({});
+  // The profile photo's path in storage, so changing it can remove the old
+  // file; and the profile as it is now, for putting a face back if a new one
+  // fails to upload.
+  const avatarPath = useRef<string | null>(null);
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
 
   /** Puts a loaded account in place of whatever was showing. */
   const applyAccount = useCallback(
@@ -347,6 +366,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         avatarSeed: null,
         avatar: profileRow.avatar_path ? { uri: publicUrl('avatars', profileRow.avatar_path) } : null,
       });
+      avatarPath.current = profileRow.avatar_path;
 
       if (!mine) {
         membershipId.current = null;
@@ -390,7 +410,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Every photo of the run so far, signed in one call. Your own are
       // always yours to see, so none come back missing.
       const byUuid = Object.fromEntries(mine.tasks.map((t) => [t.id, appTaskId(t)]));
-      const urls = await signedUrls(completions.map((c) => c.photo_path));
+      const urls = await signedUrls(completions.flatMap((c) => [c.photo_path, c.thumb_path]));
       const loaded: Progress = {};
       for (const c of completions) {
         const taskId = byUuid[c.task_id];
@@ -401,6 +421,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             done: true,
             time: timeStamp(new Date(c.completed_at)),
             photo: urls[c.photo_path] ? { uri: urls[c.photo_path] } : null,
+            thumb: urls[c.thumb_path] ? { uri: urls[c.thumb_path] } : null,
             photoSeed: null,
             slot: c.slot ?? undefined,
           },
@@ -513,9 +534,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProfile((p) => ({ ...p, avatarSeed }));
   }, []);
 
-  const setAvatarPhoto = useCallback((avatar: TaskPhoto | null) => {
-    setProfile((p) => ({ ...p, avatar }));
-  }, []);
+  /**
+   * A new face shows at once and uploads behind it; the old file is removed
+   * once the new one is in. Removing the photo clears it on the account too.
+   * If the upload fails, the previous face comes back and `syncError` says
+   * why.
+   */
+  const setAvatarPhoto = useCallback(
+    (avatar: TaskPhoto | null) => {
+      const before = profileRef.current.avatar;
+      setProfile((p) => ({ ...p, avatar }));
+      if (!userId) return;
+
+      const uri = avatar && typeof avatar === 'object' && 'uri' in avatar ? avatar.uri : undefined;
+      const oldPath = avatarPath.current;
+      (async () => {
+        const nextPath = uri ? await uploadPublicPhoto('avatars', userId, { uri }) : null;
+        await api.updateProfile({ avatar_path: nextPath });
+        avatarPath.current = nextPath;
+        if (oldPath) await removePhotos('avatars', [oldPath]);
+      })().catch((e: unknown) => {
+        setProfile((p) => (p.avatar === avatar ? { ...p, avatar: before } : p));
+        setAvatarError(e instanceof Error ? e.message : 'Your photo didn’t save. Try again.');
+      });
+    },
+    [userId],
+  );
 
   const selectChallenge = useCallback(
     async (id: string, start?: Date, picked?: Reminders) => {
@@ -599,6 +643,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // it was first photographed, not when it was reshot.
         time: before?.done ? before.time : timeStamp(new Date()),
         photo,
+        // The shot on the phone draws the small tiles too, rather than a
+        // retake leaving the last shot's thumbnail behind.
+        thumb: null,
         // A real photo replaces the seeded stand-in rather than sitting
         // behind it.
         photoSeed: null,
@@ -705,6 +752,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRemindersState(DEFAULT_REMINDERS);
     membershipId.current = null;
     taskUuids.current = {};
+    avatarPath.current = null;
     setInChallenge(false);
   }, []);
 
@@ -734,6 +782,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loadFailed,
       syncError,
       clearSyncError,
+      avatarError,
+      clearAvatarError,
 
       setName,
       setBio,
@@ -760,7 +810,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       progress, captions, postReactions, friendComments, watchedStories, friendRequests,
       customChallenges, reminders,
       currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, daysUntilStart, ready,
-      loadFailed, syncError, clearSyncError,
+      loadFailed, syncError, clearSyncError, avatarError, clearAvatarError,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, leaveChallenge,
       reload, setReminders, addChallenge,
       updateChallenge, deleteChallenge,

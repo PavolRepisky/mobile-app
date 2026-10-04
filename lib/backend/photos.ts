@@ -1,4 +1,5 @@
 import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
+import * as MediaLibrary from 'expo-media-library/legacy';
 
 import { supabase } from '@/lib/supabase';
 
@@ -38,10 +39,22 @@ async function jpeg(original: ImageRef, edge: number): Promise<Uint8Array> {
   return decodeBase64(saved.base64!);
 }
 
+/**
+ * A photo picked from the iPhone's library comes as `ph://<id>`, an address
+ * in the Photos app rather than a file; the library hands back the file it
+ * stands for. Everything else — the camera's shots, Android's library — is a
+ * file already.
+ */
+async function readableUri(uri: string): Promise<string> {
+  if (!uri.startsWith('ph://')) return uri;
+  const info = await MediaLibrary.getAssetInfoAsync(uri.slice('ph://'.length));
+  return info.localUri ?? uri;
+}
+
 /** Decodes the shot once — which is also what tells its size, so the
  * camera and library needn't — and makes both sizes from it. */
 async function prepare(uri: string): Promise<Prepared> {
-  const original = await ImageManipulator.manipulate(uri).renderAsync();
+  const original = await ImageManipulator.manipulate(await readableUri(uri)).renderAsync();
   const [full, thumb] = await Promise.all([jpeg(original, FULL_EDGE), jpeg(original, THUMB_EDGE)]);
   return { full, thumb };
 }

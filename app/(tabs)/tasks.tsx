@@ -244,7 +244,7 @@ export default function TasksScreen() {
               style={styles.postThumb}
               cells={rows.map((row) => ({
                 key: row.task.id,
-                photo: row.photo,
+                photo: row.thumb ?? row.photo,
                 seed: row.photoSeed,
               }))}
             />
@@ -325,7 +325,7 @@ export default function TasksScreen() {
               </View>
               {waiting ? null : row.done ? (
                 row.photo ? (
-                  <Image source={row.photo} style={styles.rowEnd} contentFit="cover" />
+                  <Image source={row.thumb ?? row.photo} style={styles.rowEnd} contentFit="cover" />
                 ) : (
                   <Placeholder
                     seed={row.photoSeed ?? row.task.id}
