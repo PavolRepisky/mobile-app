@@ -71,8 +71,7 @@ join demo_people p on p.key = x.person
 where c.slug = x.slug;
 
 -- The round the app's demo is on: Get Fit for Summer, counted back from
--- today so Julia is always on Day 5. And the 75 Hard behind her older
--- trophy.
+-- today so Julia is always on Day 5. And an older 75 Hard she finished.
 insert into public.rounds (challenge_id, start_date, days)
 select c.id, r.start_date, c.default_days
 from (values ('her75', current_date - 4), ('hard', date '2025-01-10')) as r(slug, start_date)
@@ -86,7 +85,7 @@ select r.id, c.slug, r.start_date from public.rounds r join public.challenges c 
 -- ---------------------------------------------------------------------------
 
 -- Julia and the members on today's round; Lily and Zoe, her friends, on 75
--- Hard. Julia's two trophies are finished memberships in old rounds.
+-- Hard. Julia also finished two older rounds.
 insert into public.memberships (round_id, user_id, status, signed_at, ended_at)
 select r.id, p.id, m.status::public.membership_status, r.start_date - 1, m.ended
 from (values

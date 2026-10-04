@@ -1,4 +1,4 @@
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
 
 import { supabase } from '@/lib/supabase';
 
@@ -28,19 +28,21 @@ interface Prepared {
   thumb: Uint8Array;
 }
 
-/** Resizes by the long edge, whichever way the shot was held. */
-async function jpeg(uri: string, edge: number, width: number, height: number): Promise<Uint8Array> {
+/** Resizes by the long edge, whichever way the shot was held — and never
+ * up: a small photo stays its own size. */
+async function jpeg(original: ImageRef, edge: number): Promise<Uint8Array> {
+  const { width, height } = original;
   const size = width >= height ? { width: Math.min(edge, width) } : { height: Math.min(edge, height) };
-  const image = await ImageManipulator.manipulate(uri).resize(size).renderAsync();
+  const image = await ImageManipulator.manipulate(original).resize(size).renderAsync();
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: QUALITY, base64: true });
   return decodeBase64(saved.base64!);
 }
 
-async function prepare(uri: string, width: number, height: number): Promise<Prepared> {
-  const [full, thumb] = await Promise.all([
-    jpeg(uri, FULL_EDGE, width, height),
-    jpeg(uri, THUMB_EDGE, width, height),
-  ]);
+/** Decodes the shot once — which is also what tells its size, so the
+ * camera and library needn't — and makes both sizes from it. */
+async function prepare(uri: string): Promise<Prepared> {
+  const original = await ImageManipulator.manipulate(uri).renderAsync();
+  const [full, thumb] = await Promise.all([jpeg(original, FULL_EDGE), jpeg(original, THUMB_EDGE)]);
   return { full, thumb };
 }
 
@@ -72,15 +74,14 @@ export interface UploadedTaskPhoto {
 /**
  * Uploads a task photo into today's folder — the only folder storage lets
  * you write to, and the one `complete_task` checks the paths against.
- * `width`/`height` are the shot's own, as the camera or library reports them.
  */
 export async function uploadTaskPhoto(
   userId: string,
   membershipId: string,
   day: number,
-  photo: { uri: string; width: number; height: number },
+  photo: { uri: string },
 ): Promise<UploadedTaskPhoto> {
-  const { full, thumb } = await prepare(photo.uri, photo.width, photo.height);
+  const { full, thumb } = await prepare(photo.uri);
   const base = `${userId}/${membershipId}/${day}/${freshName()}`;
   const photoPath = `${base}.jpg`;
   const thumbPath = `${base}_thumb.jpg`;
@@ -93,9 +94,9 @@ export async function uploadTaskPhoto(
 export async function uploadPublicPhoto(
   bucket: Exclude<Bucket, 'task-photos'>,
   userId: string,
-  photo: { uri: string; width: number; height: number },
+  photo: { uri: string },
 ): Promise<string> {
-  const { full } = await prepare(photo.uri, photo.width, photo.height);
+  const { full } = await prepare(photo.uri);
   const path = `${userId}/${freshName()}.jpg`;
   await put(bucket, path, full);
   return path;

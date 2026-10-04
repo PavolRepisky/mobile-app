@@ -10,7 +10,7 @@ and `lib/backend/*`. There's no separate server.
 | --- | --- |
 | `migrations/…01_profiles.sql` | accounts, made on sign-up; time zone per account |
 | `migrations/…02_challenges.sql` | challenges, tasks, rounds (a shared Day 1), memberships; create / edit / join / leave |
-| `migrations/…03_progress.sql` | task completions (today only), captions, lives and missed days, standings, trophies |
+| `migrations/…03_progress.sql` | task completions (today only), captions, lives and missed days, standings |
 | `migrations/…04_social.sql` | the Community lock, friends, comments, reactions, views, notifications, the Community feed |
 | `migrations/…05_storage.sql` | buckets and who may upload or read which photo |
 | `migrations/…06_settle_job.sql` | every 15 min: runs that ran out of lives → lost, runs past their last day → finished |

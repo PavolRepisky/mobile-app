@@ -40,12 +40,6 @@ export type Database = {
 isOneToOne: false
       referencedRelation: "challenges"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "challenge_tasks_challenge_id_fkey"
-      columns: ["challenge_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["challenge_id"]
     }
                   ]
                 },"challenges": {
@@ -97,12 +91,6 @@ isOneToOne: false
       referencedRelation: "memberships"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "comments_membership_id_fkey"
-      columns: ["membership_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["membership_id"]
-    },{
       foreignKeyName: "comments_parent_id_fkey"
       columns: ["parent_id"]
 isOneToOne: false
@@ -133,12 +121,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "memberships"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "day_captions_membership_id_fkey"
-      columns: ["membership_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["membership_id"]
     }
                   ]
                 },"friendships": {
@@ -233,12 +215,6 @@ isOneToOne: false
       referencedRelation: "memberships"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "notifications_membership_id_fkey"
-      columns: ["membership_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["membership_id"]
-    },{
       foreignKeyName: "notifications_recipient_id_fkey"
       columns: ["recipient_id"]
 isOneToOne: false
@@ -308,12 +284,6 @@ isOneToOne: false
       referencedRelation: "memberships"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "reactions_membership_id_fkey"
-      columns: ["membership_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["membership_id"]
-    },{
       foreignKeyName: "reactions_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
@@ -338,12 +308,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "challenges"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "rounds_challenge_id_fkey"
-      columns: ["challenge_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["challenge_id"]
     }
                   ]
                 },"task_completions": {
@@ -369,12 +333,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "memberships"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "task_completions_membership_id_fkey"
-      columns: ["membership_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["membership_id"]
     },{
       foreignKeyName: "task_completions_task_id_fkey"
       columns: ["task_id"]
@@ -422,12 +380,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "challenges"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "rounds_challenge_id_fkey"
-      columns: ["challenge_id"]
-isOneToOne: false
-      referencedRelation: "trophies"
-      referencedColumns: ["challenge_id"]
     }
                   ]
                 },"round_stats": {
@@ -436,19 +388,6 @@ isOneToOne: false
                   }
                   Relationships: [
                     
-                  ]
-                },"trophies": {
-                  Row: {
-                    "challenge_id": string | null,"days": number | null,"finish_date": string | null,"membership_id": string | null,"name": string | null,"slug": string | null,"start_date": string | null,"user_id": string | null
-                  }
-                  Relationships: [
-                    {
-      foreignKeyName: "memberships_user_id_fkey"
-      columns: ["user_id"]
-isOneToOne: false
-      referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    }
                   ]
                 }
           }

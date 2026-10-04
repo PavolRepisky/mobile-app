@@ -74,20 +74,20 @@ home and the initial route. The month calendar lives inside Profile.
 
 ## State
 
-There is no backend yet. Everything lives in memory and resets on reload:
+The backend is Supabase — schema, rules and how to run it locally are in
+`supabase/README.md`; the app reaches it through `lib/supabase.ts` and
+`lib/backend/*`. Sign-in is email and password (`app/sign-in.tsx`).
 
-- `data/seed.ts` — the demo account the app opens on: **Day 5** of Get Fit for
-  Summer with four days of history, its profile, captions and photos. This is
-  what the signed-in account's real data replaces.
-- `data/challenges.ts`, `data/content.ts`, `data/trophies.ts` — the listed
-  challenges and every other person: friends, members, feed posts, standings.
-  These become API reads.
-- `hooks/useAppState.tsx` — the provider. Its actions (`completeTaskWithPhoto`,
-  `addChallenge`, `updateChallenge`, `deleteChallenge`, `selectChallenge`,
-  `setReminders`, `reactToPost`, `addFriendComment`, `toggleFriendRequest`, …)
-  are the app's whole write surface, so each one is where a backend call goes.
-  `useChallengeCards` and `useChallengeListing` shape challenges for the
-  screens, so they're the read side of the same seam.
+- `hooks/useAppState.tsx` — the provider. Signed in, it loads the account's
+  profile, its challenge and every day of it from the server; joining, task
+  photos, undo, reminders and leaving are saved there. Its actions are the
+  app's whole write surface.
+- `data/challenges.ts`, `data/content.ts` — the listed challenges and every
+  other person: friends, members, feed posts, standings. Community, friends,
+  comments and challenges you build still run on this demo data in memory,
+  until they move to the backend too.
+- `useChallengeCards` and `useChallengeListing` shape challenges for the
+  screens.
 
 ## Placeholder imagery
 

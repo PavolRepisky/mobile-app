@@ -83,7 +83,6 @@ export default function CommunityScreen() {
     progress,
     captions,
     currentDay,
-    trophies,
     livesLeft,
     watchedStories,
     friendRequests: added,
@@ -164,7 +163,6 @@ export default function CommunityScreen() {
       day: currentDay,
       bio: profile.bio,
       friendCount: FRIENDS.length,
-      trophies,
       livesLeft,
       caption: captions[currentDay],
       // In the squares they were shot into on the Tasks tab, so the post
@@ -180,7 +178,7 @@ export default function CommunityScreen() {
         };
       }),
     };
-  }, [myFinished, myAvatar, profile, tasks, progress, captions, currentDay, trophies, livesLeft]);
+  }, [myFinished, myAvatar, profile, tasks, progress, captions, currentDay, livesLeft]);
 
   const friendsGoing = FRIENDS.filter((friend) => !finished(friend));
 

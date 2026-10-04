@@ -16,7 +16,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, radii } from '@/constants/theme';
 import { REACTIONS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { countComments, mergeCommentThread } from '@/lib/comments';

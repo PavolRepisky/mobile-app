@@ -91,7 +91,6 @@ function RootStack() {
           options={{ animation: 'fade', presentation: 'fullScreenModal' }}
         />
         <Stack.Screen name="add-friends" />
-        <Stack.Screen name="add-friend/[handle]" />
         {/* Someone else's profile and days are ordinary pages, pushed
             the way your own Profile's are. As a modal, everything opened
             from them — the challenge, their days — came up as a sheet

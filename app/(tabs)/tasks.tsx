@@ -77,6 +77,8 @@ export default function TasksScreen() {
     daysUntilStart,
     loadFailed,
     reload,
+    syncError,
+    clearSyncError,
   } = useApp();
   const router = useRouter();
   const waiting = daysUntilStart > 0;
@@ -288,7 +290,9 @@ export default function TasksScreen() {
           {listed.map((row, index) => (
             <Pressable
               key={row.task.id}
-              disabled={waiting}
+              // Mid-upload a row waits for its save to land, so an undo can
+              // never reach the server ahead of the photo it would remove.
+              disabled={waiting || row.pending}
               accessibilityRole="button"
               accessibilityLabel={
                 row.done
@@ -311,7 +315,7 @@ export default function TasksScreen() {
                 <Text variant="copy">{row.task.label}</Text>
                 {row.done ? (
                   <Text variant="meta" color={colors.inkMuted}>
-                    {row.time ? `Done ${row.time}` : 'Done'}
+                    {row.pending ? 'Saving…' : row.time ? `Done ${row.time}` : 'Done'}
                   </Text>
                 ) : row.task.note ? (
                   <Text variant="meta" color={colors.inkMuted}>
@@ -384,6 +388,17 @@ export default function TasksScreen() {
           setShooting(null);
         }}
         onClose={() => setShooting(null)}
+      />
+
+      {/* A photo or an undo that didn't reach the server: the task is already
+          back how it was, so this only has to say so. Comes seconds after
+          the camera card has gone, so it never stacks on it. */}
+      <AlertDialog
+        visible={syncError !== null}
+        title="Not saved"
+        message={syncError ?? ''}
+        onDismiss={clearSyncError}
+        actions={[{ label: 'OK', primary: true, onPress: clearSyncError }]}
       />
 
       <AlertDialog

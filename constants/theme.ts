@@ -311,18 +311,6 @@ export const type = {
     letterSpacing: bodyTracking,
   },
 
-  /**
-   * A figure that is the block's headline rather than a detail in it: how
-   * many made it to the last day of a finished round, "18 of 248". Bigger
-   * than any title, since the number is what the page is there to say.
-   */
-  stat: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 44,
-    lineHeight: 46,
-    letterSpacing: bodyTracking,
-  },
-
   sectionTitle: hierarchy.pageTitle,
   cardTitle: {
     fontFamily: fonts.bodySemi,
@@ -649,25 +637,6 @@ export const glass = {
    */
   fallback: 'rgba(255,255,255,0.42)',
 } as const;
-
-export const theme = {
-  colors,
-  gradients,
-  fonts,
-  type,
-  bodyTracking,
-  spacing,
-  screenPadding,
-  screenTopGap,
-  radii,
-  shadows,
-  glass,
-  tabBar,
-  tabBarClearance,
-  tabBarBottom,
-} as const;
-
-export default theme;
 
 /**
  * RN 0.86 no longer types `StyleSheet.absoluteFillObject`; this is the

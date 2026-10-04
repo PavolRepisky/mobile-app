@@ -10,7 +10,7 @@ import { absoluteFill, glass, radii, shadows } from '@/constants/theme';
  * for any caller reaching for a bare `BlurView` directly rather than through
  * this component — the to-do grid's camera cells, for one.
  */
-export const CAN_BLUR = Platform.OS !== 'android' || Number(Platform.Version) >= 31;
+const CAN_BLUR = Platform.OS !== 'android' || Number(Platform.Version) >= 31;
 
 export interface GlassSurfaceProps {
   radius?: number;

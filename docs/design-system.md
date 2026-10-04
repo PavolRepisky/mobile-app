@@ -46,7 +46,6 @@ SemiBold · `metaBold` 14 Bold · `badge` 12 Bold. My Profile and Settings are b
 point at the matching level.
 
 Headline cuts — Quicksand Bold: `headline` 34 · `headlineSm` 27 · `title` 30. There is no separate display face; size sets a headline apart.
-`stat` 44 Bold is a figure that is its block's headline — a finished round's "18 of 248".
 
 Functional cuts — Quicksand: `cardTitle` 17 · `body` 16 · `bodyStrong` 16 ·
 `button` 17 · `label` 14 · `micro` 11 · `tab` 12. And the three drawn ones:
@@ -252,7 +251,8 @@ has one.
 
 `hooks/useAppState.tsx` exposes `useApp()`, wrapped by `AppProvider` in
 `app/_layout.tsx`. Static content lives in `data/` (`challenges.ts`,
-`content.ts`, `trophies.ts`); formatting helpers in `lib/format.ts`.
+`content.ts`); formatting helpers in `lib/format.ts`. The backend is
+Supabase — see `supabase/README.md`.
 
 Fonts are loaded once in `app/_layout.tsx` and the splash is held until they
 resolve — headlines are the whole design, so a fallback-face flash is not

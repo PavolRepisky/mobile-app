@@ -25,10 +25,9 @@ export interface Friend {
    * from.
    */
   postedAgo?: string;
-  /** The three stats their own profile shows under its bio — the same set
+  /** The stats their own profile reads under its bio — the same set
    * your own Profile screen reads off `useApp()` for the signed-in account. */
   friendCount: number;
-  trophies: number;
   livesLeft: number;
   tasks: readonly {
     label: string;
@@ -90,7 +89,6 @@ export const FRIENDS: readonly Friend[] = [
     bio: 'lunch outside, early nights, one more rep',
     postedAgo: '15h ago',
     friendCount: 18,
-    trophies: 2,
     livesLeft: 3,
     tasks: [
       {
@@ -180,7 +178,6 @@ export const FRIENDS: readonly Friend[] = [
     bio: 'slow mornings, fast walks',
     postedAgo: '3h ago',
     friendCount: 24,
-    trophies: 4,
     livesLeft: 2,
     tasks: [
       {
@@ -276,7 +273,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     bio: 'purple lights and 5am alarms',
     postedAgo: '2h ago',
     friendCount: 31,
-    trophies: 6,
     livesLeft: 3,
     tasks: tasksDone([
       { time: '7:10 AM', photo: require('../assets/feed/posts/orange-chicken-fried-rice.jpg') },
@@ -331,7 +327,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     bio: 'day 28 and finally sleeping properly',
     postedAgo: '6h ago',
     friendCount: 40,
-    trophies: 9,
     livesLeft: 1,
     tasks: tasksDone([
       { time: '9:15 AM', photo: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg') },
@@ -375,7 +370,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     bio: 'late drives, early gym',
     postedAgo: '20m ago',
     friendCount: 27,
-    trophies: 11,
     livesLeft: 3,
     tasks: tasksDone([
       { time: '6:02 AM', photo: require('../assets/wall/eat/salmon-rice-asparagus.jpg') },
@@ -430,7 +424,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     bio: 'same hoodie in every photo, sorry',
     postedAgo: '1d ago',
     friendCount: 15,
-    trophies: 1,
     livesLeft: 2,
     tasks: tasksDone([
       null,
@@ -474,7 +467,6 @@ export const FEED_AUTHORS: readonly Friend[] = [
     bio: 'started for the glow, stayed for the walks',
     postedAgo: '9h ago',
     friendCount: 52,
-    trophies: 14,
     livesLeft: 3,
     tasks: tasksDone([
       { time: '8:30 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
@@ -808,7 +800,7 @@ export const DISCOVER: readonly DiscoverSection[] = [
  * challenge with no feed of its own (the custom one) has no photos here, and
  * the caller keeps its drawn stand-ins.
  */
-export function challengePhotos(id: string): readonly PhotoSource[] | undefined {
+function challengePhotos(id: string): readonly PhotoSource[] | undefined {
   return DISCOVER.find((section) => section.id === id)?.photos;
 }
 
@@ -818,7 +810,7 @@ export function challengePhotos(id: string): readonly PhotoSource[] | undefined 
  * challenges, the ones with a shoot of their own. Four sets, four tiles, and
  * the row reads as every challenge at once.
  */
-export const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.slice(0, 4).map(
+const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.slice(0, 4).map(
   (section) => section.photos[0],
 );
 

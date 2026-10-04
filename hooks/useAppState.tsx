@@ -10,21 +10,13 @@ import {
 } from 'react';
 
 import {
-  CUSTOM_CHALLENGE,
+  CHALLENGES,
   challengeById,
   type Challenge,
   type ChallengeCategory,
   type ChallengeTask,
 } from '@/data/challenges';
 import { FEED_POSTS } from '@/data/content';
-import {
-  SEED_CAPTIONS,
-  SEED_CHALLENGE,
-  SEED_PROFILE,
-  seedProgress,
-  seedStartDate,
-} from '@/data/seed';
-import { TROPHIES } from '@/data/trophies';
 import { useSession } from '@/hooks/useSession';
 import * as api from '@/lib/backend/api';
 import { publicUrl, signedUrls } from '@/lib/backend/photos';
@@ -35,10 +27,10 @@ import type { ImageSourcePropType } from 'react-native';
 /**
  * All app state lives here. Signed in, it is loaded from the backend — the
  * account's profile, the challenge it's in and every day of it so far — and
- * the splash stays up until it has been, so the demo account in `data/seed`
- * never shows. The parts not moved to the backend yet (friends, Community,
- * comments, challenges you build) still run on that demo data, in memory.
- * The actions below are the app's whole write surface.
+ * the splash stays up until it has been, so nothing shows before it's yours.
+ * The parts not moved to the backend yet (friends, Community, comments,
+ * challenges you build) still run on the demo data in `data/content`, in
+ * memory. The actions below are the app's whole write surface.
  */
 
 export interface TaskProgress {
@@ -52,6 +44,9 @@ export interface TaskProgress {
    * through as a `require`d module rather than a path, so this holds either.
    */
   photo?: TaskPhoto | null;
+  /** The photo is still on its way to the server: shown already, saved not
+   * yet. Cleared once it's in; if it doesn't make it, the tick comes back off. */
+  pending?: boolean;
   /**
    * Which cell of the day's grid the photo was shot into, counted in the
    * grid's own order. Left out where nobody chose — seeded history — and the
@@ -135,9 +130,6 @@ interface AppState {
    * friends, a profile) shows the same state. */
   friendRequests: ReadonlySet<string>;
 
-  /** Challenges carried to the last day. One trophy, one finish. */
-  trophies: number;
-
   /** The challenges you've built yourself, oldest first — what Search's
    * Created by you lists, and what can still be edited until Day 1. */
   customChallenges: readonly Challenge[];
@@ -162,6 +154,8 @@ interface AppState {
   ready: boolean;
   /** The last load didn't reach the server; `reload` tries again. */
   loadFailed: boolean;
+  /** Why the last photo or undo didn't save, until it's been read. */
+  syncError: string | null;
 
   /** The allowance a challenge starts with, so a screen can show "2 of 3". */
   livesTotal: number;
@@ -215,18 +209,17 @@ interface AppActions {
   leaveChallenge: () => Promise<void>;
   /** Loads everything from the server again. */
   reload: () => Promise<void>;
+  /** Clears `syncError` once its message has been shown. */
+  clearSyncError: () => void;
   /** Builds a new custom challenge from the create-challenge form, adds it to
    * the challenges `selectChallenge` can pick, and hands it back so the screen
    * can navigate on. */
   addChallenge: (input: ChallengeInput) => Challenge;
   /** Rewrites a challenge you built from the same form. Only before Day 1 —
-   * once it has started, people have joined on its terms. If it's the one
-   * you're on, your round follows the new start, length and tasks. */
+   * once it has started, people have joined on its terms. */
   updateChallenge: (id: string, input: ChallengeInput) => void;
-  /** Takes a challenge you built down. If it's the one you're on, you go
-   * back to the seeded challenge, the way a fresh install opens. */
+  /** Takes a challenge you built down. */
   deleteChallenge: (id: string) => void;
-  setTotalDays: (days: number) => void;
   setReminders: (reminders: Reminders) => void;
 
   /**
@@ -295,20 +288,26 @@ function buildChallenge(id: string, input: ChallengeInput): Challenge {
 // Provider
 // ---------------------------------------------------------------------------
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<Profile>(SEED_PROFILE);
+/**
+ * What screens draw a challenge from while the account is in none — never
+ * shown as yours (`inChallenge` is false), only there so a screen that needs
+ * a challenge to lay out has one.
+ */
+const STAND_IN = CHALLENGES[0];
 
-  const [challenge, setChallenge] = useState<Challenge>(SEED_CHALLENGE);
-  const [tasks, setTasksState] = useState<ChallengeTask[]>(() =>
-    [...SEED_CHALLENGE.tasks],
-  );
+/** Who the app holds before an account has loaded, and after logging out. */
+const NO_PROFILE: Profile = { name: '', handle: '', bio: null, avatarSeed: null, avatar: null };
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [profile, setProfile] = useState<Profile>(NO_PROFILE);
+
+  const [challenge, setChallenge] = useState<Challenge>(STAND_IN);
+  const [tasks, setTasksState] = useState<ChallengeTask[]>(() => [...STAND_IN.tasks]);
   const [customChallenges, setCustomChallenges] = useState<Challenge[]>([]);
-  const [startDate, setStartDateState] = useState<Date>(seedStartDate);
-  const [totalDays, setTotalDays] = useState(SEED_CHALLENGE.defaultDays);
-  const [progress, setProgress] = useState<Progress>(() =>
-    seedProgress(SEED_CHALLENGE.tasks),
-  );
-  const [captions, setCaptions] = useState<Record<number, string>>(SEED_CAPTIONS);
+  const [startDate, setStartDateState] = useState<Date>(startOfToday);
+  const [totalDays, setTotalDays] = useState(STAND_IN.defaultDays);
+  const [progress, setProgress] = useState<Progress>({});
+  const [captions, setCaptions] = useState<Record<number, string>>({});
   // Seeded from the posts that ship already reacted to, so those stay as they
   // are until someone taps the emoji back off.
   const [postReactions, setPostReactions] = useState<Record<string, string>>(
@@ -320,11 +319,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [friendComments, setFriendComments] = useState<Record<string, FriendComment[]>>({});
   const [watchedStories, setWatchedStories] = useState<Record<string, readonly string[]>>({});
   const [friendRequests, setFriendRequests] = useState<ReadonlySet<string>>(new Set());
-  // Challenges the seeded account has already finished — see data/trophies.
-  // Nothing increments this yet: reaching the last day is not an event the
-  // app observes, so the list is seeded and left alone until finishing a
-  // challenge is wired up.
-  const [trophies, setTrophies] = useState(TROPHIES.length);
   const [reminders, setRemindersState] = useState<Reminders>(DEFAULT_REMINDERS);
 
   const { session } = useSession();
@@ -332,6 +326,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [inChallenge, setInChallenge] = useState(false);
   const [ready, setReady] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const clearSyncError = useCallback(() => setSyncError(null), []);
   // The server's ids behind what the app keys things by: the membership the
   // days belong to, and each task's uuid by its app id (a preset's own key,
   // "h1", so its bundled photos and reminders keep lining up).
@@ -343,7 +339,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (
       profileRow: api.ProfileRow,
       mine: Awaited<ReturnType<typeof api.fetchMyChallenge>>,
-      trophyCount: number,
     ) => {
       setProfile({
         name: profileRow.name || profileRow.handle,
@@ -352,7 +347,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         avatarSeed: null,
         avatar: profileRow.avatar_path ? { uri: publicUrl('avatars', profileRow.avatar_path) } : null,
       });
-      setTrophies(trophyCount);
 
       if (!mine) {
         membershipId.current = null;
@@ -360,9 +354,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setInChallenge(false);
         // A stand-in for screens that need a challenge to draw, with none of
         // the demo's history behind it.
-        setChallenge(SEED_CHALLENGE);
-        setTasksState([...SEED_CHALLENGE.tasks]);
-        setTotalDays(SEED_CHALLENGE.defaultDays);
+        setChallenge(STAND_IN);
+        setTasksState([...STAND_IN.tasks]);
+        setTotalDays(STAND_IN.defaultDays);
         setStartDateState(startOfToday());
         setProgress({});
         setCaptions({});
@@ -430,12 +424,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     if (!userId) return;
     try {
-      const [profileRow, mine, trophyRows] = await Promise.all([
+      const [profileRow, mine] = await Promise.all([
         api.fetchProfile(userId),
         api.fetchMyChallenge(),
-        api.fetchTrophies(userId),
       ]);
-      await applyAccount(profileRow, mine, trophyRows.length);
+      await applyAccount(profileRow, mine);
       setLoadFailed(false);
     } catch {
       setLoadFailed(true);
@@ -561,82 +554,94 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!existing) return;
       const built: Challenge = { ...buildChallenge(id, input), joined: existing.joined };
       setCustomChallenges((list) => list.map((c) => (c.id === id ? built : c)));
-      if (challenge.id === id) {
-        setChallenge(built);
-        setTasksState([...built.tasks]);
-        setTotalDays(built.defaultDays);
-        setStartDateState(input.startDate);
-      }
     },
-    [customChallenges, challenge.id],
+    [customChallenges],
   );
 
-  const deleteChallenge = useCallback(
-    (id: string) => {
-      setCustomChallenges((list) => list.filter((c) => c.id !== id));
-      if (challenge.id === id) {
-        setChallenge(SEED_CHALLENGE);
-        setTasksState([...SEED_CHALLENGE.tasks]);
-        setTotalDays(SEED_CHALLENGE.defaultDays);
-        setStartDateState(seedStartDate());
-        setProgress(seedProgress(SEED_CHALLENGE.tasks));
-        setCaptions(SEED_CAPTIONS);
-      }
-    },
-    [challenge.id],
-  );
+  const deleteChallenge = useCallback((id: string) => {
+    setCustomChallenges((list) => list.filter((c) => c.id !== id));
+  }, []);
 
+  /** Puts one task's entry for one day in place — `undefined` clears it. */
+  const putEntry = useCallback((day: number, taskId: string, entry: TaskProgress | undefined) => {
+    setProgress((prev) => {
+      const dayMap = { ...prev[day] };
+      if (entry) dayMap[taskId] = entry;
+      else delete dayMap[taskId];
+      return { ...prev, [day]: dayMap };
+    });
+  }, []);
+
+  // Read inside the actions below, which run long after they were made: the
+  // upload takes seconds, and the day's entries may have moved on meanwhile.
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
+
+  /**
+   * The shot shows at once, ticked, and goes up behind it: the full photo
+   * and its thumbnail into today's folder, then the tick against them. If
+   * that fails — no signal, or midnight passed mid-upload — the task goes
+   * back to how it was and `syncError` says why.
+   */
   const completeTaskWithPhoto = useCallback(
     (taskId: string, photo: TaskPhoto, day?: number, slot?: number) => {
       const target = day ?? currentDay;
-      setProgress((prev) => {
-        const dayMap = prev[target] ?? {};
-        const existing = dayMap[taskId];
-        return {
-          ...prev,
-          [target]: {
-            ...dayMap,
-            [taskId]: {
-              ...existing,
-              done: true,
-              // Retaking leaves the original stamp alone: the task was done
-              // when it was first photographed, not when it was reshot.
-              time: existing?.done ? existing.time : timeStamp(new Date()),
-              photo,
-              // A real photo replaces the seeded stand-in rather than sitting
-              // behind it.
-              photoSeed: null,
-              // A retake without a cell of its own stays where it was.
-              slot: slot ?? existing?.slot,
-            },
-          },
-        };
+      const before = progressRef.current[target]?.[taskId];
+      const uri = typeof photo === 'object' && photo && 'uri' in photo ? photo.uri : undefined;
+      const mid = membershipId.current;
+      const uuid = taskUuids.current[taskId];
+      const saving = Boolean(mid && uuid && uri);
+
+      putEntry(target, taskId, {
+        ...before,
+        done: true,
+        // Retaking leaves the original stamp alone: the task was done when
+        // it was first photographed, not when it was reshot.
+        time: before?.done ? before.time : timeStamp(new Date()),
+        photo,
+        // A real photo replaces the seeded stand-in rather than sitting
+        // behind it.
+        photoSeed: null,
+        // A retake without a cell of its own stays where it was.
+        slot: slot ?? before?.slot,
+        pending: saving,
       });
+      if (!saving) return;
+
+      api
+        .completeTaskWithPhoto(mid!, target, uuid, { uri: uri! }, slot)
+        .then(() => {
+          const now = progressRef.current[target]?.[taskId];
+          // Only if it's still this shot showing — a quick retake or undo
+          // meanwhile has its own save to settle it.
+          if (now?.photo === photo) putEntry(target, taskId, { ...now, pending: false });
+        })
+        .catch((e: unknown) => {
+          const now = progressRef.current[target]?.[taskId];
+          if (now?.photo === photo) putEntry(target, taskId, before);
+          setSyncError(e instanceof Error ? e.message : 'Your photo didn’t save. Try again.');
+        });
     },
-    [currentDay],
+    [currentDay, putEntry],
   );
 
+  /** The other half of that bargain: the tick goes, and the proof goes with
+   * it — on the server too, where only today's can be undone. */
   const undoTask = useCallback(
     (taskId: string, day?: number) => {
       const target = day ?? currentDay;
-      setProgress((prev) => {
-        const dayMap = prev[target] ?? {};
-        return {
-          ...prev,
-          [target]: {
-            ...dayMap,
-            [taskId]: {
-              done: false,
-              time: undefined,
-              photo: null,
-              photoSeed: null,
-              slot: undefined,
-            },
-          },
-        };
+      const before = progressRef.current[target]?.[taskId];
+      putEntry(target, taskId, undefined);
+
+      const uuid = taskUuids.current[taskId];
+      if (!membershipId.current || !uuid) return;
+      api.undoTask(uuid).catch((e: unknown) => {
+        // Still there on the server, so it comes back here too.
+        if (!progressRef.current[target]?.[taskId]) putEntry(target, taskId, before);
+        setSyncError(e instanceof Error ? e.message : 'That didn’t undo. Try again.');
       });
     },
-    [currentDay],
+    [currentDay, putEntry],
   );
 
   const reactToPost = useCallback((postId: string, emoji: string) => {
@@ -683,16 +688,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // Logging out: forget the account on this phone. The next sign-in loads
+  // its own.
   const resetAll = useCallback(() => {
-    setChallenge(SEED_CHALLENGE);
-    setTasksState([...SEED_CHALLENGE.tasks]);
-    setStartDateState(seedStartDate());
-    setTotalDays(SEED_CHALLENGE.defaultDays);
-    setProgress(seedProgress(SEED_CHALLENGE.tasks));
-    setCaptions(SEED_CAPTIONS);
-    // Back to the demo account, less its bio — a reset reads as starting
-    // over, not as the seeded page coming back word for word.
-    setProfile({ ...SEED_PROFILE, bio: null });
+    setChallenge(STAND_IN);
+    setTasksState([...STAND_IN.tasks]);
+    setStartDateState(startOfToday());
+    setTotalDays(STAND_IN.defaultDays);
+    setProgress({});
+    setCaptions({});
+    setProfile(NO_PROFILE);
     setFriendComments({});
     setFriendRequests(new Set());
     // Only this phone's copy: a reset happens on logging out, and the
@@ -716,7 +721,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       friendComments,
       watchedStories,
       friendRequests,
-      trophies,
       customChallenges,
       reminders,
       currentDay,
@@ -728,6 +732,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       daysUntilStart,
       ready,
       loadFailed,
+      syncError,
+      clearSyncError,
 
       setName,
       setBio,
@@ -740,7 +746,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addChallenge,
       updateChallenge,
       deleteChallenge,
-      setTotalDays,
       setReminders,
       completeTaskWithPhoto,
       undoTask,
@@ -753,9 +758,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       profile, challenge, tasks, startDate, totalDays,
       progress, captions, postReactions, friendComments, watchedStories, friendRequests,
-      trophies, customChallenges, reminders,
+      customChallenges, reminders,
       currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, daysUntilStart, ready,
-      loadFailed,
+      loadFailed, syncError, clearSyncError,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, leaveChallenge,
       reload, setReminders, addChallenge,
       updateChallenge, deleteChallenge,

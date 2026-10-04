@@ -115,6 +115,24 @@ export async function fetchMyChallenge() {
 // ---------------------------------------------------------------------------
 
 /**
+ * Why a photo or an undo didn't save, as a sentence for the person holding
+ * the phone — not the database's own words.
+ */
+function explainSave(e: unknown): Error {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/network|fetch|timed? ?out|offline/i.test(message)) {
+    return new Error('No connection. Take it again once you’re back online.');
+  }
+  // Storage and `complete_task` both refuse a photo filed under a day that
+  // isn't today where you live — which is what happens when midnight passes
+  // while the page is open.
+  if (/row-level security|today's folder|today’s folder/i.test(message)) {
+    return new Error('Your day moved on while this page was open. Reopen Tasks and take it again.');
+  }
+  return new Error(message || 'Something went wrong. Try again.');
+}
+
+/**
  * A task is only ever ticked off by photographing it: the photo goes up
  * into today's folder, then the tick is recorded against it. A retake's
  * old photo is removed once the new one is in.
@@ -123,11 +141,17 @@ export async function completeTaskWithPhoto(
   membershipId: string,
   day: number,
   taskId: string,
-  photo: { uri: string; width: number; height: number },
+  photo: { uri: string },
   slot?: number,
 ): Promise<CompletionRow> {
   const userId = await myId();
-  const { photoPath, thumbPath } = await uploadTaskPhoto(userId, membershipId, day, photo);
+  let uploaded: { photoPath: string; thumbPath: string };
+  try {
+    uploaded = await uploadTaskPhoto(userId, membershipId, day, photo);
+  } catch (e) {
+    throw explainSave(e);
+  }
+  const { photoPath, thumbPath } = uploaded;
   const { data, error } = await supabase.rpc('complete_task', {
     task: taskId,
     photo_path: photoPath,
@@ -137,7 +161,7 @@ export async function completeTaskWithPhoto(
   if (error) {
     // The tick didn't land, so the photo has nothing to prove.
     await removePhotos('task-photos', [photoPath, thumbPath]);
-    throw new Error(error.message);
+    throw explainSave(error);
   }
   const result = data as { completion: CompletionRow; replaced: string[] };
   await removePhotos('task-photos', result.replaced);
@@ -146,8 +170,9 @@ export async function completeTaskWithPhoto(
 
 /** The tick goes, and the proof goes with it. Today only. */
 export async function undoTask(taskId: string) {
-  const removed = must(await supabase.rpc('undo_task', { task: taskId })) as string[];
-  await removePhotos('task-photos', removed);
+  const { data, error } = await supabase.rpc('undo_task', { task: taskId });
+  if (error) throw explainSave(error);
+  await removePhotos('task-photos', (data as string[]) ?? []);
 }
 
 /** What you wrote under a day's post; empty text takes it off. */
@@ -182,11 +207,6 @@ export async function fetchRounds() {
 /** A finished round's standings by longest streak, best first. */
 export async function fetchStandings(roundId: string) {
   return must(await supabase.rpc('round_standings', { rid: roundId }));
-}
-
-export async function fetchTrophies(userId?: string) {
-  const id = userId ?? (await myId());
-  return must(await supabase.from('trophies').select('*').eq('user_id', id).order('finish_date', { ascending: false }));
 }
 
 /** Signing the pledge. Ends whichever challenge you were on. */

@@ -25,7 +25,7 @@ export default function DayPostScreen() {
   // it shows just itself.
   const days = postedDays.includes(openedDay) ? postedDays : [openedDay];
 
-  const { profile, tasks, progress, captions, currentDay, trophies, livesLeft } = useApp();
+  const { profile, tasks, progress, captions, currentDay, livesLeft } = useApp();
 
   // You, in the same `Friend` shape Community builds for your own card —
   // only the identity row reads off it; each day's photos come in through
@@ -39,11 +39,10 @@ export default function DayPostScreen() {
       day: currentDay,
       bio: profile.bio,
       friendCount: FRIENDS.length,
-      trophies,
       livesLeft,
       tasks: [],
     }),
-    [profile, currentDay, trophies, livesLeft],
+    [profile, currentDay, livesLeft],
   );
 
   const tasksFor = (day: number): Friend['tasks'] =>

@@ -197,20 +197,6 @@ export const CHALLENGES: readonly Challenge[] = [
   },
 ];
 
-export const CUSTOM_CHALLENGE: Challenge = {
-  id: 'custom',
-  name: 'Custom Challenge',
-  stamp: 'Custom',
-  description: 'Build your own 75-day challenge — pick the daily tasks that matter to you.',
-  joined: 0,
-  photoSeeds: ['custom-a', 'custom-b', 'custom-c', 'custom-d'],
-  defaultDays: 75,
-  tasks: [task('c1', 'Task 1')],
-};
-
 export function challengeById(id: string): Challenge {
-  return (
-    CHALLENGES.find((c) => c.id === id) ??
-    (id === CUSTOM_CHALLENGE.id ? CUSTOM_CHALLENGE : CHALLENGES[0])
-  );
+  return CHALLENGES.find((c) => c.id === id) ?? CHALLENGES[0];
 }
