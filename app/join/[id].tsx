@@ -19,6 +19,7 @@ import {
 } from '@/hooks/useAppState';
 import { useChallengeListing } from '@/hooks/useChallengeCards';
 import { addDays, fullDate, longDate, ordinal } from '@/lib/format';
+import { askForNotifications } from '@/lib/reminders';
 import { localDay } from '@/lib/round';
 
 /** The tick leading each line of the pledge. */
@@ -214,6 +215,9 @@ export default function JoinScreen() {
                   tasks: { ...reminders.tasks, ...taskTimes },
                   lastCall,
                 });
+                // The reminders just picked only fire with the phone's say-so —
+                // asked now, the moment they start to mean something.
+                await askForNotifications().catch(() => false);
                 // Straight onto the day's tasks.
                 router.dismissTo('/(tabs)/tasks');
               } catch (e) {

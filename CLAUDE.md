@@ -160,6 +160,9 @@ challenge in a list, photo first, its start date at the end while it can be join
 · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 
+**Behind the scenes** · `ReminderSync` keeps the phone's reminder notifications
+in step with the day — draws nothing.
+
 ## Conventions
 
 - **Comments explain *why*, in prose.** The existing files justify their values

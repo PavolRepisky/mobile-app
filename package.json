@@ -19,6 +19,7 @@
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.9",
     "expo-media-library": "~57.0.4",
+    "expo-notifications": "~57.0.21",
     "expo-router": "~57.0.19",
     "expo-splash-screen": "~57.0.8",
     "expo-status-bar": "~57.0.1",
@@ -37,6 +38,7 @@
     "@types/react": "~19.2.4",
     "babel-preset-expo": "~57.0.0",
     "supabase": "^2.119.0",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -51,7 +53,8 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:smoke": "node supabase/tests/api-smoke.mjs",
-    "db:types": "supabase gen types typescript --local > lib/database.types.ts"
+    "db:types": "supabase gen types typescript --local > lib/database.types.ts",
+    "test:reminders": "tsx lib/reminderPlan.test.ts"
   },
   "private": true
 }

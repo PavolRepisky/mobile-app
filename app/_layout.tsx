@@ -9,10 +9,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ReminderSync } from '@/components/ReminderSync';
 import { colors } from '@/constants/theme';
 import { AppProvider, useApp } from '@/hooks/useAppState';
 import { SessionProvider, useSession } from '@/hooks/useSession';
@@ -75,38 +76,42 @@ function RootStack() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.backgroundPlain },
-        animation: 'slide_from_right',
-      }}
-    >
-      <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
-      </Stack.Protected>
+    <>
+      {/* The phone's own reminders, kept in step while signed in. */}
+      {signedIn && Platform.OS !== 'web' ? <ReminderSync /> : null}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.backgroundPlain },
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
+        </Stack.Protected>
 
-      <Stack.Protected guard={signedIn}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen
-          name="story"
-          options={{ animation: 'fade', presentation: 'fullScreenModal' }}
-        />
-        <Stack.Screen name="add-friends" />
-        {/* Someone else's profile and days are ordinary pages, pushed
-            the way your own Profile's are. As a modal, everything opened
-            from them — the challenge, their days — came up as a sheet
-            over it instead of a page of its own. */}
-        <Stack.Screen name="friend/[id]" />
-        <Stack.Screen name="friend/post/[id]" />
-        <Stack.Screen name="feed/[id]" />
-        <Stack.Screen name="join/[id]" />
-        <Stack.Screen name="challenges/search" />
-        <Stack.Screen name="challenges/[filter]" />
-        <Stack.Screen name="challenge/create" />
-        <Stack.Screen name="account/settings" />
-      </Stack.Protected>
-    </Stack>
+        <Stack.Protected guard={signedIn}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+          <Stack.Screen
+            name="story"
+            options={{ animation: 'fade', presentation: 'fullScreenModal' }}
+          />
+          <Stack.Screen name="add-friends" />
+          {/* Someone else's profile and days are ordinary pages, pushed
+              the way your own Profile's are. As a modal, everything opened
+              from them — the challenge, their days — came up as a sheet
+              over it instead of a page of its own. */}
+          <Stack.Screen name="friend/[id]" />
+          <Stack.Screen name="friend/post/[id]" />
+          <Stack.Screen name="feed/[id]" />
+          <Stack.Screen name="join/[id]" />
+          <Stack.Screen name="challenges/search" />
+          <Stack.Screen name="challenges/[filter]" />
+          <Stack.Screen name="challenge/create" />
+          <Stack.Screen name="account/settings" />
+        </Stack.Protected>
+      </Stack>
+    </>
   );
 }
