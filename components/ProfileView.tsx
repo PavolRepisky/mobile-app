@@ -15,6 +15,7 @@ import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { colors, layout, radii, shadows, spacing } from '@/constants/theme';
 import { challengeStrip } from '@/data/content';
+import { shortDate } from '@/lib/format';
 import { DAY_MS } from '@/lib/round';
 import { Avatar, type AvatarSource } from './Avatar';
 import { BottomSheet } from './BottomSheet';
@@ -189,8 +190,11 @@ export interface ProfileViewProps {
   name: string;
   handle: string;
   bio: string | null;
-  challenge: { id: string; name: string; joined: number };
+  /** Null for an account in no challenge: the card under the name goes, and
+   * the days below simply have none to show. */
+  challenge: { id: string; name: string; joined: number } | null;
   startDate: Date;
+  /** The run's day today; 0 before Day 1, when the card says when it starts. */
   currentDay: number;
   totalDays: number;
   /** Tasks in a day — the ring's segments and every "3/5". */
@@ -347,14 +351,16 @@ export function ProfileView({
     setYearSheetOpen(true);
   };
 
-  const challengePhoto = challengeStrip(challenge.id)[0];
+  const challengePhoto = challenge ? challengeStrip(challenge.id)[0] : null;
+  const runLabel =
+    currentDay < 1 ? `${totalDays} days · starts ${shortDate(startDate)}` : `Day ${currentDay} of ${totalDays}`;
 
   return (
     <View style={style}>
       <View style={styles.identity}>
         <View
           style={styles.ringWrap}
-          accessibilityLabel={`Day ${currentDay} of ${totalDays}, ${doneToday} of ${taskCount} tasks done today`}
+          accessibilityLabel={`${runLabel}, ${doneToday} of ${taskCount} tasks done today`}
         >
           {/* Counted, not matched to a task: the ring says how many are
               done, filling from the top, whichever ones they were. Done
@@ -473,24 +479,26 @@ export function ProfileView({
 
       {/* The challenge the ring is measuring, in a line, and a way into its
           page. The whole run, square by square, is the Tasks tab's. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}`}
-        accessibilityHint="Opens the challenge"
-        onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-        style={({ pressed }) => [styles.challengeCard, pressed && styles.pressed]}
-      >
-        <Image source={challengePhoto} style={styles.challengeThumb} contentFit="cover" />
-        <View style={styles.challengeText}>
-          <Text variant="copyBold" numberOfLines={1}>
-            {challenge.name}
-          </Text>
-          <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-            {`Day ${currentDay} of ${totalDays}`}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
-      </Pressable>
+      {challenge ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${challenge.name}, ${runLabel}`}
+          accessibilityHint="Opens the challenge"
+          onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+          style={({ pressed }) => [styles.challengeCard, pressed && styles.pressed]}
+        >
+          <Image source={challengePhoto} style={styles.challengeThumb} contentFit="cover" />
+          <View style={styles.challengeText}>
+            <Text variant="copyBold" numberOfLines={1}>
+              {challenge.name}
+            </Text>
+            <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+              {runLabel}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
+        </Pressable>
+      ) : null}
 
       <View style={styles.daysHeader}>
         <Text variant="sectionHeading">{daysTitle}</Text>
@@ -612,7 +620,7 @@ export function ProfileView({
                   {/* No task count on the tile, finished or not — a day is
                       its photos, and how many tasks it got is one tap away
                       on the post, the way a calendar cell leaves it. */}
-                  <DayStamp day={post.day} kicker={challenge.name} referenceWidth={windowWidth} />
+                  <DayStamp day={post.day} kicker={challenge?.name ?? ''} referenceWidth={windowWidth} />
                 </Pressable>
               </View>
             );

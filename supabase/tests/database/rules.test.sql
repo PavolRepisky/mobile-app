@@ -2,7 +2,7 @@
 -- apply to. Runs with `npx supabase test db`; everything is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(39);
+select plan(42);
 
 -- ---------------------------------------------------------------------------
 -- Cast, written as the database owner: Alice built a challenge and is on
@@ -181,10 +181,21 @@ select is((select count(*)::int from public.community_today('friends')), 1,
 
 select set_config('request.jwt.claims', '{"sub": "cccccccc-0000-4000-8000-000000000003", "role": "authenticated"}', true);
 
+-- With no challenge there's no today to prove, so nothing is held back.
+select ok(public.can_view_day('44444444-0000-4000-8000-00000000000a', 3),
+  'in no challenge, someone else''s today is open');
+select ok(public.can_read_task_photo(
+  'aaaaaaaa-0000-4000-8000-000000000001/44444444-0000-4000-8000-00000000000a/3/walk.jpg'),
+  'and storage signs its photo');
+
 select throws_ok($$select public.join_round('33333333-0000-4000-8000-000000000001')$$,
   'P0001', null, 'joining shuts once Day 1 has passed');
 select lives_ok($$select public.join_round('33333333-0000-4000-8000-000000000002')$$,
   'a round that hasn''t started can be joined');
+
+-- Joined but before Day 1: still nothing to photograph, so still open.
+select ok(public.can_view_day('44444444-0000-4000-8000-00000000000a', 3),
+  'waiting for Day 1, someone else''s today is open');
 select throws_ok(
   $$select public.create_challenge('{"name": "Late", "days": 10, "start_date": "2000-01-01", "tasks": [{"label": "x"}]}')$$,
   '22023', null, 'Day 1 can''t be in the past');

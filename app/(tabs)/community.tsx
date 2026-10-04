@@ -74,7 +74,9 @@ const finished = (person: Friend) =>
 export default function CommunityScreen() {
   const router = useRouter();
   const {
-    hasPhotographedTask,
+    feedLocked,
+    inChallenge,
+    daysUntilStart,
     profile,
     challenge,
     tasks,
@@ -127,15 +129,22 @@ export default function CommunityScreen() {
     scrollToFocus();
   };
 
-  const locked = !hasPhotographedTask;
+  // Only while there is a today of your own to prove — see `feedLocked`.
+  const locked = feedLocked;
 
   const openProfile = (id: string) =>
     router.push({ pathname: '/friend/[id]', params: { id } });
   const openTasks = () => router.push('/(tabs)/tasks');
 
   const myAvatar: AvatarSource = profile.avatar ?? profile.avatarSeed;
-  const myDone = tasks.filter((task) => progress[currentDay]?.[task.id]?.done).length;
-  const myFinished = tasks.length > 0 && myDone === tasks.length;
+  // Whether you have a today of your own: in a challenge that has started.
+  // Without one there's no face of yours in the rows, no progress of yours
+  // to race and no post of yours — only everyone else's.
+  const myDayRunning = inChallenge && daysUntilStart === 0;
+  const myDone = myDayRunning
+    ? tasks.filter((task) => progress[currentDay]?.[task.id]?.done).length
+    : 0;
+  const myFinished = myDayRunning && tasks.length > 0 && myDone === tasks.length;
   const hasStoryToday = tasks.some((task) => {
     const entry = progress[currentDay]?.[task.id];
     return Boolean(entry?.photo || entry?.photoSeed);
@@ -179,7 +188,7 @@ export default function CommunityScreen() {
   // then everyone after you, skipping faces with no photo yet — there's no
   // story there to land on. `me` is the viewer's name for yours.
   const storyQueue = [
-    ...(!myFinished && hasStoryToday ? ['me'] : []),
+    ...(myDayRunning && !myFinished && hasStoryToday ? ['me'] : []),
     ...friendsGoing
       .filter((friend) => friend.tasks.some((task) => task.photo || task.photoSeed))
       .map((friend) => friend.id),
@@ -190,7 +199,9 @@ export default function CommunityScreen() {
   // Everyone's day at a glance for the empty "Finished today" card, furthest
   // along first — you included, since your day is racing theirs.
   const progressRows = [
-    { id: 'you', name: 'You', avatar: myAvatar, done: myDone, total: tasks.length },
+    ...(myDayRunning
+      ? [{ id: 'you', name: 'You', avatar: myAvatar, done: myDone, total: tasks.length }]
+      : []),
     ...FRIENDS.map((friend) => ({
       id: friend.id,
       name: friend.name,
@@ -312,7 +323,7 @@ export default function CommunityScreen() {
           <>
             {/* Stories are what the lock holds back, so the row only shows
                 once it's open. */}
-            {!locked && (friendsGoing.length > 0 || !myFinished) ? (
+            {!locked && (friendsGoing.length > 0 || (myDayRunning && !myFinished)) ? (
               <View style={styles.section}>
                 <Text variant="meta" color={colors.inkMuted} style={styles.heading}>
                   Still going today
@@ -323,7 +334,7 @@ export default function CommunityScreen() {
                   style={styles.storyBleed}
                   contentContainerStyle={styles.storyRow}
                 >
-                  {myFinished ? null : (
+                  {myFinished || !myDayRunning ? null : (
                     <StoryFace
                       name="You"
                       avatar={myAvatar}

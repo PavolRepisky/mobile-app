@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,6 +8,7 @@ import { AlertDialog } from '@/components/AlertDialog';
 import { CameraSheet } from '@/components/CameraSheet';
 import { ChallengeRun, type RunDay } from '@/components/ChallengeRun';
 import { CheckCircle } from '@/components/CheckCircle';
+import { EmptyState } from '@/components/EmptyState';
 import { DayStamp } from '@/components/FriendCard';
 import { PhotoCollage } from '@/components/PhotoCollage';
 import { Placeholder } from '@/components/Placeholder';
@@ -19,7 +21,7 @@ import {
   useApp,
   useDayProgress,
 } from '@/hooks/useAppState';
-import { timeLeftToday } from '@/lib/format';
+import { longDate, timeLeftToday } from '@/lib/format';
 
 /**
  * The run you're on leads, one square a day on a block of ink. Then the
@@ -33,6 +35,12 @@ import { timeLeftToday } from '@/lib/format';
  * to one line with a thumbnail of it and where today stands. Tapped, it
  * opens in a window over the page as the post will go up — every shot in its
  * square, the Day stamp once the last one is in.
+ *
+ * Joined but before Day 1 — where joining almost always leaves you, since it
+ * shuts once a round starts — the run waits with every square to come, a
+ * line says when it begins, and the tasks are there to read but not to
+ * shoot yet. Not in a challenge at all, the page points to the Challenges
+ * tab instead.
  */
 
 /** The lives, drawn small enough to sit on the post line's own height. */
@@ -65,7 +73,13 @@ export default function TasksScreen() {
     livesTotal,
     undoTask,
     completeTaskWithPhoto,
+    inChallenge,
+    daysUntilStart,
+    loadFailed,
+    reload,
   } = useApp();
+  const router = useRouter();
+  const waiting = daysUntilStart > 0;
 
   // Each day of the run as the card squares it: how many tasks got done,
   // and how many photos came of it.
@@ -114,6 +128,28 @@ export default function TasksScreen() {
   /** Today's post, opened in its window to show how it will look. */
   const [postOpen, setPostOpen] = useState(false);
 
+  if (!inChallenge) {
+    return (
+      <ScreenScroll tabBar header={<ScreenHeader plainTitle="Tasks" showBack={false} />}>
+        {loadFailed ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Couldn’t load your challenge"
+            hint="Check your connection and try again."
+            action={{ label: 'Try again', onPress: () => reload() }}
+          />
+        ) : (
+          <EmptyState
+            icon="camera-outline"
+            title="No challenge yet"
+            hint="Join one and its daily tasks show up here, ready to photograph."
+            action={{ label: 'Find a challenge', onPress: () => router.navigate('/discover') }}
+          />
+        )}
+      </ScreenScroll>
+    );
+  }
+
   return (
     <>
       <ScreenScroll
@@ -128,13 +164,25 @@ export default function TasksScreen() {
         <ChallengeRun
           challenge={challenge}
           startDate={startDate}
-          currentDay={currentDay}
+          currentDay={waiting ? 0 : currentDay}
           totalDays={totalDays}
           taskCount={tasks.length}
           dayOf={runDay}
         />
 
-        {allDone ? (
+        {waiting ? (
+          // Nothing to post before Day 1 — just when it comes.
+          <View style={[styles.postCard, styles.waitingCard]}>
+            <View style={styles.taskText}>
+              <Text variant="copyBold">
+                {daysUntilStart === 1 ? 'Starts tomorrow' : `Starts in ${daysUntilStart} days`}
+              </Text>
+              <Text variant="meta" color={colors.inkMuted}>
+                {`Day 1 is ${longDate(startDate)}. Your first photos go up then.`}
+              </Text>
+            </View>
+          </View>
+        ) : allDone ? (
           // The day done: the post opens out across the page as it went up,
           // stamped, so finishing lands as the moment it is rather than one
           // more line ticked.
@@ -227,7 +275,7 @@ export default function TasksScreen() {
         )}
 
         <View style={styles.heading}>
-          <Text variant="sectionHeading">Today</Text>
+          <Text variant="sectionHeading">{waiting ? 'Every day' : 'Today'}</Text>
         </View>
 
         {/* The tasks as a plain to-do list on the page: a ring to tick, the
@@ -240,6 +288,7 @@ export default function TasksScreen() {
           {listed.map((row, index) => (
             <Pressable
               key={row.task.id}
+              disabled={waiting}
               accessibilityRole="button"
               accessibilityLabel={
                 row.done
@@ -270,7 +319,7 @@ export default function TasksScreen() {
                   </Text>
                 ) : null}
               </View>
-              {row.done ? (
+              {waiting ? null : row.done ? (
                 row.photo ? (
                   <Image source={row.photo} style={styles.rowEnd} contentFit="cover" />
                 ) : (
@@ -433,6 +482,11 @@ const styles = StyleSheet.create({
   },
   postThumb: {
     width: POST_THUMB,
+  },
+  // Only words in it, so it takes the card's own padding all round rather
+  // than the thumbnail's tighter inset.
+  waitingCard: {
+    padding: layout.card,
   },
   postBar: {
     marginTop: layout.line,

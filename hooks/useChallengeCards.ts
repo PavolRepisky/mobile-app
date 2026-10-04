@@ -123,7 +123,7 @@ function roundStatus(
  * round.
  */
 export function useChallengeCards(): readonly ChallengeCard[] {
-  const { challenge, tasks, startDate, totalDays, customChallenges } = useApp();
+  const { challenge, tasks, startDate, totalDays, customChallenges, inChallenge } = useApp();
 
   return useMemo<ChallengeCard[]>(() => {
     const listing = DISCOVER.find((section) => section.id === challenge.id);
@@ -148,7 +148,9 @@ export function useChallengeCards(): readonly ChallengeCard[] {
       ...mineStatus,
     };
 
-    const listed = DISCOVER.filter((section) => section.id !== challenge.id).map(
+    // Not in a challenge, the one the app holds is only a stand-in: it isn't
+    // yours, and its round stays listed like any other you could join.
+    const listed = DISCOVER.filter((section) => !inChallenge || section.id !== challenge.id).map(
       (section): ChallengeCard => {
         const info = challengeById(section.id);
         const start = localDay(section.startDate);
@@ -170,8 +172,8 @@ export function useChallengeCards(): readonly ChallengeCard[] {
       },
     );
 
-    return [mine, ...listed];
-  }, [challenge, tasks, startDate, totalDays, customChallenges]);
+    return inChallenge ? [mine, ...listed] : listed;
+  }, [challenge, tasks, startDate, totalDays, customChallenges, inChallenge]);
 }
 
 /**
@@ -181,12 +183,12 @@ export function useChallengeCards(): readonly ChallengeCard[] {
  * by your own round, as it is everywhere else.
  */
 export function useCreatedChallengeCards(): readonly ChallengeCard[] {
-  const { challenge, startDate, totalDays, customChallenges } = useApp();
+  const { challenge, startDate, totalDays, customChallenges, inChallenge } = useApp();
 
   return useMemo<ChallengeCard[]>(
     () =>
       [...customChallenges].reverse().map((c): ChallengeCard => {
-        const joined = c.id === challenge.id;
+        const joined = inChallenge && c.id === challenge.id;
         const start = joined ? startDate : localDay(c.startDate ?? isoDay(startDate));
         const days = joined ? totalDays : c.defaultDays;
         return {
@@ -203,7 +205,7 @@ export function useCreatedChallengeCards(): readonly ChallengeCard[] {
           ...roundStatus(start, days),
         };
       }),
-    [challenge.id, startDate, totalDays, customChallenges],
+    [challenge.id, startDate, totalDays, customChallenges, inChallenge],
   );
 }
 
@@ -218,7 +220,7 @@ export function useChallengeListing(id: string): {
   challenge: Challenge;
   createdByMe: boolean;
 } {
-  const { customChallenges, challenge: current, startDate } = useApp();
+  const { customChallenges, challenge: current, startDate, inChallenge } = useApp();
   // The last version of yours seen under this id: deleting one pops its page,
   // and for the length of that slide it should still be the challenge you
   // deleted, not whatever an unknown id falls back to.
@@ -237,14 +239,14 @@ export function useChallengeListing(id: string): {
         id: own.id,
         title: own.name,
         photos: own.photos ?? challengeStrip(own.id),
-        members: own.joined + (current.id === own.id ? 1 : 0),
+        members: own.joined + (inChallenge && current.id === own.id ? 1 : 0),
         startDate: own.startDate ?? isoDay(startDate),
         creatorId: ME,
       },
       challenge: own,
       createdByMe: true,
     };
-  }, [id, customChallenges, current.id, startDate]);
+  }, [id, customChallenges, current.id, startDate, inChallenge]);
 }
 
 const terms = (query: string) => query.trim().toLowerCase().split(/\s+/).filter(Boolean);

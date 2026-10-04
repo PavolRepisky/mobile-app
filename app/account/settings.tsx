@@ -48,6 +48,8 @@ export default function SettingsScreen() {
     setAvatarPhoto,
     setAvatarSeed,
     resetAll,
+    leaveChallenge,
+    inChallenge,
     tasks,
     reminders,
     setReminders,
@@ -157,22 +159,28 @@ export default function SettingsScreen() {
 
         {/* The challenge you're on: when it nudges you, folded to one row
             that opens its own window, then ending it — in red like Delete
-            account, since it costs the whole run. */}
-        <Group title="Challenge">
-          <Row
-            icon="notifications-outline"
-            label="Reminders"
-            value={remindersOn === 0 ? 'Off' : `${remindersOn} on`}
-            onPress={() => setRemindersOpen(true)}
-          />
-          <Row
-            icon="flag-outline"
-            label="End challenge"
-            destructive
-            onPress={() => setEndOpen(true)}
-            last
-          />
-        </Group>
+            account, since it costs the whole run. Not in one, there's
+            nothing to nudge about or end. */}
+        {inChallenge ? (
+          <Group title="Challenge">
+            <Row
+              icon="notifications-outline"
+              label="Reminders"
+              value={remindersOn === 0 ? 'Off' : `${remindersOn} on`}
+              onPress={() => setRemindersOpen(true)}
+            />
+            <Row
+              icon="flag-outline"
+              label="End challenge"
+              destructive
+              onPress={() => {
+                setSaveError(null);
+                setEndOpen(true);
+              }}
+              last
+            />
+          </Group>
+        ) : null}
 
         <Group title="About">
           <Row icon="shield-outline" label="Privacy Policy" onPress={() => {}} />
@@ -369,7 +377,9 @@ export default function SettingsScreen() {
       <AlertDialog
         visible={endOpen}
         title="End Challenge"
-        message="Are you sure you want to end this challenge? Your progress will be lost."
+        message={
+          saveError ?? 'Are you sure you want to end this challenge? Your progress will be lost.'
+        }
         onDismiss={() => setEndOpen(false)}
         actions={[
           { label: 'Cancel', onPress: () => setEndOpen(false) },
@@ -377,9 +387,16 @@ export default function SettingsScreen() {
             label: 'End Challenge',
             destructive: true,
             primary: true,
-            // Still a stub, as it was on Tasks: confirming only closes the
-            // dialog until there is somewhere for ending a challenge to lead.
-            onPress: () => setEndOpen(false),
+            // Leaves the round for good; Tasks then points to the Challenges
+            // tab, since there's no run left to show.
+            onPress: async () => {
+              try {
+                await leaveChallenge();
+                setEndOpen(false);
+              } catch (e) {
+                failed(e);
+              }
+            },
           },
         ]}
       />

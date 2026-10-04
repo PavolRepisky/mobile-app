@@ -14,8 +14,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/theme';
-import { AppProvider } from '@/hooks/useAppState';
-import { useProfileSync } from '@/hooks/useProfileSync';
+import { AppProvider, useApp } from '@/hooks/useAppState';
 import { SessionProvider, useSession } from '@/hooks/useSession';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -56,11 +55,14 @@ export default function RootLayout() {
  * one set for the other, so neither signing in nor out has to navigate.
  */
 function RootStack() {
-  const { session, ready } = useSession();
-  useProfileSync();
+  const { session, ready: sessionReady } = useSession();
+  const { ready: accountReady } = useApp();
+  const signedIn = !!session;
+  // The splash waits on the stored session being read back, so a signed-in
+  // launch never shows the sign-in page for a frame first — and, signed in,
+  // on the account's own data, so the demo account behind it never shows.
+  const ready = sessionReady && (!signedIn || accountReady);
 
-  // The splash also waits on the stored session being read back, so a
-  // signed-in launch never shows the sign-in page for a frame first.
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
@@ -68,8 +70,6 @@ function RootStack() {
   if (!ready) {
     return <View style={{ flex: 1, backgroundColor: colors.backgroundPlain }} />;
   }
-
-  const signedIn = !!session;
 
   return (
     <Stack

@@ -121,13 +121,13 @@ const RUN_RIM = 2;
  */
 export default function FeedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { challenge: mine, startDate, totalDays: myDays } = useApp();
+  const { challenge: mine, startDate, totalDays: myDays, inChallenge } = useApp();
 
   const { section, challenge } = useChallengeListing(String(id));
   // The challenge you've taken on is told by your own round — your Day 1 and
   // length — so its page stands where your Tasks tab does, whatever date the
   // listing gives the round everyone else sees.
-  const joined = mine.id === section.id;
+  const joined = inChallenge && mine.id === section.id;
   const totalDays = joined ? myDays : challenge.defaultDays;
   const start = joined ? startDate : localDay(section.startDate);
   const end = addDays(start, totalDays - 1);

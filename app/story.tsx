@@ -72,7 +72,7 @@ export default function StoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
-    profile, challenge, currentDay, markStoryWatched, hasPhotographedTask, postReactions, reactToPost,
+    profile, challenge, currentDay, markStoryWatched, feedLocked, postReactions, reactToPost,
   } = useApp();
   const params = useLocalSearchParams<{ day?: string; friend?: string; queue?: string }>();
 
@@ -132,11 +132,12 @@ export default function StoryScreen() {
     [person, rows],
   );
 
-  // Community's lock reaches in here: until you've shot a task of your own,
+  // Community's lock reaches in here: until you've shot a task of your own
+  // (while there's a today to shoot at all — see `feedLocked`),
   // someone else's story still plays — you can see who's going and how far —
   // but every photo is blurred under the same wash and pill as a locked post,
   // it doesn't count as watched, and it doesn't end on their post.
-  const locked = Boolean(person) && !hasPhotographedTask;
+  const locked = Boolean(person) && feedLocked;
 
   /** Every task done — the day has become a post, so the story can point at it. */
   const finished = person

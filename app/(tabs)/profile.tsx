@@ -17,7 +17,8 @@ import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 export default function ProfileScreen() {
   const router = useRouter();
   const {
-    profile, currentDay, totalDays, startDate, challenge, tasks, progress,
+    profile, currentDay, totalDays, startDate, challenge, tasks, progress, inChallenge,
+    daysUntilStart,
   } = useApp();
 
   const dayOf = useCallback(
@@ -88,9 +89,9 @@ export default function ProfileScreen() {
           name={profile.name}
           handle={profile.handle}
           bio={profile.bio}
-          challenge={challenge}
+          challenge={inChallenge ? challenge : null}
           startDate={startDate}
-          currentDay={currentDay}
+          currentDay={daysUntilStart > 0 ? 0 : currentDay}
           totalDays={totalDays}
           taskCount={tasks.length}
           dayOf={dayOf}

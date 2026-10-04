@@ -40,6 +40,8 @@ export interface RunDay {
 export interface ChallengeRunProps {
   challenge: { id: string; name: string };
   startDate: Date;
+  /** The run's day today; 0 before Day 1, when every square is still to
+   * come and the card says when it starts instead. */
   currentDay: number;
   totalDays: number;
   taskCount: number;
@@ -131,7 +133,7 @@ export function ChallengeRun({
     // done, so the run sits above them without pulling you elsewhere.
     <View
       accessible
-      accessibilityLabel={`${challenge.name}, day ${currentDay} of ${totalDays}, ${dateLabel(startDate)} to ${dateLabel(endDate)}`}
+      accessibilityLabel={`${challenge.name}, ${currentDay < 1 ? 'starts' : `day ${currentDay} of ${totalDays},`} ${dateLabel(startDate)} to ${dateLabel(endDate)}`}
       style={[styles.card, style]}
     >
       <View style={styles.row}>
@@ -142,7 +144,11 @@ export function ChallengeRun({
           </Text>
           <View style={styles.meta}>
             <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-              {`Day ${currentDay} of ${totalDays} · ${shortDate(startDate)}`}
+              {/* Before Day 1 there's no day to count yet — only when it
+                  begins, and every square still to come. */}
+              {currentDay < 1
+                ? `${totalDays} days · starts ${shortDate(startDate)}`
+                : `Day ${currentDay} of ${totalDays} · ${shortDate(startDate)}`}
             </Text>
             <Ionicons name="arrow-forward" size={RANGE_ARROW} color={colors.inkMuted} />
             <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>

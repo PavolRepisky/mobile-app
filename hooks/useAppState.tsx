@@ -2,7 +2,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -23,15 +25,20 @@ import {
   seedStartDate,
 } from '@/data/seed';
 import { TROPHIES } from '@/data/trophies';
+import { useSession } from '@/hooks/useSession';
+import * as api from '@/lib/backend/api';
+import { publicUrl, signedUrls } from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
-import { DAY_MS, startOfToday } from '@/lib/round';
+import { DAY_MS, localDay, startOfToday } from '@/lib/round';
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * All app state lives here, in memory. There is no backend yet — the
- * provider starts from the demo account in `data/seed`, Day 5 of Her 75 with
- * a few days of history, and goes back to it on reset. The actions below are
- * the app's whole write surface: each is where a call to the backend goes.
+ * All app state lives here. Signed in, it is loaded from the backend — the
+ * account's profile, the challenge it's in and every day of it so far — and
+ * the splash stays up until it has been, so the demo account in `data/seed`
+ * never shows. The parts not moved to the backend yet (friends, Community,
+ * comments, challenges you build) still run on that demo data, in memory.
+ * The actions below are the app's whole write surface.
  */
 
 export interface TaskProgress {
@@ -141,6 +148,21 @@ interface AppState {
   /** 1-indexed, clamped to the challenge length. */
   currentDay: number;
 
+  /**
+   * Whether the account is in a challenge at all. A new account isn't, and
+   * then `challenge` and its tasks are only a stand-in for screens that need
+   * one to draw: Tasks shows its empty state instead, and nothing treats the
+   * stand-in as yours.
+   */
+  inChallenge: boolean;
+  /** Days until the round's Day 1, or 0 once it has started. Joining shuts
+   * on Day 1, so a challenge you've just joined is almost always waiting. */
+  daysUntilStart: number;
+  /** False until the signed-in account's data has loaded. */
+  ready: boolean;
+  /** The last load didn't reach the server; `reload` tries again. */
+  loadFailed: boolean;
+
   /** The allowance a challenge starts with, so a screen can show "2 of 3". */
   livesTotal: number;
   /** What is left of that allowance, floored at zero. */
@@ -149,11 +171,17 @@ interface AppState {
   /**
    * True once *today* has a task finished with an actual photo attached —
    * not just ticked, not standing behind a seeded placeholder, and not an
-   * older day's streak carrying today. Gates the Community feed: a day
-   * nobody has proven yet has no post of its own to read anyone else's
-   * against, and yesterday's photo doesn't stand in for today's.
+   * older day's streak carrying today. Yesterday's photo doesn't stand in
+   * for today's.
    */
   hasPhotographedTask: boolean;
+  /**
+   * The Community lock: other people's today stays blurred until you've
+   * proven yours. Only while you have a today to prove — in no challenge,
+   * or before Day 1, there's nothing to photograph, so nothing is locked.
+   * The server's `unlocked_today` holds the same rule for the photos.
+   */
+  feedLocked: boolean;
 }
 
 /** What the create-challenge form hands over. A task keeps its `id` when
@@ -176,9 +204,17 @@ interface AppActions {
   setAvatarSeed: (seed: string | null) => void;
   setAvatarPhoto: (photo: TaskPhoto | null) => void;
 
-  /** Takes the challenge on. A round everyone shares passes its Day 1, so
-   * your days count from the same morning as everyone else's. */
-  selectChallenge: (id: string, startDate?: Date) => void;
+  /**
+   * Signs the pledge: joins the round of challenge `id` that starts on
+   * `startDate`, with the reminders picked while joining, and loads it as
+   * yours. Rejects with the server's reason — most likely that the round
+   * has already started.
+   */
+  selectChallenge: (id: string, startDate?: Date, reminders?: Reminders) => Promise<void>;
+  /** Settings' End challenge: leaves the round you're in. */
+  leaveChallenge: () => Promise<void>;
+  /** Loads everything from the server again. */
+  reload: () => Promise<void>;
   /** Builds a new custom challenge from the create-challenge form, adds it to
    * the challenges `selectChallenge` can pick, and hands it back so the screen
    * can navigate on. */
@@ -288,8 +324,140 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Nothing increments this yet: reaching the last day is not an event the
   // app observes, so the list is seeded and left alone until finishing a
   // challenge is wired up.
-  const [trophies] = useState(TROPHIES.length);
-  const [reminders, setReminders] = useState<Reminders>(DEFAULT_REMINDERS);
+  const [trophies, setTrophies] = useState(TROPHIES.length);
+  const [reminders, setRemindersState] = useState<Reminders>(DEFAULT_REMINDERS);
+
+  const { session } = useSession();
+  const userId = session?.user.id ?? null;
+  const [inChallenge, setInChallenge] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // The server's ids behind what the app keys things by: the membership the
+  // days belong to, and each task's uuid by its app id (a preset's own key,
+  // "h1", so its bundled photos and reminders keep lining up).
+  const membershipId = useRef<string | null>(null);
+  const taskUuids = useRef<Record<string, string>>({});
+
+  /** Puts a loaded account in place of whatever was showing. */
+  const applyAccount = useCallback(
+    async (
+      profileRow: api.ProfileRow,
+      mine: Awaited<ReturnType<typeof api.fetchMyChallenge>>,
+      trophyCount: number,
+    ) => {
+      setProfile({
+        name: profileRow.name || profileRow.handle,
+        handle: `@${profileRow.handle}`,
+        bio: profileRow.bio,
+        avatarSeed: null,
+        avatar: profileRow.avatar_path ? { uri: publicUrl('avatars', profileRow.avatar_path) } : null,
+      });
+      setTrophies(trophyCount);
+
+      if (!mine) {
+        membershipId.current = null;
+        taskUuids.current = {};
+        setInChallenge(false);
+        // A stand-in for screens that need a challenge to draw, with none of
+        // the demo's history behind it.
+        setChallenge(SEED_CHALLENGE);
+        setTasksState([...SEED_CHALLENGE.tasks]);
+        setTotalDays(SEED_CHALLENGE.defaultDays);
+        setStartDateState(startOfToday());
+        setProgress({});
+        setCaptions({});
+        setRemindersState(DEFAULT_REMINDERS);
+        return;
+      }
+
+      const { membership, round, challenge: row, completions, captions: savedCaptions } = mine;
+      const appTaskId = (t: api.TaskRow) => t.key ?? t.id;
+      const tasksNow: ChallengeTask[] = mine.tasks.map((t) =>
+        t.note ? { id: appTaskId(t), label: t.label, note: t.note } : { id: appTaskId(t), label: t.label },
+      );
+      const preset = row.slug ? challengeById(row.slug) : null;
+      const built: Challenge = {
+        id: row.slug ?? row.id,
+        name: row.name,
+        stamp: row.stamp,
+        description: row.description,
+        category: row.category ?? undefined,
+        joined: preset?.joined ?? 0,
+        photoSeeds: preset?.photoSeeds ?? [],
+        photos: row.photo_paths.length
+          ? row.photo_paths.map((path) => ({ uri: publicUrl('challenge-photos', path) }))
+          : preset?.photos,
+        tasks: tasksNow,
+        defaultDays: round.days,
+        startDate: round.start_date,
+        lives: row.lives,
+      };
+
+      // Every photo of the run so far, signed in one call. Your own are
+      // always yours to see, so none come back missing.
+      const byUuid = Object.fromEntries(mine.tasks.map((t) => [t.id, appTaskId(t)]));
+      const urls = await signedUrls(completions.map((c) => c.photo_path));
+      const loaded: Progress = {};
+      for (const c of completions) {
+        const taskId = byUuid[c.task_id];
+        if (!taskId) continue;
+        loaded[c.day] = {
+          ...loaded[c.day],
+          [taskId]: {
+            done: true,
+            time: timeStamp(new Date(c.completed_at)),
+            photo: urls[c.photo_path] ? { uri: urls[c.photo_path] } : null,
+            photoSeed: null,
+            slot: c.slot ?? undefined,
+          },
+        };
+      }
+
+      membershipId.current = membership.id;
+      taskUuids.current = Object.fromEntries(mine.tasks.map((t) => [appTaskId(t), t.id]));
+      setInChallenge(true);
+      setChallenge(built);
+      setTasksState(tasksNow);
+      setTotalDays(round.days);
+      setStartDateState(localDay(round.start_date));
+      setProgress(loaded);
+      setCaptions(savedCaptions);
+      setRemindersState(membership.reminders as unknown as Reminders);
+    },
+    [],
+  );
+
+  const reload = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const [profileRow, mine, trophyRows] = await Promise.all([
+        api.fetchProfile(userId),
+        api.fetchMyChallenge(),
+        api.fetchTrophies(userId),
+      ]);
+      await applyAccount(profileRow, mine, trophyRows.length);
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
+    }
+  }, [userId, applyAccount]);
+
+  // A new session loads its account; the splash waits on `ready`. Signed
+  // out there is nothing to load — the sign-in page doesn't read this state.
+  useEffect(() => {
+    if (!userId) {
+      setReady(false);
+      return;
+    }
+    let live = true;
+    setReady(false);
+    reload().finally(() => {
+      if (live) setReady(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [userId, reload]);
 
   // -- derived ---------------------------------------------------------------
 
@@ -299,6 +467,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
     return Math.min(Math.max(elapsed + 1, 1), totalDays);
   }, [startDate, totalDays]);
+
+  const daysUntilStart = useMemo(
+    () => Math.max(0, Math.round((startDate.getTime() - startOfToday().getTime()) / DAY_MS)),
+    [startDate],
+  );
 
   /**
    * Only days that are fully behind you can be missed — today is still open
@@ -327,6 +500,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [progress, currentDay],
   );
 
+  const feedLocked = inChallenge && daysUntilStart === 0 && !hasPhotographedTask;
+
   // -- actions ---------------------------------------------------------------
 
   const setName = useCallback((name: string) => {
@@ -350,20 +525,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const selectChallenge = useCallback(
-    (id: string, start?: Date) => {
-      const next =
-        id === CUSTOM_CHALLENGE.id
-          ? CUSTOM_CHALLENGE
-          : customChallenges.find((c) => c.id === id) ?? challengeById(id);
-      setChallenge(next);
-      setTasksState([...next.tasks]);
-      setTotalDays(next.defaultDays);
-      if (start) setStartDateState(start);
-      setProgress({});
-      setCaptions({});
+    async (id: string, start?: Date, picked?: Reminders) => {
+      const rounds = await api.fetchRounds();
+      const day = start ? isoDay(start) : null;
+      const round = rounds.find(
+        (r) => (r.challenge?.slug ?? r.challenge?.id) === id && (!day || r.start_date === day),
+      );
+      if (!round) throw new Error('That round isn’t open to join any more.');
+      await api.joinRound(round.id, picked ?? reminders);
+      await reload();
     },
-    [customChallenges],
+    [reminders, reload],
   );
+
+  const leaveChallenge = useCallback(async () => {
+    await api.leaveRound();
+    await reload();
+  }, [reload]);
+
+  // Kept on the membership too, so a reinstall or a new phone has them.
+  const setReminders = useCallback((next: Reminders) => {
+    setRemindersState(next);
+    if (membershipId.current) api.setReminders(next).catch(() => {});
+  }, []);
 
   const addChallenge = useCallback((input: ChallengeInput) => {
     const built = buildChallenge(`custom-${Date.now()}`, input);
@@ -511,7 +695,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProfile({ ...SEED_PROFILE, bio: null });
     setFriendComments({});
     setFriendRequests(new Set());
-    setReminders(DEFAULT_REMINDERS);
+    // Only this phone's copy: a reset happens on logging out, and the
+    // account keeps its reminders for the next sign-in.
+    setRemindersState(DEFAULT_REMINDERS);
+    membershipId.current = null;
+    taskUuids.current = {};
+    setInChallenge(false);
   }, []);
 
   const value = useMemo<AppContextValue>(
@@ -534,6 +723,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       livesTotal,
       livesLeft,
       hasPhotographedTask,
+      feedLocked,
+      inChallenge,
+      daysUntilStart,
+      ready,
+      loadFailed,
 
       setName,
       setBio,
@@ -541,6 +735,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAvatarSeed,
       setAvatarPhoto,
       selectChallenge,
+      leaveChallenge,
+      reload,
       addChallenge,
       updateChallenge,
       deleteChallenge,
@@ -558,8 +754,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       profile, challenge, tasks, startDate, totalDays,
       progress, captions, postReactions, friendComments, watchedStories, friendRequests,
       trophies, customChallenges, reminders,
-      currentDay, livesLeft, hasPhotographedTask,
-      setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, addChallenge,
+      currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, daysUntilStart, ready,
+      loadFailed,
+      setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, leaveChallenge,
+      reload, setReminders, addChallenge,
       updateChallenge, deleteChallenge,
       completeTaskWithPhoto, undoTask,
       reactToPost, toggleFriendRequest, markStoryWatched, addFriendComment, resetAll,

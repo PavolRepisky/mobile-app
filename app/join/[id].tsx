@@ -40,7 +40,7 @@ export default function JoinScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { selectChallenge, profile, reminders, setReminders } = useApp();
+  const { selectChallenge, profile, reminders } = useApp();
 
   const { section, challenge } = useChallengeListing(String(id));
   const totalDays = challenge.defaultDays;
@@ -51,6 +51,10 @@ export default function JoinScreen() {
   const [step, setStep] = useState<1 | 2>(1);
   const [signed, setSigned] = useState(false);
   const [signing, setSigning] = useState(false);
+  // Waiting on the server to take the signature, and why it didn't if it
+  // didn't — most likely the round started while the pledge was being read.
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [today] = useState(() => new Date());
 
   // A draft of the challenge's reminders, starting from any already set for
@@ -189,17 +193,34 @@ export default function JoinScreen() {
       {/* Just the button on the page's white: the page is short enough that
           nothing scrolls under it to need a band. */}
       <View style={[styles.dock, { paddingBottom: dockGap }]}>
+        {step === 2 && joinError ? (
+          <Text variant="meta" center>
+            {joinError}
+          </Text>
+        ) : null}
         {step === 1 ? (
           <PrimaryButton label="Continue" onPress={() => setStep(2)} />
         ) : (
           <PrimaryButton
-            label="Sign & join"
-            disabled={!signed}
-            onPress={() => {
-              setReminders({ tasks: { ...reminders.tasks, ...taskTimes }, lastCall });
-              selectChallenge(section.id, start);
-              // Straight onto the day's tasks.
-              router.dismissTo('/(tabs)/tasks');
+            label={joining ? 'Joining…' : 'Sign & join'}
+            disabled={!signed || joining}
+            onPress={async () => {
+              setJoining(true);
+              setJoinError(null);
+              try {
+                // The reminders go in with the signature, onto the new
+                // membership — not onto the challenge being left.
+                await selectChallenge(section.id, start, {
+                  tasks: { ...reminders.tasks, ...taskTimes },
+                  lastCall,
+                });
+                // Straight onto the day's tasks.
+                router.dismissTo('/(tabs)/tasks');
+              } catch (e) {
+                setJoinError(e instanceof Error ? e.message : 'That didn’t go through. Try again.');
+              } finally {
+                setJoining(false);
+              }
             }}
           />
         )}
@@ -269,5 +290,6 @@ const styles = StyleSheet.create({
     paddingTop: layout.block,
     paddingHorizontal: layout.gutter,
     backgroundColor: colors.surface,
+    gap: layout.stack,
   },
 });
