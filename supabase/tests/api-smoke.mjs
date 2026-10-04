@@ -59,6 +59,11 @@ const temp = createClient(URL, KEY, opts);
 const { data: su, error: suErr } = await temp.auth.signUp({ email: `gone${Date.now()}@test.dev`, password: 'throwaway-pass-1' });
 if (suErr) throw suErr;
 check(!(await temp.storage.from('avatars').upload(`${su.user.id}/face.jpg`, jpeg, { contentType: 'image/jpeg' })).error, 'new account uploads a face');
+// Replacing a face removes the old file — storage only removes what the
+// remover may also read, so this fails quietly without a read policy.
+await temp.storage.from('avatars').upload(`${su.user.id}/old.jpg`, jpeg, { contentType: 'image/jpeg' });
+const removed = await temp.storage.from('avatars').remove([`${su.user.id}/old.jpg`]);
+check(!removed.error && removed.data?.length === 1, 'removing your own old face really removes it');
 const del = await temp.functions.invoke('delete-account', { method: 'POST' });
 check(!del.error, 'delete-account runs' + (del.error ? ': ' + del.error.message : ''));
 const svc = createClient(URL, SERVICE, opts);

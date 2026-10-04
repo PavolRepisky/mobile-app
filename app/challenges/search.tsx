@@ -54,8 +54,8 @@ export default function ChallengeSearchScreen() {
   const router = useRouter();
   const listed = useChallengeCards();
   const created = useCreatedChallengeCards();
-  // Yours replace their own entry when you're on one, so it shows once and
-  // as something you made.
+  // Yours are in the listings too; Created by you's copy replaces that
+  // entry, so each shows once and as something you made.
   const cards = useMemo(
     () => [...listed.filter((card) => !created.some((c) => c.id === card.id)), ...created],
     [listed, created],
@@ -78,7 +78,7 @@ export default function ChallengeSearchScreen() {
 
   const topics = CATEGORIES.map((name) => ({
     name,
-    // Counted off the listings alone: a topic's page has no place for yours.
+    // Counted off what each topic's page lists — yours included.
     count: listed.filter((card) => card.category === name).length,
   })).filter((t) => t.count > 0);
 

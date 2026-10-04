@@ -18,7 +18,8 @@ import {
 } from '@/data/challenges';
 import { useSession } from '@/hooks/useSession';
 import * as api from '@/lib/backend/api';
-import { publicUrl, removePhotos, signedUrls, uploadPublicPhoto } from '@/lib/backend/photos';
+import { fetchCatalog, type Listing } from '@/lib/backend/catalog';
+import { publicUrl, removePhotos, signedUrls, storedPath, uploadPublicPhoto } from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
 import { DAY_MS, localDay, startOfToday } from '@/lib/round';
 import type { ImageSourcePropType } from 'react-native';
@@ -114,6 +115,9 @@ interface AppState {
   /** What you wrote under each day's post, by challenge day — the caption
    * your own posts show. A day can go without one. */
   captions: Record<number, string>;
+  /** Every challenge there is, each with the round that matters to you —
+   * what the Challenges tab, search and a challenge's page show. */
+  catalog: readonly Listing[];
   /** The challenges you've built yourself, oldest first — what Search's
    * Created by you lists, and what can still be edited until Day 1. */
   customChallenges: readonly Challenge[];
@@ -203,15 +207,14 @@ interface AppActions {
   /** Clears `syncError` once its message has been shown. */
   clearSyncError: () => void;
   clearAvatarError: () => void;
-  /** Builds a new custom challenge from the create-challenge form, adds it to
-   * the challenges `selectChallenge` can pick, and hands it back so the screen
-   * can navigate on. */
-  addChallenge: (input: ChallengeInput) => Challenge;
+  /** Builds a new challenge from the create form — its photos uploaded, it
+   * and its round saved — and hands back its key once everyone can see it. */
+  addChallenge: (input: ChallengeInput) => Promise<string>;
   /** Rewrites a challenge you built from the same form. Only before Day 1 —
    * once it has started, people have joined on its terms. */
-  updateChallenge: (id: string, input: ChallengeInput) => void;
-  /** Takes a challenge you built down. */
-  deleteChallenge: (id: string) => void;
+  updateChallenge: (id: string, input: ChallengeInput) => Promise<void>;
+  /** Takes a challenge you built down, its photos with it. */
+  deleteChallenge: (id: string) => Promise<void>;
   setReminders: (reminders: Reminders) => void;
 
   /**
@@ -242,26 +245,6 @@ const AppContext = createContext<AppContextValue | null>(null);
  */
 export const LIVES_PER_CHALLENGE = 3;
 
-/** A custom challenge out of the form's fields. Tasks carried over from an
- * edit keep their ids; new ones get fresh ones. */
-function buildChallenge(id: string, input: ChallengeInput): Challenge {
-  const stamp = Date.now();
-  return {
-    id,
-    name: input.name,
-    stamp: 'Custom',
-    description: input.description,
-    category: input.category,
-    joined: 0,
-    photoSeeds: [],
-    photos: input.photos,
-    defaultDays: input.days,
-    startDate: isoDay(input.startDate),
-    lives: input.lives,
-    tasks: input.tasks.map(({ id: taskId, ...t }, i) => ({ id: taskId ?? `ct${stamp}-${i}`, ...t })),
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
@@ -281,7 +264,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [challenge, setChallenge] = useState<Challenge>(STAND_IN);
   const [tasks, setTasksState] = useState<ChallengeTask[]>(() => [...STAND_IN.tasks]);
-  const [customChallenges, setCustomChallenges] = useState<Challenge[]>([]);
+  const [catalog, setCatalog] = useState<Listing[]>([]);
+  const customChallenges = useMemo(
+    () => catalog.filter((listing) => listing.createdByMe).map((listing) => listing.challenge),
+    [catalog],
+  );
   const [startDate, setStartDateState] = useState<Date>(startOfToday);
   const [totalDays, setTotalDays] = useState(STAND_IN.defaultDays);
   const [progress, setProgress] = useState<Progress>({});
@@ -404,11 +391,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     if (!userId) return;
     try {
-      const [profileRow, mine] = await Promise.all([
+      const [profileRow, mine, listings] = await Promise.all([
         api.fetchProfile(userId),
         api.fetchMyChallenge(),
+        fetchCatalog(),
       ]);
       await applyAccount(profileRow, mine);
+      setCatalog(listings);
       setLoadFailed(false);
     } catch {
       setLoadFailed(true);
@@ -522,16 +511,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const selectChallenge = useCallback(
     async (id: string, start?: Date, picked?: Reminders) => {
-      const rounds = await api.fetchRounds();
+      // The round its page showed — the one the pledge was read against.
+      const listing = catalog.find((l) => l.key === id);
       const day = start ? isoDay(start) : null;
-      const round = rounds.find(
-        (r) => (r.challenge?.slug ?? r.challenge?.id) === id && (!day || r.start_date === day),
-      );
-      if (!round) throw new Error('That round isn’t open to join any more.');
-      await api.joinRound(round.id, picked ?? reminders);
+      if (!listing || (day && listing.section.startDate !== day)) {
+        throw new Error('That round isn’t open to join any more.');
+      }
+      await api.joinRound(listing.section.roundId, picked ?? reminders);
       await reload();
     },
-    [reminders, reload],
+    [catalog, reminders, reload],
   );
 
   const leaveChallenge = useCallback(async () => {
@@ -545,25 +534,75 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (membershipId.current) api.setReminders(next).catch(() => {});
   }, []);
 
-  const addChallenge = useCallback((input: ChallengeInput) => {
-    const built = buildChallenge(`custom-${Date.now()}`, input);
-    setCustomChallenges((list) => [...list, built]);
-    return built;
-  }, []);
-
-  const updateChallenge = useCallback(
-    (id: string, input: ChallengeInput) => {
-      const existing = customChallenges.find((c) => c.id === id);
-      if (!existing) return;
-      const built: Challenge = { ...buildChallenge(id, input), joined: existing.joined };
-      setCustomChallenges((list) => list.map((c) => (c.id === id ? built : c)));
+  /**
+   * The form's cover photos as storage paths: ones already up (an edit's
+   * own) are kept where they are, new picks are uploaded first.
+   */
+  const coverPaths = useCallback(
+    async (photos: readonly TaskPhoto[]) => {
+      if (!userId) throw new Error('Sign in first');
+      return Promise.all(
+        photos.map(async (photo) => {
+          const uri = typeof photo === 'object' && photo && 'uri' in photo ? photo.uri : undefined;
+          if (!uri) throw new Error('Pick your photos from your library.');
+          const saved = storedPath('challenge-photos', uri);
+          return saved ?? uploadPublicPhoto('challenge-photos', userId, { uri });
+        }),
+      );
     },
-    [customChallenges],
+    [userId],
   );
 
-  const deleteChallenge = useCallback((id: string) => {
-    setCustomChallenges((list) => list.filter((c) => c.id !== id));
-  }, []);
+  const formOf = (input: ChallengeInput, photoPaths: string[]): api.ChallengeForm => ({
+    name: input.name,
+    description: input.description,
+    category: input.category,
+    photoPaths,
+    tasks: input.tasks,
+    days: input.days,
+    startDate: isoDay(input.startDate),
+    lives: input.lives,
+  });
+
+  const addChallenge = useCallback(
+    async (input: ChallengeInput) => {
+      const photoPaths = await coverPaths(input.photos);
+      try {
+        const id = await api.addChallenge(formOf(input, photoPaths));
+        await reload();
+        return id;
+      } catch (e) {
+        // Not saved, so the photos just uploaded have nothing to stand for.
+        await removePhotos('challenge-photos', photoPaths);
+        throw e;
+      }
+    },
+    [coverPaths, reload],
+  );
+
+  const updateChallenge = useCallback(
+    async (id: string, input: ChallengeInput) => {
+      const listing = catalog.find((l) => l.key === id);
+      if (!listing) throw new Error('That challenge is gone.');
+      const photoPaths = await coverPaths(input.photos);
+      await api.updateChallenge(listing.challengeId, formOf(input, photoPaths));
+      // Photos taken off the challenge aren't needed any more.
+      await removePhotos('challenge-photos', listing.photoPaths.filter((p) => !photoPaths.includes(p)));
+      await reload();
+    },
+    [catalog, coverPaths, reload],
+  );
+
+  const deleteChallenge = useCallback(
+    async (id: string) => {
+      const listing = catalog.find((l) => l.key === id);
+      if (!listing) return;
+      await api.deleteChallenge(listing.challengeId);
+      await removePhotos('challenge-photos', [...listing.photoPaths]);
+      await reload();
+    },
+    [catalog, reload],
+  );
 
   /** Puts one task's entry for one day in place — `undefined` clears it. */
   const putEntry = useCallback((day: number, taskId: string, entry: TaskProgress | undefined) => {
@@ -679,6 +718,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       totalDays,
       progress,
       captions,
+      catalog,
       customChallenges,
       reminders,
       currentDay,
@@ -715,7 +755,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       profile, challenge, tasks, startDate, totalDays,
       progress, captions,
-      customChallenges, reminders,
+      catalog, customChallenges, reminders,
       currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, membershipIdState, daysUntilStart, ready,
       loadFailed, syncError, clearSyncError, avatarError, clearAvatarError,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, leaveChallenge,

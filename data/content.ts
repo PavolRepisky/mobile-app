@@ -3,10 +3,10 @@ import type { ImageSourcePropType } from 'react-native';
 import type { AvatarSource } from '@/components/Avatar';
 import type { CommentEntry } from '@/components/CommentsSheet';
 import type { PhotoSource } from '@/components/PhotoStrip';
-import { CHALLENGES } from './challenges';
 
 // ---------------------------------------------------------------------------
-// Friends & the discover feed
+// People, posts and challenge listings — the shapes the screens draw. The
+// people and listings themselves come from the server (lib/backend).
 // ---------------------------------------------------------------------------
 
 export interface Friend {
@@ -83,455 +83,14 @@ export interface Friend {
   }[];
 }
 
-/**
- * The checklist everyone in a challenge is working through — read from the
- * seed challenge itself (`useAppState`'s own `SEED_CHALLENGE`, `CHALLENGES[0]`)
- * rather than copied out by hand, so a friend's or member's grid always has
- * exactly as many cells as the Tasks tab's own, whatever that challenge's
- * task list happens to be.
- */
-const CHALLENGE_TASKS = CHALLENGES[0].tasks.map((task) => task.label);
-
-export const FRIENDS: readonly Friend[] = [
-  {
-    id: 'lily',
-    name: 'Lily',
-    handle: '@lily.days',
-    avatar: require('../assets/friends/lily.jpg'),
-    day: 3,
-    caption: 'Lunch outside and a full bottle before five. Small wins.',
-    bio: 'lunch outside, early nights, one more rep',
-    postedAgo: '15h ago',
-    friendCount: 18,
-    livesLeft: 3,
-    tasks: [
-      {
-        label: CHALLENGE_TASKS[0],
-        done: true,
-        time: '2:14 PM',
-        // Already bundled for the home screen's own "eat clean" stand-in.
-        photo: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
-      },
-      {
-        label: CHALLENGE_TASKS[1],
-        done: true,
-        time: '4:30 PM',
-        // Already bundled for the water task elsewhere in the app's history.
-        photo: require('../assets/challenges/medium/infused-water.jpg'),
-      },
-      {
-        label: CHALLENGE_TASKS[2],
-        done: true,
-        time: '6:05 PM',
-        photo: require('../assets/feed/posts/canal-dog-walk.jpg'),
-      },
-      {
-        label: CHALLENGE_TASKS[3],
-        done: true,
-        time: '7:20 PM',
-        photo: require('../assets/challenges/hard/dumbbells-overhead.jpg'),
-      },
-      {
-        label: CHALLENGE_TASKS[4],
-        done: true,
-        time: '10:10 PM',
-        photo: require('../assets/feed/posts/studying-in-bed.jpg'),
-      },
-    ],
-    pastPosts: [
-      {
-        day: 2,
-        caption: 'Rice bowl, then a run in the drizzle. Day two, done.',
-        tasks: [
-          {
-            label: CHALLENGE_TASKS[0],
-            done: true,
-            time: '1:05 PM',
-            photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
-          },
-          {
-            label: CHALLENGE_TASKS[3],
-            done: true,
-            time: '6:20 PM',
-            photo: require('../assets/challenges/medium/outdoor-run.jpg'),
-          },
-        ],
-      },
-    ],
-    comments: [
-      {
-        id: 'lily-c1',
-        author: 'Zoe',
-        avatar: require('../assets/ambassadors/amb-2.jpg'),
-        text: 'the iced coffee out here doing NUMBERS ☕️',
-        replies: [
-          {
-            id: 'lily-c1-r1',
-            author: 'Lily',
-            avatar: require('../assets/friends/lily.jpg'),
-            text: 'right?? had to go back for a second one',
-          },
-        ],
-      },
-      {
-        id: 'lily-c2',
-        author: 'Mia',
-        avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
-        text: 'day 3 and already thriving, love this for you',
-      },
-    ],
-  },
-  {
-    id: 'zoe',
-    name: 'Zoe',
-    handle: '@zoegoesfor',
-    // Not used as an avatar anywhere else in the app.
-    avatar: require('../assets/ambassadors/amb-2.jpg'),
-    day: 12,
-    caption: 'Twelve days in and my mornings finally feel like mine.',
-    bio: 'slow mornings, fast walks',
-    postedAgo: '3h ago',
-    friendCount: 24,
-    livesLeft: 2,
-    tasks: [
-      {
-        label: CHALLENGE_TASKS[0],
-        done: true,
-        time: '7:45 AM',
-        // Already bundled for the seeded task history.
-        photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg'),
-      },
-      { label: CHALLENGE_TASKS[1], done: false },
-      { label: CHALLENGE_TASKS[2], done: false },
-      {
-        label: CHALLENGE_TASKS[3],
-        done: true,
-        time: '6:10 PM',
-        // Already bundled for the medium challenge's own strip.
-        photo: require('../assets/challenges/medium/outdoor-run.jpg'),
-      },
-      { label: CHALLENGE_TASKS[4], done: false },
-    ],
-    pastPosts: [
-      {
-        day: 11,
-        caption: 'Rest day energy, but the walk still happened.',
-        tasks: [
-          {
-            label: CHALLENGE_TASKS[0],
-            done: true,
-            time: '8:02 AM',
-            photo: require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
-          },
-          {
-            label: CHALLENGE_TASKS[2],
-            done: true,
-            time: '9:40 PM',
-            photo: require('../assets/challenges/medium/book-in-bed.jpg'),
-          },
-        ],
-      },
-    ],
-    comments: [
-      {
-        id: 'zoe-c1',
-        author: 'Lily',
-        avatar: require('../assets/friends/lily.jpg'),
-        text: 'that run photo is gorgeous, where is this',
-      },
-      {
-        id: 'zoe-c2',
-        author: 'Camila',
-        avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
-        text: 'day 12 energy is unmatched 🔥',
-      },
-    ],
-  },
-];
-
-/**
- * Builds a person's day from which of the challenge's own tasks they have
- * ticked off, in the same order `CHALLENGE_TASKS` lists them. A done entry
- * carries a bundled photo of its own — a member's real proof shot isn't part
- * of the app's asset set, so an existing lifestyle photo from elsewhere in
- * the app stands in for it, the same way a friend's own task photo is
- * bundled, rather than falling back to a drawn placeholder.
- */
-const tasksDone = (
-  entries: readonly ({ time: string; photo: ImageSourcePropType } | null)[],
-) =>
-  CHALLENGE_TASKS.map((label, i) => {
-    const entry = entries[i];
-    return {
-      label,
-      done: !!entry,
-      ...(entry ? { time: entry.time, photo: entry.photo } : null),
-    };
-  });
-
-/**
- * The people posting in the challenge feeds. Same shape as a friend — tapping
- * an avatar in a feed opens the profile screen the Friends tab opens, and the
- * Community tab's own Members feed is just these posts instead of FRIENDS' —
- * but kept apart from FRIENDS, since posting in a challenge you are both in
- * does not make someone your friend.
- */
-export const FEED_AUTHORS: readonly Friend[] = [
-  {
-    id: 'mia',
-    name: 'Mia',
-    handle: '@mia.moves',
-    avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
-    day: 12,
-    caption: 'Up at five, lights on, no excuses.',
-    bio: 'purple lights and 5am alarms',
-    postedAgo: '2h ago',
-    friendCount: 31,
-    livesLeft: 3,
-    tasks: tasksDone([
-      { time: '7:10 AM', photo: require('../assets/feed/posts/orange-chicken-fried-rice.jpg') },
-      { time: '11:02 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
-      { time: '6:40 PM', photo: require('../assets/feed/posts/canal-dog-walk.jpg') },
-      null,
-      { time: '9:30 PM', photo: require('../assets/feed/posts/studying-in-bed.jpg') },
-    ]),
-    pastPosts: [
-      {
-        day: 11,
-        caption: 'Hike before work, a book on the bench after. Good day.',
-        tasks: tasksDone([
-          { time: '7:20 AM', photo: require('../assets/feed/posts/mountain-hike.jpg') },
-          null,
-          null,
-          null,
-          { time: '8:50 PM', photo: require('../assets/feed/posts/park-bench-reading.jpg') },
-        ]),
-      },
-    ],
-    comments: [
-      {
-        id: 'mia-c1',
-        author: 'Sofia',
-        avatar: require('../assets/feed/author-hair-flip.jpg'),
-        text: 'the purple lighting is so good, what bulb is that',
-        replies: [
-          {
-            id: 'mia-c1-r1',
-            author: 'Mia',
-            avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
-            text: '@Sofia a cheap LED strip, link is in my bio',
-          },
-        ],
-      },
-      {
-        id: 'mia-c2',
-        author: 'Elena',
-        avatar: require('../assets/feed/author-car-night.jpg'),
-        text: 'day 12 and still consistent, respect',
-      },
-    ],
-  },
-  {
-    id: 'sofia',
-    name: 'Sofia',
-    handle: '@sofia.sleeps',
-    avatar: require('../assets/feed/author-hair-flip.jpg'),
-    day: 28,
-    caption: 'Four weeks. I did not think I would get this far.',
-    bio: 'day 28 and finally sleeping properly',
-    postedAgo: '6h ago',
-    friendCount: 40,
-    livesLeft: 1,
-    tasks: tasksDone([
-      { time: '9:15 AM', photo: require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg') },
-      { time: '1:20 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
-      null,
-      { time: '10:05 PM', photo: require('../assets/wall/workouts/gym-plank.jpg') },
-      null,
-    ]),
-    pastPosts: [
-      {
-        day: 27,
-        caption: 'Tired today, showed up anyway.',
-        tasks: tasksDone([
-          { time: '8:40 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
-          null,
-          {
-            time: '5:30 PM',
-            photo: require('../assets/feed/posts/golden-retriever-garden.jpg'),
-          },
-          null,
-          null,
-        ]),
-      },
-    ],
-    comments: [
-      {
-        id: 'sofia-c1',
-        author: 'Nora',
-        avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
-        text: 'finally sleeping properly is the real win here',
-      },
-    ],
-  },
-  {
-    id: 'elena',
-    name: 'Elena',
-    handle: '@elena_drives',
-    avatar: require('../assets/feed/author-car-night.jpg'),
-    day: 41,
-    caption: 'Day 41 and still loving the early swims.',
-    bio: 'late drives, early gym',
-    postedAgo: '20m ago',
-    friendCount: 27,
-    livesLeft: 3,
-    tasks: tasksDone([
-      { time: '6:02 AM', photo: require('../assets/wall/eat/salmon-rice-asparagus.jpg') },
-      { time: '8:45 AM', photo: require('../assets/challenges/medium/infused-water.jpg') },
-      { time: '7:30 PM', photo: require('../assets/feed/posts/mountain-hike.jpg') },
-      { time: '9:50 PM', photo: require('../assets/challenges/hard/dumbbells-overhead.jpg') },
-      { time: '10:15 PM', photo: require('../assets/feed/posts/park-bench-reading.jpg') },
-    ]),
-    pastPosts: [
-      {
-        day: 40,
-        caption: 'Meal prep saved me on a crazy day.',
-        tasks: tasksDone([
-          { time: '6:15 AM', photo: require('../assets/feed/posts/post-workout-smoothie.jpg') },
-          null,
-          { time: '7:05 PM', photo: require('../assets/wall/eat/sesame-chicken-rice-bowl.jpg') },
-          null,
-          null,
-        ]),
-      },
-    ],
-    comments: [
-      {
-        id: 'elena-c1',
-        author: 'Camila',
-        avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
-        text: 'late drives, early gym is such a mood',
-      },
-      {
-        id: 'elena-c2',
-        author: 'Mia',
-        avatar: require('../assets/feed/author-neon-room-mirror.jpg'),
-        text: 'day 41?? teach me your ways',
-        replies: [
-          {
-            id: 'elena-c2-r1',
-            author: 'Elena',
-            avatar: require('../assets/feed/author-car-night.jpg'),
-            text: '@Mia consistency and way too much coffee',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'nora',
-    name: 'Nora',
-    handle: '@norainthehood',
-    avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
-    day: 7,
-    caption: 'A week in! Hardest part is the water, weirdly.',
-    bio: 'same hoodie in every photo, sorry',
-    postedAgo: '1d ago',
-    friendCount: 15,
-    livesLeft: 2,
-    tasks: tasksDone([
-      null,
-      { time: '3:12 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
-      null,
-      null,
-      null,
-    ]),
-    pastPosts: [
-      {
-        day: 6,
-        caption: 'Kept it simple today and it still counts.',
-        tasks: tasksDone([
-          null,
-          { time: '4:45 PM', photo: require('../assets/feed/posts/canal-dog-walk.jpg') },
-          {
-            time: '8:00 PM',
-            photo: require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
-          },
-          null,
-          null,
-        ]),
-      },
-    ],
-    comments: [
-      {
-        id: 'nora-c1',
-        author: 'Elena',
-        avatar: require('../assets/feed/author-car-night.jpg'),
-        text: 'the hoodie is doing its job, no notes',
-      },
-    ],
-  },
-  {
-    id: 'camila',
-    name: 'Camila',
-    handle: '@camilaglow',
-    avatar: require('../assets/feed/author-butterfly-earrings.jpg'),
-    day: 55,
-    caption: '55 down. Twenty to go and I can feel the difference.',
-    bio: 'started for the glow, stayed for the walks',
-    postedAgo: '9h ago',
-    friendCount: 52,
-    livesLeft: 3,
-    tasks: tasksDone([
-      { time: '8:30 AM', photo: require('../assets/wall/eat/berry-watermelon-plate.jpg') },
-      { time: '12:00 PM', photo: require('../assets/challenges/medium/infused-water.jpg') },
-      { time: '5:15 PM', photo: require('../assets/feed/posts/golden-retriever-garden.jpg') },
-      { time: '6:30 PM', photo: require('../assets/challenges/medium/outdoor-run.jpg') },
-      { time: '9:00 PM', photo: require('../assets/challenges/medium/book-in-bed.jpg') },
-    ]),
-    pastPosts: [
-      {
-        day: 54,
-        caption: 'Slow run, big smile.',
-        tasks: tasksDone([
-          { time: '7:45 AM', photo: require('../assets/wall/workouts/home-mat-core.jpg') },
-          null,
-          null,
-          { time: '9:20 PM', photo: require('../assets/wall/skincare/skincare-shelf.jpg') },
-          null,
-        ]),
-      },
-    ],
-    comments: [
-      {
-        id: 'camila-c1',
-        author: 'Nora',
-        avatar: require('../assets/feed/author-green-hoodie-mirror.jpg'),
-        text: 'day 55!! that walk photo is so pretty',
-      },
-      {
-        id: 'camila-c2',
-        author: 'Sofia',
-        avatar: require('../assets/feed/author-hair-flip.jpg'),
-        text: 'the glow is definitely showing',
-      },
-    ],
-  },
-];
-
-/** Everyone the profile screen can open, whether or not they are a friend. */
-export const PEOPLE: readonly Friend[] = [...FRIENDS, ...FEED_AUTHORS];
-
-/** Stands for the signed-in account in a round's standings, which otherwise
- * name people by their id in `PEOPLE`. */
-export const ME = 'me';
-
 /** One person in a finished round's standings. */
 export interface Standing {
   name: string;
-  /** An id into `PEOPLE`, or `ME`. Left off for a member with no profile
-   * here, who shows as their initial instead of a face. */
+  /** Their account, so a row opens their profile. */
   personId?: string;
+  avatar?: AvatarSource;
+  /** You — told apart so your own row leads and reads "You". */
+  isMe?: boolean;
 }
 
 /**
@@ -567,9 +126,15 @@ export interface DiscoverSection {
    * so it is left off a round that hasn't.
    */
   stillGoing?: number;
-  /** Who started this round. An id into `PEOPLE`, so the preview's "Created
-   * by" row opens the same profile screen the Friends tab does. */
-  creatorId: string;
+  /** The server's round this listing shows — what joining signs up to. */
+  roundId: string;
+  /** Who built the challenge, opened from the page's "by" line. Null for the
+   * presets the app ships with. */
+  creator: { id: string; name: string; handle: string; avatar: AvatarSource } | null;
+  /** Your friends in this round, named on its cover and page. */
+  friendsIn: readonly { id: string; name: string; avatar: AvatarSource }[];
+  /** A few faces of whoever's in it, for the page's "who's in" stack. */
+  faces: readonly { id: string; avatar: AvatarSource }[];
   /**
    * How a round that is over ended: how many of `members` reached the last
    * day, and the standings by longest streak, best first. Only a finished
@@ -581,251 +146,77 @@ export interface DiscoverSection {
   };
 }
 
-export const DISCOVER: readonly DiscoverSection[] = [
-  {
-    id: 'her75',
-    title: 'Get Fit for Summer',
-    photos: [
-      require('../assets/challenges/her75/gym-floor-selfie.jpg'),
-      require('../assets/challenges/her75/grocery-cart.jpg'),
-      require('../assets/challenges/her75/terrace-treadmill.jpg'),
-      require('../assets/challenges/her75/sunset-table.jpg'),
-    ],
-    members: 248,
-    startDate: '2026-06-01',
-    creatorId: 'mia',
-    results: {
-      finished: 18,
-      groups: [
-        {
-          days: 75,
-          count: 12,
-          finished: true,
-          named: [
-            { name: 'Lily', personId: 'lily' },
-            { name: 'Zoe', personId: 'zoe' },
-            { name: 'Elena', personId: 'elena' },
-          ],
-        },
-        {
-          days: 74,
-          count: 4,
-          finished: true,
-          named: [
-            { name: 'You', personId: ME },
-            { name: 'Ava' },
-            { name: 'Grace' },
-            { name: 'Hana' },
-          ],
-        },
-        {
-          days: 73,
-          count: 2,
-          finished: true,
-          named: [
-            { name: 'Mia', personId: 'mia' },
-            { name: 'Sofia', personId: 'sofia' },
-          ],
-        },
-        { days: 61, count: 1, finished: false, named: [{ name: 'Isla' }] },
-        {
-          days: 58,
-          count: 2,
-          finished: false,
-          named: [{ name: 'Maya' }, { name: 'Nora', personId: 'nora' }],
-        },
-        {
-          days: 52,
-          count: 1,
-          finished: false,
-          named: [{ name: 'Camila', personId: 'camila' }],
-        },
-        {
-          days: 47,
-          count: 2,
-          finished: false,
-          named: [{ name: 'Priya' }, { name: 'June' }],
-        },
-        { days: 40, count: 1, finished: false, named: [{ name: 'Ruby' }] },
-        { days: 33, count: 1, finished: false, named: [{ name: 'Chloe' }] },
-        { days: 21, count: 1, finished: false, named: [{ name: 'Tara' }] },
-        { days: 9, count: 1, finished: false, named: [{ name: 'Lena' }] },
-      ],
-    },
-  },
-  {
-    id: 'hard',
-    title: 'No Excuses Challenge',
-    photos: [
-      require('../assets/challenges/hard/mirror-selfie.jpg'),
-      require('../assets/challenges/hard/dumbbells-overhead.jpg'),
-      require('../assets/challenges/hard/grocery-basket.jpg'),
-      require('../assets/challenges/hard/study-desk.jpg'),
-    ],
-    members: 163,
-    stillGoing: 131,
-    startDate: '2026-09-03',
-    creatorId: 'elena',
-  },
-  {
-    id: 'medium',
-    title: 'Balanced Reset',
-    photos: [
-      require('../assets/challenges/medium/outdoor-run.jpg'),
-      require('../assets/challenges/medium/infused-water.jpg'),
-      require('../assets/challenges/medium/guasha-ice-bowl.jpg'),
-      require('../assets/challenges/medium/book-in-bed.jpg'),
-    ],
-    members: 104,
-    startDate: '2026-10-01',
-    creatorId: 'sofia',
-  },
-  {
-    id: 'soft',
-    title: 'Fresh Start',
-    photos: [
-      require('../assets/challenges/soft/early-alarm.jpg'),
-      require('../assets/challenges/soft/sunset-walk.jpg'),
-      require('../assets/challenges/soft/poolside-stretch.jpg'),
-      require('../assets/challenges/soft/evening-reading.jpg'),
-    ],
-    members: 131,
-    startDate: '2026-10-12',
-    creatorId: 'camila',
-  },
-  // The four below have no shoot of their own yet, so they borrow fitting
-  // shots from the feed, the wall and the recipes.
-  {
-    id: 'steps',
-    title: '10k Steps a Day',
-    photos: [
-      require('../assets/feed/posts/canal-dog-walk.jpg'),
-      require('../assets/feed/posts/mountain-hike.jpg'),
-      require('../assets/tasks/timed-water-bottle-walk.jpg'),
-      require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
-    ],
-    members: 212,
-    startDate: '2026-10-17',
-    creatorId: 'lily',
-  },
-  {
-    id: 'pages',
-    title: 'Morning Pages',
-    photos: [
-      require('../assets/feed/posts/park-bench-reading.jpg'),
-      require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
-      require('../assets/recipes/fig-oatmeal.jpg'),
-      require('../assets/wall/skincare/skincare-shelf.jpg'),
-    ],
-    members: 48,
-    startDate: '2026-10-19',
-    creatorId: 'zoe',
-  },
-  {
-    id: 'rainbow',
-    title: 'Eat the Rainbow',
-    photos: [
-      require('../assets/wall/eat/berry-watermelon-plate.jpg'),
-      require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg'),
-      require('../assets/recipes/apricot-salad.jpg'),
-      require('../assets/feed/posts/post-workout-smoothie.jpg'),
-    ],
-    members: 96,
-    startDate: '2026-10-22',
-    creatorId: 'mia',
-  },
-  {
-    id: 'study',
-    title: 'Study Streak',
-    photos: [
-      require('../assets/feed/posts/studying-in-bed.jpg'),
-      require('../assets/challenges/hard/study-desk.jpg'),
-      require('../assets/recipes/avo-toast.jpg'),
-      require('../assets/challenges/soft/evening-reading.jpg'),
-    ],
-    members: 74,
-    startDate: '2026-11-02',
-    creatorId: 'sofia',
-  },
-  // A round that's already over — August's — so the Finished filter and a
-  // challenge's finished page have one to show that isn't your own.
-  {
-    id: 'summer-glow',
-    title: 'Summer Glow',
-    photos: [
-      require('../assets/challenges/soft/sunset-walk.jpg'),
-      require('../assets/challenges/medium/infused-water.jpg'),
-      require('../assets/challenges/soft/poolside-stretch.jpg'),
-      require('../assets/challenges/soft/evening-reading.jpg'),
-    ],
-    members: 132,
-    startDate: '2026-08-01',
-    creatorId: 'zoe',
-    results: {
-      finished: 41,
-      groups: [
-        {
-          days: 30,
-          count: 23,
-          finished: true,
-          named: [
-            { name: 'Zoe', personId: 'zoe' },
-            { name: 'Sofia', personId: 'sofia' },
-            { name: 'Ava' },
-          ],
-        },
-        {
-          days: 29,
-          count: 11,
-          finished: true,
-          named: [
-            { name: 'Lily', personId: 'lily' },
-            { name: 'You', personId: ME },
-            { name: 'Grace' },
-          ],
-        },
-        {
-          days: 27,
-          count: 7,
-          finished: true,
-          named: [
-            { name: 'Elena', personId: 'elena' },
-            { name: 'Hana' },
-          ],
-        },
-        { days: 24, count: 1, finished: false, named: [{ name: 'Mia', personId: 'mia' }] },
-        {
-          days: 19,
-          count: 2,
-          finished: false,
-          named: [{ name: 'Priya' }, { name: 'Nora', personId: 'nora' }],
-        },
-        { days: 14, count: 1, finished: false, named: [{ name: 'June' }] },
-        { days: 11, count: 1, finished: false, named: [{ name: 'Camila', personId: 'camila' }] },
-        { days: 6, count: 1, finished: false, named: [{ name: 'Tara' }] },
-      ],
-    },
-  },
-];
+/**
+ * The photos each preset challenge ships with, by its key — the four tiles
+ * standing for it wherever it appears. Everything else about a round —
+ * its dates, who's in it, who started it, how it ended — comes from the
+ * server.
+ */
+export const PRESET_PHOTOS: Readonly<Record<string, readonly PhotoSource[]>> = {
+  'her75': [
+    require('../assets/challenges/her75/gym-floor-selfie.jpg'),
+    require('../assets/challenges/her75/grocery-cart.jpg'),
+    require('../assets/challenges/her75/terrace-treadmill.jpg'),
+    require('../assets/challenges/her75/sunset-table.jpg'),
+  ],
+  hard: [
+    require('../assets/challenges/hard/mirror-selfie.jpg'),
+    require('../assets/challenges/hard/dumbbells-overhead.jpg'),
+    require('../assets/challenges/hard/grocery-basket.jpg'),
+    require('../assets/challenges/hard/study-desk.jpg'),
+  ],
+  medium: [
+    require('../assets/challenges/medium/outdoor-run.jpg'),
+    require('../assets/challenges/medium/infused-water.jpg'),
+    require('../assets/challenges/medium/guasha-ice-bowl.jpg'),
+    require('../assets/challenges/medium/book-in-bed.jpg'),
+  ],
+  soft: [
+    require('../assets/challenges/soft/early-alarm.jpg'),
+    require('../assets/challenges/soft/sunset-walk.jpg'),
+    require('../assets/challenges/soft/poolside-stretch.jpg'),
+    require('../assets/challenges/soft/evening-reading.jpg'),
+  ],
+  steps: [
+    require('../assets/feed/posts/canal-dog-walk.jpg'),
+    require('../assets/feed/posts/mountain-hike.jpg'),
+    require('../assets/tasks/timed-water-bottle-walk.jpg'),
+    require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
+  ],
+  pages: [
+    require('../assets/feed/posts/park-bench-reading.jpg'),
+    require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
+    require('../assets/recipes/fig-oatmeal.jpg'),
+    require('../assets/wall/skincare/skincare-shelf.jpg'),
+  ],
+  rainbow: [
+    require('../assets/wall/eat/berry-watermelon-plate.jpg'),
+    require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg'),
+    require('../assets/recipes/apricot-salad.jpg'),
+    require('../assets/feed/posts/post-workout-smoothie.jpg'),
+  ],
+  study: [
+    require('../assets/feed/posts/studying-in-bed.jpg'),
+    require('../assets/challenges/hard/study-desk.jpg'),
+    require('../assets/recipes/avo-toast.jpg'),
+    require('../assets/challenges/soft/evening-reading.jpg'),
+  ],
+  'summer-glow': [
+    require('../assets/challenges/soft/sunset-walk.jpg'),
+    require('../assets/challenges/medium/infused-water.jpg'),
+    require('../assets/challenges/soft/poolside-stretch.jpg'),
+    require('../assets/challenges/soft/evening-reading.jpg'),
+  ],
+};
 
 /**
- * The four bundled tiles standing for a challenge, by id — the very ones
- * Discover shows, so a challenge looks the same wherever it turns up. A
- * challenge with no feed of its own (the custom one) has no photos here, and
- * the caller keeps its drawn stand-ins.
+ * Anything without photos of its own — a challenge someone built before
+ * picking any — takes the opening shot from each of the four original
+ * presets. Four sets, four tiles, and the row reads as every challenge at
+ * once.
  */
-function challengePhotos(id: string): readonly PhotoSource[] | undefined {
-  return DISCOVER.find((section) => section.id === id)?.photos;
-}
-
-/**
- * The custom challenge has no photographs of its own — it is whatever you make
- * it — so its strip takes the opening shot from each of the four original
- * challenges, the ones with a shoot of their own. Four sets, four tiles, and
- * the row reads as every challenge at once.
- */
-const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.slice(0, 4).map(
-  (section) => section.photos[0],
+const CUSTOM_PHOTOS: readonly PhotoSource[] = ['her75', 'hard', 'medium', 'soft'].map(
+  (key) => PRESET_PHOTOS[key][0],
 );
 
 /**
@@ -834,7 +225,7 @@ const CUSTOM_PHOTOS: readonly PhotoSource[] = DISCOVER.slice(0, 4).map(
  * own falls back to the custom row, which is every challenge at once.
  */
 export function challengeStrip(id: string): readonly PhotoSource[] {
-  return challengePhotos(id) ?? CUSTOM_PHOTOS;
+  return PRESET_PHOTOS[id] ?? CUSTOM_PHOTOS;
 }
 
 export const REACTIONS = ['❤️', '🔥', '👏', '😂'] as const;

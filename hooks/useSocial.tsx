@@ -50,7 +50,7 @@ interface SocialState {
   decline: (userId: string) => void;
 }
 
-const EMPTY_RELATIONS: Relations = { friends: new Set(), outgoing: new Set(), incoming: [] };
+const EMPTY_RELATIONS: Relations = { friends: new Set(), outgoing: new Set(), incoming: [], friendList: [] };
 
 const SocialContext = createContext<SocialState | null>(null);
 
@@ -222,7 +222,12 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const accept = useCallback(
     (id: string) =>
       changeRelation(
-        (r) => ({ ...r, friends: new Set(r.friends).add(id), incoming: r.incoming.filter((p) => p.id !== id) }),
+        (r) => ({
+          ...r,
+          friends: new Set(r.friends).add(id),
+          incoming: r.incoming.filter((p) => p.id !== id),
+          friendList: [...r.friendList, ...r.incoming.filter((p) => p.id === id)],
+        }),
         () => social.requestFriend(id),
       ),
     [changeRelation],

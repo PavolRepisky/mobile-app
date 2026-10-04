@@ -399,6 +399,8 @@ export interface Relations {
   outgoing: Set<string>;
   /** People who've asked you, newest first. */
   incoming: Person[];
+  /** Your friends themselves — names and faces, for lists of them. */
+  friendList: Person[];
 }
 
 export async function fetchRelations(): Promise<Relations> {
@@ -415,8 +417,11 @@ export async function fetchRelations(): Promise<Relations> {
     else if (r.requester_id === me) outgoing.add(other);
     else incomingIds.push(other);
   }
-  const incoming = incomingIds.length ? await fetchProfiles(incomingIds) : [];
-  return { friends, outgoing, incoming };
+  const [incoming, friendList] = await Promise.all([
+    fetchProfiles(incomingIds),
+    fetchProfiles([...friends]),
+  ]);
+  return { friends, outgoing, incoming, friendList };
 }
 
 /** People by id, as rows for a list — face, name, handle. */

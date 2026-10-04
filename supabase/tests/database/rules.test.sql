@@ -2,7 +2,7 @@
 -- apply to. Runs with `npx supabase test db`; everything is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(45);
 
 -- ---------------------------------------------------------------------------
 -- Cast, written as the database owner: Alice built a challenge and is on
@@ -174,6 +174,16 @@ select is((select count(*)::int from public.notifications where kind = 'friend_r
   'and the answered request leaves the list');
 select is((select count(*)::int from public.community_today('friends')), 1,
   'Bob is now on Alice''s Friends tab');
+
+select lives_ok(
+  $$select public.invite_to_round('bbbbbbbb-0000-4000-8000-000000000002', '33333333-0000-4000-8000-000000000002')$$,
+  'a friend can be invited into a round they can still join');
+select throws_ok(
+  $$select public.invite_to_round('cccccccc-0000-4000-8000-000000000003', '33333333-0000-4000-8000-000000000002')$$,
+  '42501', null, 'only friends can be invited');
+select throws_ok(
+  $$select public.invite_to_round('bbbbbbbb-0000-4000-8000-000000000002', '33333333-0000-4000-8000-000000000001')$$,
+  'P0001', null, 'nor into a round that has started');
 
 -- ---------------------------------------------------------------------------
 -- Carol, joining and building

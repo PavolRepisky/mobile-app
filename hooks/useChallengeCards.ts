@@ -1,10 +1,10 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { PhotoSource } from '@/components/PhotoStrip';
-import { challengeById, type Challenge, type ChallengeCategory } from '@/data/challenges';
-import { challengeStrip, DISCOVER, ME, type DiscoverSection } from '@/data/content';
+import { CHALLENGES, type Challenge, type ChallengeCategory } from '@/data/challenges';
+import { challengeStrip, type DiscoverSection } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
-import { isoDay } from '@/lib/format';
+import { fetchResults, type Listing } from '@/lib/backend/catalog';
 import { localDay, roundState } from '@/lib/round';
 
 /**
@@ -80,6 +80,8 @@ export interface ChallengeCard {
   stillGoing?: number;
   /** How many days the challenge runs. */
   days: number;
+  /** Your friends in its round — the faces and names on a cover. */
+  friendsIn: DiscoverSection['friendsIn'];
   /** Day 1 of the round; undefined for a custom challenge, which has no
    * shared round to count from. */
   start?: Date;
@@ -116,137 +118,114 @@ function roundStatus(
   return { phase: 'finished', statusLabel: 'Finished', shortStatus: 'Finished' };
 }
 
-/**
- * Every challenge the browse screens can show: one card for the challenge
- * you're on, built off live app state rather than the static table — a custom
- * challenge has no listing for `challengeById` to find — plus one per listed
- * round.
- */
-export function useChallengeCards(): readonly ChallengeCard[] {
-  const { challenge, tasks, startDate, totalDays, customChallenges, inChallenge } = useApp();
-
-  return useMemo<ChallengeCard[]>(() => {
-    const listing = DISCOVER.find((section) => section.id === challenge.id);
-    // Filed by your own round — your Day 1 and length, the ones the Tasks
-    // tab counts — the way the challenge's page tells it, rather than by the
-    // listing's round for everyone else.
-    const mineStart = startDate;
-    const mineStatus = roundStatus(mineStart, totalDays);
-    const mine: ChallengeCard = {
-      id: challenge.id,
-      title: challenge.name,
-      photos: challenge.photos ?? challengeStrip(challenge.id),
-      category: challenge.category,
-      tasksCount: tasks.length,
-      tasks: tasks.map((t) => t.label),
-      mine: true,
-      createdByMe: customChallenges.some((c) => c.id === challenge.id),
-      members: listing?.members,
-      stillGoing: listing?.stillGoing,
-      days: totalDays,
-      start: mineStart,
-      ...mineStatus,
-    };
-
-    // Not in a challenge, the one the app holds is only a stand-in: it isn't
-    // yours, and its round stays listed like any other you could join.
-    const listed = DISCOVER.filter((section) => !inChallenge || section.id !== challenge.id).map(
-      (section): ChallengeCard => {
-        const info = challengeById(section.id);
-        const start = localDay(section.startDate);
-        return {
-          id: section.id,
-          title: section.title,
-          photos: section.photos,
-          category: info.category,
-          tasksCount: info.tasks.length,
-          tasks: info.tasks.map((t) => t.label),
-          mine: false,
-          createdByMe: false,
-          members: section.members,
-          stillGoing: section.stillGoing,
-          days: info.defaultDays,
-          start,
-          ...roundStatus(start, info.defaultDays),
-        };
-      },
-    );
-
-    return inChallenge ? [mine, ...listed] : listed;
-  }, [challenge, tasks, startDate, totalDays, customChallenges, inChallenge]);
+/** One listing as a card. */
+function toCard(listing: Listing, mine: boolean): ChallengeCard {
+  const { challenge, section } = listing;
+  const start = localDay(section.startDate);
+  const days = challenge.defaultDays;
+  return {
+    id: listing.key,
+    title: challenge.name,
+    photos: section.photos,
+    category: challenge.category,
+    tasksCount: challenge.tasks.length,
+    tasks: challenge.tasks.map((t) => t.label),
+    mine,
+    createdByMe: listing.createdByMe,
+    members: section.members,
+    stillGoing: section.stillGoing,
+    days,
+    start,
+    friendsIn: section.friendsIn,
+    ...roundStatus(start, days),
+  };
 }
 
 /**
- * The challenges you've built, newest first, in the browse screens' shape.
- * Kept apart from `useChallengeCards` so Browse and the topic pages stay the
- * listed rounds; Search is where yours are found. The one you're on is told
- * by your own round, as it is everywhere else.
+ * Every challenge the browse screens list, each by the round that matters to
+ * you: the one you're on marked yours, everyone else's to join or watch.
+ * Ones you built are listed like any other — under their topic, and among
+ * the rounds starting soon, since you join your own the way anyone does —
+ * as well as under Search's Created by you.
+ */
+export function useChallengeCards(): readonly ChallengeCard[] {
+  const { catalog, challenge, inChallenge } = useApp();
+  return useMemo<ChallengeCard[]>(() => {
+    const isMine = (l: Listing) => inChallenge && l.key === challenge.id;
+    const mine = catalog.filter(isMine).map((l) => toCard(l, true));
+    const listed = catalog.filter((l) => !isMine(l)).map((l) => toCard(l, false));
+    return [...mine, ...listed];
+  }, [catalog, challenge.id, inChallenge]);
+}
+
+/**
+ * The challenges you've built yourself, newest first, each told by its own
+ * round — what Search's Created by you lists, and what can still be edited
+ * until Day 1.
  */
 export function useCreatedChallengeCards(): readonly ChallengeCard[] {
-  const { challenge, startDate, totalDays, customChallenges, inChallenge } = useApp();
-
+  const { catalog, challenge, inChallenge } = useApp();
   return useMemo<ChallengeCard[]>(
     () =>
-      [...customChallenges].reverse().map((c): ChallengeCard => {
-        const joined = inChallenge && c.id === challenge.id;
-        const start = joined ? startDate : localDay(c.startDate ?? isoDay(startDate));
-        const days = joined ? totalDays : c.defaultDays;
-        return {
-          id: c.id,
-          title: c.name,
-          photos: c.photos ?? challengeStrip(c.id),
-          category: c.category,
-          tasksCount: c.tasks.length,
-          tasks: c.tasks.map((t) => t.label),
-          mine: joined,
-          createdByMe: true,
-          days,
-          start,
-          ...roundStatus(start, days),
-        };
-      }),
-    [challenge.id, startDate, totalDays, customChallenges, inChallenge],
+      catalog
+        .filter((l) => l.createdByMe)
+        .reverse()
+        .map((l) => toCard(l, inChallenge && l.key === challenge.id)),
+    [catalog, challenge.id, inChallenge],
   );
 }
 
+/** What a challenge page shows before the catalog has it — a link to one
+ * that's gone, say. Never mistaken for anything you're in. */
+const NOWHERE: DiscoverSection = {
+  id: CHALLENGES[0].id,
+  roundId: '',
+  title: CHALLENGES[0].name,
+  photos: challengeStrip(CHALLENGES[0].id),
+  members: 0,
+  startDate: '1970-01-01',
+  creator: null,
+  friendsIn: [],
+  faces: [],
+};
+
 /**
- * A challenge's page by id: a listed round as it is, or one you built told
- * in the same shape — its own photos, you as the creator, and only the
- * people who've joined it — so the challenge page and Join don't need a
- * second way of drawing it. `createdByMe` is what puts Edit and Delete on it.
+ * A challenge's page by its key: the round that matters to you, told in the
+ * shape the challenge page and Join draw. `createdByMe` is what puts Edit and
+ * Delete on it.
  */
 export function useChallengeListing(id: string): {
   section: DiscoverSection;
   challenge: Challenge;
   createdByMe: boolean;
 } {
-  const { customChallenges, challenge: current, startDate, inChallenge } = useApp();
-  // The last version of yours seen under this id: deleting one pops its page,
-  // and for the length of that slide it should still be the challenge you
-  // deleted, not whatever an unknown id falls back to.
-  const last = useRef<Challenge | undefined>(undefined);
+  const { catalog } = useApp();
+  // The last version seen under this key: deleting one pops its page, and
+  // for the length of that slide it should still be the challenge you
+  // deleted, not whatever an unknown key falls back to.
+  const last = useRef<Listing | undefined>(undefined);
   return useMemo(() => {
-    const own =
-      customChallenges.find((c) => c.id === id) ??
-      (last.current?.id === id ? last.current : undefined);
-    last.current = own;
-    if (!own) {
-      const section = DISCOVER.find((s) => s.id === id) ?? DISCOVER[0];
-      return { section, challenge: challengeById(section.id), createdByMe: false };
-    }
-    return {
-      section: {
-        id: own.id,
-        title: own.name,
-        photos: own.photos ?? challengeStrip(own.id),
-        members: own.joined + (inChallenge && current.id === own.id ? 1 : 0),
-        startDate: own.startDate ?? isoDay(startDate),
-        creatorId: ME,
-      },
-      challenge: own,
-      createdByMe: true,
+    const found = catalog.find((l) => l.key === id) ?? (last.current?.key === id ? last.current : undefined);
+    last.current = found;
+    if (!found) return { section: NOWHERE, challenge: CHALLENGES[0], createdByMe: false };
+    return { section: found.section, challenge: found.challenge, createdByMe: found.createdByMe };
+  }, [id, catalog]);
+}
+
+/** How a finished round ended, loaded when its page opens. */
+export function useRoundResults(roundId: string): DiscoverSection['results'] {
+  const [results, setResults] = useState<DiscoverSection['results']>(undefined);
+  useEffect(() => {
+    if (!roundId) return;
+    let live = true;
+    fetchResults(roundId)
+      .then((r) => live && setResults(r))
+      .catch(() => {});
+    return () => {
+      live = false;
     };
-  }, [id, customChallenges, current.id, startDate, inChallenge]);
+  }, [roundId]);
+  return results;
 }
 
 const terms = (query: string) => query.trim().toLowerCase().split(/\s+/).filter(Boolean);

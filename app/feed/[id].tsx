@@ -28,15 +28,14 @@ import {
   tabBarBottom,
 } from '@/constants/theme';
 import {
-  FRIENDS,
-  ME,
-  PEOPLE,
   type DiscoverSection,
   type Standing,
   type StreakGroup,
 } from '@/data/content';
 import { LIVES_PER_CHALLENGE, useApp } from '@/hooks/useAppState';
-import { useChallengeListing } from '@/hooks/useChallengeCards';
+import { useChallengeListing, useRoundResults } from '@/hooks/useChallengeCards';
+import { useSession } from '@/hooks/useSession';
+import { useSocial } from '@/hooks/useSocial';
 import { addDays, longDate, ordinal, shortDate } from '@/lib/format';
 import { DAY_MS, localDay, roundState, startOfToday } from '@/lib/round';
 
@@ -51,6 +50,9 @@ const HERO_HEIGHT = 380;
 
 /** The creator's face in the caption laid over the photos. */
 const HERO_AVATAR_SIZE = 24;
+/** The face a preset challenge is "by": the app's own icon, since nobody
+ * built it here. */
+const APP_FACE = require('../../assets/icon.png');
 
 /** The row of hearts on the lives card. */
 const HEART_SIZE = 22;
@@ -135,12 +137,7 @@ export default function FeedScreen() {
 
   if (state.kind === 'ended') {
     return (
-      <Finished
-        section={section}
-        start={start}
-        end={end}
-        results={section.results ?? { finished: 0, groups: [] }}
-      />
+      <Finished section={section} start={start} end={end} />
     );
   }
 
@@ -240,14 +237,18 @@ function ChallengePage({
     closed: { label: 'Ends in', to: addDays(end, 1), hint: `Day ${day} of ${totalDays}` },
   }[mode];
 
-  // Friends stand in for whoever else is in, the way the browse cards' own
-  // face stacks do — `PEOPLE` leads with them — and the names are theirs;
-  // once you're in, you lead.
-  const friends = FRIENDS.slice(0, 2);
+  // Your friends in it lead the faces and are named; whoever else is in it
+  // fills the stack. Once you're in, you lead.
+  const myId = useSession().session?.user.id;
+  const friends = section.friendsIn.slice(0, 2);
+  const shownIds = new Set(friends.map((f) => f.id));
   const faces: AvatarSource[] = [
     ...(inIt ? [profile.avatar ?? profile.avatarSeed] : []),
-    ...PEOPLE.slice(0, WHO_FACES - (inIt ? 1 : 0)).map((p) => p.avatar),
-  ];
+    ...friends.map((f) => f.avatar),
+    ...section.faces
+      .filter((f) => !shownIds.has(f.id) && f.id !== myId)
+      .map((f) => f.avatar),
+  ].slice(0, WHO_FACES);
   const named = [...(inIt ? ['You'] : []), ...friends.map((f) => f.name)];
   const inCount = going ? (section.stillGoing ?? section.members) : section.members;
   const others = inCount - friends.length - (inIt && going ? 1 : 0);
@@ -506,11 +507,13 @@ function Hero({
   const { challenge, createdByMe } = useChallengeListing(section.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  // Yours is told with your own face and handle, and opens your profile.
-  const person = PEOPLE.find((p) => p.id === section.creatorId) ?? PEOPLE[0];
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Yours is told with your own face and handle, and opens your profile; a
+  // preset the app ships with is the app's own, and opens nothing.
+  const person = section.creator;
   const creator = createdByMe
     ? { name: 'your', handle: profile.handle, avatar: profile.avatar ?? profile.avatarSeed }
-    : person;
+    : person ?? { name: 'Her 75', handle: 'Her 75', avatar: APP_FACE };
   const cornerTop = Math.max(headerLineTop, topPadding(insets.top));
 
   const half = width / 2;
@@ -577,10 +580,11 @@ function Hero({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`View ${creator.name}'s profile`}
+          disabled={!createdByMe && !person}
           onPress={() =>
             createdByMe
               ? router.navigate('/(tabs)/profile')
-              : router.push({ pathname: '/friend/[id]', params: { id: person.id } })
+              : person && router.push({ pathname: '/friend/[id]', params: { id: person.id } })
           }
           style={({ pressed }) => [styles.heroCreator, pressed && styles.pressed]}
         >
@@ -613,17 +617,24 @@ function Hero({
           <AlertDialog
             visible={deleteOpen}
             title="Delete Challenge"
-            message={`${challenge.name} will be gone for you and anyone who joined. This can't be undone.`}
+            message={
+              deleteError ??
+              `${challenge.name} will be gone for you and anyone who joined. This can't be undone.`
+            }
             onDismiss={() => setDeleteOpen(false)}
             actions={[
               { label: 'Cancel', onPress: () => setDeleteOpen(false) },
               {
                 label: 'Delete',
                 destructive: true,
-                onPress: () => {
-                  setDeleteOpen(false);
-                  router.back();
-                  deleteChallenge(section.id);
+                onPress: async () => {
+                  try {
+                    await deleteChallenge(section.id);
+                    setDeleteOpen(false);
+                    router.back();
+                  } catch (e) {
+                    setDeleteError(e instanceof Error ? e.message : 'That didn’t delete. Try again.');
+                  }
                 },
               },
             ]}
@@ -646,15 +657,16 @@ function Finished({
   section,
   start,
   end,
-  results,
 }: {
   section: DiscoverSection;
   start: Date;
   end: Date;
-  results: NonNullable<DiscoverSection['results']>;
 }) {
   const router = useRouter();
   const { profile } = useApp();
+  const { relations } = useSocial();
+  // Loaded when the page opens; an empty board until then.
+  const results = useRoundResults(section.roundId) ?? { finished: 0, groups: [] };
   const [openPhotoIndex, setOpenPhotoIndex] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [board, setBoard] = useState<'everyone' | 'friends'>('everyone');
@@ -665,22 +677,19 @@ function Finished({
   const members = section.members.toLocaleString('en-US');
   const ranOut = section.members - results.finished;
   const myAvatar: AvatarSource = profile.avatar ?? profile.avatarSeed;
-  const faceOf = (person: Standing): AvatarSource =>
-    person.personId === ME
-      ? myAvatar
-      : PEOPLE.find((p) => p.id === person.personId)?.avatar;
-  // The finishers with a face to show lead; everyone else who made it is the
-  // count on the last disc.
+  const faceOf = (person: Standing): AvatarSource => (person.isMe ? myAvatar : person.avatar);
+  // The first few finishers by face — a silhouette for anyone without a
+  // photo, the way they look everywhere else; everyone else who made it is
+  // the count on the last disc.
   const finisherFaces = results.groups
     .filter((g) => g.finished)
     .flatMap((g) => g.named)
     .map(faceOf)
-    .filter((face) => !!face)
     .slice(0, FINISHER_FACES);
   const moreFinishers = results.finished - finisherFaces.length;
   const openProfile = (person: Standing) => {
     const id = person.personId;
-    return id && id !== ME
+    return id && !person.isMe
       ? () => router.push({ pathname: '/friend/[id]', params: { id } })
       : undefined;
   };
@@ -695,7 +704,7 @@ function Finished({
   ];
 
   // Where you finished, if you were in it: your group's streak and its rank.
-  const myRank = results.groups.findIndex((g) => g.named.some((p) => p.personId === ME));
+  const myRank = results.groups.findIndex((g) => g.named.some((p) => p.isMe));
   const myGroup = myRank >= 0 ? results.groups[myRank] : null;
   const shareRecap = () => {
     if (!myGroup) return;
@@ -706,9 +715,8 @@ function Finished({
 
   // Friends narrows the list to the people you know, you included; each
   // keeps the rank it has among everyone, so a spot means the same on both.
-  const friendIds = new Set(FRIENDS.map((f) => f.id));
   const onBoard = (person: Standing) =>
-    board === 'everyone' || person.personId === ME || friendIds.has(person.personId ?? '');
+    board === 'everyone' || !!person.isMe || relations.friends.has(person.personId ?? '');
   const boardGroups = results.groups
     .map((group, i) => ({ ...group, rank: i + 1, named: group.named.filter(onBoard) }))
     .filter((group) => group.named.length > 0);
@@ -746,7 +754,7 @@ function Finished({
           name={person.name}
           face={faceOf(person)}
           value={`${group.days} days`}
-          mine={person.personId === ME}
+          mine={!!person.isMe}
           onPress={openProfile(person)}
         />,
       );
@@ -853,8 +861,8 @@ function Finished({
                       key={place}
                       group={group}
                       place={place}
-                      faces={group.named.map(faceOf).filter((face) => !!face)}
-                      mine={group.named.some((p) => p.personId === ME)}
+                      faces={group.named.map(faceOf)}
+                      mine={group.named.some((p) => p.isMe)}
                       perfect={group.days === totalDays}
                     />
                   ) : null,

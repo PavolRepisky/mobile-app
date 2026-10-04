@@ -119,6 +119,13 @@ export function publicUrl(bucket: Exclude<Bucket, 'task-photos'>, path: string):
   return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 }
 
+/** The storage path behind one of `publicUrl`'s links, or null for any other
+ * address — how an edit tells a photo that's already up from a new pick. */
+export function storedPath(bucket: Exclude<Bucket, 'task-photos'>, uri: string): string | null {
+  const prefix = publicUrl(bucket, '');
+  return uri.startsWith(prefix) ? decodeURIComponent(uri.slice(prefix.length)) : null;
+}
+
 /**
  * Signed links for task photos, by path. A photo behind the Community lock
  * comes back without one — storage refuses to sign it — which is the app's

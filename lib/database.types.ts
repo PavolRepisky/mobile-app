@@ -181,13 +181,13 @@ isOneToOne: false
                   ]
                 },"notifications": {
                   Row: {
-                    "actor_id": string,"comment_id": string | null,"created_at": string,"day": number | null,"emoji": string | null,"id": string,"kind": Database["public"]['Enums']["notification_kind"],"membership_id": string | null,"read_at": string | null,"recipient_id": string
+                    "actor_id": string,"comment_id": string | null,"created_at": string,"day": number | null,"emoji": string | null,"id": string,"kind": Database["public"]['Enums']["notification_kind"],"membership_id": string | null,"read_at": string | null,"recipient_id": string,"round_id": string | null
                   }
                   Insert: {
-                    "actor_id": string,"comment_id"?: string | null,"created_at"?: string,"day"?: number | null,"emoji"?: string | null,"id"?: string,"kind": Database["public"]['Enums']["notification_kind"],"membership_id"?: string | null,"read_at"?: string | null,"recipient_id": string
+                    "actor_id": string,"comment_id"?: string | null,"created_at"?: string,"day"?: number | null,"emoji"?: string | null,"id"?: string,"kind": Database["public"]['Enums']["notification_kind"],"membership_id"?: string | null,"read_at"?: string | null,"recipient_id": string,"round_id"?: string | null
                   }
                   Update: {
-                    "actor_id"?: string,"comment_id"?: string | null,"created_at"?: string,"day"?: number | null,"emoji"?: string | null,"id"?: string,"kind"?: Database["public"]['Enums']["notification_kind"],"membership_id"?: string | null,"read_at"?: string | null,"recipient_id"?: string
+                    "actor_id"?: string,"comment_id"?: string | null,"created_at"?: string,"day"?: number | null,"emoji"?: string | null,"id"?: string,"kind"?: Database["public"]['Enums']["notification_kind"],"membership_id"?: string | null,"read_at"?: string | null,"recipient_id"?: string,"round_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -219,6 +219,18 @@ isOneToOne: false
       columns: ["recipient_id"]
 isOneToOne: false
       referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notifications_round_id_fkey"
+      columns: ["round_id"]
+isOneToOne: false
+      referencedRelation: "round_stats"
+      referencedColumns: ["round_id"]
+    },{
+      foreignKeyName: "notifications_round_id_fkey"
+      columns: ["round_id"]
+isOneToOne: false
+      referencedRelation: "rounds"
       referencedColumns: ["id"]
     }
                   ]
@@ -426,6 +438,9 @@ isOneToOne: false
 "in_own_folder":
 { Args: { "object_name": string }; Returns: boolean
                            },
+"invite_to_round":
+{ Args: { "rid": string,"target": string }; Returns: undefined
+                           },
 "join_round":
 { Args: { "reminders"?: Json,"rid": string }; Returns: string
                            },
@@ -481,7 +496,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "challenge_category": "Fitness"|"Health"|"Mindset"|"Lifestyle"|"Study","friendship_status": "pending"|"accepted","membership_status": "active"|"lost"|"finished"|"left","notification_kind": "friend_request"|"friend_accepted"|"comment"|"reply"|"reaction"
+            "challenge_category": "Fitness"|"Health"|"Mindset"|"Lifestyle"|"Study","friendship_status": "pending"|"accepted","membership_status": "active"|"lost"|"finished"|"left","notification_kind": "friend_request"|"friend_accepted"|"comment"|"reply"|"reaction"|"invite"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -601,7 +616,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "challenge_category": ["Fitness", "Health", "Mindset", "Lifestyle", "Study"],"friendship_status": ["pending", "accepted"],"membership_status": ["active", "lost", "finished", "left"],"notification_kind": ["friend_request", "friend_accepted", "comment", "reply", "reaction"]
+            "challenge_category": ["Fitness", "Health", "Mindset", "Lifestyle", "Study"],"friendship_status": ["pending", "accepted"],"membership_status": ["active", "lost", "finished", "left"],"notification_kind": ["friend_request", "friend_accepted", "comment", "reply", "reaction", "invite"]
           }
         }
 } as const

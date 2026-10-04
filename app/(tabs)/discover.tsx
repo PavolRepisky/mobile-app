@@ -11,7 +11,6 @@ import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Text } from '@/components/Text';
 import { absoluteFill, colors, gradients, layout, radii, shadows, spacing } from '@/constants/theme';
-import { FRIENDS } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { CATEGORIES, useChallengeCards, type ChallengeCard } from '@/hooks/useChallengeCards';
 import { addDays, longDate } from '@/lib/format';
@@ -22,8 +21,8 @@ import { addDays, longDate } from '@/lib/format';
 const COVER_HEIGHT = 420;
 /** A topic tile: a name and a count over a photo, not a card to read. */
 const TILE_HEIGHT = 104;
-/** The faces on a cover — the friends named in its line. */
-const COVER_FACES = FRIENDS.slice(0, 2);
+/** How many of your friends a cover names, by face and first name. */
+const COVER_FRIENDS = 2;
 const COVER_FACE_SIZE = 24;
 /** The thumbnail on "You're in", a step smaller than a list row's. */
 const MINE_THUMB = 44;
@@ -255,7 +254,16 @@ function Cover({
   width: number;
   onPress: () => void;
 }) {
-  const others = Math.max((card.members ?? 0) - COVER_FACES.length, 0);
+  // Your friends in it lead the line, by face and name; with none, how many
+  // are in it at all — or, with nobody yet, that the first spot is open.
+  const friends = card.friendsIn.slice(0, COVER_FRIENDS);
+  const members = card.members ?? 0;
+  const others = Math.max(members - friends.length, 0);
+  const whoLine = friends.length
+    ? `${friends.map((friend) => friend.name).join(', ')}${others ? ` + ${others.toLocaleString('en-US')}` : ''}`
+    : members
+      ? `${members.toLocaleString('en-US')} in it`
+      : 'Be the first to join';
   const dates = card.start
     ? `${longDate(card.start)} → ${longDate(addDays(card.start, card.days - 1))}`
     : undefined;
@@ -284,10 +292,10 @@ function Cover({
           {card.days} days · {perDay}: {tasks}
         </Text>
         <View style={styles.coverFoot}>
-          {card.members !== undefined ? (
-            <View style={styles.coverFaces}>
+          <View style={styles.coverFaces}>
+            {friends.length ? (
               <View style={styles.faceStack}>
-                {COVER_FACES.map((friend, i) => (
+                {friends.map((friend, i) => (
                   <Avatar
                     key={friend.id}
                     source={friend.avatar}
@@ -296,14 +304,11 @@ function Cover({
                   />
                 ))}
               </View>
-              <Text variant="meta" color={colors.inkInverse} numberOfLines={1}>
-                {COVER_FACES.map((friend) => friend.name).join(', ')} +
-                {others.toLocaleString('en-US')}
-              </Text>
-            </View>
-          ) : (
-            <View />
-          )}
+            ) : null}
+            <Text variant="meta" color={colors.inkInverse} numberOfLines={1}>
+              {whoLine}
+            </Text>
+          </View>
           {/* Drawn as a button but not one of its own: the whole cover is
               the tap, and a button inside a button splits it in two. */}
           <Pill label="Join" tone="floating" size="lg" bold labelVariant="copyBold" />

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
@@ -38,9 +39,10 @@ import {
   type as typeScale,
 } from '@/constants/theme';
 import { CHALLENGES, type Challenge, type ChallengeCategory } from '@/data/challenges';
-import { FRIENDS } from '@/data/content';
 import { LIVES_PER_CHALLENGE, useApp, type TaskPhoto } from '@/hooks/useAppState';
 import { CATEGORIES } from '@/hooks/useChallengeCards';
+import { useSocial } from '@/hooks/useSocial';
+import { inviteToRound } from '@/lib/backend/catalog';
 import { addDays, longDate } from '@/lib/format';
 import { DAY_MS, localDay, roundState, startOfToday } from '@/lib/round';
 
@@ -154,7 +156,8 @@ export default function CreateChallengeScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
-  const { addChallenge, updateChallenge, customChallenges } = useApp();
+  const { addChallenge, updateChallenge, customChallenges, catalog } = useApp();
+  const { relations, refreshToday } = useSocial();
   const scroll = useRef<ScrollView>(null);
 
   // Read once: the form holds its own draft from here, so the saved
@@ -191,6 +194,14 @@ export default function CreateChallengeScreen() {
   const [pendingLives, setPendingLives] = useState(lives);
   const [livesOpen, setLivesOpen] = useState(false);
   const [invited, setInvited] = useState<readonly string[]>([]);
+  // Saving goes to the server — photos up, then the challenge — so the
+  // button waits on it and says why if it can't.
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  /** The new challenge's key, once it's saved — what invites point at. */
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const createdRound = catalog.find((l) => l.key === createdKey)?.section.roundId;
+  const inviteFriends = relations.friendList.slice(0, INVITE_COUNT);
 
   const startDate = addDays(today, startOffset);
   const endDate = addDays(startDate, days - 1);
@@ -257,14 +268,34 @@ export default function CreateChallengeScreen() {
     lives,
   });
 
-  const create = () => {
-    if (editing) {
-      updateChallenge(editing.id, input());
-      router.back();
-      return;
+  const create = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (editing) {
+        await updateChallenge(editing.id, input());
+        router.back();
+        return;
+      }
+      setCreatedKey(await addChallenge(input()));
+      // Your friends, fresh, for the invites on the page that follows.
+      refreshToday();
+      goTo('live');
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'That didn’t save. Try again.');
+    } finally {
+      setSaving(false);
     }
-    addChallenge(input());
-    goTo('live');
+  };
+
+  /** An invite lands in the friend's activity, naming the round. Marked sent
+   * at once; unmarked if it doesn't go. */
+  const invite = (friendId: string) => {
+    if (!createdRound) return;
+    setInvited((list) => [...list, friendId]);
+    inviteToRound(friendId, createdRound).catch(() =>
+      setInvited((list) => list.filter((id) => id !== friendId)),
+    );
   };
 
   // Gone, or under way: either way there's nothing left here to change.
@@ -273,9 +304,11 @@ export default function CreateChallengeScreen() {
     (!editing?.startDate ||
       roundState(localDay(editing.startDate), editing.defaultDays).kind !== 'upcoming');
 
+  // The link opens the challenge's own page, where its Join button is.
   const shareInvite = () => {
+    const link = createdKey ? ` ${Linking.createURL(`feed/${createdKey}`)}` : '';
     Share.share({
-      message: `Join me on "${name.trim()}" — it starts ${longDate(startDate)} on Her 75.`,
+      message: `Join me on "${name.trim()}" — it starts ${longDate(startDate)} on Her 75.${link}`,
     }).catch(() => {});
   };
 
@@ -305,7 +338,18 @@ export default function CreateChallengeScreen() {
     ) : step === 2 ? (
       <PrimaryButton label="Next: rules" disabled={!tasksDone} onPress={() => goTo(3)} />
     ) : step === 3 ? (
-      <PrimaryButton label={editing ? 'Save changes' : 'Create challenge'} onPress={create} />
+      <View style={styles.saveActions}>
+        {saveError ? (
+          <Text variant="meta" center>
+            {saveError}
+          </Text>
+        ) : null}
+        <PrimaryButton
+          label={saving ? 'Saving…' : editing ? 'Save changes' : 'Create challenge'}
+          disabled={saving}
+          onPress={create}
+        />
+      </View>
     ) : (
       <View style={styles.liveActions}>
         <PrimaryButton label="Share invite link" icon="share-outline" onPress={shareInvite} />
@@ -574,7 +618,7 @@ export default function CreateChallengeScreen() {
             </View>
 
             <View style={styles.invites}>
-              {FRIENDS.slice(0, INVITE_COUNT).map((friend) => {
+              {inviteFriends.map((friend) => {
                 const sent = invited.includes(friend.id);
                 return (
                   <View key={friend.id} style={styles.inviteRow}>
@@ -591,9 +635,7 @@ export default function CreateChallengeScreen() {
                       tone={sent ? 'muted' : 'solid'}
                       size="sm"
                       bold
-                      onPress={
-                        sent ? undefined : () => setInvited((list) => [...list, friend.id])
-                      }
+                      onPress={sent ? undefined : () => invite(friend.id)}
                       // Once sent it has no press and so no button round it,
                       // and a bare pill sets itself to the row's top edge —
                       // held on the row's centre line, it stays put.
@@ -1011,6 +1053,10 @@ const styles = StyleSheet.create({
   },
   invitePill: {
     alignSelf: 'center',
+  },
+  // Why a save didn't go through sits just above the button that tried.
+  saveActions: {
+    gap: layout.stack,
   },
   liveActions: {
     alignItems: 'center',
