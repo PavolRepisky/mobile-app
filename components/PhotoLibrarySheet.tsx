@@ -6,6 +6,7 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -41,8 +42,45 @@ export interface PhotoLibrarySheetProps {
  * A sheet rather than a page of its own: it is opened mid-flow and whatever it
  * is picking for should stay visible behind it. Note that a task's proof photo
  * does *not* come from here — those have to be taken on the spot.
+ *
+ * A browser can't list the phone's library, so on the web the phone's own
+ * picker stands in for the sheet.
  */
-export function PhotoLibrarySheet({
+export function PhotoLibrarySheet(props: PhotoLibrarySheetProps) {
+  return Platform.OS === 'web' ? <BrowserPicker {...props} /> : <LibrarySheet {...props} />;
+}
+
+/**
+ * The web's stand-in: opening it opens the phone's photo picker straight
+ * away, and it draws nothing itself. The picked file becomes a blob link,
+ * which the upload reads like any other photo.
+ */
+function BrowserPicker({ visible, onPick, onDismiss }: PhotoLibrarySheetProps) {
+  // Callers pass fresh arrow functions every render; held in refs so the
+  // picker opens once per `visible`, not once per render.
+  const handlers = useRef({ onPick, onDismiss });
+  handlers.current = { onPick, onDismiss };
+
+  useEffect(() => {
+    if (!visible) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) handlers.current.onPick({ uri: URL.createObjectURL(file) });
+      handlers.current.onDismiss();
+    };
+    // Backing out of the picker still has to close the "sheet", or opening
+    // it again would change nothing and never ask.
+    input.oncancel = () => handlers.current.onDismiss();
+    input.click();
+  }, [visible]);
+
+  return null;
+}
+
+function LibrarySheet({
   visible,
   onPick,
   onDismiss,
