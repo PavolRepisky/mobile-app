@@ -1,4 +1,5 @@
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -22,8 +23,13 @@ import {
  * the display — the corner buttons of the tab roots and the round back button
  * of a pushed page all share it, so moving between screens never makes the
  * header jump.
+ *
+ * On the web the page starts below the browser's own bar (or below the status
+ * bar, added to the home screen), so there is no status bar to clear and the
+ * line drops to the standard top gap — any real inset still comes through
+ * `topPadding`.
  */
-export const headerLineTop = 56;
+export const headerLineTop = Platform.OS === 'web' ? screenTopGap : 56;
 
 interface CommonProps {
   children: React.ReactNode;
