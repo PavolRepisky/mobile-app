@@ -104,7 +104,7 @@ export default function FriendProfileScreen() {
     {
       label: 'Share profile',
       onPress: () => {
-        Share.share({ message: `${friend.name} (${friend.handle}) on Her 75` }).catch(() => {});
+        Share.share({ message: `${friend.name} (${friend.handle}) on SelfEra` }).catch(() => {});
       },
     },
   ];

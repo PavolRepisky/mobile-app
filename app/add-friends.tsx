@@ -117,7 +117,7 @@ export default function AddFriendsScreen() {
   // messaging app actually lives.
   const invite = () =>
     Share.share({
-      message: `Join me in ${challenge.name} on Her 75: ${joinUrl}`,
+      message: `Join me in ${challenge.name} on SelfEra: ${joinUrl}`,
     }).catch(() => {});
 
   // A search is its own list, not a filter on the suggestions: it looks
@@ -376,7 +376,7 @@ export default function AddFriendsScreen() {
       <BottomSheet visible={codeOpen} onDismiss={() => setCodeOpen(false)} bottomGap={0}>
         <View style={styles.codeSheet}>
           <Text variant="sectionHeading" center>
-            Join my challenge
+            Join my era
           </Text>
           <View style={styles.codeSheetTile}>
             <QRCode

@@ -136,16 +136,16 @@ export default function TasksScreen() {
         {loadFailed ? (
           <EmptyState
             icon="cloud-offline-outline"
-            title="Couldn’t load your challenge"
+            title="Couldn’t load your era"
             hint="Check your connection and try again."
             action={{ label: 'Try again', onPress: () => reload() }}
           />
         ) : (
           <EmptyState
             icon="camera-outline"
-            title="No challenge yet"
+            title="No era yet"
             hint="Join one and its daily tasks show up here, ready to photograph."
-            action={{ label: 'Find a challenge', onPress: () => router.navigate('/discover') }}
+            action={{ label: 'Find an era', onPress: () => router.navigate('/discover') }}
           />
         )}
       </ScreenScroll>

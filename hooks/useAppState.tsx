@@ -583,7 +583,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateChallenge = useCallback(
     async (id: string, input: ChallengeInput) => {
       const listing = catalog.find((l) => l.key === id);
-      if (!listing) throw new Error('That challenge is gone.');
+      if (!listing) throw new Error('That era is gone.');
       const photoPaths = await coverPaths(input.photos);
       await api.updateChallenge(listing.challengeId, formOf(input, photoPaths));
       // Photos taken off the challenge aren't needed any more.

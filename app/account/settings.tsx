@@ -164,7 +164,7 @@ export default function SettingsScreen() {
             account, since it costs the whole run. Not in one, there's
             nothing to nudge about or end. */}
         {inChallenge ? (
-          <Group title="Challenge">
+          <Group title="Era">
             <Row
               icon="notifications-outline"
               label="Reminders"
@@ -173,7 +173,7 @@ export default function SettingsScreen() {
             />
             <Row
               icon="flag-outline"
-              label="End challenge"
+              label="End era"
               destructive
               onPress={() => {
                 setSaveError(null);
@@ -210,7 +210,7 @@ export default function SettingsScreen() {
         </Group>
 
         <Text variant="metaBold" color={colors.inkMuted} style={styles.version}>
-          Her 75 · version {APP_VERSION}
+          SelfEra · version {APP_VERSION}
         </Text>
       </ScreenScroll>
 
@@ -351,7 +351,7 @@ export default function SettingsScreen() {
       <AlertDialog
         visible={remindersOpen}
         title="Reminders"
-        message="When each task nudges you, every day of the challenge."
+        message="When each task nudges you, every day of the era."
         onDismiss={closeReminders}
         actions={[{ label: 'Done', primary: true, onPress: closeReminders }]}
       >
@@ -378,15 +378,15 @@ export default function SettingsScreen() {
 
       <AlertDialog
         visible={endOpen}
-        title="End Challenge"
+        title="End Era"
         message={
-          saveError ?? 'Are you sure you want to end this challenge? Your progress will be lost.'
+          saveError ?? 'Are you sure you want to end this era? Your progress will be lost.'
         }
         onDismiss={() => setEndOpen(false)}
         actions={[
           { label: 'Cancel', onPress: () => setEndOpen(false) },
           {
-            label: 'End Challenge',
+            label: 'End Era',
             destructive: true,
             primary: true,
             // Leaves the round for good; Tasks then points to the Challenges

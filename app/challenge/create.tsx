@@ -308,7 +308,7 @@ export default function CreateChallengeScreen() {
   const shareInvite = () => {
     const link = createdKey ? ` ${Linking.createURL(`feed/${createdKey}`)}` : '';
     Share.share({
-      message: `Join me on "${name.trim()}" — it starts ${longDate(startDate)} on Her 75.${link}`,
+      message: `Join me on "${name.trim()}" — it starts ${longDate(startDate)} on SelfEra.${link}`,
     }).catch(() => {});
   };
 
@@ -345,7 +345,7 @@ export default function CreateChallengeScreen() {
           </Text>
         ) : null}
         <PrimaryButton
-          label={saving ? 'Saving…' : editing ? 'Save changes' : 'Create challenge'}
+          label={saving ? 'Saving…' : editing ? 'Save changes' : 'Create era'}
           disabled={saving}
           onPress={create}
         />
@@ -373,8 +373,8 @@ export default function CreateChallengeScreen() {
         <EmptyState
           icon="lock-closed"
           disc
-          title={editing ? `${editing.name} has started` : 'Challenge not found'}
-          hint="A challenge can be changed until its Day 1. After that, everyone in it keeps the rules they joined on."
+          title={editing ? `${editing.name} has started` : 'Era not found'}
+          hint="An era can be changed until its Day 1. After that, everyone in it keeps the rules they joined on."
           style={styles.lockedState}
         />
       </ScreenScroll>
@@ -399,7 +399,7 @@ export default function CreateChallengeScreen() {
         {step === 1 ? (
           <>
             <Question
-              title={editing ? 'Edit your challenge' : "What's your challenge?"}
+              title={editing ? 'Edit your era' : 'Start a new era'}
               hint={
                 editing
                   ? `Change anything until it starts on ${longDate(startDate)}.`
@@ -418,7 +418,7 @@ export default function CreateChallengeScreen() {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="Name your challenge"
+                  placeholder="Name your era"
                   placeholderTextColor={colors.inkMuted}
                   style={styles.input}
                 />

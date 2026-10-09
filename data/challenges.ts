@@ -51,7 +51,7 @@ export const CHALLENGES: readonly Challenge[] = [
   {
     id: 'her75',
     name: 'Get Fit for Summer',
-    stamp: 'Her 75 Challenge',
+    stamp: 'SelfEra',
     description:
       'A friendlier 75-day reset: clean eating, daily movement, and no alcohol — built for getting summer-ready without burning out.',
     category: 'Fitness',
@@ -68,10 +68,10 @@ export const CHALLENGES: readonly Challenge[] = [
   },
   {
     id: 'hard',
-    name: 'No Excuses Challenge',
+    name: 'No Excuses Era',
     stamp: '75 Hard',
     description:
-      '75 days, zero cheat days. Two workouts, a strict diet, and a daily progress photo — the original mental-toughness challenge.',
+      '75 days, zero cheat days. Two workouts, a strict diet, and a daily progress photo — the original test of mental toughness.',
     category: 'Health',
     joined: 163,
     photoSeeds: ['hard-a', 'hard-b', 'hard-c', 'hard-d'],

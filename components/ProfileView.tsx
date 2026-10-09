@@ -483,7 +483,7 @@ export function ProfileView({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${challenge.name}, ${runLabel}`}
-          accessibilityHint="Opens the challenge"
+          accessibilityHint="Opens the era"
           onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
           style={({ pressed }) => [styles.challengeCard, pressed && styles.pressed]}
         >

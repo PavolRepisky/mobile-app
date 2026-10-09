@@ -1,5 +1,5 @@
 /**
- * Her 75 — design tokens.
+ * SelfEra — design tokens.
  *
  * Colours were sampled directly out of the reference screenshots
  * (reference/screens/**) rather than estimated. Nothing in components/ or

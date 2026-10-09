@@ -85,7 +85,7 @@ export default function DiscoverScreen() {
       bottomExtra={layout.section}
       header={
         <ScreenHeader
-          plainTitle="Challenges"
+          plainTitle="Discover"
           showBack={false}
           right={
             <>
@@ -95,7 +95,7 @@ export default function DiscoverScreen() {
                 iconSize={cornerIconSize}
                 background={colors.surface}
                 onPress={() => router.push('/challenges/search')}
-                accessibilityLabel="Search challenges"
+                accessibilityLabel="Search eras"
               />
               <IconButton
                 name="add"
@@ -103,7 +103,7 @@ export default function DiscoverScreen() {
                 iconSize={cornerIconSize}
                 background={colors.surface}
                 onPress={() => router.push('/challenge/create')}
-                accessibilityLabel="Create a challenge"
+                accessibilityLabel="Create an era"
               />
             </>
           }
@@ -182,7 +182,7 @@ export default function DiscoverScreen() {
             <Pressable
               key={topic.name}
               accessibilityRole="button"
-              accessibilityLabel={`${topic.name}, ${topic.count} challenges`}
+              accessibilityLabel={`${topic.name}, ${topic.count} eras`}
               onPress={() =>
                 router.push({ pathname: '/challenges/[filter]', params: { filter: topic.name } })
               }
@@ -196,7 +196,7 @@ export default function DiscoverScreen() {
                 {topic.name}
               </Text>
               <Text variant="metaBold" color={colors.inkInverse}>
-                {topic.count === 1 ? '1 challenge' : `${topic.count} challenges`}
+                {topic.count === 1 ? '1 era' : `${topic.count} eras`}
               </Text>
             </Pressable>
           ))}
@@ -206,7 +206,7 @@ export default function DiscoverScreen() {
               one more topic. */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`All topics, ${cards.length} challenges`}
+            accessibilityLabel={`All topics, ${cards.length} eras`}
             onPress={() =>
               router.push({ pathname: '/challenges/[filter]', params: { filter: 'all' } })
             }
@@ -219,14 +219,14 @@ export default function DiscoverScreen() {
           >
             <Text variant="itemTitle">All topics</Text>
             <Text variant="metaBold" color={colors.inkMuted}>
-              {cards.length === 1 ? '1 challenge' : `${cards.length} challenges`}
+              {cards.length === 1 ? '1 era' : `${cards.length} eras`}
             </Text>
           </Pressable>
         </View>
       </View>
 
       <Text variant="copy" color={colors.inkMuted} center>
-        Everyone in a challenge starts on the same day.{'\n'}Can't find one you like?{' '}
+        Everyone in an era starts on the same day.{'\n'}Can't find one you like?{' '}
         <Text
           variant="copyBold"
           accessibilityRole="link"

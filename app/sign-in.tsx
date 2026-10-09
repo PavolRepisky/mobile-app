@@ -80,7 +80,7 @@ export default function SignIn() {
       <PhotoStrip photos={challengeStrip('her75')} />
 
       <View style={styles.intro}>
-        <Text variant="headline">Her 75</Text>
+        <Text variant="headline">SelfEra</Text>
         <Text variant="copy" color={colors.inkMuted}>
           Photograph your day, keep your streak, and do it with friends.
         </Text>

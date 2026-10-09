@@ -27,7 +27,7 @@ export default function TabsLayout() {
       <TabList asChild>
         <FloatingTabBar>
           <TabTrigger name="discover" href="/discover" asChild>
-            <TabBarButton icon="discover" label="Challenges" />
+            <TabBarButton icon="discover" label="Discover" />
           </TabTrigger>
 
           <TabTrigger name="community" href="/community" asChild>

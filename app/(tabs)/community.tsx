@@ -518,9 +518,9 @@ export default function CommunityScreen() {
               <EmptyState
                 icon="flag-outline"
                 disc
-                title="Join a challenge first"
-                hint="Members are the people doing your challenge with you."
-                action={{ label: 'Find a challenge', onPress: () => router.navigate('/discover') }}
+                title="Join an era first"
+                hint="Members are the people doing your era with you."
+                action={{ label: 'Find an era', onPress: () => router.navigate('/discover') }}
               />
             ) : loaded && !members.length ? (
               <EmptyState

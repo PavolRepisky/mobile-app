@@ -250,12 +250,12 @@ export default function ChallengeSearchScreen() {
               query.trim()
                 ? ownOnly
                   ? `None of yours match "${query.trim()}"`
-                  : `No challenges match "${query.trim()}"`
-                : 'No challenges that long'
+                  : `No eras match "${query.trim()}"`
+                : 'No eras that long'
             }
             hint="Try a topic, or start this one yourself — friends can join on the day it begins."
             action={{
-              label: query.trim() ? `Create "${query.trim()}"` : 'Create a challenge',
+              label: query.trim() ? `Create "${query.trim()}"` : 'Create an era',
               onPress: () => router.push('/challenge/create'),
             }}
             style={styles.empty}

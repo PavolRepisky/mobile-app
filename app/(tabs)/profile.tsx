@@ -113,7 +113,7 @@ export default function ProfileScreen() {
             {
               label: 'Share profile',
               onPress: () => {
-                Share.share({ message: `${profile.name} (${profile.handle}) on Her 75` }).catch(
+                Share.share({ message: `${profile.name} (${profile.handle}) on SelfEra` }).catch(
                   () => {},
                 );
               },

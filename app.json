@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Her 75",
+    "name": "SelfEra",
     "slug": "her75",
     "scheme": "her75",
     "version": "1.0.0",
@@ -40,15 +40,15 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Her 75 uses the camera so you can photograph today's tasks as you finish them.",
+          "cameraPermission": "SelfEra uses the camera so you can photograph today's tasks as you finish them.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Her 75 shows your photo library so you can pick a photo for today's tasks.",
-          "savePhotosPermission": "Her 75 saves the photos you take for your tasks back to your library.",
+          "photosPermission": "SelfEra shows your photo library so you can pick a photo for today's tasks.",
+          "savePhotosPermission": "SelfEra saves the photos you take for your tasks back to your library.",
           "isAccessMediaLocationEnabled": false
         }
       ],

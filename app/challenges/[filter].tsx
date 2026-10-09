@@ -58,7 +58,7 @@ export default function TopicScreen() {
           : (b.start?.getTime() ?? 0) - (a.start?.getTime() ?? 0),
       );
   const rows = byPhase(phase);
-  const name = topic ?? 'All challenges';
+  const name = topic ?? 'All eras';
   const blurb = topic ? CATEGORY_BLURBS[topic] : 'Every topic, every round';
 
   const open = (card: ChallengeCard) =>
@@ -100,7 +100,7 @@ export default function TopicScreen() {
             {name}
           </Text>
           <Text variant="meta" color={colors.onMediaSoft}>
-            {blurb} · {inTopic.length === 1 ? '1 challenge' : `${inTopic.length} challenges`}
+            {blurb} · {inTopic.length === 1 ? '1 era' : `${inTopic.length} eras`}
           </Text>
         </View>
       </View>
@@ -122,7 +122,7 @@ export default function TopicScreen() {
             title={topic ? `Nothing starting soon in ${topic}` : 'Nothing starting soon'}
             hint="New rounds open every week. Start one yourself and friends can join you."
             action={{
-              label: topic ? `Create a ${topic} challenge` : 'Create a challenge',
+              label: topic ? `Create a ${topic} era` : 'Create an era',
               onPress: () => router.push('/challenge/create'),
             }}
             style={styles.empty}
