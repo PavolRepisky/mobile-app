@@ -1,3 +1,4 @@
+import { Picker } from '@react-native-picker/picker';
 import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';
 import {
@@ -13,6 +14,7 @@ import {
 
 import { colors, radii } from '@/constants/theme';
 import { SheetScrollable } from './BottomSheet';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 /** One row of the wheel; also the snap interval. The height iOS gives its own
@@ -44,7 +46,42 @@ const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min)
  * gives its strokes. Drawn in JS rather than the native picker so it needs
  * no extra native module and sets its rows in the app's own type.
  */
-export function WheelPicker<T extends string | number>({
+export function WheelPicker<T extends string | number>(props: WheelPickerProps<T>) {
+  return NATIVE_HEADER ? <SystemWheel {...props} /> : <DrawnWheel {...props} />;
+}
+
+/**
+ * On the iPhone, the system's own picker wheel: its curved drum, its band and
+ * its detents, which it plays itself, and its type.
+ */
+function SystemWheel<T extends string | number>({
+  values,
+  value,
+  onChange,
+  format = String,
+  style,
+}: WheelPickerProps<T>) {
+  return (
+    // Owned, as the drawn drum is: in a sheet, a drag on the wheel turns it.
+    <SheetScrollable owned>
+      {() => (
+        <View style={style}>
+          <Picker
+            selectedValue={value}
+            onValueChange={(next) => onChange(next as T)}
+            itemStyle={{ color: colors.ink }}
+          >
+            {values.map((item) => (
+              <Picker.Item key={String(item)} label={format(item)} value={item} />
+            ))}
+          </Picker>
+        </View>
+      )}
+    </SheetScrollable>
+  );
+}
+
+function DrawnWheel<T extends string | number>({
   values,
   value,
   onChange,

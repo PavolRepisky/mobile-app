@@ -1,14 +1,23 @@
-import { useState, type ReactNode } from 'react';
-import { StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { useEffect, useState, type ReactNode } from 'react';
+import {
+  Platform,
+  StyleSheet,
+  TextInput,
+  useColorScheme,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
-import { PrimaryButton } from '@/components/Buttons';
+import { buttonHeight, PrimaryButton } from '@/components/Buttons';
 import { PhotoStrip } from '@/components/PhotoStrip';
 import { ScreenScroll } from '@/components/Screen';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, type as typeScale } from '@/constants/theme';
 import { challengeStrip } from '@/data/content';
-import { signInWithEmail, signUpWithEmail } from '@/lib/backend/auth';
+import { enabledProviders, signInWithApple, signInWithEmail, signUpWithEmail } from '@/lib/backend/auth';
 
 type Mode = 'signup' | 'login';
 
@@ -23,9 +32,8 @@ const MIN_PASSWORD = 8;
 /**
  * The only page someone signed out can reach. The flagship challenge's prints
  * across the top say what the app is before a word is read; under them, an
- * email and password, as a new account or a way back into one. Apple and
- * Google can join above the form later — `lib/backend/auth` already signs
- * in with both.
+ * email and password, as a new account or a way back into one — and above
+ * them, on an iPhone, Apple's own button once the project has Apple on.
  */
 export default function SignIn() {
   const [mode, setMode] = useState<Mode>('signup');
@@ -37,6 +45,16 @@ export default function SignIn() {
   // Set when the project asks for the email to be confirmed before the
   // account can be used; signing in waits on that.
   const [confirmSent, setConfirmSent] = useState(false);
+  const scheme = useColorScheme();
+  /** Whether Apple's button goes at the top: on an iPhone that can do it,
+   * once the project has Apple switched on. */
+  const [appleReady, setAppleReady] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    Promise.all([AppleAuthentication.isAvailableAsync(), enabledProviders()])
+      .then(([available, providers]) => setAppleReady(available && providers.apple))
+      .catch(() => {});
+  }, []);
 
   const signingUp = mode === 'signup';
   const looksLikeEmail = /^\S+@\S+\.\S+$/.test(email.trim());
@@ -87,6 +105,22 @@ export default function SignIn() {
       </View>
 
       <View style={styles.form}>
+        {/* Apple's own button, in Apple's own words and black (white after
+            dark), leading the form the way the App Store asks. */}
+        {appleReady ? (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={
+              scheme === 'dark'
+                ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+            }
+            cornerRadius={buttonHeight / 2}
+            onPress={() => run(signInWithApple)}
+            style={styles.apple}
+          />
+        ) : null}
+
         <SegmentedTabs options={MODES} value={mode} onChange={switchMode} />
 
         <View style={styles.fields}>
@@ -98,6 +132,7 @@ export default function SignIn() {
                 placeholder="What friends call you"
                 placeholderTextColor={colors.inkMuted}
                 autoComplete="name"
+                clearButtonMode="while-editing"
                 textContentType="name"
                 returnKeyType="next"
                 style={styles.input}
@@ -113,6 +148,7 @@ export default function SignIn() {
               autoCapitalize="none"
               autoCorrect={false}
               autoComplete="email"
+                clearButtonMode="while-editing"
               keyboardType="email-address"
               textContentType="emailAddress"
               returnKeyType="next"
@@ -179,13 +215,18 @@ const styles = StyleSheet.create({
   form: {
     gap: layout.block,
   },
+  apple: {
+    height: buttonHeight,
+  },
   fields: {
     gap: layout.inline,
   },
+  // The iPhone's own field corner, the one its grouped lists and search
+  // fields share; elsewhere the app's softer card one.
   field: {
     gap: layout.line,
     backgroundColor: colors.surfaceSunken,
-    borderRadius: radii.lg,
+    borderRadius: Platform.OS === 'ios' ? radii.sm : radii.lg,
     paddingVertical: layout.inline,
     paddingHorizontal: layout.block,
   },

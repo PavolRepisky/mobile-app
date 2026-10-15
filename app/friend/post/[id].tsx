@@ -52,6 +52,7 @@ export default function FriendPostScreen() {
 
   return (
     <DaysFeed
+      onRefresh={() => loadPage(userId)}
       title={`${possessive(friend.name)} days`}
       days={days}
       openedDay={openedDay}

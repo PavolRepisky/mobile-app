@@ -9,11 +9,13 @@ import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { Pill } from '@/components/Pill';
-import { ScreenScroll } from '@/components/Screen';
+import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
+import { LongPressMenu } from '@/components/LongPressMenu';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { SwipeRow } from '@/components/SwipeRow';
 import { SearchBar } from '@/components/SearchBar';
 import { Text } from '@/components/Text';
-import { colors, layout, radii, shadows } from '@/constants/theme';
+import { colors, layout, radii, shadows, colorsFor, tapSlop, type } from '@/constants/theme';
 import { type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
@@ -86,9 +88,15 @@ export default function AddFriendsScreen() {
 
   // Requests and friends as they stand now, and friends of friends.
   const [friendsOfFriends, setFriendsOfFriends] = useState<Suggestion[]>([]);
+  // Whether that first look has come back, so the empty page waits for it
+  // rather than flashing before the suggestions land.
+  const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
   useEffect(() => {
     refreshToday();
-    fetchSuggestions().then(setFriendsOfFriends).catch(() => {});
+    fetchSuggestions()
+      .then(setFriendsOfFriends)
+      .catch(() => {})
+      .finally(() => setSuggestionsLoaded(true));
   }, [refreshToday]);
 
   // Friends of friends first; then others in your challenge, who aren't
@@ -154,79 +162,127 @@ export default function AddFriendsScreen() {
     const isFriend = relations.friends.has(person.id);
     const isRequested = relations.outgoing.has(person.id);
     const mutuals = !isFriend && shared && shared.count > 0 ? shared : null;
+    const openPerson = () => router.push({ pathname: '/friend/[id]', params: { id: person.id } });
+    // Swiped, a row offers what its own buttons do — adding them, and on a
+    // suggestion hiding it; held, the same and their page.
+    const quick = [
+      ...(isFriend
+        ? []
+        : [
+            {
+              label: isRequested ? 'Cancel' : 'Add',
+              tone: isRequested ? ('muted' as const) : ('primary' as const),
+              onPress: () => toggleRequest(person.id),
+            },
+          ]),
+      ...(dismissable
+        ? [{ label: 'Hide', tone: 'destructive' as const, onPress: () => dismiss(person.id) }]
+        : []),
+    ];
     return (
-      <View key={person.id} style={[styles.row, index > 0 && styles.rowRuled]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${person.name}'s profile`}
-          onPress={() => router.push({ pathname: '/friend/[id]', params: { id: person.id } })}
-          style={({ pressed }) => [styles.person, pressed && styles.pressed]}
-        >
-          <Avatar source={person.avatar} size={ROW_AVATAR} />
-          <View style={styles.personText}>
-            <Text variant="copyBold" numberOfLines={1}>
-              {person.name}
-            </Text>
-            <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-              {person.handle}
-            </Text>
-            {/* Who you already share, by face — the reason to add someone
-                you haven't met on here yet. */}
-            {mutuals ? (
-              <View style={styles.mutuals}>
-                <View style={styles.mutualFaces}>
-                  {mutuals.faces.map((friend, i) => (
-                    <Avatar
-                      key={friend.id}
-                      source={friend.avatar}
-                      size={MUTUAL_AVATAR + MUTUAL_RING * 2}
-                      style={[styles.mutualFace, i > 0 && styles.mutualTucked]}
-                    />
-                  ))}
-                </View>
-                <Text variant="badge" color={colors.inkMuted} numberOfLines={1}>
-                  {mutualLabel(mutuals.faces, mutuals.count)}
+      <LongPressMenu
+        key={person.id}
+        actions={[
+          { label: 'View profile', icon: 'person-circle-outline', onPress: openPerson },
+          ...(isFriend
+            ? []
+            : [
+                isRequested
+                  ? { label: 'Cancel request', icon: 'person-remove-outline' as const, onPress: () => toggleRequest(person.id) }
+                  : { label: 'Add friend', icon: 'person-add-outline' as const, onPress: () => toggleRequest(person.id) },
+              ]),
+          ...(dismissable
+            ? [{ label: 'Hide', icon: 'close-circle-outline' as const, destructive: true, onPress: () => dismiss(person.id) }]
+            : []),
+        ]}
+      >
+        <SwipeRow actions={quick}>
+          <View style={[styles.row, index > 0 && styles.rowRuled]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${person.name}'s profile`}
+              onPress={() => router.push({ pathname: '/friend/[id]', params: { id: person.id } })}
+              style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+            >
+              <Avatar source={person.avatar} size={ROW_AVATAR} />
+              <View style={styles.personText}>
+                <Text variant="copyBold" numberOfLines={1}>
+                  {person.name}
                 </Text>
+                <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+                  {person.handle}
+                </Text>
+                {/* Who you already share, by face — the reason to add someone
+                    you haven't met on here yet. */}
+                {mutuals ? (
+                  <View style={styles.mutuals}>
+                    <View style={styles.mutualFaces}>
+                      {mutuals.faces.map((friend, i) => (
+                        <Avatar
+                          key={friend.id}
+                          source={friend.avatar}
+                          size={MUTUAL_AVATAR + MUTUAL_RING * 2}
+                          style={[styles.mutualFace, i > 0 && styles.mutualTucked]}
+                        />
+                      ))}
+                    </View>
+                    <Text variant="badge" color={colors.inkMuted} numberOfLines={1}>
+                      {mutualLabel(mutuals.faces, mutuals.count)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
+            </Pressable>
+            {isFriend ? (
+              <Pill tone="muted" size="sm" bold icon="people-outline" label="Friends" />
+            ) : (
+              // The Members feed's own pill: a request, not a friend yet, so just
+              // the words once sent, and a second tap takes it back.
+              <Pill
+                tone={isRequested ? 'muted' : 'solid'}
+                bold
+                label={isRequested ? 'Request sent' : 'Add'}
+                onPress={() => toggleRequest(person.id)}
+              />
+            )}
+            {dismissable ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Hide ${person.name}`}
+                hitSlop={tapSlop(DISMISS_GLYPH)}
+                onPress={() => dismiss(person.id)}
+                style={({ pressed }) => pressed && styles.pressed}
+              >
+                <Ionicons name="close" size={DISMISS_GLYPH} color={colors.inkMuted} />
+              </Pressable>
             ) : null}
           </View>
-        </Pressable>
-        {isFriend ? (
-          <Pill tone="muted" size="sm" bold icon="people-outline" label="Friends" />
-        ) : (
-          // The Members feed's own pill: a request, not a friend yet, so just
-          // the words once sent, and a second tap takes it back.
-          <Pill
-            tone={isRequested ? 'muted' : 'solid'}
-            bold
-            label={isRequested ? 'Request sent' : 'Add'}
-            onPress={() => toggleRequest(person.id)}
-          />
-        )}
-        {dismissable ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Hide ${person.name}`}
-            hitSlop={layout.heading}
-            onPress={() => dismiss(person.id)}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Ionicons name="close" size={DISMISS_GLYPH} color={colors.inkMuted} />
-          </Pressable>
-        ) : null}
-      </View>
+        </SwipeRow>
+      </LongPressMenu>
     );
   };
 
   return (
     <View style={styles.screenRoot}>
-      <ScreenScroll tone="plain" header={<ScreenHeader plainTitle="Find friends" />}>
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search by name or username"
-          style={styles.search}
-        />
+      <ScreenScroll
+        tone="plain"
+        onRefresh={refreshToday}
+        header={
+          <ScreenHeader
+            plainTitle="Find friends"
+            search={{ placeholder: 'Search by name or username', onChangeText: setQuery }}
+          />
+        }
+      >
+        {/* The iPhone has the system's field in the bar instead. */}
+        {NATIVE_HEADER ? null : (
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search by name or username"
+            style={styles.search}
+          />
+        )}
 
         {searchTerm ? (
           <>
@@ -241,7 +297,6 @@ export default function AddFriendsScreen() {
             ) : searching ? null : (
               <EmptyState
                 icon="search-outline"
-                disc
                 title="No one by that name"
                 hint="Try a username or another spelling."
               />
@@ -255,7 +310,24 @@ export default function AddFriendsScreen() {
                 Show code holds the code up for a friend standing next to
                 you. */}
             {/* Only while there's a challenge to bring them into. */}
-            {inChallenge ? (
+            {inChallenge && NATIVE_HEADER ? (
+              // On the iPhone the invite is set like the app's empty states —
+              // the glyph on its disc, the words, the two ways to send it — on
+              // a fill-grey card, since it leads the page as something to do.
+              <EmptyState
+                card
+                icon="person-add-outline"
+                title="Bring a friend along"
+                hint={`They join ${challenge.name} with you`}
+                action={{ label: 'Share link', icon: 'share-outline', onPress: invite }}
+                secondaryAction={{
+                  label: 'Show code',
+                  icon: 'qr-code-outline',
+                  onPress: () => setCodeOpen(true),
+                }}
+                style={styles.invite}
+              />
+            ) : inChallenge ? (
               <View style={styles.hero}>
                 <View style={styles.heroTop}>
                   <View style={styles.heroTile}>
@@ -307,34 +379,42 @@ export default function AddFriendsScreen() {
                 </View>
                 <View>
                   {requests.map((person, i) => (
-                    <View key={person.id} style={[styles.row, i > 0 && styles.rowRuled]}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`${person.name}'s profile`}
-                        onPress={() => router.push({ pathname: '/friend/[id]', params: { id: person.id } })}
-                        style={({ pressed }) => [styles.person, pressed && styles.pressed]}
-                      >
-                        <Avatar source={person.avatar} size={ROW_AVATAR} />
-                        <View style={styles.personText}>
-                          <Text variant="copyBold" numberOfLines={1}>
-                            {person.name}
-                          </Text>
-                          <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-                            {person.handle}
-                          </Text>
-                        </View>
-                      </Pressable>
-                      <Pill tone="solid" bold label="Accept" onPress={() => accept(person.id)} />
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Decline ${person.name}`}
-                        hitSlop={layout.heading}
-                        onPress={() => decline(person.id)}
-                        style={({ pressed }) => pressed && styles.pressed}
-                      >
-                        <Ionicons name="close" size={DISMISS_GLYPH} color={colors.inkMuted} />
-                      </Pressable>
-                    </View>
+                    <SwipeRow
+                      key={person.id}
+                      actions={[
+                        { label: 'Accept', tone: 'primary', onPress: () => accept(person.id) },
+                        { label: 'Decline', tone: 'destructive', onPress: () => decline(person.id) },
+                      ]}
+                    >
+                      <View style={[styles.row, i > 0 && styles.rowRuled]}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${person.name}'s profile`}
+                          onPress={() => router.push({ pathname: '/friend/[id]', params: { id: person.id } })}
+                          style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+                        >
+                          <Avatar source={person.avatar} size={ROW_AVATAR} />
+                          <View style={styles.personText}>
+                            <Text variant="copyBold" numberOfLines={1}>
+                              {person.name}
+                            </Text>
+                            <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+                              {person.handle}
+                            </Text>
+                          </View>
+                        </Pressable>
+                        <Pill tone="solid" bold label="Accept" onPress={() => accept(person.id)} />
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Decline ${person.name}`}
+                          hitSlop={tapSlop(DISMISS_GLYPH)}
+                          onPress={() => decline(person.id)}
+                          style={({ pressed }) => pressed && styles.pressed}
+                        >
+                          <Ionicons name="close" size={DISMISS_GLYPH} color={colors.inkMuted} />
+                        </Pressable>
+                      </View>
+                    </SwipeRow>
                   ))}
                 </View>
               </>
@@ -347,7 +427,7 @@ export default function AddFriendsScreen() {
                   {suggestions.length > SUGGESTION_PEEK && !showAll ? (
                     <Pressable
                       accessibilityRole="button"
-                      hitSlop={layout.stack}
+                      hitSlop={tapSlop(type.metaBold.lineHeight)}
                       onPress={() => setShowAll(true)}
                       style={({ pressed }) => pressed && styles.pressed}
                     >
@@ -363,6 +443,16 @@ export default function AddFriendsScreen() {
                   )}
                 </View>
               </>
+            ) : null}
+
+            {/* Nobody to bring in, nobody asking and nobody to suggest:
+                the search is the only way left, so the page says so. */}
+            {!inChallenge && !requests.length && !suggestions.length && suggestionsLoaded ? (
+              <EmptyState
+                icon="search-outline"
+                title="No one to suggest yet"
+                hint="Search by name or username to find someone you know."
+              />
             ) : null}
           </>
         )}
@@ -382,8 +472,10 @@ export default function AddFriendsScreen() {
             <QRCode
               value={joinUrl}
               size={CODE_SHEET_SIZE}
-              color={colors.ink}
-              backgroundColor={colors.surface}
+              // Dark on light whatever the phone's appearance: an inverted
+              // code is one not every camera will read.
+              color={colorsFor('light').ink}
+              backgroundColor={colorsFor('light').surface}
             />
           </View>
           {/* Which challenge it joins, and what to do with it — written to
@@ -410,13 +502,14 @@ const styles = StyleSheet.create({
   search: {
     marginBottom: layout.section,
   },
-  // The invite card: ink rather than the fill grey, the one dark block on
-  // the page, on the signature corner.
+  invite: {
+    marginBottom: layout.section,
+  },
   hero: {
     marginBottom: layout.section,
     padding: layout.card,
     gap: layout.block,
-    borderRadius: radii.card,
+    borderRadius: radii.lg,
     backgroundColor: colors.ink,
   },
   heroTop: {

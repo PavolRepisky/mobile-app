@@ -1,22 +1,40 @@
+import {
+  Button,
+  HStack,
+  Host,
+  Image as SystemImage,
+  Menu,
+  Spacer,
+  Text as SystemText,
+} from '@expo/ui/swift-ui';
+import {
+  buttonStyle,
+  disabled as disabledModifier,
+  font,
+  foregroundStyle,
+} from '@expo/ui/swift-ui/modifiers';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
   View,
   useWindowDimensions,
+  useColorScheme,
   type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
+  type ColorValue,
 } from 'react-native';
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
-import { colors, layout, radii, shadows, spacing } from '@/constants/theme';
-import { challengeStrip } from '@/data/content';
+import { colors, colorsFor, layout, radii, shadows, spacing } from '@/constants/theme';
 import { shortDate } from '@/lib/format';
 import { DAY_MS } from '@/lib/round';
+import { quicksand } from '@/lib/swiftUI';
 import { Avatar, type AvatarSource } from './Avatar';
 import { BottomSheet } from './BottomSheet';
 import { PrimaryButton } from './Buttons';
@@ -27,7 +45,7 @@ import { DayStamp } from './FriendCard';
 import { MosaicArrangement } from './PhotoCollage';
 import { Pill } from './Pill';
 import { Placeholder } from './Placeholder';
-import { SegmentedTabs } from './SegmentedTabs';
+import { NATIVE_HEADER } from './Screen';
 import { accentAt } from './TaskRing';
 import { Text } from './Text';
 import { WheelPicker } from './WheelPicker';
@@ -39,17 +57,19 @@ const DAY_CELL_PIECE = { flex: 1 } as const;
 /** No cut between a day's own photos — unlike the calendar's own mosaic,
  * the gap here belongs between whole day tiles, not the prints inside one. */
 const DAY_CELL_SEAM = 0;
-/** A hint of rounding on each post tile — smaller than the `sm` token, which
- * reads too soft against the tight edge-to-edge grid. */
-const POST_TILE_RADIUS = 5;
-/** Width over height for a post tile — a touch taller than square, rather
- * than the flat 1:1 an Instagram grid usually cuts its own tiles to. */
-const POST_TILE_RATIO = 0.85;
+/** The days' two views, as the tabs that head them. */
+const DAYS_TABS = [
+  { key: 'grid', label: 'Grid', icon: 'grid-outline', symbol: 'square.grid.3x3' },
+  { key: 'month', label: 'Month', icon: 'calendar-outline', symbol: 'calendar' },
+] as const;
+/** A tab's glyph, and the rule under the one on show — heavier than the
+ * hairline under the row, so it reads as the marker. */
+const TAB_GLYPH = 22;
+const TAB_INDICATOR = 2;
 
-/** Wide enough for "Grid" and "Month" side by side at the switch's dense
- * size; the pill track splits it evenly so the chip slides between two fixed
- * stops. */
-const DAYS_SWITCH_WIDTH = 150;
+/** The seam between day tiles: the Photos app's hairline of page between
+ * square photos, so the days read as one wall of pictures. */
+const PHOTO_GRID_SEAM = 2;
 
 /** The month view's paging buttons: small grey discs grouped at the end of
  * the month's own row, the way the Days switch sits at the end of its row. */
@@ -64,11 +84,8 @@ const MONTH_CARET_NUDGE = 1;
  * before the app. It stops at this year: there's nothing to see ahead. */
 const YEARS_BACK = 5;
 
-/** The challenge row's "opens a page" chevron — a Settings row's own size. */
-const CHALLENGE_CHEVRON = 20;
-/** The challenge's own photo leading its card — a list row's thumbnail, so
- * the challenge looks the same here as where it was joined. */
-const CHALLENGE_THUMB = 40;
+/** The chevron after the era's name — the size of the line it ends. */
+const ERA_CHEVRON = 14;
 
 /** The hero circle — the one place on a profile that gets to be that big. */
 const avatarSize = 120;
@@ -112,7 +129,7 @@ function ringSegments(count: number): { length: number; rotation: number }[] {
 function ringSegment(
   segment: { length: number; rotation: number },
   index: number,
-  stroke: string,
+  stroke: ColorValue,
   capped: boolean,
 ) {
   return (
@@ -251,6 +268,9 @@ export function ProfileView({
   actions,
   style,
 }: ProfileViewProps) {
+  // Plain colours for the appearance on show, for what takes no adaptive
+  // ones: the ring's SVG greys and the calendar's system arrows.
+  const svgColors = colorsFor(useColorScheme());
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
 
@@ -351,7 +371,6 @@ export function ProfileView({
     setYearSheetOpen(true);
   };
 
-  const challengePhoto = challenge ? challengeStrip(challenge.id)[0] : null;
   const runLabel =
     currentDay < 1 ? `${totalDays} days · starts ${shortDate(startDate)}` : `Day ${currentDay} of ${totalDays}`;
 
@@ -386,7 +405,7 @@ export function ProfileView({
                 {ringSegments(taskCount)
                   .slice(0, doneToday)
                   .map((segment, index) =>
-                    ringSegment(segment, index, colors.inkInverse, taskCount > 1),
+                    ringSegment(segment, index, svgColors.onMedia, taskCount > 1),
                   )}
               </Mask>
             </Defs>
@@ -394,7 +413,7 @@ export function ProfileView({
             {ringSegments(taskCount).map((segment, index) =>
               index < doneToday
                 ? null
-                : ringSegment(segment, index, colors.inkGhost, taskCount > 1),
+                : ringSegment(segment, index, svgColors.inkGhost, taskCount > 1),
             )}
             <G mask="url(#ringDone)">
               {ringSweep.map((slice, index) => (
@@ -458,6 +477,23 @@ export function ProfileView({
               {bio}
             </Text>
           ) : null}
+          {/* The era this profile is running, by name — what they're into,
+              where a profile says so — and a way into its page. */}
+          {challenge ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${challenge.name}, ${runLabel}`}
+              accessibilityHint="Opens the era"
+              onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+              hitSlop={spacing.sm}
+              style={({ pressed }) => [styles.eraLink, pressed && styles.pressed]}
+            >
+              <Text variant="metaBold" numberOfLines={1}>
+                {challenge.name}
+              </Text>
+              <Ionicons name="chevron-forward" size={ERA_CHEVRON} color={colors.ink} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -477,44 +513,43 @@ export function ProfileView({
         </View>
       ) : null}
 
-      {/* The challenge the ring is measuring, in a line, and a way into its
-          page. The whole run, square by square, is the Tasks tab's. */}
-      {challenge ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${challenge.name}, ${runLabel}`}
-          accessibilityHint="Opens the era"
-          onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-          style={({ pressed }) => [styles.challengeCard, pressed && styles.pressed]}
-        >
-          <Image source={challengePhoto} style={styles.challengeThumb} contentFit="cover" />
-          <View style={styles.challengeText}>
-            <Text variant="copyBold" numberOfLines={1}>
-              {challenge.name}
-            </Text>
-            <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-              {runLabel}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={CHALLENGE_CHEVRON} color={colors.inkMuted} />
-        </Pressable>
-      ) : null}
 
-      <View style={styles.daysHeader}>
-        <Text variant="sectionHeading">{daysTitle}</Text>
-        {/* Community's Friends | Members switch at its dense size, labels
-            only, so the app's two-way switches match — here cut down to sit
-            beside the heading rather than across the page. */}
-        <SegmentedTabs
-          size="sm"
-          options={[
-            { key: 'grid', label: 'Grid' },
-            { key: 'month', label: 'Month' },
-          ]}
-          value={daysView}
-          onChange={setDaysView}
-          style={styles.daysSwitch}
-        />
+      {/* The days' two views as tabs across the page — a glyph each, the
+          one on show underlined — the way a profile on the phone heads the
+          things it's made of. They are the section's heading, so the photos
+          start straight under them. */}
+      <View style={styles.tabs} accessibilityRole="tablist" accessibilityLabel={daysTitle}>
+        {DAYS_TABS.map((tab) => {
+          const active = tab.key === daysView;
+          return (
+            <Pressable
+              key={tab.key}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: active }}
+              onPress={() => setDaysView(tab.key)}
+              style={styles.tab}
+            >
+              {NATIVE_HEADER ? (
+                <SymbolView
+                  name={tab.symbol}
+                  size={TAB_GLYPH}
+                  tintColor={active ? svgColors.ink : svgColors.inkMuted}
+                  weight={active ? 'semibold' : 'regular'}
+                />
+              ) : (
+                <Ionicons
+                  name={tab.icon}
+                  size={TAB_GLYPH}
+                  color={active ? colors.ink : colors.inkMuted}
+                />
+              )}
+              {/* The marker under the tab on show: a solid bar in ink rather
+                  than a border, which on the iPhone didn't take the ink. */}
+              {active ? <View style={styles.tabIndicator} /> : null}
+            </Pressable>
+          );
+        })}
       </View>
 
       {daysView === 'month' ? (
@@ -523,54 +558,129 @@ export function ProfileView({
           days={shownMonth.days}
           style={styles.month}
           header={
-            // The month's name leads on the left and opens the year picker;
-            // both arrows sit together at the end, one thumb's reach apart
-            // rather than at opposite edges of the page. They go as far back
-            // as anyone pages — an empty month before the app is still a
-            // month — and forward only as far as this one.
-            <View style={styles.monthHeader}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
-                onPress={openYearSheet}
-                hitSlop={spacing.sm}
-                style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
-              >
-                <Text variant="itemTitle" style={styles.monthTitleText}>
-                  {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
-                </Text>
-                <Ionicons
-                  name="chevron-down"
-                  size={MONTH_CARET}
-                  color={colors.ink}
-                  style={styles.monthCaret}
-                />
-              </Pressable>
+            NATIVE_HEADER ? (
+              // On the iPhone: the month's name is a pull-down menu of the
+              // years, the way the Calendar app jumps a year, and the arrows
+              // are plain system symbols rather than drawn buttons.
+              <Host matchContents={{ vertical: true }} style={styles.monthHost}>
+                <HStack>
+                  <Menu
+                    label={
+                      <HStack spacing={layout.line}>
+                        {/* The month in ink, set on the text itself: a
+                            menu's label otherwise takes the accent. */}
+                        <SystemText
+                          modifiers={[quicksand('headline', 'bold'), foregroundStyle(svgColors.ink)]}
+                        >
+                          {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
+                        </SystemText>
+                        <SystemImage
+                          systemName="chevron.down"
+                          modifiers={[
+                            font({ textStyle: 'footnote', weight: 'semibold' }),
+                            foregroundStyle(svgColors.ink),
+                          ]}
+                        />
+                      </HStack>
+                    }
+                    modifiers={[foregroundStyle(svgColors.ink)]}
+                  >
+                    {[...years].reverse().map((year) => (
+                      <Button
+                        key={year}
+                        label={String(year)}
+                        systemImage={
+                          year === shownMonth.month.getFullYear() ? 'checkmark' : undefined
+                        }
+                        onPress={() => jumpToYear(year)}
+                      />
+                    ))}
+                  </Menu>
+                  <Spacer />
+                  <HStack spacing={layout.block}>
+                    <Button
+                      onPress={() => setMonthOffset(monthOffset - 1)}
+                      // In the system blue, as the system calendar's own
+                      // month arrows are.
+                      modifiers={[buttonStyle('borderless'), foregroundStyle(svgColors.systemAccent)]}
+                    >
+                      <SystemImage
+                        systemName="chevron.left"
+                        modifiers={[font({ textStyle: 'body', weight: 'semibold' })]}
+                      />
+                    </Button>
+                    {/* This month is as far as it goes — the calendar shows
+                        what has been, not what's ahead. */}
+                    <Button
+                      onPress={() => setMonthOffset(monthOffset + 1)}
+                      modifiers={[
+                        buttonStyle('borderless'),
+                        foregroundStyle(
+                          monthOffset >= 0
+                            ? { type: 'hierarchical', style: 'tertiary' }
+                            : svgColors.systemAccent,
+                        ),
+                        disabledModifier(monthOffset >= 0),
+                      ]}
+                    >
+                      <SystemImage
+                        systemName="chevron.right"
+                        modifiers={[font({ textStyle: 'body', weight: 'semibold' })]}
+                      />
+                    </Button>
+                  </HStack>
+                </HStack>
+              </Host>
+            ) : (
+              // The month's name leads on the left and opens the year picker;
+              // both arrows sit together at the end, one thumb's reach apart
+              // rather than at opposite edges of the page. They go as far back
+              // as anyone pages — an empty month before the app is still a
+              // month — and forward only as far as this one.
+              <View style={styles.monthHeader}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
+                  onPress={openYearSheet}
+                  hitSlop={spacing.sm}
+                  style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
+                >
+                  <Text variant="itemTitle" style={styles.monthTitleText}>
+                    {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
+                  </Text>
+                  <Ionicons
+                    name="chevron-down"
+                    size={MONTH_CARET}
+                    color={colors.ink}
+                    style={styles.monthCaret}
+                  />
+                </Pressable>
 
-              <View style={styles.monthArrows}>
-                <IconButton
-                  name="chevron-back"
-                  size={MONTH_ARROW_BUTTON}
-                  iconSize={MONTH_ARROW_ICON}
-                  background={colors.surfaceSunken}
-                  shadow={false}
-                  onPress={() => setMonthOffset(monthOffset - 1)}
-                  accessibilityLabel="Previous month"
-                />
-                <IconButton
-                  name="chevron-forward"
-                  size={MONTH_ARROW_BUTTON}
-                  iconSize={MONTH_ARROW_ICON}
-                  background={colors.surfaceSunken}
-                  shadow={false}
-                  // This month is as far as it goes — the calendar shows
-                  // what has been, not what's ahead.
-                  disabled={monthOffset >= 0}
-                  onPress={() => setMonthOffset(monthOffset + 1)}
-                  accessibilityLabel="Next month"
-                />
+                <View style={styles.monthArrows}>
+                  <IconButton
+                    name="chevron-back"
+                    size={MONTH_ARROW_BUTTON}
+                    iconSize={MONTH_ARROW_ICON}
+                    background={colors.surfaceSunken}
+                    shadow={false}
+                    onPress={() => setMonthOffset(monthOffset - 1)}
+                    accessibilityLabel="Previous month"
+                  />
+                  <IconButton
+                    name="chevron-forward"
+                    size={MONTH_ARROW_BUTTON}
+                    iconSize={MONTH_ARROW_ICON}
+                    background={colors.surfaceSunken}
+                    shadow={false}
+                    // This month is as far as it goes — the calendar shows
+                    // what has been, not what's ahead.
+                    disabled={monthOffset >= 0}
+                    onPress={() => setMonthOffset(monthOffset + 1)}
+                    accessibilityLabel="Next month"
+                  />
+                </View>
               </View>
-            </View>
+            )
           }
         />
       ) : posts.length === 0 ? (
@@ -721,39 +831,40 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     backgroundColor: colors.surfaceSunken,
   },
-  // A grey card rather than a white one with a shadow: on the white page the
-  // fill is what sets it apart, and the days still to come show as white
-  // slots on it.
-  // A plain line on the fill grey: which challenge, and how far in.
-  challengeCard: {
+  monthHost: {
+    alignSelf: 'stretch',
+  },
+  // The era's name under the username, its chevron close beside it.
+  eraLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: layout.inline,
+    gap: layout.line / 2,
+    marginTop: layout.stack,
+  },
+  // Within the page's margins, as the calendar is, a hairline under both
+  // tabs.
+  tabs: {
+    flexDirection: 'row',
     marginTop: layout.section,
-    padding: layout.inline,
-    paddingRight: layout.card,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceSunken,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.inkGhost,
   },
-  challengeThumb: {
-    width: CHALLENGE_THUMB,
-    height: CHALLENGE_THUMB,
-    borderRadius: radii.sm,
-  },
-  challengeText: {
+  tab: {
     flex: 1,
-  },
-  daysHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: layout.section,
-    marginBottom: layout.heading,
+    paddingVertical: layout.inline,
   },
-  daysSwitch: {
-    width: DAYS_SWITCH_WIDTH,
+  // Laid along the tab's foot, over the row's hairline.
+  tabIndicator: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: TAB_INDICATOR,
+    backgroundColor: colors.ink,
   },
   month: {
+    marginTop: layout.block,
     marginBottom: layout.section,
   },
   monthHeader: {
@@ -795,19 +906,25 @@ const styles = StyleSheet.create({
   // Edge to edge — the reference's own photo grid runs the full page width,
   // no gutter either side — the gap lives between tiles (on `postCellWrap`
   // below), not inside one.
+  // Within the page's margins, lined up with the tabs and the calendar: the
+  // outer tiles' half-seams are pulled back so their edges meet the margin.
   postGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginHorizontal: -PHOTO_GRID_SEAM / 2,
+    // A breath under the tabs, so the first row of days doesn't sit on the
+    // underline.
+    marginTop: layout.stack,
   },
-  // Half the gap on each side of every tile, so two neighbours add up to a
-  // full `xs` gap between them.
+  // Half the seam on each side of every tile, so two neighbours add up to a
+  // whole one between them.
   postCellWrap: {
     width: '33.333%',
-    padding: layout.grid / 2,
+    padding: PHOTO_GRID_SEAM / 2,
   },
+  // Square, unrounded, like a photo in the library.
   postTile: {
-    aspectRatio: POST_TILE_RATIO,
-    borderRadius: POST_TILE_RADIUS,
+    aspectRatio: 1,
     overflow: 'hidden',
     backgroundColor: colors.surfaceSunken,
   },

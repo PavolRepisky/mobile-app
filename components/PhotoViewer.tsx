@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { absoluteFill, colors, radii, shadows, spacing } from '@/constants/theme';
+import { LiquidGlassGroup } from './GlassSurface';
 import { IconButton, cornerButtonSize, cornerIconSize } from './IconButton';
 import { Placeholder } from './Placeholder';
 import type { PhotoSource } from './PhotoStrip';
@@ -103,7 +104,9 @@ export function PhotoViewer({
             the home indicator, so editing your photo feels like part of the
             profile rather than a different control set. */}
         {index !== null && actions?.length ? (
-          <View style={[styles.actions, { bottom: insets.bottom + spacing.xl }]}>
+          // One material on the iPhone's glass, so the buttons condense out of
+          // each other as the viewer opens rather than each popping in alone.
+          <LiquidGlassGroup style={[styles.actions, { bottom: insets.bottom + spacing.xl }]}>
             {actions.map((action) => (
               <IconButton
                 key={action.key}
@@ -114,9 +117,10 @@ export function PhotoViewer({
                 color={action.destructive ? colors.destructive : colors.ink}
                 accessibilityLabel={action.label}
                 onPress={action.onPress}
+                overMedia
               />
             ))}
-          </View>
+          </LiquidGlassGroup>
         ) : null}
       </View>
     </Modal>
@@ -244,7 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.onMediaTrack,
   },
   dotActive: {
-    backgroundColor: colors.inkInverse,
+    backgroundColor: colors.onMedia,
   },
 });
 

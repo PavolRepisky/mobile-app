@@ -1,3 +1,5 @@
+import { DynamicColorIOS, Platform, type ColorValue } from 'react-native';
+
 /**
  * SelfEra — design tokens.
  *
@@ -33,7 +35,40 @@ export const palette = {
   red: '#E63950',
 } as const;
 
-export const colors = {
+/**
+ * The same roles after dark. The iPhone follows the phone's own appearance,
+ * and these are what each role turns into there: the page goes to black, the
+ * cards and fills to the system's raised greys, and ink to near-white — so
+ * everything filled with ink (the run card, a done tick, a solid pill) turns
+ * light and the type on it turns dark, the pair swapping together. Type laid
+ * on a photo is `onMedia`, which stays white either way. Android and the web
+ * stay light.
+ */
+const DARK = {
+  backgroundPlain: '#000000',
+  backgroundAlt: '#000000',
+  surface: '#1C1C1E',
+  surfaceMuted: '#2C2C2E',
+  surfaceSunken: '#2C2C2E',
+  surfaceInput: '#1C1C1E',
+  ink: '#F5F5F5',
+  inkSoft: '#D1D1D6',
+  inkMuted: '#8E8E93',
+  inkGhost: '#48484A',
+  inkInverse: '#141414',
+  systemAccent: '#0A84FF',
+  onInkFill: 'rgba(0,0,0,0.08)',
+  field: '#3A3A3C',
+  divider: '#2C2C2E',
+  sunkenRule: '#3A3A3C',
+  destructive: '#FF5A6E',
+  disabled: '#2C2C2E',
+  disabledInk: '#636366',
+  scrimLight: 'rgba(0,0,0,0.5)',
+  frostBackdrop: 'rgba(0,0,0,0.3)',
+} as const;
+
+const LIGHT = {
   /** The page every screen sits on. */
   backgroundPlain: palette.white,
   /** The settings stack's page: the palette's fill grey, so the white groups
@@ -67,6 +102,14 @@ export const colors = {
   /** Text on dark fills. */
   inkInverse: palette.white,
   /**
+   * The iPhone's accent: Apple's system blue, the colour its own apps tint
+   * their buttons, sliders, pickers and bar items in. Not the selected tab,
+   * and not a calendar's month, which stay ink. Only the iPhone's system
+   * controls take it — Android and the web keep ink, since the drawn look
+   * has no accent of its own.
+   */
+  systemAccent: '#007AFF',
+  /**
    * A second button sitting on an `ink` card beside a white one — Find
    * friends' Show code next to Share link. White held to a seventh, so it
    * reads as a lighter patch of the card rather than a grey button of its own.
@@ -77,6 +120,12 @@ export const colors = {
   field: '#CDCDCD',
   /** Hairlines, and the light pill behind the active tab. */
   divider: '#E9E8E2',
+  /**
+   * The seam between rows of a `surfaceSunken` card — the rules card's terms.
+   * White on the light grey; in dark mode a step lighter than the card rather
+   * than `surface`, which there sits darker and drew the seams as black lines.
+   */
+  sunkenRule: palette.white,
 
   /**
    * Destructive rows and the Restart action. A saturated red rather than the
@@ -131,7 +180,36 @@ export const colors = {
   /** The soft drop under white type laid on a photo — just enough to lift it
    * off a bright patch of the shot without reading as an outline. */
   onMediaShadow: 'rgba(0,0,0,0.35)',
+  /** Type and glyphs laid straight on a photo or the camera's black — white
+   * in light and dark alike, since the picture under it doesn't change. */
+  onMedia: palette.white,
+  /** `onInkFill`'s white seventh, held on the camera's black where the ink
+   * card's version would turn dark with the rest of the app. */
+  onMediaFill: 'rgba(255,255,255,0.14)',
 } as const;
+
+type Role = keyof typeof LIGHT;
+
+/** A role's colour: on the iPhone one that follows the phone's appearance by
+ * itself, wherever it is used; elsewhere the light one. */
+const adaptive = (role: Role): ColorValue => {
+  const dark = (DARK as Partial<Record<Role, string>>)[role];
+  return Platform.OS === 'ios' && dark
+    ? DynamicColorIOS({ light: LIGHT[role], dark })
+    : LIGHT[role];
+};
+
+export const colors = Object.fromEntries(
+  (Object.keys(LIGHT) as Role[]).map((role) => [role, adaptive(role)]),
+) as Record<Role, ColorValue>;
+
+/**
+ * Each role as a plain string for one appearance, for the few places that
+ * can't take an adaptive colour — a SwiftUI control's tint, a gradient's
+ * stops — and so pick by `useColorScheme()` themselves.
+ */
+export const colorsFor = (scheme: string | null | undefined): Record<Role, string> =>
+  scheme === 'dark' && Platform.OS === 'ios' ? { ...LIGHT, ...DARK } : { ...LIGHT };
 
 export const gradients = {
   /**
@@ -164,7 +242,7 @@ export const gradients = {
 // Typography
 // ---------------------------------------------------------------------------
 
-export const fonts = {
+const QUICKSAND = {
   /**
    * Quicksand — body copy, buttons, labels, everything functional. A rounded
    * geometric sans, so it keeps the soft feel the reference gets from its
@@ -192,12 +270,22 @@ export const fonts = {
   poster: 'Fraunces_900Black',
 } as const;
 
+export const fonts = QUICKSAND;
+
+/** Each role's face as a style. */
+const face = {
+  body: { fontFamily: fonts.body },
+  bodyMedium: { fontFamily: fonts.bodyMedium },
+  bodySemi: { fontFamily: fonts.bodySemi },
+  bodyBold: { fontFamily: fonts.bodyBold },
+};
+
 /**
  * Tracking for anything set in Quicksand. The face sets wider than the
  * reference's rounded cut, so every Quicksand string is pulled a point tighter,
- * headlines included. Components that build their
- * own Quicksand style — text inputs, the oversized Discover/Friends labels —
- * pull this rather than repeating the number.
+ * headlines included. Components that build their own Quicksand style — text
+ * inputs, the oversized Discover/Friends labels — pull this rather than
+ * repeating the number.
  */
 export const bodyTracking = -1;
 
@@ -213,7 +301,7 @@ export const hierarchy = {
   /** The screen's own title and the person it belongs to: "My Profile",
    * "Settings", the name under the avatar. */
   pageTitle: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 23,
     lineHeight: 28,
     letterSpacing: bodyTracking,
@@ -221,14 +309,14 @@ export const hierarchy = {
   /** A section inside the page: "Days", a month's name, a sheet's or a
    * dialog's title, a picker's values. */
   sectionHeading: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 21,
     lineHeight: 27,
     letterSpacing: bodyTracking,
   },
   /** The name of one thing on the page: the challenge card's title. */
   itemTitle: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 18,
     lineHeight: 24,
     letterSpacing: bodyTracking,
@@ -236,7 +324,7 @@ export const hierarchy = {
   /** Reading text and list rows: a bio, a settings row's label, a switch's
    * labels, a dialog's message. */
   copy: {
-    fontFamily: fonts.bodySemi,
+    ...face.bodySemi,
     fontSize: 16,
     lineHeight: 22,
     letterSpacing: bodyTracking,
@@ -244,7 +332,7 @@ export const hierarchy = {
   /** `copy` a weight up, for the word inside reading text that leads it: the
    * author's handle at the head of a post's caption. */
   copyBold: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 16,
     lineHeight: 22,
     letterSpacing: bodyTracking,
@@ -252,7 +340,7 @@ export const hierarchy = {
   /** Supporting detail next to something bigger: a handle, a settings row's
    * value, a group's title. */
   meta: {
-    fontFamily: fonts.bodySemi,
+    ...face.bodySemi,
     fontSize: 14,
     lineHeight: 18,
     letterSpacing: bodyTracking,
@@ -260,7 +348,7 @@ export const hierarchy = {
   /** Supporting detail that carries a number people look for: "Day 5 / 75",
    * a calendar date. */
   metaBold: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 14,
     lineHeight: 18,
     letterSpacing: bodyTracking,
@@ -268,7 +356,7 @@ export const hierarchy = {
   /** The smallest thing on a page: a count on a pill or a tile, a weekday
    * letter, a mark in a calendar cell. */
   badge: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: bodyTracking,
@@ -293,19 +381,19 @@ export const type = {
   badge: hierarchy.badge,
 
   headline: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 34,
     lineHeight: 40,
     letterSpacing: bodyTracking,
   },
   headlineSm: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 27,
     lineHeight: 33,
     letterSpacing: bodyTracking,
   },
   title: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 30,
     lineHeight: 36,
     letterSpacing: bodyTracking,
@@ -313,7 +401,7 @@ export const type = {
 
   sectionTitle: hierarchy.pageTitle,
   cardTitle: {
-    fontFamily: fonts.bodySemi,
+    ...face.bodySemi,
     fontSize: 17,
     lineHeight: 22,
     letterSpacing: bodyTracking,
@@ -323,26 +411,26 @@ export const type = {
    * bigger title than it is. */
   cardTitleBold: hierarchy.itemTitle,
   body: {
-    fontFamily: fonts.body,
+    ...face.body,
     fontSize: 16,
     lineHeight: 22,
     letterSpacing: bodyTracking,
   },
   bodyStrong: {
-    fontFamily: fonts.bodyMedium,
+    ...face.bodyMedium,
     fontSize: 16,
     lineHeight: 22,
     letterSpacing: bodyTracking,
   },
   bodyBold: hierarchy.copyBold,
   button: {
-    fontFamily: fonts.bodySemi,
+    ...face.bodySemi,
     fontSize: 17,
     lineHeight: 22,
     letterSpacing: bodyTracking,
   },
   label: {
-    fontFamily: fonts.bodyMedium,
+    ...face.bodyMedium,
     fontSize: 14,
     lineHeight: 18,
     letterSpacing: bodyTracking,
@@ -354,7 +442,7 @@ export const type = {
    */
   labelBold: hierarchy.meta,
   micro: {
-    fontFamily: fonts.bodyMedium,
+    ...face.bodyMedium,
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: bodyTracking,
@@ -370,7 +458,7 @@ export const type = {
    * size — at a text leading the heart's top was clipped off its own box.
    */
   burst: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 44,
     lineHeight: 60,
   },
@@ -392,13 +480,13 @@ export const type = {
    * onto the photo.
    */
   stamp: {
-    fontFamily: fonts.bodyBold,
+    ...face.bodyBold,
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 1.2,
   },
   tab: {
-    fontFamily: fonts.bodyMedium,
+    ...face.bodyMedium,
     fontSize: 12,
     lineHeight: 15,
     letterSpacing: bodyTracking,
@@ -423,7 +511,10 @@ export const spacing = {
 } as const;
 
 /** Standard horizontal page gutter. */
-export const screenPadding = 20;
+/** The page's side margin: the iPhone's own layout margin there — the inset
+ * its lists, bars and search fields keep from the edge — and the app's
+ * roomier 20 elsewhere. */
+export const screenPadding = Platform.OS === 'ios' ? 16 : 20;
 
 /** Breathing room between the status bar and the first thing on a screen. */
 export const screenTopGap = 20;
@@ -457,17 +548,30 @@ export const layout = {
    * row's value and its chevron. */
   inline: spacing.md,
   /** Inside a card or a list row, every side. */
-  card: spacing.xl,
+  // Inside a card or row: on the iPhone the 16 its list rows keep.
+  card: Platform.OS === 'ios' ? spacing.lg : spacing.xl,
   /** Either side of a pill's label: a count badge, a tile's "3/5". */
   pill: spacing.sm,
   /** Between tiles in a grid: the day posts, the calendar's cells. */
   grid: spacing.xs,
 } as const;
 
+/** The smallest thing a finger should have to hit: Apple's 44pt. A glyph or
+ * a word drawn smaller than this keeps its size and reaches it through
+ * `tapSlop`. */
+export const minTap = 44;
+
+/** The `hitSlop` that grows something `size` across out to `minTap` on every
+ * side — nothing for anything already that big. */
+export const tapSlop = (size: number) => Math.max(0, (minTap - size) / 2);
+
 export const radii = {
   sm: 10,
   md: 16,
-  lg: 20,
+  /** A grouped card's corner: on the iPhone the system list's own, so a card
+   * drawn by the app matches the native lists beside it — the rounder one
+   * liquid glass brought in iOS 26, 10 before that. */
+  lg: Platform.OS === 'ios' ? (parseInt(String(Platform.Version), 10) >= 26 ? 26 : 10) : 20,
   /** The signature card radius. */
   card: 32,
   xl: 32,
@@ -609,9 +713,10 @@ export const glass = {
    * The thinnest of Apple's light materials — the one liquid glass is actually
    * built on. Plain `light` is UIBlurEffectStyleLight, which frosts over far
    * too much to see through. On web both map to the same wash, so this is a
-   * free win on iOS.
+   * free win on iOS. The unsuffixed material follows the phone's
+   * appearance, going dark with the rest of the app.
    */
-  tint: 'systemUltraThinMaterialLight',
+  tint: 'systemUltraThinMaterial',
   /** Thickness of the specular edge, in px. Below ~1.5 it stops reading. */
   rimWidth: 1.5,
   /** Body wash, top to bottom. */

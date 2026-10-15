@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, Share, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, layout, radii, spacing } from '@/constants/theme';
 import type { ChallengeCard } from '@/hooks/useChallengeCards';
 import { DAY_MS } from '@/lib/round';
+import { LongPressMenu } from './LongPressMenu';
 import { Text } from './Text';
 
 /** The row's height, sampled off the canvas: a date block and a two-line name
@@ -31,6 +32,10 @@ export interface ChallengeRowProps {
   /** `false` leaves the calendar leaf off a joinable round, for a place that
    * already says when in its grey line — the Starting soon slider. */
   showDate?: boolean;
+  /** Up to three of its photos in the thumb, butted together, rather than
+   * the first alone — for Discover, where the rows sit under a cover drawn
+   * the same way. */
+  mosaic?: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
 }
@@ -48,49 +53,69 @@ export function ChallengeRow({
   detail,
   note,
   showDate = true,
+  mosaic,
   onPress,
   style,
 }: ChallengeRowProps) {
   const joinable = card.phase === 'upcoming' && card.start;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${card.title}, ${card.statusLabel}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed, style]}
+    // Held, an era offers what a tap would and passing it on.
+    <LongPressMenu
+      style={style}
+      actions={[
+        { label: 'Open', icon: 'eye-outline', onPress },
+        {
+          label: 'Share',
+          icon: 'share-outline',
+          onPress: () => {
+            Share.share({ message: `Join me on ${card.title} on SelfEra.` }).catch(() => {});
+          },
+        },
+      ]}
     >
-      <Image source={card.photos[0]} style={styles.thumb} contentFit="cover" />
-      <View style={styles.text}>
-        <Text variant="copyBold" numberOfLines={1}>
-          {card.title}
-        </Text>
-        <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-          {detail}
-        </Text>
-        {note ? (
-          <Text variant="badge" numberOfLines={1}>
-            {note}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${card.title}, ${card.statusLabel}`}
+        onPress={onPress}
+        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      >
+        {mosaic ? (
+          <ChallengeMosaic photos={card.photos} style={styles.thumb} />
+        ) : (
+          <Image source={card.photos[0]} style={styles.thumb} contentFit="cover" />
+        )}
+        <View style={styles.text}>
+          <Text variant="copyBold" numberOfLines={1}>
+            {card.title}
           </Text>
-        ) : null}
-      </View>
-      {joinable ? (
-        showDate ? <DateLeaf date={card.start!} /> : null
-      ) : card.mine ? (
-        <Text variant="metaBold">You're in</Text>
-      ) : (
-        <View style={styles.closed}>
-          <Ionicons
-            name={card.phase === 'finished' ? 'flag' : 'lock-closed'}
-            size={spacing.md}
-            color={colors.inkMuted}
-          />
-          <Text variant="badge" color={colors.inkMuted}>
-            {card.phase === 'finished' ? 'Finished' : 'Closed'}
+          <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+            {detail}
           </Text>
+          {note ? (
+            <Text variant="badge" numberOfLines={1}>
+              {note}
+            </Text>
+          ) : null}
         </View>
-      )}
-    </Pressable>
+        {joinable ? (
+          showDate ? <DateLeaf date={card.start!} /> : null
+        ) : card.mine ? (
+          <Text variant="metaBold">You're in</Text>
+        ) : (
+          <View style={styles.closed}>
+            <Ionicons
+              name={card.phase === 'finished' ? 'flag' : 'lock-closed'}
+              size={spacing.md}
+              color={colors.inkMuted}
+            />
+            <Text variant="badge" color={colors.inkMuted}>
+              {card.phase === 'finished' ? 'Finished' : 'Closed'}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    </LongPressMenu>
   );
 }
 
@@ -120,6 +145,37 @@ export function challengeDetail(card: ChallengeCard, withTopic: boolean): string
             !withTopic && members ? `${members} joined` : undefined,
           ];
   return parts.filter(Boolean).join(' · ');
+}
+
+/** One large and two beside it: more and each turns too small to make out. */
+const MOSAIC_PHOTOS = 3;
+
+/**
+ * An era's photos butted together with no seam between them, so they read
+ * as one picture of what its days look like: the first large on the left,
+ * the next two stacked beside it; with two, side by side; with one, alone.
+ * Fills whatever box `style` gives it — a row's thumb, Discover's cover.
+ */
+export function ChallengeMosaic({
+  photos,
+  style,
+}: {
+  photos: ChallengeCard['photos'];
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [lead, ...others] = photos.slice(0, MOSAIC_PHOTOS);
+  return (
+    <View style={[styles.mosaic, style]}>
+      <Image source={lead} style={styles.mosaicCell} contentFit="cover" />
+      {others.length ? (
+        <View style={styles.mosaicCell}>
+          {others.map((photo, i) => (
+            <Image key={i} source={photo} style={styles.mosaicCell} contentFit="cover" />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 /** A calendar leaf: the weekday (or, further out, the month) over the day. */
@@ -154,6 +210,14 @@ const styles = StyleSheet.create({
     width: THUMB,
     height: THUMB,
     borderRadius: radii.md,
+  },
+  // Clipped, so the photos take the box's rounded corners.
+  mosaic: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  mosaicCell: {
+    flex: 1,
   },
   text: {
     flex: 1,

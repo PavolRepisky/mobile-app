@@ -25,7 +25,7 @@ export default function DayPostScreen() {
   // it shows just itself.
   const days = postedDays.includes(openedDay) ? postedDays : [openedDay];
 
-  const { profile, tasks, progress, captions, currentDay, membershipId, challenge } = useApp();
+  const { profile, tasks, progress, captions, currentDay, membershipId, challenge, reload } = useApp();
 
   // You, in the same `Friend` shape Community builds for your own card —
   // only the identity row reads off it; each day's photos come in through
@@ -63,6 +63,7 @@ export default function DayPostScreen() {
   return (
     <DaysFeed
       title="My days"
+      onRefresh={reload}
       days={days}
       openedDay={openedDay}
       renderDay={(day) => (

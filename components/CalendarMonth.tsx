@@ -160,7 +160,7 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
   // gone is still a day you could have shot, so it holds more weight than one
   // that has not arrived yet.
   const numberColor = hasShot
-    ? colors.inkInverse
+    ? colors.onMedia
     : today
       ? colors.ink
       : !inRun && !missed

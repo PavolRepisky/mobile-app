@@ -8,7 +8,7 @@ import { PrimaryButton } from '@/components/Buttons';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { FriendCard } from '@/components/FriendCard';
-import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
+import { cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -268,20 +268,14 @@ export default function CommunityScreen() {
       <ScreenScroll
         tabBar
         ref={scrollRef}
+        onRefresh={refreshToday}
         header={
           <ScreenHeader
             plainTitle="Community"
             showBack={false}
-            right={
-              <IconButton
-                name="person-add-outline"
-                size={cornerButtonSize}
-                iconSize={cornerIconSize}
-                background={colors.surface}
-                onPress={() => router.push('/add-friends')}
-                accessibilityLabel="Find friends"
-              />
-            }
+            actions={[
+              { icon: 'person-add-outline', label: 'Find friends', onPress: () => router.push('/add-friends') },
+            ]}
           />
         }
       >
@@ -298,7 +292,7 @@ export default function CommunityScreen() {
 
 
         {locked ? (
-          <Card flat radius={radii.md} style={styles.sunkenCard}>
+          <Card flat radius={radii.lg} style={styles.sunkenCard}>
             <View style={styles.cardBody}>
               <View style={styles.lockRow}>
                 <View style={[styles.disc, styles.discInk]}>
@@ -394,14 +388,12 @@ export default function CommunityScreen() {
               </View>
             ) : null}
 
-            {/* With no friends at all there's no "today" of theirs to count
-                — the empty state below says how to change that instead. */}
-            {loaded && !friends.length && !myPost ? null : (
-              <SectionHeading
-                title="Finished today"
-                meta={String(friendsFinished.length + (myPost ? 1 : 0))}
-              />
-            )}
+            {/* Held even with no friends yet, so both tabs read the same
+                way down: the heading, then what's under it or why not. */}
+            <SectionHeading
+              title="Finished today"
+              meta={String(friendsFinished.length + (myPost ? 1 : 0))}
+            />
 
             {loaded && !friends.length ? (
               <>
@@ -412,7 +404,6 @@ export default function CommunityScreen() {
                 ) : null}
                 <EmptyState
                   icon="people-outline"
-                  disc
                   title="No friends here yet"
                   hint="Add people and their days show up here as they go."
                   action={{ label: 'Find friends', onPress: () => router.push('/add-friends') }}
@@ -431,7 +422,7 @@ export default function CommunityScreen() {
                 {friendsFinished.map((friend) => renderPost(friend))}
               </View>
             ) : (
-              <Card flat radius={radii.md} style={styles.sunkenCard}>
+              <Card flat radius={radii.lg} style={styles.sunkenCard}>
                 <View style={[styles.cardBody, styles.emptyBody]}>
                   <View style={styles.emptyIntro}>
                     <View style={[styles.disc, styles.discWhite]}>
@@ -490,13 +481,40 @@ export default function CommunityScreen() {
               </View>
             ) : null}
 
-            <SectionHeading title="Finished today" meta={String(membersFinished.length)} />
+            {/* Yours leads here too: you're one of the members, and your day
+                is in the round's feed like everyone else's. */}
+            <SectionHeading
+              title="Finished today"
+              meta={String(membersFinished.length + (myPost ? 1 : 0))}
+            />
 
-            {membersFinished.length ? (
+            {loaded && !inChallenge ? (
+              <EmptyState
+                icon="flag-outline"
+                title="Join an era first"
+                hint="Members are the people doing your era with you."
+                action={{ label: 'Find an era', onPress: () => router.navigate('/discover') }}
+              />
+            ) : loaded && !members.length ? (
+              <>
+                {myPost ? (
+                  <View style={styles.posts}>
+                    <FriendCard friend={myPost} locked={false} />
+                  </View>
+                ) : null}
+                <EmptyState
+                  icon="people-outline"
+                  title="No one else in it yet"
+                  hint="Bring a friend along — they'll show up here once their Day 1 comes."
+                  action={{ label: 'Invite a friend', onPress: () => router.push('/add-friends') }}
+                />
+              </>
+            ) : myPost || membersFinished.length ? (
               <View
                 style={styles.posts}
                 onLayout={(e) => onListLayout('members')(e.nativeEvent.layout.y)}
               >
+                {myPost ? <FriendCard friend={myPost} locked={false} /> : null}
                 {membersFinished.map((person) => {
                   const isAdded = added.has(person.id);
                   return renderPost(
@@ -514,26 +532,9 @@ export default function CommunityScreen() {
                   );
                 })}
               </View>
-            ) : loaded && !inChallenge ? (
-              <EmptyState
-                icon="flag-outline"
-                disc
-                title="Join an era first"
-                hint="Members are the people doing your era with you."
-                action={{ label: 'Find an era', onPress: () => router.navigate('/discover') }}
-              />
-            ) : loaded && !members.length ? (
-              <EmptyState
-                icon="people-outline"
-                disc
-                title="No one else in it yet"
-                hint="Bring a friend along — they'll show up here once their Day 1 comes."
-                action={{ label: 'Invite a friend', onPress: () => router.push('/add-friends') }}
-              />
             ) : (
               <EmptyState
                 icon="flag-outline"
-                disc
                 title="No one has finished today yet"
                 hint="Finished days land here, newest first."
               />

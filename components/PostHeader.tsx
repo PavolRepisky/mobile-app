@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, layout, radii, spacing } from '@/constants/theme';
+import { colors, layout, radii, spacing, tapSlop } from '@/constants/theme';
 import { type AvatarSource } from './Avatar';
 import { TaskRing } from './TaskRing';
 import { Text } from './Text';
@@ -61,7 +61,7 @@ export function PostHeader({
   accessory,
   style,
 }: PostHeaderProps) {
-  const ink = onMedia ? colors.inkInverse : colors.ink;
+  const ink = onMedia ? colors.onMedia : colors.ink;
   const soft = onMedia ? colors.onMediaSoft : colors.inkMuted;
 
   const challengeLink = (
@@ -91,6 +91,7 @@ export function PostHeader({
         accessibilityRole={onPressProfile ? 'button' : undefined}
         accessibilityLabel={onPressProfile ? `${name}'s profile` : undefined}
         onPress={onPressProfile}
+        hitSlop={tapSlop(POST_RING)}
         style={({ pressed }) => pressed && onPressProfile && styles.pressed}
       >
         {/* The day's own ring, the one My Profile draws: a segment per

@@ -10,8 +10,8 @@ import { RulerSlider } from './RulerSlider';
 import { Text } from './Text';
 
 /** 7 to 120 days, in single-day steps. */
-const MIN_DAYS = 7;
-const MAX_DAYS = 120;
+export const MIN_DAYS = 7;
+export const MAX_DAYS = 120;
 const OPTIONS = MAX_DAYS - MIN_DAYS + 1;
 
 const indexFor = (days: number) =>
@@ -29,7 +29,9 @@ export interface ChallengeLengthSheetProps {
 }
 
 /**
- * The challenge-length picker on the create form. The ruler is a draft until
+ * The challenge-length picker on the create form, on Android and the web —
+ * the iPhone's form sets the length in place, with the system's stepper and
+ * slider, rather than opening a sheet. The ruler is a draft until
  * "Done": leaving by the grabber or the backdrop keeps the length the form
  * already had.
  */

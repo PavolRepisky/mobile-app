@@ -6,10 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.her75.app"
+      "bundleIdentifier": "com.her75.app",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.her75.app",
@@ -55,7 +56,15 @@
       "expo-image",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": false,
+          "cameraPermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

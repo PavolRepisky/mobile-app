@@ -1,3 +1,5 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -42,6 +44,48 @@ export async function signInWith(provider: Provider): Promise<boolean> {
 
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) throw exchangeError;
+
+  await syncTimezone();
+  return true;
+}
+
+/**
+ * Sign in with Apple through the iPhone's own Apple ID sheet, the way the
+ * App Store asks for it. Resolves `false` if the person backs out.
+ *
+ * Inside Expo Go the sheet would vouch for Expo Go rather than SelfEra, and
+ * Supabase would turn that token away, so there it goes through the browser
+ * sign-in instead — same account either way.
+ */
+export async function signInWithApple(): Promise<boolean> {
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    return signInWith('apple');
+  }
+  let credential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+  } catch (e) {
+    if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return false;
+    throw e;
+  }
+  if (!credential.identityToken) throw new Error('Apple didn’t send a sign-in back. Try again.');
+
+  const { error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+  });
+  if (error) throw error;
+
+  // Apple gives the name only the first time; it goes on the account then.
+  const name = [credential.fullName?.givenName, credential.fullName?.familyName]
+    .filter(Boolean)
+    .join(' ');
+  if (name) await supabase.auth.updateUser({ data: { name } });
 
   await syncTimezone();
   return true;

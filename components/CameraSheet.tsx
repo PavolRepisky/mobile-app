@@ -1,4 +1,7 @@
+import { Button, Host, HStack, Image as SystemImage, Menu, Text as SystemText } from '@expo/ui/swift-ui';
+import { foregroundStyle, font } from '@expo/ui/swift-ui/modifiers';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,10 +23,13 @@ import {
 } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { absoluteFill, colors, layout, radii, spacing } from '@/constants/theme';
+import { absoluteFill, colors, colorsFor, layout, radii, spacing } from '@/constants/theme';
 import type { TaskPhoto } from '@/hooks/useAppState';
 import { PrimaryButton } from './Buttons';
+import { LIQUID_GLASS, LiquidGlass } from './GlassSurface';
 import { IconButton } from './IconButton';
+import { quicksand } from '@/lib/swiftUI';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 export interface CameraSheetTask {
@@ -197,6 +203,18 @@ export function CameraSheet({
 
   const zoomed = zoom > 1;
   const canSwitch = !!swipeTasks && tasks.length > 1;
+  // SwiftUI takes a plain colour; type on the camera is white either way.
+  const onMediaInk = colorsFor('light').onMedia;
+
+  // Moving to another task ticks under the finger on the iPhone, the way the
+  // Camera app's modes do as they cross — swipe, tap or menu alike.
+  const lastTask = useRef(taskId);
+  useEffect(() => {
+    if (NATIVE_HEADER && visible && lastTask.current && taskId && lastTask.current !== taskId) {
+      Haptics.selectionAsync().catch(() => {});
+    }
+    lastTask.current = taskId;
+  }, [taskId, visible]);
 
   const at = tasks.findIndex((t) => t.id === taskId);
   const task = at >= 0 ? tasks[at] : null;
@@ -252,7 +270,7 @@ export function CameraSheet({
                 <View style={styles.top} pointerEvents="box-none">
                   {kicker ? (
                     <View style={styles.kicker} pointerEvents="none">
-                      <Text variant="badge" color={colors.inkInverse}>
+                      <Text variant="badge" color={colors.onMedia}>
                         {kicker}
                       </Text>
                     </View>
@@ -260,13 +278,17 @@ export function CameraSheet({
                     <View />
                   )}
                   {/* Flash turns white while it's on, the way the zoom pill
-                      does once zoomed. */}
+                      does once zoomed — on the iPhone's glass, its glass
+                      takes the system blue instead, as a lit control does. */}
                   <IconButton
                     name={flash ? 'flash' : 'flash-outline'}
                     size={TOP_CONTROL}
                     iconSize={TOP_ICON}
                     background={flash ? colors.surface : colors.scrim}
-                    color={flash ? colors.ink : colors.inkInverse}
+                    color={flash && !LIQUID_GLASS ? colors.ink : colors.onMedia}
+                    overMedia
+                    glassScheme="dark"
+                    glassTint={flash ? colors.systemAccent : undefined}
                     shadow={false}
                     onPress={() => setFlash((on) => !on)}
                     accessibilityLabel={flash ? 'Flash on, tap to turn off' : 'Flash off, tap to turn on'}
@@ -275,7 +297,24 @@ export function CameraSheet({
 
                 {/* The zoom shows only while there is some, and a tap takes it
                     back to 1× — the pinch is the way in. */}
-                {zoomed ? (
+                {/* On the iPhone's glass it stays mounted and condenses out
+                    of the picture as the pinch starts, dissolving again at 1×. */}
+                {LIQUID_GLASS ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Zoomed ${formatZoom(zoom)}×, tap to zoom back out`}
+                    disabled={!zoomed}
+                    pointerEvents={zoomed ? 'auto' : 'none'}
+                    onPress={() => setZoom(1)}
+                    style={styles.zoomSpot}
+                  >
+                    <LiquidGlass interactive visible={zoomed} colorScheme="dark" style={styles.zoomGlass}>
+                      <Text variant="badge" color={colors.onMedia}>
+                        {`${formatZoom(zoom)}×`}
+                      </Text>
+                    </LiquidGlass>
+                  </Pressable>
+                ) : zoomed ? (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Zoomed ${formatZoom(zoom)}×, tap to zoom back out`}
@@ -290,7 +329,7 @@ export function CameraSheet({
               </>
             ) : (
               <View style={styles.gate}>
-                <Text variant="sectionHeading" color={colors.inkInverse} center>
+                <Text variant="sectionHeading" color={colors.onMedia} center>
                   Camera access
                 </Text>
                 <Text variant="copy" color={colors.onMediaSoft} center>
@@ -343,9 +382,44 @@ export function CameraSheet({
                   }
                   style={styles.current}
                 >
-                  <Text variant="itemTitle" color={colors.inkInverse} numberOfLines={1}>
-                    {task.label}
-                  </Text>
+                  {NATIVE_HEADER && canSwitch ? (
+                    // On the iPhone the task in focus is a pull-down menu of
+                    // them all as well, the current one ticked — for a list
+                    // too long to swipe through one at a time.
+                    <Host matchContents>
+                      <Menu
+                        label={
+                          <HStack spacing={layout.line}>
+                            <SystemText
+                              modifiers={[quicksand('headline', 'bold'), foregroundStyle(onMediaInk)]}
+                            >
+                              {task.label}
+                            </SystemText>
+                            <SystemImage
+                              systemName="chevron.down"
+                              modifiers={[
+                                font({ textStyle: 'footnote', weight: 'semibold' }),
+                                foregroundStyle(onMediaInk),
+                              ]}
+                            />
+                          </HStack>
+                        }
+                      >
+                        {tasks.map((t) => (
+                          <Button
+                            key={t.id}
+                            label={t.label}
+                            systemImage={t.id === task.id ? 'checkmark' : undefined}
+                            onPress={() => onChangeTask?.(t.id)}
+                          />
+                        ))}
+                      </Menu>
+                    </Host>
+                  ) : (
+                    <Text variant="itemTitle" color={colors.onMedia} numberOfLines={1}>
+                      {task.label}
+                    </Text>
+                  )}
                   {canSwitch ? <View style={styles.dot} /> : null}
                 </View>
                 <View style={[styles.side, styles.sideEnd]}>
@@ -377,11 +451,13 @@ export function CameraSheet({
               name="close"
               size={CONTROL}
               iconSize={CONTROL_ICON}
-              background={colors.onInkFill}
-              color={colors.inkInverse}
+              background={colors.onMediaFill}
+              color={colors.onMedia}
               shadow={false}
               onPress={onClose}
               accessibilityLabel="Close camera"
+              overMedia
+              glassScheme="dark"
             />
             <Pressable
               accessibilityRole="button"
@@ -390,20 +466,23 @@ export function CameraSheet({
               onPress={capture}
               style={({ pressed }) => [
                 styles.shutter,
+                NATIVE_HEADER && styles.shutterRingWhite,
                 !permission?.granted && styles.shutterOff,
                 pressed && styles.shutterPressed,
               ]}
             >
-              <View style={styles.shutterFace}>
-                {busy ? <ActivityIndicator color={colors.ink} /> : null}
+              <View style={[styles.shutterFace, NATIVE_HEADER && styles.shutterFaceWhite]}>
+                {busy ? (
+                  <ActivityIndicator color={NATIVE_HEADER ? undefined : colors.ink} />
+                ) : null}
               </View>
             </Pressable>
             <IconButton
               name="camera-reverse-outline"
               size={CONTROL}
               iconSize={CONTROL_ICON}
-              background={colors.onInkFill}
-              color={colors.inkInverse}
+              background={colors.onMediaFill}
+              color={colors.onMedia}
               shadow={false}
               onPress={() => {
                 // The other lens has its own range, so the zoom starts over.
@@ -411,6 +490,8 @@ export function CameraSheet({
                 setFacing((f) => (f === 'back' ? 'front' : 'back'));
               }}
               accessibilityLabel="Flip camera"
+              overMedia
+              glassScheme="dark"
             />
           </View>
         </Animated.View>
@@ -475,6 +556,20 @@ const styles = StyleSheet.create({
   zoomPressed: {
     opacity: 0.7,
   },
+  // The glass zoom: the same spot and size as the drawn one, the place on
+  // the pressable and the shape on the glass inside it.
+  zoomSpot: {
+    position: 'absolute',
+    alignSelf: 'center',
+    bottom: layout.inline,
+  },
+  zoomGlass: {
+    width: ZOOM_PILL,
+    height: ZOOM_PILL,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   picker: {
     marginTop: layout.block,
     paddingHorizontal: layout.stack,
@@ -509,7 +604,7 @@ const styles = StyleSheet.create({
     width: DOT,
     height: DOT,
     borderRadius: radii.pill,
-    backgroundColor: colors.inkInverse,
+    backgroundColor: colors.onMedia,
   },
   note: {
     marginTop: layout.stack,
@@ -539,6 +634,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // The iPhone's shutter: white whatever the phone's appearance, in a white
+  // ring, as the Camera app's is — `surface` turned grey in dark mode.
+  shutterRingWhite: {
+    borderColor: colors.onMedia,
+  },
+  shutterFaceWhite: {
+    backgroundColor: colors.onMedia,
   },
   shutterOff: {
     opacity: 0.4,

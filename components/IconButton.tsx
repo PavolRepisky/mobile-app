@@ -1,15 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
+import { SymbolView } from 'expo-symbols';
 import { createContext, useContext } from 'react';
 import {
   Pressable,
   StyleSheet,
   View,
+  useColorScheme,
   type StyleProp,
   type ViewStyle,
+  type ColorValue,
 } from 'react-native';
 
-import { colors, shadows } from '@/constants/theme';
-import { GlassSurface } from './GlassSurface';
+import { sfSymbolFor } from '@/constants/symbols';
+import { colors, shadows, colorsFor } from '@/constants/theme';
+import { GlassSurface, LIQUID_GLASS, LiquidGlass } from './GlassSurface';
+import type { GlassColorScheme } from 'expo-glass-effect';
 import { Text } from './Text';
 
 /**
@@ -18,6 +23,18 @@ import { Text } from './Text';
  * shadow without each caller having to ask for it.
  */
 export const InHeaderBar = createContext(false);
+
+/**
+ * Set when the button is an item in the iPhone's own navigation bar. The
+ * system draws the item's background there (the glass capsule from iOS 26),
+ * so the button is only its glyph — a white disc inside that would be a
+ * button drawn inside a button.
+ */
+export const InNativeBar = createContext(false);
+
+/** A bar item's tap target: the system's own 44pt minimum, less the bar's
+ * built-in inset around its items. */
+const NATIVE_ITEM = 36;
 
 /** The round corner buttons on a tab root's title line — My Profile's QR and
  * Settings, the Challenges "+", Tasks' settings — and the photo viewer's
@@ -30,12 +47,12 @@ export interface IconButtonProps {
   onPress?: () => void;
   size?: number;
   iconSize?: number;
-  color?: string;
+  color?: ColorValue;
   /**
    * A flat fill instead of the lens — for the buttons that have to disappear
    * into the page rather than float over it.
    */
-  background?: string;
+  background?: ColorValue;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   shadow?: boolean;
@@ -45,6 +62,22 @@ export interface IconButtonProps {
   /** Drawn in place of the glyph — a story's reactions button, once a
    * reaction has been left, wears it. */
   emoji?: string;
+  /**
+   * The button floats over a photo or the camera rather than sitting in the
+   * page. On iPhones with liquid glass it is then the system's own glass —
+   * the picture bending through it, swelling under the finger — whatever
+   * `background` says; `background` stays the look everywhere else.
+   */
+  overMedia?: boolean;
+  /** The glass's tint, for a button that is switched on — the camera's
+   * flash once it's lit. */
+  glassTint?: ColorValue;
+  /** Pins the glass to one appearance — dark over the camera, which is dark
+   * whatever the phone is set to. */
+  glassScheme?: GlassColorScheme;
+  /** Off, the button dissolves away on the iPhone's glass rather than
+   * unmounting; elsewhere it is simply not drawn. */
+  visible?: boolean;
 }
 
 /**
@@ -64,8 +97,13 @@ export function IconButton({
   shadow = true,
   disabled,
   emoji,
+  overMedia,
+  glassTint,
+  glassScheme,
+  visible = true,
 }: IconButtonProps) {
   const inHeader = useContext(InHeaderBar);
+  const inNativeBar = useContext(InNativeBar);
   const radius = size / 2;
   const box: ViewStyle = {
     width: size,
@@ -81,7 +119,47 @@ export function IconButton({
 
   // The lens sizes itself to its content, so the dimensions live on the inner
   // view rather than on the surface.
-  const body = background ? (
+  const symbol = inNativeBar && !emoji ? sfSymbolFor(name) : undefined;
+  // On the system's glass the glyph is the system's too, where it has one.
+  const glassSymbol = !emoji ? sfSymbolFor(name) : undefined;
+  // The symbol view takes a plain colour: the bar's ink for the appearance on
+  // show, unless a caller passed one of its own.
+  const scheme = colorsFor(useColorScheme());
+  const systemGlass = LIQUID_GLASS && !inNativeBar && (overMedia || !background);
+  if (!visible && !systemGlass) return null;
+  const body = inNativeBar ? (
+    <View style={[styles.base, styles.nativeItem]}>
+      {symbol ? (
+        <SymbolView
+          name={symbol}
+          size={iconSize ?? size * 0.44}
+          tintColor={disabled ? scheme.inkGhost : typeof color === 'string' ? color : scheme.ink}
+          weight="medium"
+        />
+      ) : (
+        glyph
+      )}
+    </View>
+  ) : systemGlass ? (
+    <LiquidGlass
+      interactive={!!onPress && !disabled}
+      visible={visible}
+      tintColor={glassTint}
+      colorScheme={glassScheme}
+      style={[styles.base, box]}
+    >
+      {glassSymbol ? (
+        <SymbolView
+          name={glassSymbol}
+          size={iconSize ?? size * 0.44}
+          tintColor={disabled ? colors.inkGhost : color}
+          weight="medium"
+        />
+      ) : (
+        glyph
+      )}
+    </LiquidGlass>
+  ) : background ? (
     <View
       style={[
         styles.base,
@@ -103,10 +181,15 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? name}
       accessibilityState={disabled ? { disabled: true } : undefined}
-      disabled={disabled}
+      disabled={disabled || !visible}
+      // Gone, it lets taps through to whatever lies under it — a story's
+      // own tap-to-step sides.
+      pointerEvents={visible ? 'auto' : 'none'}
       onPress={onPress}
       hitSlop={8}
-      style={({ pressed }) => [pressed && styles.pressed, style]}
+      // The system's glass answers the press itself, swelling under the
+      // finger, so it isn't dimmed and shrunk on top of that.
+      style={({ pressed }) => [pressed && !systemGlass && styles.pressed, style]}
     >
       {body}
     </Pressable>
@@ -117,6 +200,10 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  nativeItem: {
+    width: NATIVE_ITEM,
+    height: NATIVE_ITEM,
   },
   pressed: {
     opacity: 0.8,

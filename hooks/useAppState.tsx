@@ -250,11 +250,26 @@ export const LIVES_PER_CHALLENGE = 3;
 // ---------------------------------------------------------------------------
 
 /**
- * What screens draw a challenge from while the account is in none — never
- * shown as yours (`inChallenge` is false), only there so a screen that needs
- * a challenge to lay out has one.
+ * For building Tasks without an era of your own: an account in none shows
+ * the stand-in as joined, from today, kept on the phone only — nothing is
+ * written, since there is no membership to write against. Development
+ * builds only; turn it off (or delete it) once the page is done.
  */
-const STAND_IN = CHALLENGES[0];
+const FAKE_ERA = __DEV__ && true;
+
+/** How many of the preset's tasks the fake era keeps — four, to see the
+ * page with a 2×2 post rather than the preset's five. Its first four, so
+ * "Read 10 pages" is the one that goes. */
+const FAKE_ERA_TASKS = 4;
+
+/**
+ * What screens draw a challenge from while the account is in none — never
+ * shown as yours (`inChallenge` is false) unless it's the fake era above,
+ * only there so a screen that needs a challenge to lay out has one.
+ */
+const STAND_IN: Challenge = FAKE_ERA
+  ? { ...CHALLENGES[0], tasks: CHALLENGES[0].tasks.slice(0, FAKE_ERA_TASKS) }
+  : CHALLENGES[0];
 
 /** Who the app holds before an account has loaded, and after logging out. */
 const NO_PROFILE: Profile = { name: '', handle: '', bio: null, avatarSeed: null, avatar: null };
@@ -315,7 +330,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!mine) {
         membershipId.current = null;
         taskUuids.current = {};
-        setInChallenge(false);
+        setInChallenge(FAKE_ERA);
         setMembership(null);
         // A stand-in for screens that need a challenge to draw, with none of
         // the demo's history behind it.

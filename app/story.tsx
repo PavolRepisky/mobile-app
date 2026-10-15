@@ -6,6 +6,7 @@ import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DayStamp, LOCK_BLUR_RADIUS } from '@/components/FriendCard';
+import { LiquidGlassGroup } from '@/components/GlassSurface';
 import { IconButton } from '@/components/IconButton';
 import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Pill, pillHeights } from '@/components/Pill';
@@ -162,6 +163,9 @@ export default function StoryScreen() {
       ]
     : [{ key: 'empty', label: '', photo: null, seed: 'story-empty', time: null, summary: false }];
   const current = frames[Math.min(index, frames.length - 1)];
+  // The task pill and reactions button: not over a locked story, nor over
+  // the post frame at the end, which carries its own way through.
+  const footShown = !locked && !current.summary;
 
   // The day's whole checklist, for the ring and the task badge — every task,
   // not only the ones with a photo on them.
@@ -338,6 +342,7 @@ export default function StoryScreen() {
           </Pressable>
           <Pill
             tone="floating"
+            overMedia
             icon="albums-outline"
             trailingIcon="chevron-forward"
             label="View post"
@@ -409,7 +414,7 @@ export default function StoryScreen() {
               hitSlop={12}
               style={styles.close}
             >
-              <Ionicons name="close" size={CLOSE_ICON} color={colors.inkInverse} />
+              <Ionicons name="close" size={CLOSE_ICON} color={colors.onMedia} />
             </Pressable>
           }
           style={styles.head}
@@ -440,29 +445,42 @@ export default function StoryScreen() {
       {/* The locked post's own pill, and what it does on a post: straight
           to Tasks, where the photo that opens it gets taken. Only the pill
           takes the tap — either side of it still steps through the story. */}
-      {locked ? (
-        <View pointerEvents="box-none" style={[absoluteFill, styles.lockLayer]}>
-          <Pill
-            tone="floating"
-            icon="lock-closed"
-            label="Unlocks when you post"
-            bold
-            onPress={() => router.dismissTo('/(tabs)/tasks')}
-            style={styles.lockPill}
-          />
-        </View>
-      ) : null}
+      {/* Kept mounted and shown or not, rather than mounted per story, so
+          on the iPhone's glass it dissolves and condenses as the stories
+          step between locked and open. */}
+      <View pointerEvents="box-none" style={[absoluteFill, styles.lockLayer]}>
+        <Pill
+          tone="floating"
+          overMedia
+          icon="lock-closed"
+          label="Unlocks when you post"
+          bold
+          visible={locked}
+          onPress={() => router.dismissTo('/(tabs)/tasks')}
+          style={styles.lockPill}
+        />
+      </View>
 
       {/* Which task this photo proves, in the white pill a story's labels
           wear, and a round button of the same white for the quick
           reactions. Neither over a locked story, nor over the post frame at
           the end, which carries its own way through. */}
-      {!locked && !current.summary && stories.length ? (
-        <View
+      {stories.length ? (
+        // One material on the iPhone's glass, the pill and the button, and
+        // kept mounted so they dissolve over a locked story or the post frame
+        // and condense again after it.
+        <LiquidGlassGroup
           pointerEvents="box-none"
           style={[styles.foot, { paddingBottom: insets.bottom + spacing.md }]}
         >
-          <Pill tone="floating" label={current.label} bold style={styles.task} />
+          <Pill
+            tone="floating"
+            overMedia
+            label={current.label}
+            bold
+            visible={footShown}
+            style={styles.task}
+          />
           <IconButton
             name="happy-outline"
             size={pillHeights.md}
@@ -473,8 +491,10 @@ export default function StoryScreen() {
             emoji={myReaction ?? undefined}
             onPress={() => setTrayOpen(true)}
             accessibilityLabel={myReaction ? `Reactions, you sent ${myReaction}` : 'Reactions'}
+            overMedia
+            visible={footShown}
           />
-        </View>
+        </LiquidGlassGroup>
       ) : null}
 
       {/* The quick reactions over a dimmed story; a tap anywhere else puts
@@ -485,7 +505,7 @@ export default function StoryScreen() {
           onPress={() => setTrayOpen(false)}
           style={[absoluteFill, styles.tray]}
         >
-          <Text variant="copyBold" color={colors.inkInverse}>
+          <Text variant="copyBold" color={colors.onMedia}>
             Quick reactions
           </Text>
           <View style={styles.trayRow}>
@@ -584,7 +604,7 @@ const styles = StyleSheet.create({
   barFill: {
     ...absoluteFill,
     borderRadius: radii.pill,
-    backgroundColor: colors.inkInverse,
+    backgroundColor: colors.onMedia,
     transformOrigin: 'left',
   },
   /** Seen outright, or skipped past part-way: either way the bar reads full. */

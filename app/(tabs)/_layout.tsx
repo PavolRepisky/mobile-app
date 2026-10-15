@@ -1,7 +1,28 @@
-import { StyleSheet } from 'react-native';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { StyleSheet, useColorScheme } from 'react-native';
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
 
 import { FloatingTabBar, TabBarButton } from '@/components/FloatingTabBar';
+import { NATIVE_HEADER } from '@/components/Screen';
+import { colors, colorsFor, fonts } from '@/constants/theme';
+
+/** The system bar's glyphs: Apple's own symbols for the same four ideas,
+ * outlined at rest and filled once the tab is on show. */
+const TAB_SYMBOLS = {
+  discover: ['safari', 'safari.fill'],
+  community: ['person.2', 'person.2.fill'],
+  tasks: ['camera', 'camera.fill'],
+  profile: ['person', 'person.fill'],
+} as const;
+
+type TabName = keyof typeof TAB_SYMBOLS;
+
+const TAB_LABELS = {
+  discover: 'Discover',
+  community: 'Community',
+  tasks: 'Tasks',
+  profile: 'Profile',
+} as const;
 
 /**
  * Headless tabs so the bar can be a floating pill drawn over the content
@@ -16,6 +37,41 @@ import { FloatingTabBar, TabBarButton } from '@/components/FloatingTabBar';
  * label under it.
  */
 export default function TabsLayout() {
+  return NATIVE_HEADER ? <SystemTabs /> : <DrawnTabs />;
+}
+
+/**
+ * On the iPhone the bar is the system's own tab bar — the floating glass one
+ * from iOS 26 — in the app's ink, with SF Symbols.
+ * The system insets each tab's scroller for it, so pages don't pad for it.
+ */
+function SystemTabs() {
+  const scheme = colorsFor(useColorScheme());
+  return (
+    <NativeTabs
+      backBehavior="history"
+      tintColor={scheme.ink}
+      iconColor={{ default: scheme.inkMuted, selected: scheme.ink }}
+      // The labels in the app's Quicksand, a cut up from the drawn bar's
+      // Medium: at the system's small label size Medium thins out.
+      labelStyle={{
+        default: { color: scheme.inkMuted, fontFamily: fonts.bodySemi },
+        selected: { color: scheme.ink, fontFamily: fonts.bodySemi },
+      }}
+    >
+      {(Object.keys(TAB_SYMBOLS) as TabName[]).map((name) => (
+        <NativeTabs.Trigger key={name} name={name}>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: TAB_SYMBOLS[name][0], selected: TAB_SYMBOLS[name][1] }}
+          />
+          <NativeTabs.Trigger.Label>{TAB_LABELS[name]}</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+      ))}
+    </NativeTabs>
+  );
+}
+
+function DrawnTabs() {
   return (
     // `flex: 1` on both the root and the slot keeps each screen exactly one
     // viewport tall, so scroll views scroll internally and absolutely

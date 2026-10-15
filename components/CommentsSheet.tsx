@@ -10,9 +10,9 @@ import {
   type TextInput as RNTextInput,
 } from 'react-native';
 
-import { colors, radii, spacing, type } from '@/constants/theme';
+import { colors, radii, spacing, tapSlop, type } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
-import { BottomSheet, SheetScrollable } from './BottomSheet';
+import { BottomSheet, SheetScrollable, useKeyboardInset } from './BottomSheet';
 import { Text } from './Text';
 
 export interface CommentEntry {
@@ -50,6 +50,10 @@ const HEIGHT_RATIO = 0.7;
  * count avatars back to the top-level comment. */
 const INDENT = spacing.lg;
 
+/** The cross that cancels a reply — a quiet glyph, its tap area grown to
+ * the 44pt minimum around it. */
+const CANCEL_GLYPH = 16;
+
 interface ReplyTarget {
   id: string;
   author: string;
@@ -85,6 +89,7 @@ export function CommentsSheet({
   composerAvatar,
 }: CommentsSheetProps) {
   const { height } = useWindowDimensions();
+  const keyboardUp = useKeyboardInset() > 0;
   const input = useRef<RNTextInput>(null);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
 
@@ -116,6 +121,7 @@ export function CommentsSheet({
       // the safe area or the keyboard — rather than the sheet's usual
       // roomy distance short of it.
       bottomGap={0}
+      size="large"
       style={{ height: Math.round(height * HEIGHT_RATIO) }}
     >
       <Text variant="sectionHeading" center style={styles.title}>
@@ -155,7 +161,7 @@ export function CommentsSheet({
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => startReply({ id: item.comment.id, author: item.comment.author })}
-                    hitSlop={spacing.sm}
+                    hitSlop={tapSlop(type.meta.lineHeight)}
                     style={styles.replyButton}
                   >
                     <Text variant="meta" color={colors.inkMuted}>
@@ -178,14 +184,14 @@ export function CommentsSheet({
             accessibilityRole="button"
             accessibilityLabel="Cancel reply"
             onPress={() => setReplyTarget(null)}
-            hitSlop={spacing.sm}
+            hitSlop={tapSlop(CANCEL_GLYPH)}
           >
-            <Ionicons name="close" size={16} color={colors.inkMuted} />
+            <Ionicons name="close" size={CANCEL_GLYPH} color={colors.inkMuted} />
           </Pressable>
         </View>
       ) : null}
 
-      <View style={styles.composer}>
+      <View style={[styles.composer, keyboardUp && styles.composerOnKeys]}>
         <Avatar source={composerAvatar} size={28} />
         <View style={styles.field}>
           <TextInput
@@ -200,7 +206,7 @@ export function CommentsSheet({
           />
         </View>
         {draft.trim() ? (
-          <Pressable accessibilityRole="button" onPress={submit} hitSlop={spacing.sm}>
+          <Pressable accessibilityRole="button" onPress={submit} hitSlop={tapSlop(type.copyBold.lineHeight)}>
             <Text variant="copyBold" color={colors.ink}>
               Post
             </Text>
@@ -245,18 +251,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing.sm,
   },
-  // Padded the same top and bottom, so the field sits centred in its own
-  // row rather than crowding one edge of it — the safe-area/keyboard
-  // clearance is separate, reserved space past this, not part of it.
+  // Air over the field, under the rule. None under it while the keyboard is
+  // down: the sheet's own home-indicator clearance is already there, and
+  // the row's padding on top of it left the field floating a step higher
+  // than the sheet's other last lines sit.
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     // The palette's fill grey rather than the warmer `divider`, the rule
     // Settings draws between its rows.
     borderTopColor: colors.surfaceSunken,
+  },
+  // With the keys up the sheet ends right on them, so the field keeps the
+  // same air under it as over it rather than touching them.
+  composerOnKeys: {
+    paddingBottom: spacing.sm,
   },
   // The pill field itself, `SearchBar`'s own cut — sunken on the sheet's
   // white the way Instagram's own comment field sits on its feed, rather

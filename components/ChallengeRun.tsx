@@ -2,9 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  useColorScheme,
+  type StyleProp,
+  type ViewStyle,
+  type ColorValue,
+} from 'react-native';
 
-import { colors, layout, radii } from '@/constants/theme';
+import { colors, layout, radii, colorsFor } from '@/constants/theme';
 import { challengeStrip } from '@/data/content';
 import { DAY_MS } from '@/lib/round';
 import { accentAt } from './TaskRing';
@@ -59,12 +66,13 @@ export interface ChallengeRunProps {
  */
 function DaySquare({ state, color, size }: { state: SquareState; color: string; size: number }) {
   const box = { width: size, height: size };
+  const scheme = colorsFor(useColorScheme());
   if (state === 'partial') {
     // Cut corner to corner, so half a day reads as half a square rather
     // than as a lighter shade of a whole one.
     return (
       <LinearGradient
-        colors={[color, color, colors.onInkFill, colors.onInkFill]}
+        colors={[color, color, scheme.onInkFill, scheme.onInkFill]}
         locations={[0, 0.5, 0.5, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -93,7 +101,8 @@ const dateLabel = (date: Date) =>
 /**
  * The challenge you're on, drawn as the whole run — one square a day — on a
  * block of ink, with its name and dates over it and a way into its page. It
- * leads the Tasks tab, so today's list sits under the run it belongs to.
+ * sat on the Tasks tab until the shutter took that page over; kept for
+ * wherever the whole run is wanted again.
  */
 export function ChallengeRun({
   challenge,

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
+  Alert,
   Animated,
   KeyboardAvoidingView,
   Modal,
@@ -11,6 +12,8 @@ import {
 } from 'react-native';
 
 import { colors, radii, shadows, spacing, type } from '@/constants/theme';
+import { BottomSheet } from './BottomSheet';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 export interface AlertAction {
@@ -59,7 +62,80 @@ export interface AlertDialogProps {
  * Two actions sit side by side; a third will not read as a pair, so past that
  * the pills stack full-width the way iOS does with its own alerts.
  */
-export function AlertDialog({
+export function AlertDialog(props: AlertDialogProps) {
+  // The system alert holds a title, a line and at most one line of typing;
+  // anything it can't hold — a list of rows, a bio's box — goes in a sheet.
+  const fitsSystem = !props.children && !props.input?.multiline;
+  if (!NATIVE_HEADER) return <DrawnAlert {...props} />;
+  return fitsSystem ? <SystemAlert {...props} /> : <SheetAlert {...props} />;
+}
+
+/**
+ * On the iPhone, the system's own alert, or its prompt when there is a line
+ * to type. It is shown whenever the dialog is open with something new to
+ * say, so a save that fails and changes the message puts the alert straight
+ * back up with the reason; one that leaves it open with nothing new is
+ * closed instead, since the system alert has already gone.
+ */
+function SystemAlert({ visible, title, message, onDismiss, actions, input }: AlertDialogProps) {
+  // Read after a tap, once whatever the action set has rendered.
+  const latest = useRef({ visible, message, actions, onDismiss });
+  latest.current = { visible, message, actions, onDismiss };
+  /** An action waiting for the typed text to land in the caller's state
+   * before it runs, so it reads the new text rather than the old. */
+  const pending = useRef<number | null>(null);
+
+  const run = (index: number) => {
+    const shown = latest.current.message;
+    Promise.resolve(latest.current.actions[index]?.onPress()).finally(() =>
+      setTimeout(() => {
+        const now = latest.current;
+        if (now.visible && now.message === shown) now.onDismiss();
+      }),
+    );
+  };
+
+  useEffect(() => {
+    if (pending.current === null) return;
+    const index = pending.current;
+    pending.current = null;
+    run(index);
+    // Runs once the typed text has been committed, which is all it waits for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input?.value]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const buttons = actions.map((action, index) => ({
+      text: action.label,
+      style: action.destructive
+        ? ('destructive' as const)
+        : !action.primary && actions.length > 1 && index === 0
+          ? ('cancel' as const)
+          : ('default' as const),
+      isPreferred: action.primary && !action.destructive,
+      onPress: (typed?: string) => {
+        if (input && typed !== undefined && typed !== input.value) {
+          pending.current = index;
+          input.onChangeText(typed);
+        } else {
+          run(index);
+        }
+      },
+    }));
+    if (input) {
+      Alert.prompt(title, message, buttons, 'plain-text', input.value);
+    } else {
+      Alert.alert(title, message, buttons);
+    }
+    // Shown once per opening, and again only if what it says changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, title, message]);
+
+  return null;
+}
+
+function DrawnAlert({
   visible,
   title,
   message,
@@ -108,87 +184,123 @@ export function AlertDialog({
         >
           <View style={[styles.panel, shadows.floating]}>
             <View style={styles.dialog}>
-              <Text variant="sectionHeading">
-                {title}
-              </Text>
-
-              {message ? (
-                <Text
-                  variant="copy"
-                  color={colors.inkMuted}
-                  style={styles.message}
-                >
-                  {message}
-                </Text>
-              ) : null}
-
-              {children ? <View style={styles.content}>{children}</View> : null}
-
-              {input ? (
-                <>
-                  <TextInput
-                    value={input.value}
-                    onChangeText={input.onChangeText}
-                    placeholder={input.placeholder}
-                    placeholderTextColor={colors.inkMuted}
-                    autoFocus={input.autoFocus}
-                    multiline={input.multiline}
-                    maxLength={input.maxLength}
-                    style={[styles.input, input.multiline && styles.inputMultiline]}
-                  />
-
-                  {input.multiline && input.maxLength ? (
-                    <Text
-                      variant="label"
-                      color={colors.inkMuted}
-                      style={styles.counter}
-                    >
-                      {input.value.length}/{input.maxLength}
-                    </Text>
-                  ) : null}
-                </>
-              ) : null}
-
-              <View
-                style={[
-                  styles.actions,
-                  actions.length > 2 && styles.actionsStacked,
-                ]}
+              <DialogBody
+                title={title}
+                message={message}
+                actions={actions}
+                input={input}
               >
-                {actions.map((action) => (
-                  <Pressable
-                    key={action.label}
-                    accessibilityRole="button"
-                    onPress={action.onPress}
-                    style={({ pressed }) => [
-                      styles.action,
-                      action.primary && styles.actionPrimary,
-                      actions.length > 2
-                        ? styles.actionStacked
-                        : styles.actionRow,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      variant="button"
-                      color={
-                        action.primary
-                          ? colors.inkInverse
-                          : action.destructive
-                            ? colors.destructive
-                            : colors.ink
-                      }
-                    >
-                      {action.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+                {children}
+              </DialogBody>
             </View>
           </View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
+  );
+}
+
+/** What a dialog says and offers — shared by the drawn panel and, on the
+ * iPhone, the system sheet a dialog too big for the system alert opens in. */
+function DialogBody({
+  title,
+  message,
+  actions,
+  input,
+  children,
+}: Pick<AlertDialogProps, 'title' | 'message' | 'actions' | 'input' | 'children'>) {
+  return (
+    <>
+    <Text variant="sectionHeading">
+      {title}
+    </Text>
+
+    {message ? (
+      <Text
+        variant="copy"
+        color={colors.inkMuted}
+        style={styles.message}
+      >
+        {message}
+      </Text>
+    ) : null}
+
+    {children ? <View style={styles.content}>{children}</View> : null}
+
+    {input ? (
+      <>
+        <TextInput
+          value={input.value}
+          onChangeText={input.onChangeText}
+          placeholder={input.placeholder}
+          placeholderTextColor={colors.inkMuted}
+          autoFocus={input.autoFocus}
+          multiline={input.multiline}
+          maxLength={input.maxLength}
+          style={[styles.input, input.multiline && styles.inputMultiline]}
+        />
+
+        {input.multiline && input.maxLength ? (
+          <Text
+            variant="label"
+            color={colors.inkMuted}
+            style={styles.counter}
+          >
+            {input.value.length}/{input.maxLength}
+          </Text>
+        ) : null}
+      </>
+    ) : null}
+
+    <View
+      style={[
+        styles.actions,
+        actions.length > 2 && styles.actionsStacked,
+      ]}
+    >
+      {actions.map((action) => (
+        <Pressable
+          key={action.label}
+          accessibilityRole="button"
+          onPress={action.onPress}
+          style={({ pressed }) => [
+            styles.action,
+            action.primary && styles.actionPrimary,
+            actions.length > 2
+              ? styles.actionStacked
+              : styles.actionRow,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text
+            variant="button"
+            color={
+              action.primary
+                ? colors.inkInverse
+                : action.destructive
+                  ? colors.destructive
+                  : colors.ink
+            }
+          >
+            {action.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+    </>
+  );
+}
+
+/**
+ * On the iPhone, a dialog the system alert can't hold — a list of rows, a
+ * bio's box — rises as the system's own sheet instead, with the same words
+ * and buttons in it.
+ */
+function SheetAlert({ visible, onDismiss, ...body }: AlertDialogProps) {
+  return (
+    <BottomSheet visible={visible} onDismiss={onDismiss}>
+      <DialogBody {...body} />
+    </BottomSheet>
   );
 }
 

@@ -1,13 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Button, Host, Label } from '@expo/ui/swift-ui';
+import {
+  buttonBorderShape,
+  buttonStyle,
+  controlSize,
+  foregroundStyle,
+  frame,
+  padding,
+} from '@expo/ui/swift-ui/modifiers';
 import {
   Pressable,
   StyleSheet,
   View,
+  useColorScheme,
   type StyleProp,
   type ViewStyle,
+  type ColorValue,
 } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { quicksand, tint } from '@/lib/swiftUI';
+import { sfSymbolFor } from '@/constants/symbols';
+import { colors, colorsFor, radii, shadows, spacing } from '@/constants/theme';
+import { LIQUID_GLASS, LiquidGlass } from './GlassSurface';
+import { NATIVE_HEADER } from './Screen';
 import { Text, type TextProps } from './Text';
 
 export interface PillProps {
@@ -50,13 +65,26 @@ export interface PillProps {
    * absence rather than a value — a reminder set to Never reads in the
    * muted grey beside the times that are set.
    */
-  labelColor?: string;
+  labelColor?: ColorValue;
   /**
    * A range's far end, so the pill reads "label → to" — a finished round's
    * "Finished · Jun 1 → Aug 14". The arrow is an icon because Quicksand has
    * no glyph for it.
    */
   to?: string;
+  /**
+   * Off, the pill goes rather than unmounting at once: on the iPhone a
+   * floating one dissolves back into the photo the way it came; elsewhere
+   * it is simply not drawn.
+   */
+  visible?: boolean;
+  /**
+   * The pill floats over a photo — a cover, a story, a hero. On iPhones with
+   * liquid glass it is then the system's own glass; glass is for what floats
+   * over the content, so a pill on the page or on a card stays the system's
+   * ordinary capsule button there.
+   */
+  overMedia?: boolean;
 }
 
 /**
@@ -64,7 +92,122 @@ export interface PillProps {
  * strips, the Day N badge under the avatar, the readout above the ruler
  * sliders.
  */
-export function Pill({
+export function Pill(props: PillProps) {
+  // A pill you can press is a button, and on the iPhone it is the system's
+  // own; a pill that only says something — a count on a photo, a date —
+  // stays drawn.
+  // The floating one over a photo is the exception: it is the system's glass
+  // itself, which materialises and dissolves and answers the finger the way
+  // the system's own glass buttons do — a SwiftUI button can't come and go
+  // like that.
+  const floatingGlass =
+    LIQUID_GLASS && !!props.overMedia && (props.tone ?? 'floating') === 'floating';
+  if (props.visible === false && !floatingGlass) return null;
+  const button =
+    NATIVE_HEADER && !floatingGlass && props.onPress && !props.to && !props.trailingIcon;
+  return button ? <SystemPill {...props} /> : <DrawnPill {...props} />;
+}
+
+/** The air added round a system pill's label, on top of what its control
+ * size gives — the regular capsule sat tight on its words. */
+const PILL_LIFT = spacing.xs;
+const PILL_WIDEN = spacing.xs;
+
+/** Each size as the system's control sizes. */
+const CONTROL_SIZES = { sm: 'small', md: 'regular', lg: 'large' } as const;
+
+/**
+ * On the iPhone, a pressable pill as SwiftUI's own capsule button: the solid
+ * one filled (prominent) in the system blue, the quieter tones bordered — a
+ * soft fill of the blue — and a floating one over a photo in the system's
+ * glass. The
+ * system sets its label, its press and its size; the glyph is an SF Symbol.
+ */
+function SystemPill({
+  label,
+  tone = 'floating',
+  size = 'md',
+  onPress,
+  style,
+  icon,
+  labelColor,
+}: PillProps) {
+  // SwiftUI takes plain colours, picked for the appearance on show.
+  const scheme = colorsFor(useColorScheme());
+  const symbol = icon ? sfSymbolFor(icon) : undefined;
+  const words =
+    typeof labelColor === 'string'
+      ? labelColor
+      : labelColor === colors.inkMuted
+        ? scheme.inkMuted
+        : undefined;
+
+  // In the system blue, as the iPhone's own apps tint theirs: the solid pill
+  // filled with white type, the quieter ones a soft blue capsule with blue
+  // type; the one on an ink card stays white. A floating pill over a photo
+  // never lands here — it is the system's glass, drawn in `DrawnPill` — so a
+  // floating one here sits on the page or a card and is the plain capsule.
+  const labelInk =
+    words ??
+    (tone === 'solid'
+      ? scheme.onMedia
+      : tone === 'onInk'
+        ? scheme.inkInverse
+        : scheme.systemAccent);
+  const look =
+    tone === 'solid'
+      ? [buttonStyle('borderedProminent'), tint(scheme.systemAccent)]
+      : tone === 'onInk'
+        ? [buttonStyle('bordered'), tint(scheme.inkInverse)]
+        : [buttonStyle('bordered'), tint(scheme.systemAccent)];
+
+  // A pill its row stretches — one of a pair of equal buttons — fills the
+  // width it's given; any other sizes to its label.
+  const flat = StyleSheet.flatten(style) ?? {};
+  const fills = flat.alignSelf === 'stretch' || flat.flex !== undefined || flat.width !== undefined;
+  // Only where it sits carries over: a fill or a corner meant for the drawn
+  // pill would paint a box behind the system's capsule.
+  const {
+    backgroundColor: _fill,
+    borderRadius: _corner,
+    borderWidth: _rule,
+    borderColor: _ruleColor,
+    ...placement
+  } = flat;
+
+  return (
+    <Host matchContents={fills ? { vertical: true } : true} style={placement}>
+      {/* The label is a view of its own so it can carry a little more air
+          above and below than the control gives it; a nested view doesn't
+          take the button's colour (it fell back to the system's blue), so
+          its colour and type are set on it directly. */}
+      <Button
+        onPress={onPress}
+        modifiers={[
+          ...look,
+          buttonBorderShape('capsule'),
+          controlSize(CONTROL_SIZES[size]),
+          ...(fills ? [frame({ maxWidth: Number.MAX_SAFE_INTEGER })] : []),
+        ]}
+      >
+        <Label
+          title={label}
+          systemImage={symbol}
+          modifiers={[
+            // `PrimaryButton`'s label — Quicksand SemiBold at body size — so
+            // a pill and a button read as the same kind of thing; a small
+            // pill keeps the weight at the smaller size its control sets.
+            quicksand(size === 'sm' ? 'subheadline' : 'body', 'semibold'),
+            foregroundStyle(labelInk),
+            padding({ vertical: PILL_LIFT, horizontal: PILL_WIDEN }),
+          ]}
+        />
+      </Button>
+    </Host>
+  );
+}
+
+function DrawnPill({
   label,
   tone = 'floating',
   size = 'md',
@@ -76,6 +219,8 @@ export function Pill({
   labelVariant,
   labelColor,
   to,
+  visible = true,
+  overMedia,
 }: PillProps) {
   const ink =
     labelColor ?? (tone === 'solid' || tone === 'onInk' ? colors.inkInverse : colors.ink);
@@ -134,7 +279,19 @@ export function Pill({
     </>
   );
 
-  const body = (
+  // On the iPhone with liquid glass, the floating pill is the system's own
+  // glass capsule — the photo under it bends through — rather than a white
+  // one with a drawn shadow.
+  const glassy = LIQUID_GLASS && !!overMedia && tone === 'floating';
+  const body = glassy ? (
+    <LiquidGlass
+      interactive={!!onPress}
+      visible={visible}
+      style={[styles.base, SIZES[size], style]}
+    >
+      {content}
+    </LiquidGlass>
+  ) : (
     <View
       style={[
         styles.base,
@@ -154,7 +311,13 @@ export function Pill({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+      disabled={!visible}
+      // Gone, it lets taps through to whatever lies under it — a story's
+      // own tap-to-step sides.
+      pointerEvents={visible ? 'auto' : 'none'}
+      // The glass answers the press itself — it swells under the finger — so
+      // dimming it as well would be a second press drawn over the first.
+      style={({ pressed }) => (pressed && !glassy ? styles.pressed : undefined)}
     >
       {body}
     </Pressable>

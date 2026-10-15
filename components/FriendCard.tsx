@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -16,16 +17,19 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, gradients, layout, radii } from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, radii, tapSlop } from '@/constants/theme';
 import { REACTIONS, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { postKey } from '@/lib/backend/social';
+import { addDays, relativeDay } from '@/lib/format';
+import { startOfToday } from '@/lib/round';
 import { CommentsSheet, type CommentEntry } from './CommentsSheet';
 import { PostHeader } from './PostHeader';
 import { LockedOverlay } from './LockedOverlay';
 import { MosaicArrangement, type CollageCell } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 /** Square, unlike the post-detail screen's own taller carousel — this is one
@@ -78,6 +82,10 @@ export interface FriendCardProps {
   };
 }
 
+/** The reactions row's distance from the screen's sides — a touch inside
+ * the page's margin, since the photo above runs edge to edge. */
+const REACTIONS_INSET = 8;
+
 /** How each reaction is read out. */
 const REACTION_NAMES: Record<(typeof REACTIONS)[number], string> = {
   '❤️': 'Love',
@@ -101,6 +109,9 @@ const HEART_LANDED = 0.16;
 /** A reaction pill's height — a thumb-sized target that still sits four
  * across with the comment count on one row. */
 const REACTION_CHIP = 34;
+/** The chips' tap area reaches Apple's 44pt minimum above and below them,
+ * without the chips themselves growing. */
+const CHIP_SLOP = { top: tapSlop(REACTION_CHIP), bottom: tapSlop(REACTION_CHIP) };
 
 /** The comment glyph in its pill, drawn to the emoji's own size beside it so
  * the comment pill reads as one more of the reactions' row. */
@@ -156,7 +167,13 @@ export function FriendCard({
 
   const day = post?.day ?? friend.day;
   const postTasks = post?.tasks ?? friend.tasks;
-  const time = finishedAt(postTasks);
+  // When the day was: which day — counted back from the poster's own today,
+  // since `friend.day` is the day they're on — and the time it was finished,
+  // once it was. "Yesterday · 9:12 PM", "Oct 6 · 8:05 AM".
+  const finishedTime = finishedAt(postTasks);
+  const time = [relativeDay(addDays(startOfToday(), day - friend.day)), finishedTime]
+    .filter(Boolean)
+    .join(' · ');
   // A post is one membership's day; everything said and felt about it is
   // kept against that pair.
   const membershipId = friend.membershipId;
@@ -178,7 +195,10 @@ export function FriendCard({
     count: stats?.reactions[emoji] ?? 0,
   }));
   const react = (emoji: string) => {
-    if (membershipId) social.react(membershipId, day, emoji);
+    if (!membershipId) return;
+    // The light tap iOS gives a like as it lands.
+    if (NATIVE_HEADER) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    social.react(membershipId, day, emoji);
   };
 
   // The thread loads when the sheet opens, and again after each comment,
@@ -510,6 +530,7 @@ export function FriendCard({
               accessibilityLabel={`${reaction.name}, ${reaction.count}`}
               accessibilityState={{ selected: reaction.selected }}
               onPress={() => react(reaction.emoji)}
+              hitSlop={CHIP_SLOP}
               style={({ pressed }) => [
                 styles.reaction,
                 reaction.selected && styles.reactionSelected,
@@ -536,6 +557,7 @@ export function FriendCard({
           accessibilityRole="button"
           accessibilityLabel={`Comments, ${commentCount}`}
           onPress={() => setCommentsOpen(true)}
+          hitSlop={CHIP_SLOP}
           style={({ pressed }) => [
             styles.reaction,
             pressed && styles.pressed,
@@ -733,12 +755,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   // Reactions at the start, comments pushed to the far end.
+  // A little closer to the screen's sides than the page's margin, under a
+  // photo that runs right to them.
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: layout.inline,
     marginTop: layout.heading,
+    marginHorizontal: REACTIONS_INSET - layout.gutter,
   },
   reactions: {
     flexDirection: 'row',

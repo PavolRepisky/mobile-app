@@ -1,8 +1,15 @@
-import { useId } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useId, type ReactNode } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  useColorScheme,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
-import { colors, gradients, layout, radii, shadows } from '@/constants/theme';
+import { colors, gradients, layout, radii, shadows, colorsFor } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
 import { Text } from './Text';
 
@@ -86,6 +93,9 @@ export interface TaskRingProps {
   look?: 'story' | 'profile';
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** Drawn in the face's place, at its size — the Tasks shutter, whose ring
+   * is the day's own. `avatar` is then ignored. */
+  children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -110,8 +120,12 @@ export function TaskRing({
   look = 'story',
   onPress,
   accessibilityLabel,
+  children,
   style,
 }: TaskRingProps) {
+  // Drawn in SVG, which takes plain colours rather than ones that follow the
+  // phone's appearance, so the ring picks its greys for the one on show.
+  const svgColors = colorsFor(useColorScheme());
   // Unique per ring, so two profile rings on one screen don't share a mask.
   const maskId = `ringDone${useId().replace(/[^A-Za-z0-9]/g, '')}`;
 
@@ -152,11 +166,11 @@ export function TaskRing({
           <Defs>
             <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={canvas} height={canvas}>
               {Array.from({ length: Math.min(done, count) }, (_, i) =>
-                segment(i, colors.inkInverse),
+                segment(i, svgColors.onMedia),
               )}
             </Mask>
           </Defs>
-          {Array.from({ length: count }, (_, i) => (i < done ? null : segment(i, colors.inkGhost)))}
+          {Array.from({ length: count }, (_, i) => (i < done ? null : segment(i, svgColors.inkGhost)))}
           <G mask={`url(#${maskId})`}>
             {Array.from({ length: SWEEP_SLICES }, (_, i) => (
               <Circle
@@ -181,7 +195,7 @@ export function TaskRing({
             { top: inset, left: inset, width: face, height: face, borderRadius: face / 2 },
           ]}
         >
-          <Avatar source={avatar} size={face} />
+          {children ?? <Avatar source={avatar} size={face} />}
         </View>
       </Pressable>
     );
@@ -214,7 +228,7 @@ export function TaskRing({
             cx={centre}
             cy={centre}
             r={radius}
-            stroke={i < done ? accentAt((i + 0.5) / count) : colors.inkGhost}
+            stroke={i < done ? accentAt((i + 0.5) / count) : svgColors.inkGhost}
             strokeOpacity={i < Math.min(watched, done) ? WATCHED_OPACITY : 1}
             strokeWidth={ringWidth}
             strokeLinecap={count > 1 ? 'round' : 'butt'}
@@ -225,7 +239,7 @@ export function TaskRing({
         ))}
       </Svg>
       <View style={[styles.photo, { top: ringWidth + RING_GAP, left: ringWidth + RING_GAP }]}>
-        <Avatar source={avatar} size={avatarSize} />
+        {children ?? <Avatar source={avatar} size={avatarSize} />}
       </View>
       {badge ? (
         <View

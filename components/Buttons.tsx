@@ -1,7 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Button, Host } from '@expo/ui/swift-ui';
+import {
+  buttonBorderShape,
+  buttonStyle,
+  controlSize,
+  disabled as disabledModifier,
+  frame,
+} from '@expo/ui/swift-ui/modifiers';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  useColorScheme,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { quicksand, tint } from '@/lib/swiftUI';
+import { sfSymbolFor } from '@/constants/symbols';
+import { colors, radii, shadows, spacing, colorsFor } from '@/constants/theme';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 interface BaseProps {
@@ -19,7 +37,42 @@ interface BaseProps {
 }
 
 /** Solid black pill. The app's single primary action style. */
-export function PrimaryButton({
+export function PrimaryButton(props: BaseProps) {
+  return NATIVE_HEADER ? <SystemButton {...props} /> : <DrawnButton {...props} />;
+}
+
+/**
+ * On the iPhone, the system's own prominent button: SwiftUI's filled capsule
+ * at its large size, with its own press and disabled states, in the system
+ * blue with white type, light or dark — or, on the camera's black, the
+ * tinted one in white, a soft white capsule with white type.
+ */
+function SystemButton({ label, onPress, disabled, icon, style, fullWidth = true, inverse }: BaseProps) {
+  const symbol = icon ? sfSymbolFor(icon) : undefined;
+  // SwiftUI takes plain colours, so they're picked for the appearance on show.
+  const scheme = colorsFor(useColorScheme());
+  return (
+    <Host matchContents={{ vertical: true, horizontal: !fullWidth }} style={[fullWidth && styles.fullWidth, style]}>
+      <Button
+        label={label}
+        systemImage={symbol}
+        onPress={onPress}
+        modifiers={[
+          buttonStyle(inverse ? 'bordered' : 'borderedProminent'),
+          buttonBorderShape('capsule'),
+          controlSize('large'),
+          // In the app's Quicksand rather than the system's own face.
+          quicksand('body', 'semibold'),
+          tint(inverse ? scheme.onMedia : scheme.systemAccent),
+          ...(fullWidth ? [frame({ maxWidth: Number.MAX_SAFE_INTEGER })] : []),
+          disabledModifier(!!disabled),
+        ]}
+      />
+    </Host>
+  );
+}
+
+function DrawnButton({
   label,
   onPress,
   disabled,

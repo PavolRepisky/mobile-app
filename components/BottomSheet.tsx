@@ -1,5 +1,16 @@
 import { BlurView } from 'expo-blur';
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   Animated,
   Easing,
@@ -16,9 +27,15 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaInsetsContext,
+  SafeAreaProvider,
+  initialWindowMetrics,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import { absoluteFill, colors, radii, screenPadding, shadows, spacing } from '@/constants/theme';
+import { sheetPortal } from '@/lib/sheetPortal';
 
 const DURATION = 280;
 
@@ -92,7 +109,7 @@ const easingFor = (visible: boolean) =>
  * slide, not a beat after. Android stays at 0: `adjustResize` shrinks the
  * window under the sheet there, so padding it again would lift it twice.
  */
-function useKeyboardInset() {
+export function useKeyboardInset() {
   const [inset, setInset] = useState(0);
 
   useEffect(() => {
@@ -189,7 +206,118 @@ export interface BottomSheetProps {
    * sitting right above the keyboard — passes a tighter one.
    */
   bottomGap?: number;
+  /**
+   * `large` for a sheet that is a page's worth of things — comments, the
+   * photo library — opening at half the screen and pulling up to all of it.
+   * The default fits the sheet to what it holds.
+   */
+  size?: 'fit' | 'large';
   style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * On the iPhone, the system's own sheet: a form sheet on the root stack,
+ * with its grabber, its swipe-down and the page behind shrinking back. Its
+ * contents are still rendered here, with this component's state, and shown
+ * in the sheet's page through `sheetPortal`.
+ */
+function SystemSheet({
+  visible,
+  onDismiss,
+  children,
+  padded = true,
+  size = 'fit',
+  bottomGap,
+  style,
+}: BottomSheetProps) {
+  const router = useRouter();
+  const base = useId();
+  // Each opening is its own entry, so a sheet opened again while the last one
+  // is still sliding away doesn't have its contents cleared by that one.
+  const openings = useRef(0);
+  const id = `${base}-${openings.current}`;
+
+  // Every render's contents, posted for the sheet's page to show.
+  useLayoutEffect(() => {
+    if (!visible) return;
+    sheetPortal.set(id, {
+      children,
+      onDismiss,
+      padded,
+      large: size === 'large',
+      style: size === 'large' ? undefined : style,
+      bottomGap,
+      closedByOwner: sheetPortal.get(id)?.closedByOwner,
+    });
+  });
+
+  const open = useRef(false);
+  useEffect(() => {
+    if (visible && !open.current) {
+      open.current = true;
+      router.push({
+        pathname: (size === 'large' ? '/sheet-large' : '/sheet') as never,
+        params: { id },
+      } as Href);
+    } else if (!visible && open.current) {
+      open.current = false;
+      openings.current += 1;
+      // Still up — closed from inside it, by a choice — so it is taken down.
+      // Already gone means it was swiped away, and there's nothing to do.
+      const shown = sheetPortal.get(id);
+      if (shown && !shown.closedByOwner) {
+        sheetPortal.markClosed(id);
+        router.back();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  return null;
+}
+
+/**
+ * The page a system sheet is: whatever its opener posted under the id it was
+ * opened with. Leaving it any way but the opener closing it — a swipe down —
+ * is reported back as a dismissal.
+ */
+export function SheetPage() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
+  const keyboardUp = useKeyboardInset() > 0;
+  const entry = useSyncExternalStore(sheetPortal.subscribe, () => sheetPortal.get(id));
+
+  useEffect(
+    () => () => {
+      const last = sheetPortal.get(id);
+      sheetPortal.remove(id);
+      if (last && !last.closedByOwner) last.onDismiss();
+    },
+    [id],
+  );
+
+  if (!entry) return null;
+  return (
+    <View
+      style={[
+        styles.systemSheet,
+        entry.large && styles.systemSheetLarge,
+        entry.padded && styles.padded,
+        // The system lifts the sheet over the keyboard itself, so with the
+        // keys up only the opener's gap is left under its last thing — the
+        // home indicator is behind them. Down, it clears the indicator. A
+        // composer passes no gap, to sit right on the keys like Messages'.
+        {
+          paddingBottom: keyboardUp
+            ? (entry.bottomGap ?? spacing.lg)
+            : insets.bottom + (entry.bottomGap ?? spacing.xl),
+        },
+        entry.style,
+      ]}
+    >
+      {entry.children}
+    </View>
+  );
 }
 
 /**
@@ -203,7 +331,18 @@ export interface BottomSheetProps {
  * from the bottom edge while the blurred backdrop only fades in behind it, so
  * the screen appears to recede rather than being pushed off-screen.
  */
-export function BottomSheet({
+export function BottomSheet(props: BottomSheetProps) {
+  // Drawn on the iPhone too. From iOS 26 the system's sheet floats as a card
+  // inset from the sides and bottom at any height short of full, with no way
+  // to attach it — and these sheets want the screen's edges.
+  return USE_SYSTEM_SHEET ? <SystemSheet {...props} /> : <DrawnSheet {...props} />;
+}
+
+/** Off: see `BottomSheet`. `SystemSheet` and the `sheet` routes stay, should
+ * a sheet that runs edge to edge come to the system's sheet. */
+const USE_SYSTEM_SHEET = false;
+
+function DrawnSheet({
   visible,
   onDismiss,
   children,
@@ -212,7 +351,6 @@ export function BottomSheet({
   bottomGap,
   style,
 }: BottomSheetProps) {
-  const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const keyboardInset = useKeyboardInset();
   // Held for the length of the exit. The field is dismissed as the sheet
@@ -372,51 +510,62 @@ export function BottomSheet({
       onRequestClose={onDismiss}
       statusBarTranslucent
     >
-      {/* A modal is a window of its own on Android, outside the app's root
-          handler view, so the sheet's pull needs one here to be seen. */}
-      <GestureHandlerRootView style={styles.root}>
-        <SheetBackdrop visible={visible} onDismiss={onDismiss} />
+      {/* The modal's own safe area, measured in its own window. The one
+          around the opener belongs to its screen: inside a tab it counts
+          the tab bar too (83 rather than the home indicator's 34), and the
+          sheet — drawn over that bar, not above it — cleared a bar that
+          wasn't there. */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <SafeAreaInsetsContext.Consumer>
+          {(insets) => (
+            // A modal is a window of its own on Android, outside the app's
+            // root handler view, so the sheet's pull needs one here to be seen.
+            <GestureHandlerRootView style={styles.root}>
+              <SheetBackdrop visible={visible} onDismiss={onDismiss} />
 
-        <GestureDetector gesture={pull}>
-          <Animated.View
-            style={[
-              styles.sheet,
-              padded && styles.padded,
-              {
-                // With the keyboard up the sheet keeps its bottom edge on the
-                // screen's and runs on underneath the keys, so what shows
-                // through their rounded corners is the sheet rather than the
-                // blurred page behind it. The safe-area inset goes at the same
-                // time: the home indicator is behind the keyboard, so clearing
-                // it would only reopen the gap.
-                paddingBottom: bottomInset
-                  ? bottomInset + (bottomGap ?? spacing.lg)
-                  : insets.bottom + (bottomGap ?? spacing.xl),
-              },
-              style,
-              { transform: [{ translateY }] },
-            ]}
-          >
-            {handle ? (
-              // A full-width strip around the grabber, so it's caught without
-              // having to land on the thin line itself. Left out of the
-              // accessibility tree: a screen reader can't drag, and the
-              // backdrop's own "Dismiss" already closes the sheet.
-              <View
-                hitSlop={{ top: spacing.md }}
-                importantForAccessibility="no-hide-descendants"
-                accessibilityElementsHidden
-                style={styles.handleZone}
-              >
-                <View style={styles.handle} />
-              </View>
-            ) : null}
-            <SheetListContext.Provider value={sheetList}>
-              {children}
-            </SheetListContext.Provider>
-          </Animated.View>
-        </GestureDetector>
-      </GestureHandlerRootView>
+              <GestureDetector gesture={pull}>
+                <Animated.View
+                  style={[
+                    styles.sheet,
+                    padded && styles.padded,
+                    {
+                      // With the keyboard up the sheet keeps its bottom edge on the
+                      // screen's and runs on underneath the keys, so what shows
+                      // through their rounded corners is the sheet rather than the
+                      // blurred page behind it. The safe-area inset goes at the same
+                      // time: the home indicator is behind the keyboard, so clearing
+                      // it would only reopen the gap.
+                      paddingBottom: bottomInset
+                        ? bottomInset + (bottomGap ?? spacing.lg)
+                        : (insets?.bottom ?? 0) + (bottomGap ?? spacing.xl),
+                    },
+                    style,
+                    { transform: [{ translateY }] },
+                  ]}
+                >
+                  {handle ? (
+                    // A full-width strip around the grabber, so it's caught without
+                    // having to land on the thin line itself. Left out of the
+                    // accessibility tree: a screen reader can't drag, and the
+                    // backdrop's own "Dismiss" already closes the sheet.
+                    <View
+                      hitSlop={{ top: spacing.md }}
+                      importantForAccessibility="no-hide-descendants"
+                      accessibilityElementsHidden
+                      style={styles.handleZone}
+                    >
+                      <View style={styles.handle} />
+                    </View>
+                  ) : null}
+                  <SheetListContext.Provider value={sheetList}>
+                    {children}
+                  </SheetListContext.Provider>
+                </Animated.View>
+              </GestureDetector>
+            </GestureHandlerRootView>
+          )}
+        </SafeAreaInsetsContext.Consumer>
+      </SafeAreaProvider>
     </Modal>
   );
 }
@@ -435,6 +584,13 @@ const styles = StyleSheet.create({
   },
   padded: {
     paddingHorizontal: screenPadding,
+  },
+  // The system draws the grabber; this is the gap from it to the contents.
+  systemSheet: {
+    paddingTop: spacing['2xl'],
+  },
+  systemSheetLarge: {
+    flex: 1,
   },
   // The grabber's own gap below it lives on the zone, so the space between
   // the line and the sheet's content is part of what can be grabbed.

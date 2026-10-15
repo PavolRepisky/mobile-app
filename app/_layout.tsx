@@ -5,16 +5,19 @@ import {
   Quicksand_700Bold,
 } from '@expo-google-fonts/quicksand';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { Platform, View } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect, useMemo, useState } from 'react';
+import { Platform, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ReminderSync } from '@/components/ReminderSync';
-import { colors } from '@/constants/theme';
+import { stackScreenOptions } from '@/components/ScreenHeader';
+import { colors, colorsFor } from '@/constants/theme';
+import { restoreAppearance } from '@/lib/appearance';
 import { AppProvider, useApp } from '@/hooks/useAppState';
 import { SessionProvider, useSession } from '@/hooks/useSession';
 import { SocialProvider } from '@/hooks/useSocial';
@@ -31,9 +34,16 @@ export default function RootLayout() {
     Fraunces_900Black,
   });
 
+  // The light/dark choice from Settings, put back before anything is drawn so
+  // the first screen doesn't flash in the phone's own appearance first.
+  const [appearanceReady, setAppearanceReady] = useState(false);
+  useEffect(() => {
+    restoreAppearance().finally(() => setAppearanceReady(true));
+  }, []);
+
   // Headlines are the whole design; showing them in a fallback face first
   // would flash badly, so hold the splash until every face is ready.
-  if (!fontsLoaded && !fontError) {
+  if ((!fontsLoaded && !fontError) || !appearanceReady) {
     return <View style={{ flex: 1, backgroundColor: colors.backgroundPlain }} />;
   }
 
@@ -43,14 +53,38 @@ export default function RootLayout() {
         <SessionProvider>
           <AppProvider>
             <SocialProvider>
-              <StatusBar style="dark" />
-              <RootStack />
+              <StatusBar style="auto" />
+              <NavigationTheme>
+                <RootStack />
+              </NavigationTheme>
             </SocialProvider>
           </AppProvider>
         </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/**
+ * The navigation's own containers — behind the tab bar's glass, under a page
+ * mid-slide, at the screen's rounded corners as one is swiped away — paint
+ * themselves from this theme and the window's root colour, not from the
+ * pages. Left on their light defaults they flashed white through the glass
+ * and the corners in dark mode, so both follow the page's own colour.
+ */
+function NavigationTheme({ children }: { children: React.ReactNode }) {
+  const scheme = useColorScheme();
+  const theme = useMemo<Theme>(() => {
+    const base = scheme === 'dark' && Platform.OS === 'ios' ? DarkTheme : DefaultTheme;
+    const page = colorsFor(scheme).backgroundPlain;
+    return { ...base, colors: { ...base.colors, background: page, card: page } };
+  }, [scheme]);
+
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(theme.colors.background).catch(() => {});
+  }, [theme]);
+
+  return <ThemeProvider value={theme}>{children}</ThemeProvider>;
 }
 
 /**
@@ -79,13 +113,7 @@ function RootStack() {
     <>
       {/* The phone's own reminders, kept in step while signed in. */}
       {signedIn && Platform.OS !== 'web' ? <ReminderSync /> : null}
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.backgroundPlain },
-          animation: 'slide_from_right',
-        }}
-      >
+      <Stack screenOptions={stackScreenOptions}>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
         </Stack.Protected>
@@ -107,9 +135,32 @@ function RootStack() {
           <Stack.Screen name="feed/[id]" />
           <Stack.Screen name="join/[id]" />
           <Stack.Screen name="challenges/search" />
-          <Stack.Screen name="challenges/[filter]" />
           <Stack.Screen name="challenge/create" />
           <Stack.Screen name="account/settings" />
+          <Stack.Screen name="account/theme" />
+          <Stack.Screen name="account/reminders" />
+          {/* The iPhone's own sheets, which every `BottomSheet` opens there:
+              one sized to what it holds, and one for a page's worth —
+              comments, the photo library — that opens halfway and pulls up
+              to the whole screen. */}
+          <Stack.Screen
+            name="sheet"
+            options={{
+              presentation: 'formSheet',
+              sheetAllowedDetents: 'fitToContents',
+              sheetGrabberVisible: true,
+              contentStyle: { backgroundColor: colors.surface },
+            }}
+          />
+          <Stack.Screen
+            name="sheet-large"
+            options={{
+              presentation: 'formSheet',
+              sheetAllowedDetents: [0.6, 1],
+              sheetGrabberVisible: true,
+              contentStyle: { backgroundColor: colors.surface },
+            }}
+          />
         </Stack.Protected>
       </Stack>
     </>

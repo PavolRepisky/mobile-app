@@ -154,6 +154,7 @@ function LibrarySheet({
       // the top edge read as clutter.
       handle={false}
       padded={false}
+      size="large"
       style={{ height: Math.round(height * HEIGHT_RATIO) }}
     >
       <View style={styles.header}>
@@ -194,6 +195,7 @@ function LibrarySheet({
                     ? 'Photos you take will show up here.'
                     : 'Allow photo access in Settings to pick from your library.'
                 }
+                style={styles.empty}
               />
             }
             renderItem={({ item }) => (
@@ -222,6 +224,10 @@ function LibrarySheet({
 }
 
 const styles = StyleSheet.create({
+  // In from the sheet's sides by the header's own inset.
+  empty: {
+    marginHorizontal: spacing.md,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

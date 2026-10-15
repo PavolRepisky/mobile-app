@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
+import SegmentedControl from '@react-native-segmented-control/segmented-control';
+import { Pressable, StyleSheet, useColorScheme, type StyleProp, type ViewStyle, View } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { colors, colorsFor, radii, shadows, spacing } from '@/constants/theme';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 /** The switch's measurements, taken off the profile's Grid / Month switch on
@@ -41,6 +43,30 @@ export function SegmentedTabs<T extends string = string>({
   size = 'md',
   style,
 }: SegmentedTabsProps<T>) {
+  // On the iPhone it is the system's own control — its track, its sliding
+  // chip, its spring and its type.
+  // The native control takes plain colours, so it picks its pair for the
+  // phone's appearance.
+  const scheme = colorsFor(useColorScheme());
+  if (NATIVE_HEADER) {
+    return (
+      <SegmentedControl
+        values={options.map((option) => option.label)}
+        selectedIndex={Math.max(
+          options.findIndex((option) => option.key === value),
+          0,
+        )}
+        onChange={(e) => {
+          const picked = options[e.nativeEvent.selectedSegmentIndex];
+          if (picked) onChange(picked.key);
+        }}
+        fontStyle={{ color: scheme.inkMuted }}
+        activeFontStyle={{ color: scheme.ink }}
+        style={[size === 'sm' ? styles.nativeSm : styles.native, style]}
+      />
+    );
+  }
+
   return (
     <View style={[styles.track, style]}>
       {options.map((option) => {
@@ -85,6 +111,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   itemSm: {
+    height: PILL_HEIGHT_SM,
+  },
+  native: {
+    height: PILL_HEIGHT,
+  },
+  nativeSm: {
     height: PILL_HEIGHT_SM,
   },
   // White on the grey track, lifted a touch so it reads as the chip that

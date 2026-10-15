@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import {
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -30,6 +32,15 @@ import {
  * `topPadding`.
  */
 export const headerLineTop = Platform.OS === 'web' ? screenTopGap : 56;
+
+/**
+ * On the iPhone a screen's title row is the system's own navigation bar —
+ * its title, the real back chevron and its edge swipe — rather than a row
+ * drawn to look like one.
+ * `ScreenHeader` hands its title and buttons to that bar there; Android and
+ * the web keep the drawn row, which is what they were checked against.
+ */
+export const NATIVE_HEADER = Platform.OS === 'ios';
 
 interface CommonProps {
   children: React.ReactNode;
@@ -69,7 +80,7 @@ interface CommonProps {
 export const topPadding = (insetTop: number) =>
   Math.max(insetTop + screenTopGap, screenTopGap);
 
-const TONES = {
+export const TONES = {
   plain: colors.backgroundPlain,
   alt: colors.backgroundAlt,
 } as const;
@@ -123,11 +134,22 @@ export function Screen({
       ]}
     >
       {children}
-      {tabBar ? <View style={{ height: tabBarClearance }} /> : null}
+      {tabBar && !NATIVE_HEADER ? <View style={{ height: tabBarClearance }} /> : null}
     </View>
   );
 
   if (!header) return page;
+
+  // The header draws nothing here; it only configures the system bar, which
+  // the stack lays the page out under.
+  if (NATIVE_HEADER) {
+    return (
+      <>
+        {header}
+        {page}
+      </>
+    );
+  }
 
   return (
     <View style={[styles.flex, { backgroundColor: TONES[tone] }]}>
@@ -145,6 +167,11 @@ export interface ScreenScrollProps
   /** The scroller itself, for a screen that scrolls to something on its own
    * — Community landing on a post a story linked to. */
   ref?: React.Ref<ScrollView>;
+  /**
+   * Pull to refresh: the system spinner over the top of the page while this
+   * runs, the way every list on the phone fetches what's new.
+   */
+  onRefresh?: () => Promise<unknown>;
 }
 
 /** Scrolling screen that keeps content clear of the floating tab bar. */
@@ -164,15 +191,39 @@ export function ScreenScroll({
   // its backdrop and its buttons both needed tapping twice.
   keyboardShouldPersistTaps = 'handled',
   ref,
+  onRefresh,
   ...rest
 }: ScreenScrollProps) {
   const insets = useSafeAreaInsets();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    onRefresh()
+      .catch(() => {})
+      .finally(() => setRefreshing(false));
+  };
+  const nativeBar = NATIVE_HEADER && !!header;
+  // Under the system bar iOS insets the scroller for the home indicator
+  // itself, so that part of the allowance comes off the padding here — and
+  // for the system tab bar too, so a tab page keeps only its closing gap.
+  const systemBottom = nativeBar ? insets.bottom : 0;
+  const bottomAllowance =
+    tabBar && !NATIVE_HEADER ? tabBarClearance : insets.bottom + spacing.xl;
 
   const scroller = (
     <ScrollView
       ref={ref}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.inkMuted} />
+        ) : undefined
+      }
+      // The bar has no fill and the page runs up under it, so the system
+      // insets the scroller to start below it.
+      contentInsetAdjustmentBehavior={nativeBar ? 'automatic' : undefined}
       {...rest}
       style={[styles.flex, { backgroundColor: TONES[tone] }, style]}
       contentContainerStyle={[
@@ -181,9 +232,12 @@ export function ScreenScroll({
         { paddingTop: header ? layout.title : topPadding(insets.top) },
         padded && styles.padded,
         {
-          paddingBottom:
-            (tabBar ? tabBarClearance : insets.bottom + spacing.xl) +
-            bottomExtra,
+          paddingBottom: Math.max(
+            0,
+            bottomAllowance +
+              bottomExtra -
+              systemBottom,
+          ),
         },
         contentContainerStyle,
       ]}
@@ -193,6 +247,17 @@ export function ScreenScroll({
   );
 
   if (!header) return scroller;
+
+  // Nothing may sit above the scroller: the system bar finds the scroll view
+  // it collapses with by walking down the screen's first children.
+  if (nativeBar) {
+    return (
+      <>
+        {header}
+        {scroller}
+      </>
+    );
+  }
 
   return (
     <View style={[styles.flex, { backgroundColor: TONES[tone] }]}>

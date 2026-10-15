@@ -3,13 +3,14 @@ import {
   PanResponder,
   StyleSheet,
   View,
+  useColorScheme,
   type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { colors, layout, radii, spacing } from '@/constants/theme';
+import { colors, layout, radii, spacing, colorsFor } from '@/constants/theme';
 import { Pill } from './Pill';
 import { Text } from './Text';
 
@@ -62,6 +63,9 @@ export function SignaturePad({
   onDrawingChange,
   style,
 }: SignaturePadProps) {
+  // SVG takes plain colours, so the stroke picks its ink for the appearance
+  // on show.
+  const svgColors = colorsFor(useColorScheme());
   const [strokes, setStrokes] = useState<readonly (readonly Point[])[]>([]);
   const [width, setWidth] = useState(0);
   // Kept in a ref as well, so the responder made once on mount always sees
@@ -123,7 +127,7 @@ export function SignaturePad({
               <Path
                 key={i}
                 d={toPath(stroke)}
-                stroke={colors.ink}
+                stroke={svgColors.ink}
                 strokeWidth={INK_WIDTH}
                 strokeLinecap="round"
                 strokeLinejoin="round"

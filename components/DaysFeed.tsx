@@ -1,8 +1,9 @@
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { layout } from '@/constants/theme';
-import { ScreenScroll } from './Screen';
+import { NATIVE_HEADER, ScreenScroll } from './Screen';
 import { ScreenHeader } from './ScreenHeader';
 
 export interface DaysFeedProps {
@@ -16,6 +17,8 @@ export interface DaysFeedProps {
   openedDay: number;
   /** One day's post — the shared `FriendCard`. */
   renderDay: (day: number) => ReactNode;
+  /** Pull to refresh: fetch the days again. */
+  onRefresh?: () => Promise<unknown>;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -26,8 +29,12 @@ export interface DaysFeedProps {
  * own "My days" and anyone else's are both this, so the two can't drift: the
  * way back and the title in the fixed bar, then one post per day.
  */
-export function DaysFeed({ title, days, openedDay, renderDay, style }: DaysFeedProps) {
+export function DaysFeed({ title, days, openedDay, renderDay, onRefresh, style }: DaysFeedProps) {
   const scrollRef = useRef<ScrollView>(null);
+  // On the iPhone the page runs up under the see-through bar, so a day
+  // scrolled to the top would sit behind it; it stops this much short.
+  const headerHeight = useHeaderHeight();
+  const barInset = NATIVE_HEADER ? headerHeight : 0;
   const itemRefs = useRef(new Map<number, View>());
   // A manual scroll means the reader has taken over — the settle-and-jump
   // below must stop correcting the position out from under them.
@@ -54,7 +61,7 @@ export function DaysFeed({ title, days, openedDay, renderDay, style }: DaysFeedP
           scroller as unknown as React.ComponentRef<typeof View>,
           (_x, y) => {
             if (!cancelled && !userScrolledRef.current) {
-              scroller.scrollTo({ y, animated: false });
+              scroller.scrollTo({ y: y - barInset, animated: false });
             }
           },
           () => {},
@@ -69,11 +76,12 @@ export function DaysFeed({ title, days, openedDay, renderDay, style }: DaysFeedP
       cancelled = true;
       cancelAnimationFrame(raf);
     };
-  }, [openedDay, days]);
+  }, [openedDay, days, barInset]);
 
   return (
     <ScreenScroll
       ref={scrollRef}
+      onRefresh={onRefresh}
       onScrollBeginDrag={() => {
         userScrolledRef.current = true;
       }}

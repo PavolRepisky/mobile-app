@@ -1,7 +1,65 @@
 # Design rules
 
-This app's visual language is **fixed**. Features, screens, copy and data change;
-the look does not. Every rule below is a hard constraint, not a preference.
+## iPhone: native first
+
+On iOS the app is built from the system's own parts, and that wins over any
+rule below that says otherwise. `NATIVE_HEADER` (`components/Screen.tsx`) is
+the switch; Android and the web keep the drawn design the rest of this file
+describes. When adding UI, use the iOS system control if one exists (and runs
+in Expo Go), and keep a drawn fallback for the other platforms.
+
+- **Navigation**: native stack headers through `ScreenHeader` — the title is
+  always the small one in the bar, never a large title on the page;
+  `overPhoto` for photo heroes, `search` for the bar's search field; each tab is its own stack folder; the tab bar is `NativeTabs`
+  with SF Symbols.
+- **Controls**: `PrimaryButton` → SwiftUI prominent button; `SegmentedTabs` →
+  native segmented control; `WheelPicker` → native picker; reminder times →
+  compact time picker + switch; dates → graphical date picker; length →
+  slider; `AlertDialog` → system alert/prompt (bigger dialogs → sheet);
+  `PopoverMenu` → action sheet; `BottomSheet` stays drawn (iOS 26's form
+  sheet floats inset from the screen's edges short of full height; the
+  system path in `app/sheet*.tsx` + `lib/sheetPortal.ts` is switched off);
+  Settings → SwiftUI `Form`;
+  a `Pill` or `IconButton` marked `overMedia` (floating over a photo or the
+  camera) → liquid glass (`LiquidGlass` in `GlassSurface.tsx`): interactive
+  when tappable, materialising in and out through `visible`, neighbours in a
+  `LiquidGlassGroup`. Glass is only for what floats over content — never on
+  the page or a card, where a pill is the plain system capsule. `EmptyState` stays drawn (glyph on a
+  grey disc, title, hint, a pill out — no card round it) — the system's empty view set
+  its words in San Francisco.
+- **Behaviour**: `ScreenScroll onRefresh` for pull to refresh,
+  `LongPressMenu` for context menus, `SwipeRow` for row actions.
+- **Icons**: SF Symbols in system controls, mapped from the Ionicon name in
+  `constants/symbols.ts`; Ionicons stay for drawn UI.
+- **Type**: Quicksand on iOS too, at the same `hierarchy` sizes as
+  everywhere else, growing with Dynamic Type through `Text`'s
+  `dynamicTypeRamp`. System controls follow it where they can: SwiftUI
+  text and buttons through `quicksand()` from `lib/swiftUI.ts` (never a
+  bare `font()`, which falls back to San Francisco), the bar title and tab
+  labels through their style's `fontFamily`. Alerts, action sheets, pickers
+  and the segmented control stay in the system's face.
+- **Metrics**: on iOS the page margin is the system's 16 and `radii.lg`
+  is the native list's card corner (26 on iOS 26, 10 before), so drawn
+  cards sit level with native lists.
+- **Accent**: system controls tint with `systemAccent` (Apple's system
+  blue) — prominent buttons blue with white type, tinted ones blue type,
+  bar items, Settings icons, the calendar's arrows, slider, time pickers,
+  action sheets. Ink stays for text, the selected tab and a calendar's
+  month (the start-date picker stays ink whole, since SwiftUI tints its
+  month header too); switches keep the system green. Tint through `tint` from
+  `lib/swiftUI.ts`, never the library's (Expo Go's native side reads an
+  older field), and pass SwiftUI's semantic styles in their hierarchical
+  form (`{ type: 'hierarchical', style: 'secondary' }`), not as strings.
+- **Dark mode**: on iOS every `colors` token is a `DynamicColorIOS` (the
+  `LIGHT`/`DARK` maps in `theme.ts`). Type on photos or the camera is
+  `onMedia` (always white), never `inkInverse` (which flips with `ink`).
+  Anything that needs a plain string — SVG, SwiftUI modifiers, gradients —
+  uses `colorsFor(useColorScheme())`.
+
+## Everywhere else
+
+This app's visual language is **fixed** on Android and the web. Features,
+screens, copy and data change; the look does not.
 
 Deep reference: `docs/design-system.md`.
 Visual source of truth: `reference/screens/**` — real screenshots. When a visual
@@ -137,7 +195,7 @@ ramp; plain copy sits on Medium, and Regular isn't loaded at all. Don't
 **Layout** · `Screen` / `ScreenScroll` page shell · `ProfileView` a whole
 profile page — yours and anyone else's · `DaysFeed` a profile's days as
 one scrolling feed — My days and anyone else's · `ScreenHeader` back + title +
-actions · `Card` white surface · `EmptyState` icon + title + hint.
+actions · `Card` white surface · `EmptyState` glyph on a grey disc, title, hint, a pill out — no card.
 
 **Type** · `Text` (variant).
 
@@ -150,13 +208,13 @@ a finger-drawn signature · `ReminderPill` a reminder's time or Never, with its 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
-**Content** · `ChallengeRun` the run you're on as one square a day, on ink, leading Tasks · `CheckCircle` a done task's tick · `TaskRing` a face in the split
-task ring with its "3/5" badge · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic ·
+**Content** · `ChallengeRun` the run you're on as one square a day, on ink (off Tasks since its shutter; unused) · `CheckCircle` a done task's tick · `TaskRing` a face in the split
+task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
 `FriendCard` · `PostHeader` who posted a day — face (in its task ring on My
 days and a story), name, time, "Day N · challenge" · `LockedOverlay` · `ChallengeRow` a
-challenge in a list, photo first, its start date at the end while it can be joined
+challenge in a list, photo first, its start date at the end while it can be joined (`mosaic` for up to three photos with no seam; `ChallengeMosaic` draws the same on Discover's cover)
 · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.
 

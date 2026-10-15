@@ -4,11 +4,45 @@ import {
   type TextProps as RNTextProps,
   type StyleProp,
   type TextStyle,
+  type ColorValue,
 } from 'react-native';
 
 import { colors, type as typeScale } from '@/constants/theme';
 
 type Variant = keyof typeof typeScale;
+
+/**
+ * Which of Apple's text styles each level grows with when someone sets a
+ * bigger (or smaller) text size on their iPhone. The system scales each style
+ * on a curve of its own — body text a lot, headings less, captions least — so
+ * the page keeps its hierarchy at any size, the way native apps do. The
+ * "Day N" stamp across a photo is artwork sized to the photo, so it stays.
+ */
+const DYNAMIC_TYPE: Partial<Record<Variant, NonNullable<RNTextProps['dynamicTypeRamp']>>> = {
+  headline: 'largeTitle',
+  title: 'title1',
+  headlineSm: 'title1',
+  pageTitle: 'title2',
+  sectionTitle: 'title2',
+  sectionHeading: 'title3',
+  itemTitle: 'headline',
+  cardTitle: 'headline',
+  cardTitleBold: 'headline',
+  copy: 'body',
+  copyBold: 'body',
+  body: 'body',
+  bodyStrong: 'body',
+  bodyBold: 'body',
+  button: 'body',
+  meta: 'subheadline',
+  metaBold: 'subheadline',
+  label: 'subheadline',
+  labelBold: 'subheadline',
+  badge: 'caption1',
+  micro: 'caption2',
+  microBold: 'caption2',
+  tab: 'caption2',
+};
 
 /**
  * The trailing room a text style needs so its last glyph isn't clipped —
@@ -28,7 +62,7 @@ function trackingRoom(style: StyleProp<TextStyle>): TextStyle | null {
 
 export interface TextProps extends RNTextProps {
   variant?: Variant;
-  color?: string;
+  color?: ColorValue;
   center?: boolean;
 }
 
@@ -53,6 +87,7 @@ export function Text({
 }: TextProps) {
   return (
     <RNText
+      dynamicTypeRamp={DYNAMIC_TYPE[variant]}
       {...rest}
       style={[
         typeScale[variant],

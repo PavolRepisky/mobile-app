@@ -1,45 +1,36 @@
-import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter, type Href } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActionSheetIOS, Platform, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Avatar } from '@/components/Avatar';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoViewer } from '@/components/PhotoViewer';
-import { ReminderRow } from '@/components/ReminderPill';
-import { ScreenScroll } from '@/components/Screen';
+import { NATIVE_HEADER } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { Text } from '@/components/Text';
-import { colors, layout, radii, spacing } from '@/constants/theme';
+import {
+  SettingsGroup,
+  SettingsList,
+  SettingsProfileCard,
+  SettingsRow,
+} from '@/components/SettingsList';
 import { DEFAULT_TASK_REMINDER, useApp } from '@/hooks/useAppState';
+import { APPEARANCE_CHOICES, useAppearance } from '@/lib/appearance';
 import { updateProfile } from '@/lib/backend/api';
 import { deleteAccount, signOut } from '@/lib/backend/auth';
-
 
 const BIO_MAX = 120;
 
 /** What the server takes as a username — said before sending, not after. */
 const HANDLE_PATTERN = /^[a-z0-9_.]{3,30}$/;
 
-/** The photo row's thumbnail — a row-height glance at the current photo, not
- * a second hero circle. */
-const PHOTO_THUMB = 30;
-
-/** The rounded square each row's glyph sits in, and the glyph inside it —
- * the square is what lines the labels up down the page, not the glyphs'
- * own uneven widths. */
-const ROW_ICON_TILE = 32;
-const ROW_ICON = 17;
-const ROW_CHEVRON = 18;
-
-/** A row's value stops here and ellipsises, so a long bio can't push the
- * label onto a second line. */
-const ROW_VALUE_MAX = 150;
-
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0';
 
 export default function SettingsScreen() {
+  const router = useRouter();
+  const appearance = useAppearance();
   const {
     profile,
     setName,
@@ -54,13 +45,10 @@ export default function SettingsScreen() {
     inChallenge,
     tasks,
     reminders,
-    setReminders,
   } = useApp();
 
   const reminderFor = (taskId: string) =>
     taskId in reminders.tasks ? reminders.tasks[taskId] : DEFAULT_TASK_REMINDER;
-  const setReminderFor = (taskId: string, at: number | null) =>
-    setReminders({ ...reminders, tasks: { ...reminders.tasks, [taskId]: at } });
   // Every task's nudge and the last call, counting the ones not set to Never.
   const remindersOn =
     tasks.filter((task) => reminderFor(task.id) !== null).length +
@@ -74,13 +62,53 @@ export default function SettingsScreen() {
   const avatarSource = profile.avatar ?? profile.avatarSeed;
   const hasAvatar = Boolean(avatarSource);
   const [photoOpen, setPhotoOpen] = useState(false);
+  /**
+   * On the iPhone, the photo row works the way Contacts changes a picture: a
+   * menu up from the bottom — choose one, take one, or take it away — and
+   * the system's own picker or camera, cropping to a square on the way back.
+   */
+  const choosePhotoAction = () => {
+    const options = ['Choose Photo', 'Take Photo', ...(hasAvatar ? ['Remove Photo'] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options,
+        cancelButtonIndex: options.length - 1,
+        destructiveButtonIndex: hasAvatar ? 2 : undefined,
+      },
+      async (index) => {
+        const picked = options[index];
+        if (picked === 'Remove Photo') {
+          setAvatarPhoto(null);
+          setAvatarSeed(null);
+          return;
+        }
+        if (picked !== 'Choose Photo' && picked !== 'Take Photo') return;
+        const crop: ImagePicker.ImagePickerOptions = {
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        };
+        if (picked === 'Take Photo') {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) return;
+        }
+        const result =
+          picked === 'Take Photo'
+            ? await ImagePicker.launchCameraAsync(crop)
+            : await ImagePicker.launchImageLibraryAsync(crop);
+        const asset = result.canceled ? undefined : result.assets[0];
+        if (asset) setAvatarPhoto({ uri: asset.uri });
+      },
+    );
+  };
   const [libraryOpen, setLibraryOpen] = useState(false);
   const libraryAfterViewer = useRef(false);
 
   const [nameOpen, setNameOpen] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
   const [handleOpen, setHandleOpen] = useState(false);
-  const [draftHandle, setDraftHandle] = useState(profile.handle);
+  const [draftHandle, setDraftHandle] = useState(profile.handle.replace(/^@/, ''));
   const [bioOpen, setBioOpen] = useState(false);
   const [draftBio, setDraftBio] = useState(profile.bio ?? '');
   // Both account rows are one tap from wiping everything, so each one asks
@@ -96,37 +124,37 @@ export default function SettingsScreen() {
   const failed = (e: unknown) =>
     setSaveError(e instanceof Error ? e.message : 'That didn’t save. Try again.');
   const [endOpen, setEndOpen] = useState(false);
-  const [remindersOpen, setRemindersOpen] = useState(false);
-  /** The one reminder whose wheel is open in the window — a task's id, or
-   * `lastCall`. One at a time, so the window never grows past the screen. */
-  const [editingReminder, setEditingReminder] = useState<string | null>(null);
-  const toggleReminder = (key: string) =>
-    setEditingReminder((current) => (current === key ? null : key));
-  const closeReminders = () => {
-    setRemindersOpen(false);
-    setEditingReminder(null);
-  };
 
   return (
     <View style={styles.screenRoot}>
       {/* The one screen off the white: its groups are white cards, and on a
           white page they'd dissolve into it. The cooler off-white is what
           lets each group read as its own card. */}
-      <ScreenScroll
-        tone="alt"
-        tabBar
+      <SettingsList
         // The back arrow and the title in the fixed bar, in reach however
         // far down the settings go.
         header={<ScreenHeader plainTitle="Settings" />}
       >
-        <Group title="Profile">
-          <Row
-            icon="camera-outline"
-            label="Profile photo"
-            accessory={<Avatar source={avatarSource} size={PHOTO_THUMB} />}
-            onPress={() => (hasAvatar ? setPhotoOpen(true) : setLibraryOpen(true))}
+        {/* Who you are, first — the photo big, the name and username beside
+            it — the way your Apple Account opens the Settings app. Tapping
+            it changes the photo. */}
+        <SettingsGroup>
+          <SettingsProfileCard
+            avatar={(size) => <Avatar source={avatarSource} size={size} />}
+            name={profile.name}
+            handle={profile.handle}
+            onPress={
+              NATIVE_HEADER
+                ? choosePhotoAction
+                : () => (hasAvatar ? setPhotoOpen(true) : setLibraryOpen(true))
+            }
           />
-          <Row
+        </SettingsGroup>
+
+        <SettingsGroup title="Profile">
+          {/* Each value is changed on the spot, in a dialog over the page —
+              no chevron, since nothing opens. */}
+          <SettingsRow
             icon="person-outline"
             label="Name"
             value={profile.name}
@@ -136,17 +164,18 @@ export default function SettingsScreen() {
               setNameOpen(true);
             }}
           />
-          <Row
+          <SettingsRow
             icon="at-outline"
             label="Username"
             value={profile.handle}
             onPress={() => {
-              setDraftHandle(profile.handle);
+              // The @ is the app's to add, not the person's to type.
+              setDraftHandle(profile.handle.replace(/^@/, ''));
               setSaveError(null);
               setHandleOpen(true);
             }}
           />
-          <Row
+          <SettingsRow
             icon="reorder-three-outline"
             label="Bio"
             value={profile.bio ?? 'Add a bio'}
@@ -157,21 +186,22 @@ export default function SettingsScreen() {
             }}
             last
           />
-        </Group>
+        </SettingsGroup>
 
         {/* The challenge you're on: when it nudges you, folded to one row
             that opens its own window, then ending it — in red like Delete
             account, since it costs the whole run. Not in one, there's
             nothing to nudge about or end. */}
         {inChallenge ? (
-          <Group title="Era">
-            <Row
+          <SettingsGroup title="Era">
+            <SettingsRow
               icon="notifications-outline"
               label="Reminders"
               value={remindersOn === 0 ? 'Off' : `${remindersOn} on`}
-              onPress={() => setRemindersOpen(true)}
+              navigates
+              onPress={() => router.push('/account/reminders' as Href)}
             />
-            <Row
+            <SettingsRow
               icon="flag-outline"
               label="End era"
               destructive
@@ -181,23 +211,45 @@ export default function SettingsScreen() {
               }}
               last
             />
-          </Group>
+          </SettingsGroup>
         ) : null}
 
-        <Group title="About">
-          <Row icon="shield-outline" label="Privacy Policy" onPress={() => {}} />
-          <Row icon="document-outline" label="Terms of Service" onPress={() => {}} last />
-        </Group>
+        <SettingsGroup title="Appearance">
+          <SettingsRow
+            icon="contrast-outline"
+            label="Theme"
+            value={APPEARANCE_CHOICES.find((c) => c.key === appearance)?.label}
+            navigates
+            onPress={() => router.push('/account/theme' as Href)}
+            last
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="About">
+          <SettingsRow icon="shield-outline" label="Privacy Policy" external onPress={() => {}} />
+          <SettingsRow
+            icon="document-outline"
+            label="Terms of Service"
+            external
+            onPress={() => {}}
+            last
+          />
+        </SettingsGroup>
 
         {/* Log out first and in ink: it's the one people come here for, and
             logging back in undoes it. Delete sits last and in red. */}
-        <Group title="Account">
-          <Row
+        <SettingsGroup
+          title="Account"
+          // The version as the last group's small print, centred under it.
+          footer={`SelfEra · version ${APP_VERSION}`}
+          footerCentered
+        >
+          <SettingsRow
             icon="log-out-outline"
             label="Log out"
             onPress={() => setLogoutOpen(true)}
           />
-          <Row
+          <SettingsRow
             icon="trash-outline"
             label="Delete account"
             destructive
@@ -207,17 +259,14 @@ export default function SettingsScreen() {
             }}
             last
           />
-        </Group>
+        </SettingsGroup>
 
-        <Text variant="metaBold" color={colors.inkMuted} style={styles.version}>
-          SelfEra · version {APP_VERSION}
-        </Text>
-      </ScreenScroll>
+      </SettingsList>
 
       <AlertDialog
         visible={nameOpen}
-        title="Update Username"
-        message={saveError ?? 'Enter your new username'}
+        title="Update Name"
+        message={saveError ?? 'How you show up to friends and on your posts'}
         onDismiss={() => setNameOpen(false)}
         input={{
           value: draftName,
@@ -284,14 +333,13 @@ export default function SettingsScreen() {
         onDismiss={() => setBioOpen(false)}
         input={{
           value: draftBio,
-          // A bio is a line or two, not a page: a run of line breaks (typed
-          // or pasted in) would stretch the identity block on the profile
-          // page well past the avatar next to it, so breaks collapse to a
-          // space as they're typed rather than surviving to render.
+          // One line, so it opens in the same system prompt as the name and
+          // username. A bio is a line or two, not a page — a run of line
+          // breaks would stretch the name block on the profile well past the
+          // avatar beside it — so any pasted in collapse to a space.
           onChangeText: (next) =>
             setDraftBio(next.replace(/\s*\n+\s*/g, ' ').slice(0, BIO_MAX)),
           autoFocus: true,
-          multiline: true,
           maxLength: BIO_MAX,
         }}
         actions={[
@@ -300,7 +348,8 @@ export default function SettingsScreen() {
             label: 'Update',
             primary: true,
             onPress: async () => {
-              const next = draftBio.trim() ? draftBio.trim() : null;
+              const trimmed = draftBio.replace(/\s*\n+\s*/g, ' ').trim().slice(0, BIO_MAX);
+              const next = trimmed ? trimmed : null;
               try {
                 await updateProfile({ bio: next });
                 setBio(next);
@@ -343,38 +392,6 @@ export default function SettingsScreen() {
           },
         ]}
       />
-
-      {/* When each of today's tasks nudges you, and the one nudge that isn't a
-          task's: the last call, which only comes while one is still missing.
-          A pill opens its wheel in place, under its row, rather than a menu
-          and a sheet stacked over this window. */}
-      <AlertDialog
-        visible={remindersOpen}
-        title="Reminders"
-        message="When each task nudges you, every day of the era."
-        onDismiss={closeReminders}
-        actions={[{ label: 'Done', primary: true, onPress: closeReminders }]}
-      >
-        {tasks.map((task) => (
-          <ReminderRow
-            key={task.id}
-            label={task.label}
-            value={reminderFor(task.id)}
-            onChange={(at) => setReminderFor(task.id, at)}
-            open={editingReminder === task.id}
-            onToggle={() => toggleReminder(task.id)}
-            divider
-          />
-        ))}
-        <ReminderRow
-          label="Last call"
-          hint="Only if a task is still missing"
-          value={reminders.lastCall}
-          onChange={(at) => setReminders({ ...reminders, lastCall: at })}
-          open={editingReminder === 'lastCall'}
-          onToggle={() => toggleReminder('lastCall')}
-        />
-      </AlertDialog>
 
       <AlertDialog
         visible={endOpen}
@@ -480,129 +497,8 @@ export default function SettingsScreen() {
   );
 }
 
-function Group({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View style={styles.group}>
-      <Text variant="metaBold" color={colors.inkMuted} style={styles.groupTitle}>
-        {title}
-      </Text>
-      <View style={styles.groupCard}>{children}</View>
-    </View>
-  );
-}
-
-function Row({
-  label,
-  value,
-  accessory,
-  onPress,
-  destructive,
-  icon,
-  last,
-}: {
-  label: string;
-  value?: string;
-  /** Drawn where the value text would sit — the photo row's thumbnail. */
-  accessory?: React.ReactNode;
-  onPress?: () => void;
-  destructive?: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
-  last?: boolean;
-}) {
-  const ink = destructive ? colors.destructive : colors.ink;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        !last && styles.rowDivider,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={styles.rowIcon}>
-        <Ionicons name={icon} size={ROW_ICON} color={ink} />
-      </View>
-
-      <Text variant="copy" color={ink} style={styles.rowLabel}>
-        {label}
-      </Text>
-
-      {value ? (
-        <Text
-          variant="copy"
-          color={colors.inkMuted}
-          numberOfLines={1}
-          style={styles.rowValue}
-        >
-          {value}
-        </Text>
-      ) : null}
-
-      {accessory}
-
-      {/* Faint: the whole row is the button; the chevron only says there's
-          more behind it. */}
-      <Ionicons name="chevron-forward" size={ROW_CHEVRON} color={colors.inkGhost} />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-  },
-  group: {
-    marginBottom: layout.section,
-  },
-  // Nudged in off the card's corner, so the title sits over the card rather
-  // than hanging off its rounded edge.
-  groupTitle: {
-    marginBottom: layout.stack,
-    marginLeft: spacing.xs,
-  },
-  groupCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-    paddingVertical: layout.inline,
-    paddingHorizontal: spacing.lg,
-  },
-  rowDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    // The palette's fill grey rather than the warmer `divider`, so the
-    // screen keeps to My Profile's colours.
-    borderBottomColor: colors.surfaceSunken,
-  },
-  rowIcon: {
-    width: ROW_ICON_TILE,
-    height: ROW_ICON_TILE,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceSunken,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowLabel: {
-    flex: 1,
-  },
-  rowValue: {
-    maxWidth: ROW_VALUE_MAX,
-  },
-  version: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

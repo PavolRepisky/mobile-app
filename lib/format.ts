@@ -16,6 +16,19 @@ export function shortDate(date: Date): string {
   return `${MONTHS_LONG[date.getMonth()]} ${date.getDate()}`;
 }
 
+/** "Today", "Yesterday", or "Oct 6" — the day a post was made, said the way
+ * a feed says it: relative while it's recent, the date once it isn't. */
+export function relativeDay(date: Date): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  const ago = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+  if (ago === 0) return 'Today';
+  if (ago === 1) return 'Yesterday';
+  return shortDate(day);
+}
+
 /** "Sep 30, 2026" — a date that stands on its own, like the one under a
  * signature. */
 export function fullDate(date: Date): string {

@@ -1,8 +1,21 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  DatePicker,
+  HStack,
+  Host,
+  Spacer,
+  Text as SystemText,
+  Toggle,
+  VStack,
+} from '@expo/ui/swift-ui';
+import { datePickerStyle, foregroundStyle, labelsHidden } from '@expo/ui/swift-ui/modifiers';
+import { useRef } from 'react';
+import { StyleSheet, View, useColorScheme, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, layout } from '@/constants/theme';
+import { colors, colorsFor, layout } from '@/constants/theme';
 import { clockTime } from '@/lib/format';
+import { quicksand, tint } from '@/lib/swiftUI';
 import { Pill } from './Pill';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 import { WheelPicker } from './WheelPicker';
 
@@ -76,7 +89,113 @@ export interface ReminderRowProps {
  * every quarter hour — and each stop it turns to is kept as it goes, so
  * there's no menu or sheet stacked over the page or window it sits in.
  */
-export function ReminderRow({
+export function ReminderRow(props: ReminderRowProps) {
+  return NATIVE_HEADER ? <SystemReminderRow {...props} /> : <DrawnReminderRow {...props} />;
+}
+
+/** Where a reminder lands when it is switched on with no time of its own to
+ * go back to: eight in the morning, the app's own default. */
+const DEFAULT_ON = 8 * 60;
+
+/**
+ * On the iPhone, the row the Clock app's alarms use: the time as the system's
+ * compact time button — tapped, it opens its own wheel — and a switch beside
+ * it for whether there's a nudge at all. Off hides the time; on brings back
+ * the last one it had.
+ */
+function SystemReminderRow({ label, hint, strong, value, onChange, divider }: ReminderRowProps) {
+  // The time's editing highlight in the system blue; the switch keeps the
+  // system's green.
+  const scheme = colorsFor(useColorScheme());
+  const lastOn = useRef(value ?? DEFAULT_ON);
+  if (value !== null) lastOn.current = value;
+  const at = new Date();
+  at.setHours(Math.floor(lastOn.current / 60), lastOn.current % 60, 0, 0);
+
+  return (
+    <View style={[styles.row, divider && styles.rowDivider]}>
+      <View style={styles.rowText}>
+        <Text variant={strong ? 'copyBold' : 'copy'} numberOfLines={1}>
+          {label}
+        </Text>
+        {hint ? (
+          <Text variant="meta" color={colors.inkMuted} numberOfLines={strong ? 1 : undefined}>
+            {hint}
+          </Text>
+        ) : null}
+      </View>
+      <Host matchContents>
+        <HStack spacing={layout.stack}>
+          {value !== null ? (
+            <DatePicker
+              selection={at}
+              displayedComponents={['hourAndMinute']}
+              onDateChange={(next) => onChange(next.getHours() * 60 + next.getMinutes())}
+              modifiers={[datePickerStyle('compact'), labelsHidden(), tint(scheme.systemAccent)]}
+            />
+          ) : null}
+          <Toggle
+            isOn={value !== null}
+            onIsOnChange={(on) => onChange(on ? lastOn.current : null)}
+            modifiers={[labelsHidden()]}
+          />
+        </HStack>
+      </Host>
+    </View>
+  );
+}
+
+/**
+ * A reminder as a row of the system's own list, for a page built from
+ * `SettingsList` on the iPhone: what it's for (and the line under it), then
+ * the compact time button and the switch — all SwiftUI, so the row sits in
+ * the list's own groups like any Settings row.
+ */
+export function ReminderListRow({
+  label,
+  hint,
+  value,
+  onChange,
+}: Pick<ReminderRowProps, 'label' | 'hint' | 'value' | 'onChange'>) {
+  // The time's editing highlight in the system blue; the switch keeps the
+  // system's green.
+  const scheme = colorsFor(useColorScheme());
+  const lastOn = useRef(value ?? DEFAULT_ON);
+  if (value !== null) lastOn.current = value;
+  const at = new Date();
+  at.setHours(Math.floor(lastOn.current / 60), lastOn.current % 60, 0, 0);
+
+  return (
+    <HStack spacing={layout.stack}>
+      <VStack alignment="leading" spacing={layout.line / 2}>
+        <SystemText modifiers={[quicksand()]}>{label}</SystemText>
+        {hint ? (
+          <SystemText
+            modifiers={[quicksand('footnote'), foregroundStyle({ type: 'hierarchical', style: 'secondary' })]}
+          >
+            {hint}
+          </SystemText>
+        ) : null}
+      </VStack>
+      <Spacer />
+      {value !== null ? (
+        <DatePicker
+          selection={at}
+          displayedComponents={['hourAndMinute']}
+          onDateChange={(next) => onChange(next.getHours() * 60 + next.getMinutes())}
+          modifiers={[datePickerStyle('compact'), labelsHidden(), tint(scheme.systemAccent)]}
+        />
+      ) : null}
+      <Toggle
+        isOn={value !== null}
+        onIsOnChange={(on) => onChange(on ? lastOn.current : null)}
+        modifiers={[labelsHidden()]}
+      />
+    </HStack>
+  );
+}
+
+function DrawnReminderRow({
   label,
   hint,
   strong,

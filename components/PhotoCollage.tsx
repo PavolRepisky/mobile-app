@@ -1,17 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
   Pressable,
   StyleSheet,
   View,
+  useColorScheme,
   type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/constants/theme';
+import { colors, colorsFor, radii, shadows, spacing } from '@/constants/theme';
 import { Placeholder } from './Placeholder';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 /** One piece of the mosaic — a task's proof photo, or the gap where it goes. */
@@ -44,6 +47,11 @@ export interface PhotoCollageProps {
    * without discs, names or times, which wouldn't fit at that size.
    */
   bare?: boolean;
+  /**
+   * Open squares as the plain grey alone, without their camera — for a page
+   * whose own shutter takes the photo. They still answer a tap.
+   */
+  plainOpen?: boolean;
   style?: StyleProp<ViewStyle>;
   /** Drawn over the block — the Day stamp once the post is complete. */
   children?: React.ReactNode;
@@ -60,10 +68,22 @@ const MOSAIC_PIECE = { flex: 1 } as const;
 
 /** The camera disc on an open tile — a thumb's target. */
 const DISC = 44;
+/** The iPhone's camera symbol on an open tile, at about the disc's glyph
+ * plus the weight the disc gave it. */
+const OPEN_SYMBOL = 26;
 
 /** One piece of the mosaic: the photo, or the open tile asking for it. */
-function MosaicTile({ cell, bare }: { cell: CollageCell; bare?: boolean }) {
+function MosaicTile({
+  cell,
+  bare,
+  plainOpen,
+}: {
+  cell: CollageCell;
+  bare?: boolean;
+  plainOpen?: boolean;
+}) {
   const filled = !!(cell.photo || cell.seed);
+  const scheme = colorsFor(useColorScheme());
 
   const content = cell.photo ? (
     <Image source={cell.photo} style={MOSAIC_PIECE} contentFit="cover" />
@@ -71,7 +91,17 @@ function MosaicTile({ cell, bare }: { cell: CollageCell; bare?: boolean }) {
     <Placeholder seed={cell.seed ?? cell.key} radius={0} style={MOSAIC_PIECE} />
   ) : (
     <View style={[MOSAIC_PIECE, styles.empty]}>
-      {bare ? null : (
+      {bare || plainOpen ? null : NATIVE_HEADER && cell.onPress ? (
+        // On the iPhone an open square is the system's own add-a-photo
+        // tile: the camera symbol in the system blue on the grey, the way
+        // a tappable placeholder reads there, rather than a drawn disc.
+        <SymbolView
+          name="camera.fill"
+          size={OPEN_SYMBOL}
+          tintColor={scheme.systemAccent}
+          weight="medium"
+        />
+      ) : (
         // The next square to take carries the ink disc; the rest wait on
         // white, so the eye lands on one place to start.
         <View style={[styles.disc, cell.next ? styles.discNext : styles.discWaiting]}>
@@ -90,7 +120,7 @@ function MosaicTile({ cell, bare }: { cell: CollageCell; bare?: boolean }) {
   const timeBadge =
     !bare && filled && cell.time ? (
       <View style={styles.time} pointerEvents="none">
-        <Text variant="micro" color={colors.inkInverse}>
+        <Text variant="micro" color={colors.onMedia}>
           {cell.time}
         </Text>
       </View>
@@ -191,7 +221,14 @@ export function MosaicArrangement<T extends { key: string }>({
  * light tiles with a camera and the task's name. Measured rather than
  * proportioned, so the square follows the width it is actually given.
  */
-export function PhotoCollage({ cells, radius = radii.lg, bare, style, children }: PhotoCollageProps) {
+export function PhotoCollage({
+  cells,
+  radius = radii.lg,
+  bare,
+  plainOpen,
+  style,
+  children,
+}: PhotoCollageProps) {
   const [width, setWidth] = useState(0);
 
   if (cells.length === 0) return null;
@@ -209,7 +246,9 @@ export function PhotoCollage({ cells, radius = radii.lg, bare, style, children }
         >
           <MosaicArrangement
             cells={cells}
-            renderCell={(cell) => <MosaicTile key={cell.key} cell={cell} bare={bare} />}
+            renderCell={(cell) => (
+              <MosaicTile key={cell.key} cell={cell} bare={bare} plainOpen={plainOpen} />
+            )}
           />
           {children}
         </View>

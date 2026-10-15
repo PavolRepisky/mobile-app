@@ -6,6 +6,7 @@ import {
   View,
   type PressableProps,
   type View as RNView,
+  type ColorValue,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,7 +22,7 @@ function Glyph({
 }: {
   icon: TabIcon;
   active: boolean;
-  color?: string;
+  color?: ColorValue;
 }) {
   const size = 27;
 

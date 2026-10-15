@@ -48,7 +48,7 @@ export function LockedOverlay({
         onPress={onPress}
         style={[absoluteFill, styles.message]}
       >
-        <Pill tone="floating" icon="lock-closed" label={title} bold style={styles.pill} />
+        <Pill overMedia tone="floating" icon="lock-closed" label={title} bold style={styles.pill} />
       </Pressable>
     </View>
   );

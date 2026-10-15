@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
+  Appearance,
   Animated,
   Easing,
   Modal,
@@ -10,7 +12,8 @@ import {
   View,
 } from 'react-native';
 
-import { absoluteFill, colors, layout, radii, shadows, spacing } from '@/constants/theme';
+import { absoluteFill, colors, colorsFor, layout, radii, shadows, spacing } from '@/constants/theme';
+import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
 export interface PopoverItem {
@@ -42,7 +45,42 @@ export interface PopoverMenuProps {
  * the button instead of appearing over it. Dismissal is a quicker collapse —
  * closing should not cost the user the same wait as opening.
  */
-export function PopoverMenu({
+export function PopoverMenu(props: PopoverMenuProps) {
+  return NATIVE_HEADER ? <SystemMenu {...props} /> : <DrawnMenu {...props} />;
+}
+
+/**
+ * On the iPhone, the system's action sheet: the choices rise from the bottom
+ * with Cancel apart under them, and a destructive one in the system red. The
+ * chosen item runs only once the sheet has gone, for the reason `pending`
+ * gives below.
+ */
+function SystemMenu({ visible, onDismiss, items }: PopoverMenuProps) {
+  useEffect(() => {
+    if (!visible) return;
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [...items.map((item) => item.label), 'Cancel'],
+        cancelButtonIndex: items.length,
+        destructiveButtonIndex: items.flatMap((item, i) => (item.destructive ? [i] : [])),
+        // The choices in the system blue, for the appearance the sheet opens
+        // in; the destructive one keeps its red.
+        tintColor: colorsFor(Appearance.getColorScheme()).systemAccent,
+      },
+      (index) => {
+        onDismiss();
+        const chosen = items[index];
+        if (chosen) setTimeout(chosen.onPress);
+      },
+    );
+    // Shown once per opening; the items are read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  return null;
+}
+
+function DrawnMenu({
   visible,
   onDismiss,
   items,

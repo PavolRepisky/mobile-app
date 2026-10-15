@@ -1,8 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
 import {
+  Button,
+  DatePicker,
+  HStack,
+  Host,
+  Picker,
+  RNHostView,
+  Spacer,
+  SwipeActions,
+  Text as SystemText,
+  TextField,
+  VStack,
+  useNativeState,
+} from '@expo/ui/swift-ui';
+import {
+  buttonStyle,
+  contentShape,
+  datePickerStyle,
+  foregroundStyle,
+  frame,
+  labelsHidden,
+  lineLimit,
+  listRowBackground,
+  listRowInsets,
+  pickerStyle,
+  shapes,
+  tag,
+  textInputAutocapitalization,
+} from '@expo/ui/swift-ui/modifiers';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -12,20 +43,27 @@ import {
   View,
   type StyleProp,
   type ViewStyle,
+  useColorScheme,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { quicksand, tint } from '@/lib/swiftUI';
 import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
 import { buttonHeight, PrimaryButton } from '@/components/Buttons';
-import { ChallengeLengthSheet } from '@/components/ChallengeLengthSheet';
+import {
+  ChallengeLengthSheet,
+  MAX_DAYS,
+  MIN_DAYS,
+} from '@/components/ChallengeLengthSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
 import { Pill, pillHeights } from '@/components/Pill';
-import { ScreenScroll } from '@/components/Screen';
+import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { SettingsGroup, SettingsList } from '@/components/SettingsList';
 import { StepBar } from '@/components/StepBar';
 import { Text } from '@/components/Text';
 import { WheelPicker } from '@/components/WheelPicker';
@@ -37,6 +75,7 @@ import {
   spacing,
   tabBarBottom,
   type as typeScale,
+  colorsFor,
 } from '@/constants/theme';
 import { CHALLENGES, type Challenge, type ChallengeCategory } from '@/data/challenges';
 import { LIVES_PER_CHALLENGE, useApp, type TaskPhoto } from '@/hooks/useAppState';
@@ -108,6 +147,16 @@ const INVITE_AVATAR = 48;
 const INVITE_COUNT = 2;
 
 const STEPS = 3;
+
+/** Each step's name in the iPhone's bar, where the drawn form has its step
+ * bar and the question on the page. */
+const STEP_TITLES = { 2: 'Daily Tasks', 3: 'Rules' } as const;
+
+/** Every length the wheel offers, a week to four months. */
+const LENGTH_OPTIONS = Array.from({ length: MAX_DAYS - MIN_DAYS + 1 }, (_, i) => MIN_DAYS + i);
+
+/** The topic picker's "none" — a topic is optional. */
+const NO_TOPIC = 'none';
 
 type Step = 1 | 2 | 3 | 'live';
 
@@ -190,6 +239,9 @@ export default function CreateChallengeScreen() {
   const [startOpen, setStartOpen] = useState(false);
   const [days, setDays] = useState(editing?.defaultDays ?? DEFAULT_DAYS);
   const [lengthOpen, setLengthOpen] = useState(false);
+  /** Which of the iPhone form's wheel sheets is open, if either. */
+  const [openWheel, setOpenWheel] = useState<'start' | 'length' | null>(null);
+  const [pendingDays, setPendingDays] = useState(days);
   const [lives, setLives] = useState(editing?.lives ?? LIVES_PER_CHALLENGE);
   const [pendingLives, setPendingLives] = useState(lives);
   const [livesOpen, setLivesOpen] = useState(false);
@@ -203,6 +255,8 @@ export default function CreateChallengeScreen() {
   const createdRound = catalog.find((l) => l.key === createdKey)?.section.roundId;
   const inviteFriends = relations.friendList.slice(0, INVITE_COUNT);
 
+  // The calendar takes plain colours, picked for the appearance on show.
+  const scheme = colorsFor(useColorScheme());
   const startDate = addDays(today, startOffset);
   const endDate = addDays(startDate, days - 1);
   // Stretched to reach a start already picked further out than the window,
@@ -282,7 +336,10 @@ export default function CreateChallengeScreen() {
       refreshToday();
       goTo('live');
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'That didn’t save. Try again.');
+      const message = e instanceof Error ? e.message : 'That didn’t save. Try again.';
+      setSaveError(message);
+      // The iPhone's form has no dock to say it under, so the system says it.
+      if (NATIVE_HEADER) Alert.alert('Couldn’t save', message);
     } finally {
       setSaving(false);
     }
@@ -319,7 +376,14 @@ export default function CreateChallengeScreen() {
   const contentWidth = width - layout.gutter * 2;
 
   const header =
-    step === 'live' ? undefined : (
+    step === 'live' ? (
+      NATIVE_HEADER ? (
+        <ScreenHeader
+          showBack={false}
+          actions={[{ label: 'Done', prominent: true, onPress: () => router.back() }]}
+        />
+      ) : undefined
+    ) : (
       <ScreenHeader
         backIcon={step === 1 ? 'close' : 'chevron-back'}
         onBack={step === 1 ? undefined : () => goTo((step - 1) as Step)}
@@ -350,34 +414,228 @@ export default function CreateChallengeScreen() {
           onPress={create}
         />
       </View>
-    ) : (
-      <View style={styles.liveActions}>
-        <PrimaryButton label="Share invite link" icon="share-outline" onPress={shareInvite} />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          hitSlop={spacing.sm}
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          <Text variant="copyBold">Done</Text>
-        </Pressable>
-      </View>
-    );
-
-  // The finished page's dock carries a text link under the button as well.
-  const dockHeight = step === 'live' ? buttonHeight + layout.block + typeScale.copyBold.lineHeight : buttonHeight;
+    ) : null;
 
   if (locked) {
     return (
       <ScreenScroll tone="plain" header={<ScreenHeader backIcon="close" />}>
         <EmptyState
           icon="lock-closed"
-          disc
           title={editing ? `${editing.name} has started` : 'Era not found'}
           hint="An era can be changed until its Day 1. After that, everyone in it keeps the rules they joined on."
-          style={styles.lockedState}
         />
       </ScreenScroll>
+    );
+  }
+
+  // On the iPhone the three steps are the system's own grouped form — the
+  // one Calendar's New Event is — with the step's name in the bar and its
+  // way on as the bar's Next, so the system sets every row, gap and margin.
+  if (NATIVE_HEADER && step !== 'live') {
+    const next =
+      step === 1
+        ? { label: 'Next', disabled: !basicsDone, onPress: () => goTo(2) }
+        : step === 2
+          ? { label: 'Next', disabled: !tasksDone, onPress: () => goTo(3) }
+          : {
+              label: saving ? 'Saving…' : editing ? 'Save' : 'Create',
+              disabled: saving,
+              onPress: create,
+            };
+    return (
+      <View style={styles.screenRoot}>
+        <SettingsList
+          // A fresh step starts at its top, not where the last was scrolled.
+          key={step}
+          header={
+            <ScreenHeader
+              plainTitle={step === 1 ? (editing ? 'Edit Era' : 'New Era') : STEP_TITLES[step]}
+              backIcon={step === 1 ? 'close' : 'chevron-back'}
+              onBack={step === 1 ? undefined : () => goTo((step - 1) as Step)}
+              actions={[{ ...next, prominent: true }]}
+            />
+          }
+        >
+          {step === 1 ? (
+            <NativeBasics
+              hint={
+                editing
+                  ? `Change anything until it starts on ${longDate(startDate)}.`
+                  : `Add ${PHOTO_COUNT} photos — they’re what people see first.`
+              }
+              photos={photos}
+              onPick={setActiveSlot}
+              name={name}
+              onName={setName}
+              description={description}
+              onDescription={setDescription}
+              topic={topic}
+              onTopic={setTopic}
+            />
+          ) : null}
+
+          {step === 2 ? (
+            <>
+              <SettingsGroup
+                title="Tasks"
+                footer={`Each task is proven with one photo. Add a line so everyone does it the same way. Swipe left to remove one. Up to ${MAX_TASKS}.`}
+              >
+                {tasks.map((task, i) => (
+                  <NativeTaskRow
+                    key={task.id}
+                    task={task}
+                    index={i}
+                    onChange={(patch) => updateTask(task.id, patch)}
+                    onDelete={() => deleteTaskRow(task.id)}
+                  />
+                ))}
+                {tasks.length < MAX_TASKS ? (
+                  <Button
+                    label="Add Task"
+                    systemImage="plus.circle.fill"
+                    onPress={() => addTaskRow()}
+                    modifiers={[tint(scheme.systemAccent)]}
+                  />
+                ) : null}
+              </SettingsGroup>
+              {suggestions.length > 0 && tasks.length < MAX_TASKS ? (
+                <SettingsGroup title={`Popular in ${topic}`}>
+                  {suggestions.map((label) => (
+                    <Button
+                      key={label}
+                      label={label}
+                      systemImage="plus.circle"
+                      onPress={() => addSuggestion(label)}
+                      modifiers={[tint(scheme.systemAccent)]}
+                    />
+                  ))}
+                </SettingsGroup>
+              ) : null}
+            </>
+          ) : null}
+
+          {step === 3 ? (
+            <>
+              {/* Starts and Length as rows with their value at the end, each
+                  opening the system's wheel on a sheet from the bottom. */}
+              <SettingsGroup
+                footer={`Everyone starts together, and joining closes that day. It ends ${longDate(endDate)}.`}
+              >
+                <NativeExpandRow
+                  label="Starts"
+                  value={longDate(startDate)}
+                  open={openWheel === 'start'}
+                  onPress={() => {
+                    setPendingOffset(startOffset);
+                    setOpenWheel('start');
+                  }}
+                />
+                <NativeExpandRow
+                  label="Length"
+                  value={`${days} days`}
+                  open={openWheel === 'length'}
+                  onPress={() => {
+                    setPendingDays(days);
+                    setOpenWheel('length');
+                  }}
+                />
+              </SettingsGroup>
+              <SettingsGroup footer={livesHint(lives)}>
+                <Picker
+                  label="Lives"
+                  selection={lives}
+                  onSelectionChange={(n: number) => setLives(n)}
+                  modifiers={[pickerStyle('menu'), tint(scheme.systemAccent)]}
+                >
+                  {LIFE_OPTIONS.map((n) => (
+                    <SystemText key={n} modifiers={[tag(n)]}>
+                      {livesLabel(n)}
+                    </SystemText>
+                  ))}
+                </Picker>
+              </SettingsGroup>
+            </>
+          ) : null}
+        </SettingsList>
+
+        <PhotoLibrarySheet
+          visible={activeSlot !== null}
+          onPick={(photo) => {
+            if (activeSlot === null) return;
+            const slot = activeSlot;
+            setPhotos((list) =>
+              slot < list.length ? list.map((p, i) => (i === slot ? photo : p)) : [...list, photo],
+            );
+            setActiveSlot(null);
+          }}
+          onDismiss={() => setActiveSlot(null)}
+        />
+
+        {/* The wheels on a sheet from the bottom, the way the app's other
+            pickers open: a draft until Done, kept as it was if the sheet is
+            pulled away. */}
+        <BottomSheet visible={openWheel === 'start'} onDismiss={() => setOpenWheel(null)}>
+          <Text variant="sectionHeading" center>
+            Starts
+          </Text>
+          <Host matchContents={{ vertical: true }} style={styles.wheel}>
+            <DatePicker
+              selection={addDays(today, pendingOffset)}
+              range={{
+                start: addDays(today, startOffsets[0]),
+                end: addDays(today, startOffsets[startOffsets.length - 1]),
+              }}
+              displayedComponents={['date']}
+              onDateChange={(picked) => {
+                const day = new Date(picked.getFullYear(), picked.getMonth(), picked.getDate());
+                setPendingOffset(offsetTo(today, day));
+              }}
+              modifiers={[
+                datePickerStyle('wheel'),
+                labelsHidden(),
+                frame({ maxWidth: Number.MAX_SAFE_INTEGER }),
+              ]}
+            />
+          </Host>
+          <PrimaryButton
+            label="Done"
+            onPress={() => {
+              setStartOffset(pendingOffset);
+              setOpenWheel(null);
+            }}
+          />
+        </BottomSheet>
+
+        <BottomSheet visible={openWheel === 'length'} onDismiss={() => setOpenWheel(null)}>
+          <Text variant="sectionHeading" center>
+            Length
+          </Text>
+          <Host matchContents={{ vertical: true }} style={styles.wheel}>
+            <Picker
+              selection={pendingDays}
+              onSelectionChange={(n: number) => setPendingDays(n)}
+              modifiers={[
+                pickerStyle('wheel'),
+                labelsHidden(),
+                frame({ maxWidth: Number.MAX_SAFE_INTEGER }),
+              ]}
+            >
+              {LENGTH_OPTIONS.map((n) => (
+                <SystemText key={n} modifiers={[tag(n)]}>
+                  {n} days
+                </SystemText>
+              ))}
+            </Picker>
+          </Host>
+          <PrimaryButton
+            label="Done"
+            onPress={() => {
+              setDays(pendingDays);
+              setOpenWheel(null);
+            }}
+          />
+        </BottomSheet>
+      </View>
     );
   }
 
@@ -385,12 +643,16 @@ export default function CreateChallengeScreen() {
     // Absolute overlays need a positioned parent, otherwise their offsets
     // resolve against the scroll content instead of the screen.
     <View style={styles.screenRoot}>
+      {/* The finished page has nowhere to go back to, so the bar the steps
+          turned on goes away with them. */}
+      {step === 'live' && !NATIVE_HEADER ? <Stack.Screen options={{ headerShown: false }} /> : null}
       <ScreenScroll
         ref={scroll}
         tone="plain"
         // Room for the dock, so the last row clears it. The scroll already
-        // pads for the safe area, which the dock's own gap covers.
-        bottomExtra={layout.block + dockHeight + dockGap - insets.bottom}
+        // pads for the safe area, which the dock's own gap covers. The
+        // finished page has no dock: its button sits on the page.
+        bottomExtra={dock ? layout.block + buttonHeight + dockGap - insets.bottom : undefined}
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
@@ -617,6 +879,23 @@ export default function CreateChallengeScreen() {
               </Text>
             </View>
 
+            {/* Straight under the words that ask for it, on the page itself
+                rather than docked on a band over it. */}
+            <View style={styles.liveActions}>
+              <PrimaryButton label="Share invite link" icon="share-outline" onPress={shareInvite} />
+              {/* On the iPhone, Done is the bar's, where iOS puts it. */}
+              {NATIVE_HEADER ? null : (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.back()}
+                  hitSlop={spacing.sm}
+                  style={({ pressed }) => pressed && styles.pressed}
+                >
+                  <Text variant="copyBold">Done</Text>
+                </Pressable>
+              )}
+            </View>
+
             <View style={styles.invites}>
               {inviteFriends.map((friend) => {
                 const sent = invited.includes(friend.id);
@@ -651,7 +930,7 @@ export default function CreateChallengeScreen() {
 
       {/* Docked on a white band like Join on a challenge's preview, so the
           form scrolls away under it rather than showing through. */}
-      <View style={[styles.dock, { paddingBottom: dockGap }]}>{dock}</View>
+      {dock ? <View style={[styles.dock, { paddingBottom: dockGap }]}>{dock}</View> : null}
 
       <PhotoLibrarySheet
         visible={activeSlot !== null}
@@ -725,6 +1004,204 @@ export default function CreateChallengeScreen() {
   );
 }
 
+/**
+ * The first step on the iPhone, as the system form's groups: the cover
+ * mosaic as a row of its own, edge to edge in the group with no card behind
+ * it; the name and description as the form's own fields; the topic as its
+ * pull-down picker.
+ */
+function NativeBasics({
+  hint,
+  photos,
+  onPick,
+  name,
+  onName,
+  description,
+  onDescription,
+  topic,
+  onTopic,
+}: {
+  hint: string;
+  photos: readonly TaskPhoto[];
+  onPick: (slot: number) => void;
+  name: string;
+  onName: (name: string) => void;
+  description: string;
+  onDescription: (description: string) => void;
+  topic: ChallengeCategory | null;
+  onTopic: (topic: ChallengeCategory | null) => void;
+}) {
+  const scheme = colorsFor(useColorScheme());
+  // Seeded once from the draft; from then on the fields hold the text and
+  // report every change back.
+  const nameText = useNativeState(name);
+  const descriptionText = useNativeState(description);
+  // The group's width is the system's to set, so the mosaic measures it.
+  const [coverWidth, setCoverWidth] = useState(0);
+
+  return (
+    <>
+      <SettingsGroup footer={hint}>
+        <HStack
+          modifiers={[
+            frame({ height: COVER_HEIGHT, maxWidth: Number.MAX_SAFE_INTEGER }),
+            listRowInsets({ top: 0, leading: 0, bottom: 0, trailing: 0 }),
+            listRowBackground('clear'),
+          ]}
+        >
+          <RNHostView>
+            <View
+              style={styles.nativeCover}
+              onLayout={(e) => setCoverWidth(e.nativeEvent.layout.width)}
+            >
+              {coverWidth > 0 ? (
+                <Cover photos={photos} width={coverWidth} onPick={onPick} style={styles.coverFlush} />
+              ) : null}
+            </View>
+          </RNHostView>
+        </HStack>
+      </SettingsGroup>
+
+      <SettingsGroup>
+        <TextField
+          text={nameText}
+          placeholder="Name your era"
+          onTextChange={onName}
+          modifiers={[textInputAutocapitalization('words')]}
+        />
+        {/* Two lines tall before anything is typed, so it reads as the field
+            to say more in. */}
+        <TextField
+          text={descriptionText}
+          placeholder="What's it about, and who's it for?"
+          axis="vertical"
+          onTextChange={onDescription}
+          modifiers={[lineLimit({ min: 2, max: 6 })]}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup footer="Optional. It picks the popular tasks offered on the next step.">
+        <Picker
+          label="Topic"
+          selection={topic ?? NO_TOPIC}
+          onSelectionChange={(picked: string) =>
+            onTopic(picked === NO_TOPIC ? null : (picked as ChallengeCategory))
+          }
+          modifiers={[pickerStyle('menu'), tint(scheme.systemAccent)]}
+        >
+          <SystemText modifiers={[tag(NO_TOPIC)]}>None</SystemText>
+          {CATEGORIES.map((category) => (
+            <SystemText key={category} modifiers={[tag(category)]}>
+              {category}
+            </SystemText>
+          ))}
+        </Picker>
+      </SettingsGroup>
+    </>
+  );
+}
+
+/**
+ * A task on the iPhone: its name and the line on how to do it as two of the
+ * form's own fields in one row, and the system's swipe to delete it — the
+ * way Reminders edits a list.
+ */
+function NativeTaskRow({
+  task,
+  index,
+  onChange,
+  onDelete,
+}: {
+  task: DraftTask;
+  index: number;
+  onChange: (patch: Partial<DraftTask>) => void;
+  onDelete: () => void;
+}) {
+  const label = useNativeState(task.label);
+  const note = useNativeState(task.note);
+  // A suggestion can fill a blank row from outside the field; what was typed
+  // in it comes back as the same text and is left alone.
+  const typed = useRef(task.label);
+  useEffect(() => {
+    if (task.label === typed.current) return;
+    typed.current = task.label;
+    label.value = task.label;
+  }, [task.label, label]);
+
+  return (
+    <SwipeActions>
+      <VStack alignment="leading" spacing={layout.line}>
+        <TextField
+          text={label}
+          placeholder={`Task ${index + 1}`}
+          onTextChange={(text) => {
+            typed.current = text;
+            onChange({ label: text });
+          }}
+          modifiers={[quicksand('body', 'bold')]}
+        />
+        <TextField
+          text={note}
+          placeholder="How should people do it? (optional)"
+          axis="vertical"
+          onTextChange={(text) => onChange({ note: text })}
+          modifiers={[
+            quicksand('subheadline'),
+            foregroundStyle({ type: 'hierarchical', style: 'secondary' }),
+          ]}
+        />
+      </VStack>
+      <SwipeActions.Actions edge="trailing">
+        <Button role="destructive" label="Delete" systemImage="trash" onPress={onDelete} />
+      </SwipeActions.Actions>
+    </SwipeActions>
+  );
+}
+
+/**
+ * A row of the system form that opens a wheel: its name, and its value at
+ * the end — in the accent while its wheel is open, as Calendar marks the
+ * time being set.
+ */
+function NativeExpandRow({
+  label,
+  value,
+  open,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  open: boolean;
+  onPress: () => void;
+}) {
+  const scheme = colorsFor(useColorScheme());
+  return (
+    <Button onPress={onPress} modifiers={[buttonStyle('plain')]}>
+      {/* Stretched and given a solid shape, so a tap anywhere along the row
+          counts, not only on its words. */}
+      <HStack
+        spacing={layout.inline}
+        modifiers={[
+          frame({ maxWidth: Number.MAX_SAFE_INTEGER, alignment: 'leading' }),
+          contentShape(shapes.rectangle()),
+        ]}
+      >
+        <SystemText>{label}</SystemText>
+        <Spacer />
+        <SystemText
+          modifiers={[
+            foregroundStyle(
+              open ? scheme.systemAccent : { type: 'hierarchical', style: 'secondary' },
+            ),
+          ]}
+        >
+          {value}
+        </SystemText>
+      </HStack>
+    </Button>
+  );
+}
+
 /** Each step's one question, with the line under it saying what it's for. */
 function Question({ title, hint }: { title: string; hint?: string }) {
   return (
@@ -748,10 +1225,12 @@ function Cover({
   photos,
   width,
   onPick,
+  style,
 }: {
   photos: readonly TaskPhoto[];
   width: number;
   onPick: (slot: number) => void;
+  style?: StyleProp<ViewStyle>;
 }) {
   const missing = PHOTO_COUNT - photos.length;
   const leadWidth = Math.round(((width - layout.grid) * 2) / 3);
@@ -781,13 +1260,15 @@ function Cover({
 
   if (photos.length === 0) {
     return (
-      <View style={styles.cover}>{add(width, COVER_HEIGHT, `Add ${PHOTO_COUNT} photos`)}</View>
+      <View style={[styles.cover, style]}>
+        {add(width, COVER_HEIGHT, `Add ${PHOTO_COUNT} photos`)}
+      </View>
     );
   }
 
   const more = `${missing} more`;
   return (
-    <View style={[styles.cover, styles.coverRow]}>
+    <View style={[styles.cover, styles.coverRow, style]}>
       {photo(0, leadWidth, COVER_HEIGHT)}
       {photos.length === 1 ? (
         add(sideWidth, COVER_HEIGHT, more)
@@ -895,13 +1376,22 @@ const styles = StyleSheet.create({
   coverSide: {
     gap: layout.grid,
   },
+  // In the iPhone's form the group's own gaps space it.
+  coverFlush: {
+    marginBottom: 0,
+  },
+  nativeCover: {
+    flex: 1,
+  },
   fields: {
     gap: layout.inline,
   },
+  // The iPhone's own field corner, the one its grouped lists and search
+  // fields share; elsewhere the app's softer card one.
   field: {
     gap: layout.line,
     backgroundColor: colors.surfaceSunken,
-    borderRadius: radii.lg,
+    borderRadius: Platform.OS === 'ios' ? radii.sm : radii.lg,
     paddingVertical: layout.inline,
     paddingHorizontal: layout.block,
   },
@@ -1048,9 +1538,6 @@ const styles = StyleSheet.create({
   inviteName: {
     flex: 1,
   },
-  lockedState: {
-    paddingTop: spacing['4xl'],
-  },
   invitePill: {
     alignSelf: 'center',
   },
@@ -1059,8 +1546,10 @@ const styles = StyleSheet.create({
     gap: layout.stack,
   },
   liveActions: {
+    alignSelf: 'stretch',
     alignItems: 'center',
     gap: layout.block,
+    marginBottom: layout.section,
   },
   dock: {
     position: 'absolute',

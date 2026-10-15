@@ -2,11 +2,9 @@ import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
-import { IconButton, cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { colors } from '@/constants/theme';
 import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 
 /**
@@ -18,7 +16,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const {
     profile, currentDay, totalDays, startDate, challenge, tasks, progress, inChallenge,
-    daysUntilStart,
+    daysUntilStart, reload,
   } = useApp();
 
   const dayOf = useCallback(
@@ -55,29 +53,29 @@ export default function ProfileScreen() {
     [router],
   );
 
+  const shareProfile = () => {
+    Share.share({ message: `${profile.name} (${profile.handle}) on SelfEra` }).catch(() => {});
+  };
+
   return (
     <View style={styles.screenRoot}>
       {/* The Profile tab breaks from the warm app shell and sits on white,
           the way the reference screen does. */}
-      {/* Every tab root's fixed title row: the title on the gutter and
-          Settings at the end, in reach however far down the days go. */}
+      {/* Every tab root's fixed title row: the title, then Share — the
+          profile to the phone's own share sheet — and Settings at the end,
+          in reach however far down the days go. */}
       <ScreenScroll
         tabBar
+        onRefresh={reload}
         tone="plain"
         header={
           <ScreenHeader
             plainTitle="My Profile"
             showBack={false}
-            right={
-              <IconButton
-                name="settings-outline"
-                size={cornerButtonSize}
-                iconSize={cornerIconSize}
-                background={colors.surface}
-                onPress={() => router.push('/account/settings')}
-                accessibilityLabel="Settings"
-              />
-            }
+            actions={[
+              { icon: 'share-outline', label: 'Share profile', onPress: shareProfile },
+              { icon: 'settings-outline', label: 'Settings', onPress: () => router.push('/account/settings') },
+            ]}
           />
         }
       >
@@ -105,20 +103,6 @@ export default function ProfileScreen() {
           today={today}
           emptyHint="Finish a day's tasks to see it here."
           daysTitle="My days"
-          // Edit profile is Settings under a friendlier name: the name,
-          // handle, bio and photo are all changed there. Share hands the
-          // profile to the phone's own share sheet.
-          actions={[
-            { label: 'Edit profile', onPress: () => router.push('/account/settings') },
-            {
-              label: 'Share profile',
-              onPress: () => {
-                Share.share({ message: `${profile.name} (${profile.handle}) on SelfEra` }).catch(
-                  () => {},
-                );
-              },
-            },
-          ]}
         />
       </ScreenScroll>
     </View>
