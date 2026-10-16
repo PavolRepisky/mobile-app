@@ -1,7 +1,6 @@
-import { Button, Host, HStack, Image as SystemImage, Menu, Text as SystemText } from '@expo/ui/swift-ui';
-import { foregroundStyle, font } from '@expo/ui/swift-ui/modifiers';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,14 +20,12 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { absoluteFill, colors, colorsFor, layout, radii, spacing } from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
 import type { TaskPhoto } from '@/hooks/useAppState';
 import { PrimaryButton } from './Buttons';
 import { LIQUID_GLASS, LiquidGlass } from './GlassSurface';
 import { IconButton } from './IconButton';
-import { quicksand } from '@/lib/swiftUI';
 import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
@@ -52,31 +49,22 @@ export interface CameraSheetProps {
    */
   swipeTasks?: boolean;
   onChangeTask?: (taskId: string) => void;
-  /** Where today stands, pinned to the picture's corner — "Day 5 · 3 left". */
-  kicker?: string;
   onCapture: (taskId: string, photo: TaskPhoto) => void;
   onClose: () => void;
 }
 
-/** The card's own corner — the signature card cut, so it reads as one more
- * of the app's cards risen over the page. */
-const CARD_RADIUS = radii.card;
-/** The picture's corner, concentric with the card's around the gap between
- * them, so the two curves run parallel. */
-const VIEWFINDER_RADIUS = radii.card - layout.stack;
-/** Close and flip: a thumb's target, a step under the shutter. */
-const CONTROL = 48;
-const CONTROL_ICON = 22;
-/** The flash in the picture's corner, the height of the pill opposite it. */
-const TOP_CONTROL = 36;
-const TOP_ICON = 18;
-const KICKER_HEIGHT = 30;
-const SHUTTER = 80;
-const SHUTTER_FACE = 64;
-const SHUTTER_RING = 4;
-/** The dot under the task in focus — small enough to read as a mark, not a
- * button. */
-const DOT = 5;
+/** The card's corner — big and round like ChatGPT's camera, running near
+ * the phone's own screen corner it sits in. */
+const CARD_RADIUS = 40;
+/** The picture's shape: the sensor's own 3:4, so the preview shows the whole
+ * frame the shot will hold. */
+const PICTURE_ASPECT = 3 / 4;
+/** Close and flip: glass circles a thumb's size, a step under the shutter. */
+const CONTROL = 40;
+const CONTROL_ICON = 18;
+const SHUTTER = 64;
+const SHUTTER_FACE = 50;
+const SHUTTER_RING = 3;
 const RISE_MS = 280;
 /** The furthest the pinch goes, as the pill reads it. Past this the picture
  * is only a blown-up crop, the point where the phone's own camera stops too. */
@@ -110,12 +98,14 @@ function formatZoom(factor: number): string {
 }
 
 /**
- * The camera, opened from a task: the page dims and a black card rises from
- * the bottom with the live picture square in it, where today stands and the
- * flash on its corners, the task it's for under it between its neighbours,
- * and close, shutter and flip along the bottom. The whole shot is kept; its
- * square in the post shows it cropped to fill, the way every photo in the
- * grid is. Closing it drops straight back to the page.
+ * The camera, opened from a task, the way ChatGPT's is: the live picture
+ * itself rises as a rounded card near the foot of the screen, and everything
+ * sits on it — at its head, over a soft shade, the task it's for between its
+ * neighbours; at its foot close, the shutter, and a corner button that opens
+ * the flash and the lens switch above it.
+ * The task's note stays on the Tasks page, so the picture keeps clear. The
+ * whole shot is kept; its square in the post shows it cropped to fill, the
+ * way every photo in the grid is. Closing it drops straight back to the page.
  */
 export function CameraSheet({
   visible,
@@ -123,16 +113,16 @@ export function CameraSheet({
   taskId,
   swipeTasks,
   onChangeTask,
-  kicker,
   onCapture,
   onClose,
 }: CameraSheetProps) {
-  const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<'front' | 'back'>('back');
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState(false);
+  /** The flash and lens switch stood up over the corner button. */
+  const [more, setMore] = useState(false);
   /** The zoom as the pill reads it: 1 is the main lens, 2 is twice as close. */
   const [zoom, setZoom] = useState(1);
   const pinchFrom = useRef(1);
@@ -147,6 +137,7 @@ export function CameraSheet({
     if (!visible) return;
     // Every opening starts back at 1×, like the phone's own camera does.
     setZoom(1);
+    setMore(false);
     rise.setValue(0);
     Animated.timing(rise, {
       toValue: 1,
@@ -203,11 +194,8 @@ export function CameraSheet({
 
   const zoomed = zoom > 1;
   const canSwitch = !!swipeTasks && tasks.length > 1;
-  // SwiftUI takes a plain colour; type on the camera is white either way.
-  const onMediaInk = colorsFor('light').onMedia;
-
   // Moving to another task ticks under the finger on the iPhone, the way the
-  // Camera app's modes do as they cross — swipe, tap or menu alike.
+  // Camera app's modes do as they cross — swipe or tap alike.
   const lastTask = useRef(taskId);
   useEffect(() => {
     if (NATIVE_HEADER && visible && lastTask.current && taskId && lastTask.current !== taskId) {
@@ -246,116 +234,93 @@ export function CameraSheet({
         <Animated.View
           style={[
             styles.card,
-            { bottom: Math.max(insets.bottom / 2, spacing.sm) },
+            // Low on the screen, the same small gap below as either side.
+            { bottom: layout.stack },
             { transform: [{ translateY }] },
           ]}
         >
-          {/* The shot itself, square like its place in the post, so what the
-              viewfinder frames is what the post will show. */}
-          <View style={styles.viewfinder}>
-            {permission?.granted ? (
-              <>
-                <GestureDetector gesture={gestures}>
-                  <View style={absoluteFill} collapsable={false}>
-                    <CameraView
-                      ref={camera}
-                      facing={facing}
-                      flash={flash ? 'on' : 'off'}
-                      zoom={toCameraZoom(zoom)}
-                      style={absoluteFill}
-                    />
-                  </View>
-                </GestureDetector>
-
-                <View style={styles.top} pointerEvents="box-none">
-                  {kicker ? (
-                    <View style={styles.kicker} pointerEvents="none">
-                      <Text variant="badge" color={colors.onMedia}>
-                        {kicker}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View />
-                  )}
-                  {/* Flash turns white while it's on, the way the zoom pill
-                      does once zoomed — on the iPhone's glass, its glass
-                      takes the system blue instead, as a lit control does. */}
-                  <IconButton
-                    name={flash ? 'flash' : 'flash-outline'}
-                    size={TOP_CONTROL}
-                    iconSize={TOP_ICON}
-                    background={flash ? colors.surface : colors.scrim}
-                    color={flash && !LIQUID_GLASS ? colors.ink : colors.onMedia}
-                    overMedia
-                    glassScheme="dark"
-                    glassTint={flash ? colors.systemAccent : undefined}
-                    shadow={false}
-                    onPress={() => setFlash((on) => !on)}
-                    accessibilityLabel={flash ? 'Flash on, tap to turn off' : 'Flash off, tap to turn on'}
+          {permission?.granted ? (
+            <>
+              <GestureDetector gesture={gestures}>
+                <View style={absoluteFill} collapsable={false}>
+                  <CameraView
+                    ref={camera}
+                    facing={facing}
+                    flash={flash ? 'on' : 'off'}
+                    zoom={toCameraZoom(zoom)}
+                    style={absoluteFill}
                   />
                 </View>
+              </GestureDetector>
 
-                {/* The zoom shows only while there is some, and a tap takes it
-                    back to 1× — the pinch is the way in. */}
-                {/* On the iPhone's glass it stays mounted and condenses out
-                    of the picture as the pinch starts, dissolving again at 1×. */}
-                {LIQUID_GLASS ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Zoomed ${formatZoom(zoom)}×, tap to zoom back out`}
-                    disabled={!zoomed}
-                    pointerEvents={zoomed ? 'auto' : 'none'}
-                    onPress={() => setZoom(1)}
-                    style={styles.zoomSpot}
-                  >
-                    <LiquidGlass interactive visible={zoomed} colorScheme="dark" style={styles.zoomGlass}>
-                      <Text variant="badge" color={colors.onMedia}>
-                        {`${formatZoom(zoom)}×`}
-                      </Text>
-                    </LiquidGlass>
-                  </Pressable>
-                ) : zoomed ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Zoomed ${formatZoom(zoom)}×, tap to zoom back out`}
-                    onPress={() => setZoom(1)}
-                    style={({ pressed }) => [styles.zoom, pressed && styles.zoomPressed]}
-                  >
-                    <Text variant="badge" color={colors.ink}>
+              {/* The zoom shows only while there is some, and a tap takes it
+                  back to 1× — the pinch is the way in. On the iPhone's glass
+                  it stays mounted and condenses out of the picture as the
+                  pinch starts, dissolving again at 1×. */}
+              {LIQUID_GLASS ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Zoomed ${formatZoom(zoom)}×, tap to zoom back out`}
+                  disabled={!zoomed}
+                  pointerEvents={zoomed ? 'auto' : 'none'}
+                  onPress={() => setZoom(1)}
+                  style={styles.zoomSpot}
+                >
+                  <LiquidGlass interactive visible={zoomed} colorScheme="dark" style={styles.zoomGlass}>
+                    <Text variant="badge" color={colors.onMedia}>
                       {`${formatZoom(zoom)}×`}
                     </Text>
-                  </Pressable>
-                ) : null}
-              </>
-            ) : (
-              <View style={styles.gate}>
-                <Text variant="sectionHeading" color={colors.onMedia} center>
-                  Camera access
-                </Text>
-                <Text variant="copy" color={colors.onMediaSoft} center>
-                  SelfEra needs the camera to photograph today’s tasks.
-                </Text>
-                <PrimaryButton
-                  label={permission?.canAskAgain === false ? 'Open Settings' : 'Allow camera'}
-                  onPress={
-                    permission?.canAskAgain === false
-                      ? () => Linking.openSettings().catch(() => {})
-                      : () => requestPermission()
-                  }
-                  inverse
-                  style={styles.gateAction}
-                />
-              </View>
-            )}
-          </View>
+                  </LiquidGlass>
+                </Pressable>
+              ) : zoomed ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Zoomed ${formatZoom(zoom)}×, tap to zoom back out`}
+                  onPress={() => setZoom(1)}
+                  style={({ pressed }) => [styles.zoom, pressed && styles.zoomPressed]}
+                >
+                  <Text variant="badge" color={colors.ink}>
+                    {`${formatZoom(zoom)}×`}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
+            <View style={styles.gate}>
+              <Text variant="sectionHeading" color={colors.onMedia} center>
+                Camera access
+              </Text>
+              <Text variant="copy" color={colors.onMediaSoft} center>
+                SelfEra needs the camera to photograph today’s tasks.
+              </Text>
+              <PrimaryButton
+                label={permission?.canAskAgain === false ? 'Open Settings' : 'Allow camera'}
+                onPress={
+                  permission?.canAskAgain === false
+                    ? () => Linking.openSettings().catch(() => {})
+                    : () => requestPermission()
+                }
+                inverse
+                style={styles.gateAction}
+              />
+            </View>
+          )}
 
-          {/* The task the shot is for, centred and white, with its neighbours
-              either side in grey the way a camera app lays out its modes: a
-              tap on one, or a swipe across the picture, moves to it. The dot
-              under the middle marks the one in focus. */}
+          {/* The head of the picture: a shade falling from its top edge so
+              white type holds on any shot, and the task the shot is for
+              between its neighbours the way a camera app lays out its
+              modes — a tap on one, or a swipe across the picture, moves to
+              it. */}
           {task ? (
-            <View style={styles.picker}>
-              <View style={styles.pickerRow}>
+            <View style={styles.head} pointerEvents="box-none">
+              <LinearGradient
+                colors={gradients.coverShade}
+                start={{ x: 0, y: 1 }}
+                end={{ x: 0, y: 0 }}
+                style={absoluteFill}
+                pointerEvents="none"
+              />
+              <View style={styles.pickerRow} pointerEvents="box-none">
                 <View style={[styles.side, styles.sideStart]}>
                   {previous ? (
                     <Pressable
@@ -365,7 +330,7 @@ export function CameraSheet({
                       onPress={() => stepTask.current(-1)}
                       style={({ pressed }) => pressed && styles.sidePressed}
                     >
-                      <Text variant="copy" color={colors.inkMuted} numberOfLines={1}>
+                      <Text variant="meta" color={colors.onMediaSoft} numberOfLines={1}>
                         {previous.label}
                       </Text>
                     </Pressable>
@@ -382,45 +347,9 @@ export function CameraSheet({
                   }
                   style={styles.current}
                 >
-                  {NATIVE_HEADER && canSwitch ? (
-                    // On the iPhone the task in focus is a pull-down menu of
-                    // them all as well, the current one ticked — for a list
-                    // too long to swipe through one at a time.
-                    <Host matchContents>
-                      <Menu
-                        label={
-                          <HStack spacing={layout.line}>
-                            <SystemText
-                              modifiers={[quicksand('headline', 'bold'), foregroundStyle(onMediaInk)]}
-                            >
-                              {task.label}
-                            </SystemText>
-                            <SystemImage
-                              systemName="chevron.down"
-                              modifiers={[
-                                font({ textStyle: 'footnote', weight: 'semibold' }),
-                                foregroundStyle(onMediaInk),
-                              ]}
-                            />
-                          </HStack>
-                        }
-                      >
-                        {tasks.map((t) => (
-                          <Button
-                            key={t.id}
-                            label={t.label}
-                            systemImage={t.id === task.id ? 'checkmark' : undefined}
-                            onPress={() => onChangeTask?.(t.id)}
-                          />
-                        ))}
-                      </Menu>
-                    </Host>
-                  ) : (
-                    <Text variant="itemTitle" color={colors.onMedia} numberOfLines={1}>
-                      {task.label}
-                    </Text>
-                  )}
-                  {canSwitch ? <View style={styles.dot} /> : null}
+                  <Text variant="copyBold" color={colors.onMedia} numberOfLines={1}>
+                    {task.label}
+                  </Text>
                 </View>
                 <View style={[styles.side, styles.sideEnd]}>
                   {next ? (
@@ -431,69 +360,103 @@ export function CameraSheet({
                       onPress={() => stepTask.current(1)}
                       style={({ pressed }) => pressed && styles.sidePressed}
                     >
-                      <Text variant="copy" color={colors.inkMuted} numberOfLines={1}>
+                      <Text variant="meta" color={colors.onMediaSoft} numberOfLines={1}>
                         {next.label}
                       </Text>
                     </Pressable>
                   ) : null}
                 </View>
               </View>
-              {task.note ? (
-                <Text variant="meta" color={colors.onMediaSoft} center numberOfLines={2} style={styles.note}>
-                  {task.note}
-                </Text>
-              ) : null}
             </View>
           ) : null}
 
-          <View style={styles.controls}>
-            <IconButton
-              name="close"
-              size={CONTROL}
-              iconSize={CONTROL_ICON}
-              background={colors.onMediaFill}
-              color={colors.onMedia}
-              shadow={false}
-              onPress={onClose}
-              accessibilityLabel="Close camera"
-              overMedia
-              glassScheme="dark"
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={task ? `Take the photo for ${task.label}` : 'Take photo'}
-              disabled={!permission?.granted}
-              onPress={capture}
-              style={({ pressed }) => [
-                styles.shutter,
-                NATIVE_HEADER && styles.shutterRingWhite,
-                !permission?.granted && styles.shutterOff,
-                pressed && styles.shutterPressed,
-              ]}
-            >
-              <View style={[styles.shutterFace, NATIVE_HEADER && styles.shutterFaceWhite]}>
-                {busy ? (
-                  <ActivityIndicator color={NATIVE_HEADER ? undefined : colors.ink} />
-                ) : null}
-              </View>
-            </Pressable>
-            <IconButton
-              name="camera-reverse-outline"
-              size={CONTROL}
-              iconSize={CONTROL_ICON}
-              background={colors.onMediaFill}
-              color={colors.onMedia}
-              shadow={false}
-              onPress={() => {
-                // The other lens has its own range, so the zoom starts over.
-                setZoom(1);
-                setFacing((f) => (f === 'back' ? 'front' : 'back'));
-              }}
-              accessibilityLabel="Flip camera"
-              overMedia
-              glassScheme="dark"
-            />
+          {/* The foot: a shade rising under the controls, then close, the
+              shutter and, in the corner, the button that opens the rest. */}
+          <View style={styles.foot} pointerEvents="box-none">
+            <LinearGradient colors={gradients.coverShade} style={absoluteFill} pointerEvents="none" />
+            <View style={styles.controls} pointerEvents="box-none">
+              <IconButton
+                name="close"
+                size={CONTROL}
+                iconSize={CONTROL_ICON}
+                background={colors.onMediaFill}
+                color={colors.onMedia}
+                shadow={false}
+                onPress={onClose}
+                accessibilityLabel="Close camera"
+                overMedia
+                glassScheme="dark"
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={task ? `Take the photo for ${task.label}` : 'Take photo'}
+                disabled={!permission?.granted}
+                onPress={capture}
+                style={({ pressed }) => [
+                  styles.shutter,
+                  NATIVE_HEADER && styles.shutterRingWhite,
+                  !permission?.granted && styles.shutterOff,
+                  pressed && styles.shutterPressed,
+                ]}
+              >
+                <View style={[styles.shutterFace, NATIVE_HEADER && styles.shutterFaceWhite]}>
+                  {busy ? <ActivityIndicator color={NATIVE_HEADER ? undefined : colors.ink} /> : null}
+                </View>
+              </Pressable>
+              {/* The way ChatGPT's camera keeps its extras: one button in the
+                  corner, white while it's open, standing the flash and the
+                  lens switch up above it. */}
+              <IconButton
+                name="ellipsis-horizontal"
+                size={CONTROL}
+                iconSize={CONTROL_ICON}
+                background={more ? colors.onMedia : colors.onMediaFill}
+                color={more && !LIQUID_GLASS ? colors.mediaBackdrop : colors.onMedia}
+                shadow={false}
+                onPress={() => setMore((open) => !open)}
+                accessibilityLabel={more ? 'Hide camera options' : 'Show camera options'}
+                overMedia
+                glassScheme="dark"
+                glassTint={more ? colors.systemAccent : undefined}
+              />
+            </View>
           </View>
+
+          {more && permission?.granted ? (
+            <View style={styles.moreMenu} pointerEvents="box-none">
+              {/* Flash turns white while it's on — on the iPhone's glass, its
+                  glass takes the system blue instead, as a lit control does. */}
+              <IconButton
+                name={flash ? 'flash' : 'flash-outline'}
+                size={CONTROL}
+                iconSize={CONTROL_ICON}
+                background={flash ? colors.onMedia : colors.onMediaFill}
+                color={flash && !LIQUID_GLASS ? colors.mediaBackdrop : colors.onMedia}
+                shadow={false}
+                onPress={() => setFlash((on) => !on)}
+                accessibilityLabel={flash ? 'Flash on, tap to turn off' : 'Flash off, tap to turn on'}
+                overMedia
+                glassScheme="dark"
+                glassTint={flash ? colors.systemAccent : undefined}
+              />
+              <IconButton
+                name="camera-reverse-outline"
+                size={CONTROL}
+                iconSize={CONTROL_ICON}
+                background={colors.onMediaFill}
+                color={colors.onMedia}
+                shadow={false}
+                onPress={() => {
+                  // The other lens has its own range, so the zoom starts over.
+                  setZoom(1);
+                  setFacing((f) => (f === 'back' ? 'front' : 'back'));
+                }}
+                accessibilityLabel="Flip camera"
+                overMedia
+                glassScheme="dark"
+              />
+            </View>
+          ) : null}
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
@@ -506,46 +469,51 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  // Only a light dim behind, as ChatGPT's camera leaves the page in view;
+  // a tap on it still closes the camera.
   dim: {
     ...absoluteFill,
-    backgroundColor: colors.scrim,
+    backgroundColor: colors.scrimLight,
   },
-  // Sized by what's in it and set on the bottom of the screen, so the page
-  // the shot is going into stays in view above it.
+  // The live picture as a card of its own, a hair in from the screen's sides
+  // and rounded all round, the camera filling it edge to edge.
   card: {
     position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
-    padding: layout.stack,
+    left: layout.stack,
+    right: layout.stack,
+    aspectRatio: PICTURE_ASPECT,
     borderRadius: CARD_RADIUS,
-    backgroundColor: colors.mediaBackdrop,
-  },
-  viewfinder: {
-    aspectRatio: 1,
-    borderRadius: VIEWFINDER_RADIUS,
     overflow: 'hidden',
     backgroundColor: colors.mediaBackdrop,
   },
-  top: {
+  head: {
     position: 'absolute',
-    top: layout.inline,
-    left: layout.inline,
-    right: layout.inline,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: layout.block,
+    paddingHorizontal: layout.block,
+    paddingBottom: layout.section * 2,
   },
-  kicker: {
-    height: KICKER_HEIGHT,
-    paddingHorizontal: layout.inline,
-    borderRadius: radii.pill,
-    backgroundColor: colors.scrim,
-    justifyContent: 'center',
+  foot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: layout.section * 2,
+    paddingBottom: layout.block,
+  },
+  // Stood up over the corner button, on the same right edge as it.
+  moreMenu: {
+    position: 'absolute',
+    right: layout.block,
+    bottom: layout.block + SHUTTER + layout.stack,
+    gap: layout.stack,
   },
   zoom: {
     position: 'absolute',
     alignSelf: 'center',
-    bottom: layout.inline,
+    bottom: layout.block + SHUTTER + layout.stack,
     width: ZOOM_PILL,
     height: ZOOM_PILL,
     borderRadius: radii.pill,
@@ -561,7 +529,7 @@ const styles = StyleSheet.create({
   zoomSpot: {
     position: 'absolute',
     alignSelf: 'center',
-    bottom: layout.inline,
+    bottom: layout.block + SHUTTER + layout.stack,
   },
   zoomGlass: {
     width: ZOOM_PILL,
@@ -569,10 +537,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  picker: {
-    marginTop: layout.block,
-    paddingHorizontal: layout.stack,
   },
   pickerRow: {
     flexDirection: 'row',
@@ -600,20 +564,9 @@ const styles = StyleSheet.create({
     gap: layout.line,
     maxWidth: '60%',
   },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.onMedia,
-  },
-  note: {
-    marginTop: layout.stack,
-    paddingHorizontal: layout.card,
-  },
   controls: {
-    marginTop: layout.section,
-    marginBottom: layout.block,
-    paddingHorizontal: layout.section,
+    marginTop: layout.block,
+    paddingHorizontal: layout.block,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

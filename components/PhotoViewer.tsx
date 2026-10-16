@@ -19,6 +19,9 @@ import { IconButton, cornerButtonSize, cornerIconSize } from './IconButton';
 import { Placeholder } from './Placeholder';
 import type { PhotoSource } from './PhotoStrip';
 
+/** The print's share of the screen's height. */
+const PRINT_SHARE = 0.7;
+
 export interface PhotoViewerAction {
   key: string;
   /** Read out by screen readers — the button itself is just its glyph. */
@@ -96,6 +99,7 @@ export function PhotoViewer({
             height={height}
             onDismiss={onDismiss}
             dotsLift={actions?.length ? cornerButtonSize + spacing.md : 0}
+            actionsRoom={actions?.length ? cornerButtonSize + spacing.xl * 2 : 0}
           />
         )}
 
@@ -140,6 +144,7 @@ function PhotoViewerPager({
   height,
   onDismiss,
   dotsLift,
+  actionsRoom,
 }: {
   photos: readonly PhotoSource[];
   initialIndex: number;
@@ -148,9 +153,23 @@ function PhotoViewerPager({
   onDismiss: () => void;
   /** Extra room under the dots when an action row sits beneath them. */
   dotsLift: number;
+  /**
+   * The height the action row takes at the foot, with its gaps. The photo
+   * stays centred on the screen and stops short of it, so the buttons sit
+   * under the picture rather than on it.
+   */
+  actionsRoom: number;
 }) {
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState(initialIndex);
+  // The print stays on the screen's centre line, with the same room kept
+  // above it as the action row takes below, and keeps its usual 70% of the
+  // screen unless that room leaves less — then it fills what's between.
+  const keep = Math.max(insets.top, insets.bottom + actionsRoom);
+  const fit =
+    actionsRoom > 0
+      ? { height: Math.min(height * PRINT_SHARE, height - keep * 2 - spacing['2xl'] * 2) }
+      : null;
 
   return (
     <>
@@ -179,12 +198,16 @@ function PhotoViewerPager({
             // container doesn't stretch its children's cross axis on web,
             // so without it the page collapses to its own padding and the
             // `70%` frame inside has nothing to size itself against.
-            style={[styles.page, { width, height }]}
+            style={[
+              styles.page,
+              { width, height },
+              actionsRoom > 0 && { paddingTop: keep, paddingBottom: keep },
+            ]}
           >
             {typeof photo === 'string' ? (
-              <Placeholder seed={photo} radius={radii.card} style={styles.frame} />
+              <Placeholder seed={photo} radius={radii.card} style={[styles.frame, fit]} />
             ) : (
-              <Image source={photo} contentFit="cover" style={styles.frame} />
+              <Image source={photo} contentFit="cover" style={[styles.frame, fit]} />
             )}
           </Pressable>
         ))}

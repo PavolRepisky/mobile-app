@@ -11,7 +11,7 @@ import {
   type ColorValue,
 } from 'react-native';
 
-import { colors, layout, radii, colorsFor } from '@/constants/theme';
+import { colors, layout, radii, colorsFor, shadows } from '@/constants/theme';
 import { challengeStrip } from '@/data/content';
 import { DAY_MS } from '@/lib/round';
 import { accentAt } from './TaskRing';
@@ -55,6 +55,13 @@ export interface ChallengeRunProps {
   /** A day's record, or null where there's none to show — left blank rather
    * than marked missed. */
   dayOf: (day: number) => RunDay | null;
+  /**
+   * `ink` is the solid block that stands out on its page. `quiet` is a
+   * white card on the card shadow, for a page where the run is a footnote
+   * rather than the lead: the type turns ink, the days still to come grey,
+   * today's ring ink.
+   */
+  tone?: 'ink' | 'quiet';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -64,15 +71,26 @@ export interface ChallengeRunProps {
  * but fell short, the muted grey for a day with nothing, a white ring for
  * today and a faint white wash for everything still to come.
  */
-function DaySquare({ state, color, size }: { state: SquareState; color: string; size: number }) {
+function DaySquare({
+  state,
+  color,
+  size,
+  quiet,
+}: {
+  state: SquareState;
+  color: string;
+  size: number;
+  quiet?: boolean;
+}) {
   const box = { width: size, height: size };
   const scheme = colorsFor(useColorScheme());
+  const rest = quiet ? scheme.surfaceSunken : scheme.onInkFill;
   if (state === 'partial') {
     // Cut corner to corner, so half a day reads as half a square rather
     // than as a lighter shade of a whole one.
     return (
       <LinearGradient
-        colors={[color, color, scheme.onInkFill, scheme.onInkFill]}
+        colors={[color, color, rest, rest]}
         locations={[0, 0.5, 0.5, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -84,10 +102,11 @@ function DaySquare({ state, color, size }: { state: SquareState; color: string; 
     <View
       style={[
         styles.square,
+        quiet && styles.squareQuiet,
         box,
         state === 'done' && { backgroundColor: color },
-        state === 'missed' && styles.squareMissed,
-        state === 'today' && styles.squareToday,
+        state === 'missed' && (quiet ? styles.squareMissedQuiet : styles.squareMissed),
+        state === 'today' && (quiet ? styles.squareTodayQuiet : styles.squareToday),
       ]}
     />
   );
@@ -100,9 +119,8 @@ const dateLabel = (date: Date) =>
 
 /**
  * The challenge you're on, drawn as the whole run — one square a day — on a
- * block of ink, with its name and dates over it and a way into its page. It
- * sat on the Tasks tab until the shutter took that page over; kept for
- * wherever the whole run is wanted again.
+ * block of ink (or, `quiet`, a white card), with its name and dates over
+ * it — at the foot of the Tasks tab.
  */
 export function ChallengeRun({
   challenge,
@@ -111,8 +129,10 @@ export function ChallengeRun({
   totalDays,
   taskCount,
   dayOf,
+  tone = 'ink',
   style,
 }: ChallengeRunProps) {
+  const quiet = tone === 'quiet';
   const [squaresWidth, setSquaresWidth] = useState(0);
 
   const endDate = new Date(startDate.getTime() + (totalDays - 1) * DAY_MS);
@@ -143,12 +163,12 @@ export function ChallengeRun({
     <View
       accessible
       accessibilityLabel={`${challenge.name}, ${currentDay < 1 ? 'starts' : `day ${currentDay} of ${totalDays},`} ${dateLabel(startDate)} to ${dateLabel(endDate)}`}
-      style={[styles.card, style]}
+      style={[styles.card, quiet && styles.cardQuiet, style]}
     >
       <View style={styles.row}>
         <Image source={photo} style={styles.thumb} contentFit="cover" />
         <View style={styles.text}>
-          <Text variant="copyBold" color={colors.inkInverse} numberOfLines={1}>
+          <Text variant="copyBold" color={quiet ? colors.ink : colors.inkInverse} numberOfLines={1}>
             {challenge.name}
           </Text>
           <View style={styles.meta}>
@@ -185,6 +205,7 @@ export function ChallengeRun({
                 // peach early on, lavender only near the end.
                 color={accentAt((index + 0.5) / squares.length)}
                 size={squareSize}
+                quiet={quiet}
               />
             ))
           : null}
@@ -203,6 +224,12 @@ const styles = StyleSheet.create({
     gap: layout.heading,
     borderRadius: radii.card,
     backgroundColor: colors.ink,
+  },
+  // A white card lifted on the card shadow — clear of the grey task rows
+  // above it, without the ink block's weight.
+  cardQuiet: {
+    backgroundColor: colors.surface,
+    ...shadows.card,
   },
   row: {
     flexDirection: 'row',
@@ -233,6 +260,18 @@ const styles = StyleSheet.create({
   },
   squareMissed: {
     backgroundColor: colors.inkMuted,
+  },
+  // On the white: days to come the fill grey, a day with nothing the
+  // not-yet grey.
+  squareQuiet: {
+    backgroundColor: colors.surfaceSunken,
+  },
+  squareMissedQuiet: {
+    backgroundColor: colors.inkGhost,
+  },
+  squareTodayQuiet: {
+    borderWidth: SQUARE_TODAY_BORDER,
+    borderColor: colors.ink,
   },
   squareToday: {
     borderWidth: SQUARE_TODAY_BORDER,

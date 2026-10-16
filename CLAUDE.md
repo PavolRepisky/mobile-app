@@ -208,7 +208,7 @@ a finger-drawn signature · `ReminderPill` a reminder's time or Never, with its 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
-**Content** · `ChallengeRun` the run you're on as one square a day, on ink (off Tasks since its shutter; unused) · `CheckCircle` a done task's tick · `TaskRing` a face in the split
+**Content** · `ChallengeRun` the run you're on as one square a day, on ink or (`quiet`) a white card at the foot of Tasks · `CheckCircle` a done task's tick · `TaskRing` a face in the split
 task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·

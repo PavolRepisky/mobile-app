@@ -1,21 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
-import { Alert, Linking, StyleSheet, View, useColorScheme } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { CameraSheet } from '@/components/CameraSheet';
+import { ChallengeRun, type RunDay } from '@/components/ChallengeRun';
+import { CheckCircle } from '@/components/CheckCircle';
 import { EmptyState } from '@/components/EmptyState';
 import { DayStamp } from '@/components/FriendCard';
 import { PhotoCollage, type CollageCell } from '@/components/PhotoCollage';
+import { PhotoViewer } from '@/components/PhotoViewer';
 import { PopoverMenu } from '@/components/PopoverMenu';
 import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { TaskRing } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
-import { colors, colorsFor, layout, radii } from '@/constants/theme';
+import { colors, layout, radii } from '@/constants/theme';
 import {
   useApp,
   useDayProgress,
@@ -23,15 +24,14 @@ import {
 import { timeLeftToday } from '@/lib/format';
 
 /**
- * Today's post being filled in, and one button to fill it: the day and its
- * era over the post's grid, a square for every photo it needs, then a row
- * with the lives, a shutter and the clock. The shutter wears the day's task
- * ring, a segment per photo in, so the one thing to press also says how far
- * the day has got. It raises the camera card over the page for the first
- * open square; tapping an open square does the same for that one. The task
+ * Today's post being filled in: the day and its era over the post's grid,
+ * a square for every photo it needs, a line with the lives and the clock,
+ * then a rounded row for every task still to shoot. A row raises the camera
+ * card over the page on its task; tapping an open square does the same for
+ * that square. The task
  * a photo proves is picked in the camera, any open one a swipe away, since the tasks keep no order and nothing is "next". A
- * square that's in shows its shot, and tapping it offers a retake or an
- * undo. Once the last one is in, the post is stamped the way it goes up on
+ * square that's in shows its shot, and tapping it opens the photo full size,
+ * with a retake and a remove under it. Once the last one is in, the post is stamped the way it goes up on
  * Community.
  *
  * On the iPhone the parts round the grid are the system's: a shot's choices
@@ -55,18 +55,19 @@ import { timeLeftToday } from '@/lib/format';
  */
 const SYSTEM_CAMERA = false;
 
-/** The lives beside the shutter, at about the clock's cap height opposite. */
-const HEART = 16;
-/** The shutter, ring and all: a thumb's whole pad, big enough to be the one
- * thing on the page to press. */
-const SHUTTER = 112;
-/** The camera glyph inside it, over its count. */
-const SHUTTER_GLYPH = 28;
+/** The hearts before the lives count, at about its cap height. */
+const HEART = 14;
+/** A task row's height — a thumb's target with room round its circle. */
+const PILL_HEIGHT = 60;
+/** The check circle leading a task's row. */
+const PILL_CHECK = 28;
 
 export default function TasksScreen() {
   const {
     currentDay,
     totalDays,
+    startDate,
+    progress,
     challenge,
     tasks,
     livesLeft,
@@ -82,6 +83,19 @@ export default function TasksScreen() {
   } = useApp();
   const router = useRouter();
   const waiting = daysUntilStart > 0;
+
+  // Each day of the run as the card squares it: how many tasks got done,
+  // and how many photos came of it.
+  const runDay = useCallback(
+    (day: number): RunDay => ({
+      done: tasks.filter((task) => progress[day]?.[task.id]?.done).length,
+      shots: tasks.filter((task) => {
+        const entry = progress[day]?.[task.id];
+        return entry?.photo || entry?.photoSeed;
+      }).length,
+    }),
+    [tasks, progress],
+  );
 
   // In the post's own order, square by square.
   const rows = useDayProgress(currentDay);
@@ -116,9 +130,14 @@ export default function TasksScreen() {
   /** On the iPhone, the open square waiting on its task to be picked
    * before the system camera opens. */
   const [choosingFor, setChoosingFor] = useState<number | null>(null);
-  /** The shot whose square was tapped, waiting on retake, undo or cancel. */
-  const [doneFor, setDoneFor] = useState<{ taskId: string; slot: number } | null>(null);
-  const scheme = colorsFor(useColorScheme());
+  /** The shot opened full size from its square or its row. */
+  const [viewing, setViewing] = useState<{ taskId: string; slot: number } | null>(null);
+  /** The shot waiting on its remove to be confirmed. */
+  const [removing, setRemoving] = useState<{ taskId: string; slot: number } | null>(null);
+  /** What the viewer's button asked for, run once the viewer has finished
+   * fading — presenting the camera or a dialog on top of a modal that is
+   * still dismissing loses it on iOS. */
+  const afterViewer = useRef<(() => void) | null>(null);
 
   if (!inChallenge) {
     return (
@@ -192,6 +211,7 @@ export default function TasksScreen() {
   const cells: CollageCell[] = rows.map((row, slot) => ({
     key: row.task.id,
     label: row.done ? row.task.label : undefined,
+    placeholder: `Slot ${slot + 1}`,
     photo: row.done ? row.photo : null,
     seed: row.done ? row.photoSeed : null,
     time: row.done ? row.time : undefined,
@@ -201,37 +221,30 @@ export default function TasksScreen() {
       waiting || row.pending
         ? undefined
         : row.done
-          ? () => setDoneFor({ taskId: row.task.id, slot })
+          ? () => setViewing({ taskId: row.task.id, slot })
           : () => openSquare(slot, row.task.id),
   }));
-  const doneTask = doneFor ? tasks.find((task) => task.id === doneFor.taskId) : undefined;
   const retakeTask = shooting?.retake
     ? tasks.find((task) => task.id === shooting.taskId)
     : undefined;
-  const retake = () => {
-    if (doneFor) {
-      if (NATIVE_HEADER && SYSTEM_CAMERA) void shootWithSystemCamera(doneFor.taskId, doneFor.slot);
-      else setShooting({ slot: doneFor.slot, taskId: doneFor.taskId, retake: true });
-    }
-    setDoneFor(null);
+  const viewedRow = viewing ? rows[viewing.slot] : undefined;
+  const removingTask = removing ? tasks.find((task) => task.id === removing.taskId) : undefined;
+
+  /** Closes the viewer, then runs `next` once it has gone. */
+  const leaveViewer = (next: () => void) => {
+    setViewing(null);
+    if (Platform.OS === 'ios') afterViewer.current = next;
+    else next();
   };
-  const undo = () => {
-    if (doneFor) undoTask(doneFor.taskId, currentDay);
-    setDoneFor(null);
+  const retake = (shot: { taskId: string; slot: number }) => {
+    if (NATIVE_HEADER && SYSTEM_CAMERA) void shootWithSystemCamera(shot.taskId, shot.slot);
+    else setShooting({ slot: shot.slot, taskId: shot.taskId, retake: true });
+  };
+  const remove = () => {
+    if (removing) undoTask(removing.taskId, currentDay);
+    setRemoving(null);
   };
 
-  /** The shutter: the camera for the first open square that isn't still
-   * saving — any open task can still go in it, picked in the camera — and
-   * once the post is up, the post itself on Community. */
-  const shutter = () => {
-    if (allDone) {
-      router.navigate('/community');
-      return;
-    }
-    const slot = rows.findIndex((row) => !row.done && !row.pending);
-    if (slot >= 0) openSquare(slot, rows[slot].task.id);
-  };
-  const left = rows.length - done;
   const lastDay = currentDay >= totalDays;
 
   return (
@@ -241,133 +254,86 @@ export default function TasksScreen() {
         onRefresh={reload}
         header={<ScreenHeader plainTitle="Tasks" showBack={false} />}
       >
-        {/* Which day, and of which era — the tab is shared by whatever
-            you've joined, and the name opens its feed. */}
-        <View style={styles.heading}>
-          <Text variant="sectionHeading">{waiting ? 'Your first post' : `Day ${currentDay}`}</Text>
-          <Text
-            variant="meta"
-            color={colors.inkMuted}
-            numberOfLines={1}
-            accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-            style={styles.era}
-          >
-            {challenge.name}
-          </Text>
-        </View>
-
         {/* The post itself, a square for every photo; stamped once the last
-            one is in. The open squares are only grey — the shutter under
-            them is what's pressed — though a tap on one still opens the
+            one is in. The open squares are only grey — the task rows under
+            them are what's pressed — though a tap on one still opens the
             camera for it. Before Day 1 it is only the shape of what's to come. */}
         <PhotoCollage cells={cells} bare={waiting} plainOpen>
           {allDone ? <DayStamp day={currentDay} kicker={challenge.name} /> : null}
         </PhotoCollage>
 
-        {/* The lives, the shutter, the clock — one row, the shutter between
-            what you can lose and how long is left to keep it. */}
-        <View style={styles.dock}>
-          <View style={styles.side}>
-            <View
-              style={styles.hearts}
-              accessible
-              accessibilityLabel={`${livesLeft} of ${livesTotal} lives left`}
-            >
-              {Array.from({ length: livesTotal }, (_, i) => (
-                <Ionicons
-                  key={i}
-                  name="heart"
-                  size={HEART}
-                  color={i < livesLeft ? colors.ink : colors.inkGhost}
-                />
-              ))}
-            </View>
-            <Text variant="meta" color={colors.inkMuted}>
-              {livesLeft === 1 ? '1 life left' : `${livesLeft} lives left`}
-            </Text>
-          </View>
-
-          {/* The day's own task ring round the button — a segment per photo
-              in, in the accent — so pressing it and seeing how far you've
-              got are the same glance. Blue to shoot (ink off the iPhone),
-              ink with a tick once the post is up, grey until Day 1. */}
-          <TaskRing
-            avatar={null}
-            done={waiting ? 0 : done}
-            total={rows.length}
-            size={SHUTTER}
-            badge={false}
-            look="profile"
-            onPress={waiting ? undefined : shutter}
-            accessibilityLabel={
-              waiting
-                ? 'Opens on Day 1'
-                : allDone
-                  ? 'Posted — see it on Community'
-                  : `Take a photo, ${left} to go`
-            }
-          >
-            <View
-              style={[
-                styles.shutter,
-                waiting ? styles.shutterWaiting : allDone ? styles.shutterDone : styles.shutterOpen,
-              ]}
-            >
-              {NATIVE_HEADER ? (
-                <SymbolView
-                  name={allDone ? 'checkmark' : 'camera.fill'}
-                  size={SHUTTER_GLYPH}
-                  tintColor={waiting ? scheme.inkGhost : allDone ? scheme.inkInverse : scheme.onMedia}
-                  weight="semibold"
-                />
-              ) : (
-                <Ionicons
-                  name={allDone ? 'checkmark' : 'camera'}
-                  size={SHUTTER_GLYPH}
-                  color={waiting ? colors.inkGhost : allDone ? colors.inkInverse : colors.onMedia}
-                />
-              )}
-              <Text
-                variant="badge"
-                color={waiting ? colors.inkMuted : allDone ? colors.inkInverse : colors.onMedia}
-              >
-                {waiting ? 'Day 1' : allDone ? 'Posted' : `${left} to go`}
-              </Text>
-            </View>
-          </TaskRing>
-
-          {/* The clock, or what comes after it. The last hour says so in
-              ink, not the red, which is kept for what can't be undone. */}
-          <View style={styles.side}>
-            <Text variant="copyBold" center>
+        {/* Every task of the day, a rounded row each: the circle at the
+            front fills with a tick once its photo is in, the name says what
+            goes in and the note how. An open row opens the camera on its
+            task; a done one opens its photo, to retake or remove. */}
+        {/* The one line over the list: how far the day has got, then the
+            time left in ink — the last hour says so, in ink, not the red,
+            which is kept for what can't be undone — and at the far end the
+            lives the era still allows. */}
+        <View style={styles.listHeading}>
+          <Text variant="meta" color={colors.inkMuted} numberOfLines={1} style={styles.listHeadingCount}>
+            {waiting ? 'Opens on Day 1' : `${done} of ${rows.length}`}
+            {' · '}
+            <Text variant="metaBold">
               {waiting
                 ? daysUntilStart === 1
-                  ? 'Tomorrow'
-                  : `In ${daysUntilStart} days`
+                  ? 'tomorrow'
+                  : `in ${daysUntilStart} days`
                 : allDone
                   ? lastDay
                     ? 'Era done'
-                    : 'Tomorrow'
-                  : timeLeftToday(now)}
-            </Text>
-            <Text
-              variant={lastHour && !waiting && !allDone ? 'metaBold' : 'meta'}
-              color={lastHour && !waiting && !allDone ? colors.ink : colors.inkMuted}
-              center
-            >
-              {waiting
-                ? 'Day 1 starts'
-                : allDone
-                  ? lastDay
-                    ? 'every day in'
-                    : `Day ${currentDay + 1}`
+                    : 'Posted'
                   : lastHour
-                    ? 'last hour'
-                    : 'left today'}
+                    ? `${timeLeftToday(now)} · last hour`
+                    : `${timeLeftToday(now)} left`}
             </Text>
+          </Text>
+          <View
+            style={styles.hearts}
+            accessible
+            accessibilityLabel={`${livesLeft} of ${livesTotal} lives left`}
+          >
+            {Array.from({ length: livesTotal }, (_, i) => (
+              <Ionicons
+                key={i}
+                name="heart"
+                size={HEART}
+                color={i < livesLeft ? colors.ink : colors.inkGhost}
+              />
+            ))}
           </View>
         </View>
+        <View style={styles.tasks}>
+          {rows.map((row, slot) => (
+            <TaskPill
+              key={row.task.id}
+              label={row.task.label}
+              note={row.task.note}
+              done={row.done}
+              onPress={
+                waiting || row.pending
+                  ? undefined
+                  : row.done
+                    ? () => setViewing({ taskId: row.task.id, slot })
+                    : () => openSquare(slot, row.task.id)
+              }
+            />
+          ))}
+        </View>
+
+        {/* The whole run so far, a square a day, at the foot of the page —
+            a white card on its shadow, set apart from the grey task rows
+            without the ink block's weight. */}
+        <ChallengeRun
+          challenge={challenge}
+          startDate={startDate}
+          currentDay={waiting ? 0 : currentDay}
+          totalDays={totalDays}
+          taskCount={tasks.length}
+          dayOf={runDay}
+          tone="quiet"
+          style={styles.run}
+        />
       </ScreenScroll>
 
       <CameraSheet
@@ -382,9 +348,6 @@ export default function TasksScreen() {
               }))
         }
         taskId={shooting?.taskId ?? null}
-        kicker={
-          retakeTask ? `Day ${currentDay} · retake` : `Day ${currentDay} · ${openRows.length} left`
-        }
         // Any open task can go in the tapped square, not only the one it
         // suggested — swiping through them is how the owner lays out their
         // own post. A retake is the one task already there.
@@ -427,80 +390,133 @@ export default function TasksScreen() {
         />
       ) : null}
 
-      {/* A shot's choices. On the iPhone the system's action sheet, where the
-          red Undo is its own confirmation; elsewhere the app's window, which
-          says what an undo takes with it. */}
-      {NATIVE_HEADER ? (
-        <PopoverMenu
-          visible={doneFor !== null}
-          onDismiss={() => setDoneFor(null)}
-          top={0}
-          items={[
-            { label: 'Retake Photo', onPress: retake },
-            { label: 'Undo Task', destructive: true, onPress: undo },
-          ]}
-        />
-      ) : (
-        <AlertDialog
-          visible={doneFor !== null}
-          title={doneTask?.label ?? 'Photo'}
-          message="Undoing removes today's photo too — you can shoot it again afterwards."
-          onDismiss={() => setDoneFor(null)}
-          actions={[
-            { label: 'Cancel', onPress: () => setDoneFor(null) },
-            { label: 'Retake', onPress: retake },
-            { label: 'Undo Task', destructive: true, onPress: undo },
-          ]}
-        />
-      )}
+      {/* A shot, opened full size from its square or its row, with what
+          can be done to it along the bottom: shoot it again, or take it out
+          of the post. */}
+      <PhotoViewer
+        photos={viewedRow ? [viewedRow.photo ?? viewedRow.photoSeed ?? viewedRow.task.id] : []}
+        index={viewing && viewedRow ? 0 : null}
+        onDismiss={() => setViewing(null)}
+        onDismissed={() => {
+          const next = afterViewer.current;
+          afterViewer.current = null;
+          next?.();
+        }}
+        actions={[
+          {
+            key: 'retake',
+            label: 'Retake',
+            icon: 'sync-outline',
+            onPress: () => {
+              const shot = viewing;
+              if (shot) leaveViewer(() => retake(shot));
+            },
+          },
+          {
+            key: 'remove',
+            label: 'Remove',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => {
+              const shot = viewing;
+              if (shot) leaveViewer(() => setRemoving(shot));
+            },
+          },
+        ]}
+      />
+
+      {/* Removing asks first, saying what it takes with it. */}
+      <AlertDialog
+        visible={removing !== null}
+        title="Remove this photo?"
+        message={`It comes out of your Day ${currentDay} post and ${removingTask?.label ?? 'the task'} is open again.`}
+        onDismiss={() => setRemoving(null)}
+        actions={[
+          { label: 'Cancel', onPress: () => setRemoving(null) },
+          { label: 'Remove', destructive: true, onPress: remove },
+        ]}
+      />
     </>
   );
 }
 
+/**
+ * One task of the day: the check circle at the front — an empty ring while
+ * it's open, the ink tick once its photo is in — then its name, and under
+ * it the note in grey.
+ */
+function TaskPill({
+  label,
+  note,
+  done,
+  onPress,
+}: {
+  label: string;
+  note?: string;
+  done: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={done ? `${label}, done` : `Take the ${label} photo`}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
+    >
+      <CheckCircle size={PILL_CHECK} empty={!done} />
+      <View style={styles.pillText}>
+        <Text variant="copyBold" numberOfLines={1}>
+          {label}
+        </Text>
+        {note ? (
+          <Text variant="meta" color={colors.inkMuted} numberOfLines={2}>
+            {note}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: layout.inline,
-    marginBottom: layout.heading,
-  },
-  era: {
-    flexShrink: 1,
-  },
-  dock: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  run: {
     marginTop: layout.section,
-  },
-  // Even either side, so the shutter lands on the page's centre line
-  // whatever the words beside it run to.
-  side: {
-    flex: 1,
-    alignItems: 'center',
-    gap: layout.line,
   },
   hearts: {
     flexDirection: 'row',
     gap: layout.line / 2,
   },
-  shutter: {
-    flex: 1,
-    alignSelf: 'stretch',
-    borderRadius: radii.pill,
+  listHeading: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: layout.line / 2,
+    justifyContent: 'space-between',
+    gap: layout.inline,
+    marginTop: layout.section,
+    marginBottom: layout.heading,
   },
-  // The system blue on the iPhone, where every button that does the thing
-  // wears it; ink on the drawn design elsewhere.
-  shutterOpen: {
-    backgroundColor: NATIVE_HEADER ? colors.systemAccent : colors.ink,
+  listHeadingCount: {
+    flexShrink: 1,
   },
-  shutterDone: {
-    backgroundColor: colors.ink,
+  tasks: {
+    gap: layout.stack,
   },
-  shutterWaiting: {
+  // The rounded row off the lock-screen board, drawn solid on the page
+  // rather than in glass, which is only for what floats over a photo.
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+    minHeight: PILL_HEIGHT,
+    paddingHorizontal: layout.block,
+    borderRadius: radii.pill,
     backgroundColor: colors.surfaceSunken,
+  },
+  pillText: {
+    flex: 1,
+    paddingVertical: layout.stack,
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

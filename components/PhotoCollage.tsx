@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
+  PixelRatio,
   Pressable,
   StyleSheet,
   View,
@@ -32,6 +33,9 @@ export interface CollageCell {
   /** The task's name, read out on a filled tile. An open tile isn't any one
    * task's yet — its task is picked in the camera — so it isn't named. */
   label?: string;
+  /** Written across the middle of an open tile, for a page whose open
+   * squares say which slot of the post they are. */
+  placeholder?: string;
   /** The open tile to take next — its camera disc is drawn in ink. */
   next?: boolean;
   onPress?: () => void;
@@ -66,6 +70,21 @@ const MOSAIC_SEAM = 1;
  * it falls in, whatever shape that row or column ends up. */
 const MOSAIC_PIECE = { flex: 1 } as const;
 
+/**
+ * The block's side, trimmed by at most a few pixels so every row and column
+ * of the mosaic lands on whole device pixels. Left fractional, a 1pt seam
+ * falls between two pixels and draws as a paler, blurred line, so the seams
+ * of one grid look like different greys.
+ */
+function snapSide(width: number, count: number, seam: number) {
+  const ratio = PixelRatio.get();
+  const seamPx = Math.round(seam * ratio);
+  const rows = count <= 2 ? count : count === 4 ? 2 : 1 + Math.ceil((count - 1) / 2);
+  let px = Math.floor(width * ratio);
+  while (px > 0 && ((px - seamPx) % 2 !== 0 || (px - (rows - 1) * seamPx) % rows !== 0)) px--;
+  return px / ratio;
+}
+
 /** The camera disc on an open tile — a thumb's target. */
 const DISC = 44;
 /** The iPhone's camera symbol on an open tile, at about the disc's glyph
@@ -91,7 +110,13 @@ function MosaicTile({
     <Placeholder seed={cell.seed ?? cell.key} radius={0} style={MOSAIC_PIECE} />
   ) : (
     <View style={[MOSAIC_PIECE, styles.empty]}>
-      {bare || plainOpen ? null : NATIVE_HEADER && cell.onPress ? (
+      {bare ? null : plainOpen ? (
+        cell.placeholder ? (
+          <Text variant="meta" color={colors.inkGhost} center>
+            {cell.placeholder}
+          </Text>
+        ) : null
+      ) : NATIVE_HEADER && cell.onPress ? (
         // On the iPhone an open square is the system's own add-a-photo
         // tile: the camera symbol in the system blue on the grey, the way
         // a tappable placeholder reads there, rather than a drawn disc.
@@ -232,6 +257,7 @@ export function PhotoCollage({
   const [width, setWidth] = useState(0);
 
   if (cells.length === 0) return null;
+  const side = snapSide(width, cells.length, MOSAIC_SEAM);
 
   return (
     <View style={style} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
@@ -241,7 +267,7 @@ export function PhotoCollage({
             styles.block,
             styles.blockLined,
             shadows.soft,
-            { width, height: width, borderRadius: radius },
+            { width: side, height: side, borderRadius: radius, alignSelf: 'center' },
           ]}
         >
           <MosaicArrangement
