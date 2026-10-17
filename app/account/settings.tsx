@@ -22,6 +22,8 @@ import { updateProfile } from '@/lib/backend/api';
 import { deleteAccount, signOut } from '@/lib/backend/auth';
 
 const BIO_MAX = 120;
+/** The server's own cap on a name — said by the field, not by an error. */
+const NAME_MAX = 50;
 
 /** What the server takes as a username — said before sending, not after. */
 const HANDLE_PATTERN = /^[a-z0-9_.]{3,30}$/;
@@ -225,6 +227,8 @@ export default function SettingsScreen() {
           />
         </SettingsGroup>
 
+        {/* TODO before release: both open nothing yet. The App Store needs
+            a working privacy policy link — see Known gaps in the README. */}
         <SettingsGroup title="About">
           <SettingsRow icon="shield-outline" label="Privacy Policy" external onPress={() => {}} />
           <SettingsRow
@@ -247,7 +251,10 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="log-out-outline"
             label="Log out"
-            onPress={() => setLogoutOpen(true)}
+            onPress={() => {
+              setSaveError(null);
+              setLogoutOpen(true);
+            }}
           />
           <SettingsRow
             icon="trash-outline"
@@ -272,6 +279,7 @@ export default function SettingsScreen() {
           value: draftName,
           onChangeText: setDraftName,
           autoFocus: true,
+          maxLength: NAME_MAX,
         }}
         actions={[
           { label: 'Cancel', onPress: () => setNameOpen(false) },
@@ -374,8 +382,8 @@ export default function SettingsScreen() {
           { label: 'Cancel', onPress: () => setDeleteOpen(false) },
           {
             label: 'Delete',
-            // The black pill, like Log out and End Challenge: every
-            // confirmation's way forward reads the same.
+            // Marked like Log Out and End Era: every confirmation's way
+            // forward reads the same.
             destructive: true,
             primary: true,
             onPress: async () => {
@@ -397,7 +405,8 @@ export default function SettingsScreen() {
         visible={endOpen}
         title="End Era"
         message={
-          saveError ?? 'Are you sure you want to end this era? Your progress will be lost.'
+          saveError ??
+          'Are you sure you want to end this era? Your days so far stay on your profile, but once it has started you can’t rejoin.'
         }
         onDismiss={() => setEndOpen(false)}
         actions={[
@@ -406,8 +415,9 @@ export default function SettingsScreen() {
             label: 'End Era',
             destructive: true,
             primary: true,
-            // Leaves the round for good; Tasks then points to the Challenges
-            // tab, since there's no run left to show.
+            // Leaves the round; Tasks then points to Discover, since there's
+            // no run left to show, and the run's days move to the profile's
+            // past eras.
             onPress: async () => {
               try {
                 await leaveChallenge();
@@ -422,19 +432,25 @@ export default function SettingsScreen() {
 
       <AlertDialog
         visible={logoutOpen}
-        title="Log out"
-        message="Are you sure you want to log out?"
+        title="Log Out"
+        message={saveError ?? 'Are you sure you want to log out?'}
         onDismiss={() => setLogoutOpen(false)}
         actions={[
           { label: 'Cancel', onPress: () => setLogoutOpen(false) },
           {
-            label: 'Log out',
+            label: 'Log Out',
             destructive: true,
             primary: true,
+            // Closed only once the session has really gone: a failure stays
+            // in the dialog to try again, as every other one here does.
             onPress: async () => {
-              setLogoutOpen(false);
-              await signOut();
-              resetAll();
+              try {
+                await signOut();
+                setLogoutOpen(false);
+                resetAll();
+              } catch (e) {
+                failed(e);
+              }
             },
           },
         ]}

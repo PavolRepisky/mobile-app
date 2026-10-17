@@ -1,12 +1,15 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
-import { Share, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { ProfileView, type ProfileDay } from '@/components/ProfileView';
+import { ProfileView } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { useSession } from '@/hooks/useSession';
 import { useRelation, useSocial } from '@/hooks/useSocial';
 import { possessive } from '@/lib/names';
+import { profileDays, profileRun } from '@/lib/profileDays';
+import { shareProfile } from '@/lib/shareProfile';
 
 /**
  * A friend's or a challenge member's profile, opened from the Community tab,
@@ -23,6 +26,7 @@ export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = String(id);
   const router = useRouter();
+  const { session } = useSession();
   const social = useSocial();
   const { loadPage, accept, toggleRequest } = social;
   const relation = useRelation(userId);
@@ -34,23 +38,10 @@ export default function FriendProfileScreen() {
   const page = social.page(userId);
   const friend = page?.person ?? social.person(userId);
 
-  const days = useMemo(() => {
-    const byDay = new Map<number, ProfileDay>();
-    const records = page?.days ?? (friend ? [{ day: friend.day, tasks: friend.tasks }] : []);
-    for (const { day, tasks } of records) {
-      byDay.set(day, {
-        // Tiles on the grid and calendar are small: thumbnails where there
-        // are any.
-        shots: tasks.flatMap((task) =>
-          task.photo || task.photoSeed
-            ? [{ key: task.label, photo: task.thumb ?? task.photo ?? null, seed: task.photoSeed ?? null }]
-            : [],
-        ),
-        done: tasks.filter((task) => task.done).length,
-      });
-    }
-    return byDay;
-  }, [page, friend]);
+  const days = useMemo(
+    () => profileDays(page?.days ?? (friend ? [{ day: friend.day, tasks: friend.tasks }] : [])),
+    [page, friend],
+  );
   const dayOf = useCallback((day: number) => days.get(day) ?? null, [days]);
 
   const taskCount = friend?.tasks.length ?? 0;
@@ -71,10 +62,23 @@ export default function FriendProfileScreen() {
       router.push({ pathname: '/friend/post/[id]', params: { id: userId, day: String(day) } }),
     [router, userId],
   );
+  const openPastDay = useCallback(
+    (run: string, day: number) =>
+      router.push({ pathname: '/friend/post/[id]', params: { id: userId, day: String(day), run } }),
+    [router, userId],
+  );
+  const pastRuns = useMemo(
+    () => (page?.pastRuns ?? []).map((run) => profileRun(run, openPastDay)),
+    [page, openPastDay],
+  );
   const todayCell = useMemo(
     () => (hasStoryToday ? { onPress: playStory, hint: 'Plays their story.' } : undefined),
     [hasStoryToday, playStory],
   );
+
+  // Your own link, shared from your profile and opened on your phone: your
+  // own page is the Profile tab, not this one with Add friend on it.
+  if (userId === session?.user.id) return <Redirect href="/profile" />;
 
   if (!friend) {
     // Nothing loaded yet: the bar, so the way back is there from the start.
@@ -103,9 +107,7 @@ export default function FriendProfileScreen() {
     relationAction,
     {
       label: 'Share profile',
-      onPress: () => {
-        Share.share({ message: `${friend.name} (${friend.handle}) on SelfEra` }).catch(() => {});
-      },
+      onPress: () => shareProfile({ id: userId, name: friend.name, handle: friend.handle }),
     },
   ];
 
@@ -130,6 +132,7 @@ export default function FriendProfileScreen() {
           taskCount={taskCount}
           dayOf={dayOf}
           posted={posted}
+          pastRuns={pastRuns}
           onPlayStory={hasStoryToday ? playStory : undefined}
           onOpenDay={openDay}
           today={todayCell}

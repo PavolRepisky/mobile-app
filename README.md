@@ -109,9 +109,11 @@ string, so the same "photo" looks the same on every render.
 
 ## Known gaps
 
-- **Privacy Policy** and **Terms of Service** in Settings don't open anything
-  yet.
-- `FAKE_ERA` in `hooks/useAppState.tsx` (development builds only) shows an
-  account in no era as joined to a stand-in era, for working on Tasks. Turn it
-  off once that page is done.
+- **TODO before release: Privacy Policy and Terms of Service.** The two rows
+  in Settings (`app/account/settings.tsx`) don't open anything yet. The App
+  Store needs a working privacy policy link, so publish both pages and point
+  the rows at their URLs.
+- `FAKE_ERA` in `hooks/useAppState.tsx` (development builds only, off for
+  now) shows an account in no era as joined to a stand-in era, for working on
+  Tasks.
 - No Google button on the sign-in page, though the auth code supports it.

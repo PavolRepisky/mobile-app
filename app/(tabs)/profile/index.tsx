@@ -1,23 +1,40 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo } from 'react';
-import { Share, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
+import { useSession } from '@/hooks/useSession';
+import { useSocial } from '@/hooks/useSocial';
+import { profileRun } from '@/lib/profileDays';
+import { shareProfile } from '@/lib/shareProfile';
 
 /**
  * Your own profile. The page itself is `ProfileView`, the same one anyone
  * else's profile opens on — this screen only reads your days off the app's
- * state and puts Settings in the header.
+ * state and puts Share and Settings in the header.
+ *
+ * The era you're in comes from the app's own state, so a photo taken a
+ * moment ago is already on it. Eras you were in before come from your page
+ * on the server, the same one anyone opening your profile reads, and their
+ * days stay on it for good.
  */
 export default function ProfileScreen() {
   const router = useRouter();
   const {
     profile, currentDay, totalDays, startDate, challenge, tasks, progress, inChallenge,
-    daysUntilStart, reload,
+    daysUntilStart, membershipId, reload,
   } = useApp();
+  const { session } = useSession();
+  const userId = session?.user.id ?? null;
+  const { page, loadPage } = useSocial();
+
+  // Loaded again whenever the era you're in changes — leaving one, or the
+  // settle job ending it, is exactly when a run becomes a past one.
+  useEffect(() => {
+    if (userId) loadPage(userId);
+  }, [userId, membershipId, loadPage]);
 
   const dayOf = useCallback(
     (day: number): ProfileDay => ({
@@ -34,7 +51,7 @@ export default function ProfileScreen() {
 
   // Today is a story as soon as one task has its photo — until then there is
   // nothing to watch, and the photo is just a photo.
-  const hasStoryToday = dayOf(currentDay).shots.length > 0;
+  const hasStoryToday = inChallenge && dayOf(currentDay).shots.length > 0;
   const dayFinished = (day: number) => tasks.length > 0 && dayOf(day).done === tasks.length;
 
   // Same order the day pager pages through — opening a tile and paging down
@@ -47,70 +64,73 @@ export default function ProfileScreen() {
     (day: number) => router.push({ pathname: '/day/[day]', params: { day: String(day) } }),
     [router],
   );
+  const openPastDay = useCallback(
+    (run: string, day: number) =>
+      router.push({ pathname: '/day/[day]', params: { day: String(day), run } }),
+    [router],
+  );
+  const myPage = userId ? page(userId) : undefined;
+  const pastRuns = useMemo(
+    () => (myPage?.pastRuns ?? []).map((run) => profileRun(run, openPastDay)),
+    [myPage, openPastDay],
+  );
+
   // Today is being done in Tasks, so that's where its calendar cell leads.
   const today = useMemo(
     () => ({ onPress: () => router.push('/tasks'), hint: 'Opens Tasks.' }),
     [router],
   );
 
-  const shareProfile = () => {
-    Share.share({ message: `${profile.name} (${profile.handle}) on SelfEra` }).catch(() => {});
-  };
-
   return (
-    <View style={styles.screenRoot}>
-      {/* The Profile tab breaks from the warm app shell and sits on white,
-          the way the reference screen does. */}
-      {/* Every tab root's fixed title row: the title, then Share — the
-          profile to the phone's own share sheet — and Settings at the end,
-          in reach however far down the days go. */}
-      <ScreenScroll
-        tabBar
-        onRefresh={reload}
-        tone="plain"
-        header={
-          <ScreenHeader
-            plainTitle="My Profile"
-            showBack={false}
-            actions={[
-              { icon: 'share-outline', label: 'Share profile', onPress: shareProfile },
-              { icon: 'settings-outline', label: 'Settings', onPress: () => router.push('/account/settings') },
-            ]}
-          />
-        }
-      >
-        <ProfileView
-          // The photo itself is edited in Settings, not from here — and the
-          // friend code lives on Find friends, with everything else about
-          // adding people.
-          avatar={profile.avatar ?? profile.avatarSeed}
-          name={profile.name}
-          handle={profile.handle}
-          bio={profile.bio}
-          challenge={inChallenge ? challenge : null}
-          startDate={startDate}
-          currentDay={daysUntilStart > 0 ? 0 : currentDay}
-          totalDays={totalDays}
-          taskCount={tasks.length}
-          dayOf={dayOf}
-          posted={postedDays}
-          onPlayStory={
-            hasStoryToday
-              ? () => router.push({ pathname: '/story', params: { day: String(currentDay) } })
-              : undefined
-          }
-          onOpenDay={openDay}
-          today={today}
-          emptyHint="Finish a day's tasks to see it here."
-          daysTitle="My days"
+    // Every tab root's fixed title row: the title, then Share — the profile
+    // to the phone's own share sheet — and Settings at the end, in reach
+    // however far down the days go.
+    <ScreenScroll
+      tabBar
+      onRefresh={() => Promise.all([reload(), userId ? loadPage(userId) : null])}
+      tone="plain"
+      header={
+        <ScreenHeader
+          plainTitle="My Profile"
+          showBack={false}
+          actions={[
+            {
+              icon: 'share-outline',
+              label: 'Share profile',
+              onPress: () => {
+                if (userId) shareProfile({ id: userId, name: profile.name, handle: profile.handle });
+              },
+            },
+            { icon: 'settings-outline', label: 'Settings', onPress: () => router.push('/account/settings') },
+          ]}
         />
-      </ScreenScroll>
-    </View>
+      }
+    >
+      <ProfileView
+        // The photo itself is edited in Settings, not from here — a tap on
+        // it plays today's story.
+        avatar={profile.avatar ?? profile.avatarSeed}
+        name={profile.name}
+        handle={profile.handle}
+        bio={profile.bio}
+        challenge={inChallenge ? challenge : null}
+        startDate={startDate}
+        currentDay={daysUntilStart > 0 ? 0 : currentDay}
+        totalDays={totalDays}
+        taskCount={tasks.length}
+        dayOf={dayOf}
+        posted={postedDays}
+        pastRuns={pastRuns}
+        onPlayStory={
+          hasStoryToday
+            ? () => router.push({ pathname: '/story', params: { day: String(currentDay) } })
+            : undefined
+        }
+        onOpenDay={openDay}
+        today={today}
+        emptyHint="Finish a day's tasks to see it here."
+        daysTitle="My days"
+      />
+    </ScreenScroll>
   );
 }
-
-const styles = StyleSheet.create({
-  screenRoot: {
-    flex: 1,
-  },
-});

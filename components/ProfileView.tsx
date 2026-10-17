@@ -31,7 +31,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
-import { colors, colorsFor, layout, radii, shadows, spacing } from '@/constants/theme';
+import { colors, colorsFor, layout, shadows, spacing } from '@/constants/theme';
 import { shortDate } from '@/lib/format';
 import { DAY_MS } from '@/lib/round';
 import { quicksand } from '@/lib/swiftUI';
@@ -169,23 +169,15 @@ const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
   color: accentAt((i + 0.5) / RING_SWEEP_SLICES),
 }));
 
-/** The badge sits centred on the bottom of the ring, the way the "Day N" pill
- * sits on the story ring — sized to that overlap, not to the type scale. */
-const badgeHeight = 30;
-const badgeRingWidth = 2;
-
 /** Where the photo sits inside the ring's box: clear of the stroke and the
  * gap between them. */
 const AVATAR_INSET = RING_STROKE + RING_GAP;
 
-/** How far the badge hangs below the ring: centred on the stroke, then lifted
- * a step so more of it sits on the photo than under it. The name under it
- * steps down by exactly this, so the gap above the name is the same with the
- * badge as it was without. */
-const badgeOverhang = (badgeHeight - RING_STROKE) / 2 - spacing.xs;
-
-
 type DaysView = 'grid' | 'month';
+
+/** One empty list for every profile with no earlier eras, so the month's
+ * memo doesn't see a new one each render. */
+const NO_RUNS: readonly ProfileRun[] = [];
 
 /** One of a day's proof photos, keyed by its task. */
 export interface ProfileShot {
@@ -202,13 +194,31 @@ export interface ProfileDay {
   done: number;
 }
 
+/** An era the profile ran before the current one, its days kept on the page:
+ * after the current era's in the grid, and on their dates in the month. */
+export interface ProfileRun {
+  key: string;
+  /** The era's name, stamped on its tiles. */
+  name: string;
+  startDate: Date;
+  totalDays: number;
+  taskCount: number;
+  /** Days before this one with nothing on them were missed; the run never
+   * reached the days after it. */
+  lastDay: number;
+  dayOf: (day: number) => ProfileDay | null;
+  /** Its days in the grid, most recent first. */
+  posted: readonly number[];
+  onOpenDay: (day: number) => void;
+}
+
 export interface ProfileViewProps {
   avatar: AvatarSource;
   name: string;
   handle: string;
   bio: string | null;
-  /** Null for an account in no challenge: the card under the name goes, and
-   * the days below simply have none to show. */
+  /** Null for an account in no era: the ring and the era's name go, and
+   * only past eras' days are left to show. */
   challenge: { id: string; name: string; joined: number } | null;
   startDate: Date;
   /** The run's day today; 0 before Day 1, when the card says when it starts. */
@@ -224,6 +234,8 @@ export interface ProfileViewProps {
   dayOf: (day: number) => ProfileDay | null;
   /** The days in the grid, most recent first. */
   posted: readonly number[];
+  /** Eras run before this one, most recent first. */
+  pastRuns?: readonly ProfileRun[];
   /** Plays today's story from the photo; left out while there's none. */
   onPlayStory?: () => void;
   /** Opens a past day's post, from its tile or its calendar cell. */
@@ -234,9 +246,9 @@ export interface ProfileViewProps {
   emptyHint: string;
   /** The heading over the days — "My days" on your own page. */
   daysTitle?: string;
-  /** A row of buttons under the bio — Edit profile and Share profile on your
-   * own page, where you stand with them and Share on anyone else's. One
-   * without `onPress` is a status, not a button — "Friends". */
+  /** A row of buttons under the bio — on someone else's page, where you
+   * stand with them and Share. One without `onPress` is a status, not a
+   * button — "Friends". */
   actions?: readonly { label: string; onPress?: () => void }[];
   style?: StyleProp<ViewStyle>;
 }
@@ -260,6 +272,7 @@ export function ProfileView({
   taskCount,
   dayOf,
   posted,
+  pastRuns = NO_RUNS,
   onPlayStory,
   onOpenDay,
   today,
@@ -288,14 +301,31 @@ export function ProfileView({
   // How many of today's tasks are ticked off — what the ring fills in.
   const doneToday = dayOf(currentDay)?.done ?? 0;
 
-  // Every posted day, most recent first — each one cut into the same merged
-  // mosaic the Tasks tab and a post use. Only the tasks that actually got a
-  // photo take a slice of the cell: a day with three of five shot reads as
-  // three prints, not three prints and two grey gaps.
-  const posts = posted.flatMap((day) => {
-    const record = dayOf(day);
-    return record ? [{ key: `day-${day}`, day, rows: record.shots, done: record.done }] : [];
-  });
+  // Every posted day, most recent first — the current era's, then each
+  // earlier era's — each one cut into the same merged mosaic the Tasks tab
+  // and a post use. Only the tasks that actually got a photo take a slice of
+  // the cell: a day with three of five shot reads as three prints, not three
+  // prints and two grey gaps.
+  const runs = [
+    ...(challenge ? [{ key: 'now', name: challenge.name, taskCount, dayOf, posted, onOpenDay }] : []),
+    ...pastRuns,
+  ];
+  const posts = runs.flatMap((run) =>
+    run.posted.flatMap((day) => {
+      const record = run.dayOf(day);
+      return record
+        ? [{
+            key: `${run.key}-day-${day}`,
+            day,
+            name: run.name,
+            taskCount: run.taskCount,
+            rows: record.shots,
+            done: record.done,
+            open: () => run.onOpenDay(day),
+          }]
+        : [];
+    }),
+  );
 
   // The month on show, laid out day by day. Any month can be paged to —
   // before the app, after the challenge — and a date outside the challenge is
@@ -310,9 +340,9 @@ export function ProfileView({
      * Rounded rather than floored: a daylight-saving shift puts a fractional
      * day between two dates, which would otherwise slide every date after it
      * back by one. */
-    const dayNumber = (date: Date) => {
-      const n = Math.round((date.getTime() - startDate.getTime()) / DAY_MS) + 1;
-      return n >= 1 && n <= totalDays ? n : null;
+    const dayNumber = (date: Date, start: Date, length: number) => {
+      const n = Math.round((date.getTime() - start.getTime()) / DAY_MS) + 1;
+      return n >= 1 && n <= length ? n : null;
     };
 
     const first = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -323,12 +353,36 @@ export function ProfileView({
 
     for (let date = 1; date <= length; date += 1) {
       const on = new Date(year, month, date);
-      const day = dayNumber(on);
+      const day = challenge ? dayNumber(on, startDate, totalDays) : null;
       const isToday = on.getTime() === now.getTime();
       const record = day === null ? null : dayOf(day);
       const shots = record?.shots ?? [];
       const done = record?.done ?? 0;
       const cell: CalendarDay = { shots, past: on <= now, today: isToday, inRun: day !== null };
+
+      // Outside the current era, the date may belong to an earlier one —
+      // the most recent that has a photo on it, or a day it missed there.
+      const earlier =
+        day === null
+          ? pastRuns.flatMap((run) => {
+              const n = dayNumber(on, run.startDate, run.totalDays);
+              if (n === null || n > run.lastDay) return [];
+              const past = run.dayOf(n);
+              return past?.shots.length || n < run.lastDay ? [{ run, n, past }] : [];
+            })[0]
+          : undefined;
+      if (earlier) {
+        const { run, n, past } = earlier;
+        cell.inRun = true;
+        cell.shots = past?.shots ?? [];
+        if (cell.shots.length) {
+          cell.onPress = () => run.onOpenDay(n);
+          cell.label = `${run.name}, Day ${n}, ${past?.done ?? 0} of ${run.taskCount} tasks. Opens this day's post.`;
+        } else {
+          cell.missed = true;
+          cell.label = `${MONTH_NAMES[month]} ${date}, ${run.name} Day ${n}. Missed.`;
+        }
+      }
 
       if (day !== null && day < currentDay && record) {
         // No count on a cell: its photos are the day, and how many tasks
@@ -351,7 +405,7 @@ export function ProfileView({
     }
 
     return { month: first, days };
-  }, [monthOffset, startDate, totalDays, currentDay, taskCount, dayOf, onOpenDay, today]);
+  }, [monthOffset, challenge, startDate, totalDays, currentDay, taskCount, dayOf, onOpenDay, today, pastRuns]);
 
   // The years the picker offers: back from this one, stretched to take in the
   // year the challenge started should it fall further back than that.
@@ -379,7 +433,9 @@ export function ProfileView({
       <View style={styles.identity}>
         <View
           style={styles.ringWrap}
-          accessibilityLabel={`${runLabel}, ${doneToday} of ${taskCount} tasks done today`}
+          accessibilityLabel={
+            challenge ? `${runLabel}, ${doneToday} of ${taskCount} tasks done today` : undefined
+          }
         >
           {/* Counted, not matched to a task: the ring says how many are
               done, filling from the top, whichever ones they were. Done
@@ -389,48 +445,53 @@ export function ProfileView({
               The sweep is laid once around the whole ring and shown
               through the done segments as a mask, so a segment's colour
               is simply where it sits on the circle — the first one
-              peach, the last one lavender, whichever tasks are done. */}
-          <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
-            <Defs>
-              {/* White is what a mask lets through — the done segments'
-                  shape, not a colour anyone sees. */}
-              <Mask
-                id="ringDone"
-                maskUnits="userSpaceOnUse"
-                x={0}
-                y={0}
-                width={RING_SIZE}
-                height={RING_SIZE}
-              >
-                {ringSegments(taskCount)
-                  .slice(0, doneToday)
-                  .map((segment, index) =>
-                    ringSegment(segment, index, svgColors.onMedia, taskCount > 1),
-                  )}
-              </Mask>
-            </Defs>
+              peach, the last one lavender, whichever tasks are done.
 
-            {ringSegments(taskCount).map((segment, index) =>
-              index < doneToday
-                ? null
-                : ringSegment(segment, index, svgColors.inkGhost, taskCount > 1),
-            )}
-            <G mask="url(#ringDone)">
-              {ringSweep.map((slice, index) => (
-                <Circle
-                  key={index}
-                  cx={RING_SIZE / 2}
-                  cy={RING_SIZE / 2}
-                  r={RING_RADIUS}
-                  stroke={slice.color}
-                  strokeWidth={RING_STROKE}
-                  fill="none"
-                  strokeDasharray={`${RING_CIRCUMFERENCE / RING_SWEEP_SLICES + RING_SWEEP_OVERLAP} ${RING_CIRCUMFERENCE}`}
-                  transform={`rotate(${slice.rotation} ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-                />
-              ))}
-            </G>
-          </Svg>
+              With no era there is no day to gauge: the photo alone, in the
+              same box, so the name under it doesn't move. */}
+          {challenge ? (
+            <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
+              <Defs>
+                {/* White is what a mask lets through — the done segments'
+                    shape, not a colour anyone sees. */}
+                <Mask
+                  id="ringDone"
+                  maskUnits="userSpaceOnUse"
+                  x={0}
+                  y={0}
+                  width={RING_SIZE}
+                  height={RING_SIZE}
+                >
+                  {ringSegments(taskCount)
+                    .slice(0, doneToday)
+                    .map((segment, index) =>
+                      ringSegment(segment, index, svgColors.onMedia, taskCount > 1),
+                    )}
+                </Mask>
+              </Defs>
+  
+              {ringSegments(taskCount).map((segment, index) =>
+                index < doneToday
+                  ? null
+                  : ringSegment(segment, index, svgColors.inkGhost, taskCount > 1),
+              )}
+              <G mask="url(#ringDone)">
+                {ringSweep.map((slice, index) => (
+                  <Circle
+                    key={index}
+                    cx={RING_SIZE / 2}
+                    cy={RING_SIZE / 2}
+                    r={RING_RADIUS}
+                    stroke={slice.color}
+                    strokeWidth={RING_STROKE}
+                    fill="none"
+                    strokeDasharray={`${RING_CIRCUMFERENCE / RING_SWEEP_SLICES + RING_SWEEP_OVERLAP} ${RING_CIRCUMFERENCE}`}
+                    transform={`rotate(${slice.rotation} ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+                  />
+                ))}
+              </G>
+            </Svg>
+          ) : null}
 
           {/* The disc behind the photo is the avatar's own shape, so the
               hard shadow has something solid to cast from. A tap plays
@@ -446,20 +507,6 @@ export function ProfileView({
             >
               <Avatar source={avatar} size={avatarSize} />
             </Pressable>
-          </View>
-
-          {/* Today's count clipped onto the bottom of the gauge — the ring
-              shows how far along, the badge says it in numbers. Hidden from
-              screen readers: the ring's own label already says it. */}
-          <View
-            pointerEvents="none"
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={[styles.badge, shadows.hard]}
-          >
-            <Text variant="badge" color={colors.inkInverse}>
-              {`${doneToday}/${taskCount}`}
-            </Text>
           </View>
         </View>
 
@@ -688,17 +735,17 @@ export function ProfileView({
       ) : (
         <View style={styles.postGrid}>
           {posts.map((post) => {
-            const finished = post.done === taskCount;
+            const finished = post.done === post.taskCount;
             return (
               <View key={post.key} style={styles.postCellWrap}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={
                     finished
-                      ? `Day ${post.day}, finished`
-                      : `Day ${post.day}, ${post.done} of ${taskCount} tasks`
+                      ? `${post.name}, Day ${post.day}, finished`
+                      : `${post.name}, Day ${post.day}, ${post.done} of ${post.taskCount} tasks`
                   }
-                  onPress={() => onOpenDay(post.day)}
+                  onPress={post.open}
                   style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
                 >
                   <MosaicArrangement
@@ -730,7 +777,7 @@ export function ProfileView({
                   {/* No task count on the tile, finished or not — a day is
                       its photos, and how many tasks it got is one tap away
                       on the post, the way a calendar cell leaves it. */}
-                  <DayStamp day={post.day} kicker={challenge?.name ?? ''} referenceWidth={windowWidth} />
+                  <DayStamp day={post.day} kicker={post.name} referenceWidth={windowWidth} />
                 </Pressable>
               </View>
             );
@@ -790,28 +837,10 @@ const styles = StyleSheet.create({
     borderRadius: avatarSize / 2,
     backgroundColor: colors.backgroundPlain,
   },
-  // Centred on the ring's own stroke rather than its outer edge, so it reads
-  // as clipped onto the gauge instead of hanging off under it. The wrap's own
-  // `alignItems` does the horizontal centring.
-  badge: {
-    position: 'absolute',
-    zIndex: 1,
-    bottom: -badgeOverhang,
-    height: badgeHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: layout.pill,
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink,
-    // A ring the page's own white so the badge reads as sitting on top of the
-    // gauge rather than merging into its stroke.
-    borderWidth: badgeRingWidth,
-    borderColor: colors.backgroundPlain,
-  },
   identityText: {
     alignSelf: 'stretch',
     alignItems: 'center',
-    marginTop: layout.block + badgeOverhang,
+    marginTop: layout.block,
   },
   bio: {
     marginTop: layout.line,

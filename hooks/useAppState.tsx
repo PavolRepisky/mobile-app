@@ -255,7 +255,7 @@ export const LIVES_PER_CHALLENGE = 3;
  * written, since there is no membership to write against. Development
  * builds only; turn it off (or delete it) once the page is done.
  */
-const FAKE_ERA = __DEV__ && true;
+const FAKE_ERA = __DEV__ && false;
 
 /** How many of the preset's tasks the fake era keeps — four, to see the
  * page with a 2×2 post rather than the preset's five. Its first four, so

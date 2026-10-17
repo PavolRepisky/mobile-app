@@ -135,6 +135,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         if (next.person.membershipId) {
           ensureStats(next.days.map((d) => ({ membershipId: next.person.membershipId!, day: d.day })));
         }
+        ensureStats(
+          next.pastRuns.flatMap((run) => run.days.map((d) => ({ membershipId: run.membershipId, day: d.day }))),
+        );
         return next;
       } catch {
         return undefined;

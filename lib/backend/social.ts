@@ -5,7 +5,7 @@ import type { Database } from '@/lib/database.types';
 import { publicUrl, signedUrls } from '@/lib/backend/photos';
 import { supabase } from '@/lib/supabase';
 import { timeStamp } from '@/lib/format';
-import { localDay } from '@/lib/round';
+import { DAY_MS, localDay, startOfToday } from '@/lib/round';
 
 /**
  * Everyone else: the people on the Community tab, a friend's profile and
@@ -181,10 +181,97 @@ export async function fetchRoundSize(): Promise<number> {
 // One person's page
 // ---------------------------------------------------------------------------
 
+/**
+ * An era someone is no longer in — finished, lost or left — with every day
+ * they got a photo on. It stays on their profile: a run that ended is still
+ * what they did.
+ */
+export interface PastRun {
+  membershipId: string;
+  challenge: { id: string; name: string };
+  status: 'finished' | 'lost' | 'left';
+  startDate: Date;
+  totalDays: number;
+  taskCount: number;
+  /** The last day the run reached: its length if finished, otherwise the
+   * day it ended on. Days before it with nothing on them were missed. */
+  lastDay: number;
+  /** Today, counted on this run's calendar and past its end — what a post
+   * reads its "3 days ago" off. */
+  dayToday: number;
+  /** Days with at least one completion, most recent first. */
+  days: DayRecord[];
+}
+
+/** Which day of a round starting `start` the date `on` falls on. Rounded,
+ * so a daylight-saving shift between the two doesn't lose a day. */
+const dayOfRound = (start: Date, on: Date) => Math.round((on.getTime() - start.getTime()) / DAY_MS) + 1;
+
+/** Every era `userId` was in before the current one, most recent first —
+ * three reads, however many there were. Runs with no photo at all are left
+ * out: there is nothing of them to show. */
+export async function fetchPastRuns(userId: string): Promise<PastRun[]> {
+  const rows = must(
+    await supabase
+      .from('memberships')
+      .select('*, round:rounds(*, challenge:challenges(*, tasks:challenge_tasks(*)))')
+      .eq('user_id', userId)
+      .neq('status', 'active'),
+  ).filter((m) => m.round?.challenge);
+  if (!rows.length) return [];
+
+  const ids = rows.map((m) => m.id);
+  const [completions, captions] = await Promise.all([
+    supabase.from('task_completions').select('*').in('membership_id', ids),
+    supabase.from('day_captions').select('*').in('membership_id', ids),
+  ]);
+  const all = must(completions);
+  const allCaptions = must(captions);
+  const urls = await signedUrls(all.flatMap((c) => [c.photo_path, c.thumb_path]));
+  const today = startOfToday();
+
+  return rows
+    .map((m): PastRun => {
+      const round = m.round!;
+      const challenge = round.challenge!;
+      const tasks = [...(challenge.tasks ?? [])].sort((a, b) => a.position - b.position);
+      const startDate = localDay(round.start_date);
+      const ended = m.ended_at ? new Date(m.ended_at) : today;
+      ended.setHours(0, 0, 0, 0);
+      const mine = all.filter((c) => c.membership_id === m.id);
+      const captionOf = new Map(
+        allCaptions.filter((c) => c.membership_id === m.id).map((c) => [c.day, c.caption]),
+      );
+      const dayNumbers = [...new Set(mine.map((c) => c.day))].sort((a, b) => b - a);
+      return {
+        membershipId: m.id,
+        challenge: { id: challenge.slug ?? challenge.id, name: challenge.name },
+        status: m.status as PastRun['status'],
+        startDate,
+        totalDays: round.days,
+        taskCount: tasks.length,
+        lastDay:
+          m.status === 'finished'
+            ? round.days
+            : Math.min(Math.max(dayOfRound(startDate, ended), 0), round.days),
+        dayToday: dayOfRound(startDate, today),
+        days: dayNumbers.map((day) => ({
+          day,
+          caption: captionOf.get(day),
+          tasks: dayTasks(tasks, mine.filter((c) => c.day === day), urls),
+        })),
+      };
+    })
+    .filter((run) => run.days.length > 0)
+    .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+}
+
 export interface PersonPage {
   person: Person;
   /** Every day they've got anything on, today included. */
   days: DayRecord[];
+  /** The eras they were in before this one, most recent first. */
+  pastRuns: PastRun[];
   /** Their challenge, or null when they're in none. */
   challenge: { id: string; name: string; joined: number } | null;
   startDate: Date;
@@ -195,7 +282,7 @@ export interface PersonPage {
 /** Someone's profile and their whole run, as far as you may see it. */
 export async function fetchPerson(userId: string): Promise<PersonPage> {
   const me = await myId();
-  const [profile, friendRows, membership, relation] = await Promise.all([
+  const [profile, friendRows, membership, relation, pastRuns] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
     supabase.from('friends').select('friend_id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase
@@ -209,6 +296,7 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
       .select('*')
       .or(`and(requester_id.eq.${me},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${me})`)
       .maybeSingle(),
+    fetchPastRuns(userId),
   ]);
   const p = must(profile);
   const m = maybe(membership);
@@ -228,7 +316,7 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
   };
   const friendCount = friendRows.count ?? 0;
   if (!m?.round?.challenge) {
-    return { person, days: [], challenge: null, startDate: new Date(), totalDays: 0, friendCount };
+    return { person, days: [], pastRuns, challenge: null, startDate: new Date(), totalDays: 0, friendCount };
   }
 
   const round = m.round;
@@ -261,6 +349,7 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
   return {
     person,
     days,
+    pastRuns,
     challenge: { id: challenge.slug ?? challenge.id, name: challenge.name, joined: 0 },
     startDate: localDay(round.start_date),
     totalDays: round.days,

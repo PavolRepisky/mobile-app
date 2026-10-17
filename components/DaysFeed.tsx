@@ -6,17 +6,21 @@ import { layout } from '@/constants/theme';
 import { NATIVE_HEADER, ScreenScroll } from './Screen';
 import { ScreenHeader } from './ScreenHeader';
 
-export interface DaysFeedProps {
+/** A day in the feed: its number, or a key naming the era too where the feed
+ * runs across several. */
+type DayKey = string | number;
+
+export interface DaysFeedProps<K extends DayKey = number> {
   /** What the whole scroll is — "My days", "Lily's days" — not "Day N",
    * which belongs to the post under it. */
   title: string;
   /** The days in the feed, most recent first — the profile grid's order, so
    * paging down from a tile lands on the tile after it. */
-  days: readonly number[];
+  days: readonly K[];
   /** The tile that was tapped: the feed opens scrolled to it. */
-  openedDay: number;
+  openedDay: K;
   /** One day's post — the shared `FriendCard`. */
-  renderDay: (day: number) => ReactNode;
+  renderDay: (day: K) => ReactNode;
   /** Pull to refresh: fetch the days again. */
   onRefresh?: () => Promise<unknown>;
   style?: StyleProp<ViewStyle>;
@@ -29,13 +33,20 @@ export interface DaysFeedProps {
  * own "My days" and anyone else's are both this, so the two can't drift: the
  * way back and the title in the fixed bar, then one post per day.
  */
-export function DaysFeed({ title, days, openedDay, renderDay, onRefresh, style }: DaysFeedProps) {
+export function DaysFeed<K extends DayKey = number>({
+  title,
+  days,
+  openedDay,
+  renderDay,
+  onRefresh,
+  style,
+}: DaysFeedProps<K>) {
   const scrollRef = useRef<ScrollView>(null);
   // On the iPhone the page runs up under the see-through bar, so a day
   // scrolled to the top would sit behind it; it stops this much short.
   const headerHeight = useHeaderHeight();
   const barInset = NATIVE_HEADER ? headerHeight : 0;
-  const itemRefs = useRef(new Map<number, View>());
+  const itemRefs = useRef(new Map<K, View>());
   // A manual scroll means the reader has taken over — the settle-and-jump
   // below must stop correcting the position out from under them.
   const userScrolledRef = useRef(false);
