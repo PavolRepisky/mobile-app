@@ -1,3 +1,101 @@
+# The app
+
+**SelfEra** is a social habit-challenge app for iOS and Android (also runs on
+the web for layout checks). You join an **era**, a fixed run of days (75 by
+default) with a short list of daily tasks. A task counts as done only once
+you **photograph** it, and only **today**. Each day's photos make one post: a
+mosaic with "Day N" stamped across it. Friends and others in the same era see
+that post on Community. Each era has a set number of **lives** (allowed missed
+days, 3 by default). Missing more than that ends your run.
+
+- **Naming**: the app was called "Her 75" and was renamed SelfEra on
+  2026-10-08. Text users see says *era*. Code, routes, DB tables and the slug
+  or scheme (`her75`, `com.her75.app`) still say *challenge* and *her75*.
+  Keep it that way. Never put "75" in an app name.
+- **Stack**: Expo SDK 57, RN 0.86, React 19, TypeScript, expo-router with
+  typed routes, Supabase. It must run in **Expo Go**, so don't add packages
+  that need a dev build. Use Node 25.2.1 via nvm, because the default 20.17
+  is too old.
+- `README.md` describes setup, structure and the known gaps.
+  `supabase/README.md` covers the backend.
+
+## Screens (`app/`)
+
+Four tabs, each with its own stack folder under `app/(tabs)/`, in this order:
+**Discover · Community · Tasks · Profile**. Tasks is the home screen and the
+first route (`app/index.tsx` redirects to it). On iOS the tab bar is
+`NativeTabs`; elsewhere it is `FloatingTabBar`.
+
+| route | what it is |
+| --- | --- |
+| `(tabs)/tasks` | Today's post being filled in: the era and day over a grid with one square per task, the lives and the clock, then a row for each task still to shoot. Tapping one raises `CameraSheet`. Tapping a filled square opens `PhotoViewer` (retake or remove). Tasks have no order. Shows an empty state when you're in no era. |
+| `(tabs)/community` | Two segments. **Friends**: a "Still going today" row of task rings (opens `story`) and the "Finished today" posts. **Members**: posts from everyone who finished in your era, each with Add friend. Both stay behind the **lock** until you have photographed one task today. Corner button opens `add-friends`. |
+| `(tabs)/discover` | A carousel of featured eras you can still join (ranked by friends in them, then by members), then Trending rows. Search and See all open `challenges/search`. |
+| `(tabs)/profile` | `ProfileView` for you: avatar inside the split task ring, the era card (`ChallengeRun`), and Days as a Grid or Month (`CalendarMonth`). Settings is in the header. |
+| `feed/[id]` | One era's page: photos, terms, daily tasks, lives, who's in it, with one docked action (Join, etc.). It reads differently for invited, joined and waiting, running, and watching. Once the round is over it becomes `Finished`: podium, standings, who ran out of lives. |
+| `join/[id]` | Joining in 2 steps: reminder time per task plus a last call, then the pledge signed with `SignaturePad`. Signing is what joins. |
+| `challenge/create` | Build your own era in 3 steps (what it is, daily tasks up to 9, rules: length, start date, lives 0–5), then a "live" page with invites. `?edit` reopens it for changes before Day 1. |
+| `challenges/search` | Every era, with a search field and filter chips (yours, topic, length). Results are grouped as starting soon, under way, finished. |
+| `day/[day]` | Your days as a scrolling feed (`DaysFeed` of `FriendCard`s), starting at the day you tapped. |
+| `friend/[id]`, `friend/post/[id]` | Someone else's `ProfileView`, and their days feed. Their today follows the lock. |
+| `story` | Full-screen story viewer over someone's photos for the day, with a queue across the Community row and emoji reactions. |
+| `add-friends` | Search, an invite card (share link plus QR code), and suggestions with mutual friends. |
+| `account/settings` · `theme` · `reminders` | Profile fields, Reminders, End era, Theme (system, light or dark), Privacy and Terms (still do nothing), Log out, Delete account. |
+| `sign-in` | The only route when signed out: email and password, plus Apple once the project turns it on (native sheet in a build, browser flow in Expo Go). Google is in `lib/backend/auth.ts` but has no button. |
+| `sheet`, `sheet-large` | iOS system sheet routes, currently switched off (see `BottomSheet` below). |
+
+## State and data
+
+- `hooks/useSession` holds the Supabase session. `app/_layout.tsx` swaps the
+  sign-in stack for the app stack with `Stack.Protected`, so signing in or
+  out needs no navigation.
+- `hooks/useAppState` (`useApp`) holds **your** account: profile, the era
+  you're in (`inChallenge`, `challenge`, `tasks`, `startDate`, `currentDay`),
+  `progress[day][taskId]`, captions, reminders, lives, the `catalog` of all
+  eras, and `feedLocked`. Its actions are the whole write surface:
+  `completeTaskWithPhoto` and `undoTask` (a tick and its photo always move
+  together), `selectChallenge` (join), `leaveChallenge`, and
+  `add`/`update`/`deleteChallenge`. Writes show in the UI first; if the save
+  fails they roll back and set `syncError`.
+- `hooks/useSocial` covers **everyone else**, from the backend: friends and
+  members today, relations and requests, reactions, comments, seen photos,
+  and people's pages. Like `useApp`, it updates the UI first and puts things
+  back if the server refuses.
+- `lib/backend/*` contains the Supabase calls (`api`, `auth`, `catalog`,
+  `photos`, `social`). `lib/database.types.ts` is generated by
+  `npm run db:types`.
+- `data/challenges.ts` holds the preset eras and their bundled photos.
+  `data/content.ts` now supplies only types (`Friend`), `REACTIONS` and the
+  photo strips. People are no longer demo data.
+- `lib/round.ts`: every round has **one shared Day 1**. `roundState`
+  returns upcoming, running or ended. Joining closes on Day 1, and you can be
+  in one era at a time.
+- Reminders: `lib/reminderPlan.ts` plans them (tested by
+  `npm run test:reminders`). `components/ReminderSync` schedules them with
+  expo-notifications on phones while signed in. They work now.
+- **Dev switches to know about**: `FAKE_ERA` in `useAppState` (`__DEV__`
+  only) shows an account with no era as joined to a 4-task copy of the first
+  preset, held on the phone only. `SYSTEM_CAMERA = false` in Tasks keeps the
+  app's own camera card instead of iOS's camera.
+
+## Backend (`supabase/`)
+
+Postgres with row-level security, Storage for photos, the `delete-account`
+Edge Function, and a pg_cron settle job every 15 minutes (runs out of lives
+become lost; runs past their last day become finished). The rules live in the
+database, not the app. Tasks can only be completed today in the member's own
+time zone. Profiles and past days are public to anyone signed in. Someone's
+**today** stays hidden, with no signed photo URL, until you've photographed
+your own task today. Details, demo logins and commands are in
+`supabase/README.md`. A schema change is always a **new** migration. Config
+comes from `.env.local` (see `.env.example`).
+
+## Commands
+
+`npx expo start` (Expo Go) · `npm run typecheck` · `npm run check:design` ·
+`npm run test:reminders` · `npm run db:start | db:reset | db:test | db:smoke |
+db:types` (Docker needed).
+
 # Design rules
 
 ## iPhone: native first
