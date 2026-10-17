@@ -105,8 +105,8 @@ const FOCUS_RULE = 2;
 const DASH_RULE = 2;
 
 /** Enough for a full morning or a full day without the list turning into a
- * chore to photograph. */
-const MAX_TASKS = 8;
+ * chore to photograph — and as many as the day's mosaic has a layout for. */
+const MAX_TASKS = 9;
 
 /** How many of the topic's popular tasks are offered under the list. */
 const SUGGESTION_COUNT = 3;

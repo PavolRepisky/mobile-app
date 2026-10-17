@@ -79,10 +79,20 @@ const MOSAIC_PIECE = { flex: 1 } as const;
 function snapSide(width: number, count: number, seam: number) {
   const ratio = PixelRatio.get();
   const seamPx = Math.round(seam * ratio);
-  const rows = count <= 2 ? count : count === 4 ? 2 : 1 + Math.ceil((count - 1) / 2);
+  const splits = mosaicSplits(count);
   let px = Math.floor(width * ratio);
-  while (px > 0 && ((px - seamPx) % 2 !== 0 || (px - (rows - 1) * seamPx) % rows !== 0)) px--;
+  while (px > 0 && splits.some((n) => (px - (n - 1) * seamPx) % n !== 0)) px--;
   return px / ratio;
+}
+
+/** Every way the mosaic for `count` cuts the block's side — into halves,
+ * thirds or both — so `snapSide` can find a side all of them divide. */
+function mosaicSplits(count: number) {
+  if (count <= 1) return [];
+  if (count <= 4) return [2];
+  if (count <= 6) return [2, 3];
+  if (count <= 9) return [3];
+  return [3, Math.ceil(count / 3)];
 }
 
 /** The camera disc on an open tile — a thumb's target. */
@@ -185,15 +195,25 @@ export interface MosaicArrangementProps<T extends { key: string }> {
 }
 
 /**
- * Cuts a set of cells into the same shape the calendar's day cell uses: one
- * fills it, two split it top and bottom, three put one over a pair, and four
- * take a corner each. Past four there is no such fixed arrangement, so a
- * fifth cell and beyond fall in behind the first the same way the third does,
- * stacked in rows of two under it.
+ * Cuts a set of cells into one square, a fixed arrangement for each count
+ * from one to nine:
+ *
+ *   1 the whole square      4 a corner each         7 tall · two · tall, over three
+ *   2 two tall halves       5 two over three        8 one tall, then squares
+ *   3 a tall half, two      6 three across, twice   9 three by three
+ *     squares beside it
+ *
+ * Every piece is square or taller than wide, because the photos are shot
+ * upright on a phone and a wide strip would cut the person out of them; and
+ * none is narrower than a third, so the grid still reads at a calendar cell's
+ * size. Seven to nine sit on a three-by-three lattice, a task taking two of
+ * its cells where the count leaves some over. The first task always holds the
+ * top-left piece. Past nine — the database allows a few more than the create
+ * screen offers — the lattice simply keeps going in rows of three.
  *
  * Generic over what a cell renders as, and pulled out of `PhotoCollage` so
- * other grids — a post, a story, a profile tile — lay their cells out
- * identically without re-deriving the split.
+ * other grids — a post, a story, a profile tile, a calendar day — lay their
+ * cells out identically without re-deriving the split.
  */
 export function MosaicArrangement<T extends { key: string }>({
   cells,
@@ -203,41 +223,60 @@ export function MosaicArrangement<T extends { key: string }>({
   const gap = seam ?? MOSAIC_SEAM;
   const column = { flex: 1, flexDirection: 'column', gap } as const;
   const row = { flex: 1, flexDirection: 'row', gap } as const;
+  const c = cells;
 
-  if (cells.length === 1) {
-    return renderCell(cells[0]);
-  }
-
-  if (cells.length === 2) {
-    return <View style={column}>{cells.map(renderCell)}</View>;
-  }
-
-  if (cells.length === 4) {
-    return (
-      <View style={column}>
-        {[cells.slice(0, 2), cells.slice(2, 4)].map((pair, r) => (
-          <View key={r} style={row}>
-            {pair.map(renderCell)}
-          </View>
-        ))}
-      </View>
-    );
-  }
-
-  const [head, ...rest] = cells;
-  const pairs: T[][] = [];
-  for (let i = 0; i < rest.length; i += 2) pairs.push(rest.slice(i, i + 2));
-
-  return (
-    <View style={column}>
-      {renderCell(head)}
-      {pairs.map((pair, r) => (
-        <View key={r} style={row}>
-          {pair.map(renderCell)}
-        </View>
-      ))}
+  // A piece two lattice cells long: twice the share of a single one, plus the
+  // seam it swallows, so its edges land on the lattice's own lines.
+  const tall = (cell: T) => (
+    <View key={cell.key} style={{ flexGrow: 2, flexShrink: 1, flexBasis: gap }}>
+      {renderCell(cell)}
     </View>
   );
+  const line = (style: typeof row | typeof column, items: React.ReactNode[], key?: string) => (
+    <View key={key} style={style}>
+      {items}
+    </View>
+  );
+
+  switch (c.length) {
+    case 1:
+      return renderCell(c[0]);
+    case 2:
+      return line(row, c.map(renderCell));
+    case 3:
+      return line(row, [renderCell(c[0]), line(column, [renderCell(c[1]), renderCell(c[2])], 'side')]);
+    case 4:
+    case 5:
+    case 6: {
+      const top = c.length === 6 ? 3 : 2;
+      return line(column, [
+        line(row, c.slice(0, top).map(renderCell), 'top'),
+        line(row, c.slice(top).map(renderCell), 'bottom'),
+      ]);
+    }
+    // Seven and eight are drawn column by column, so a tall piece and the
+    // squares beside it share the lattice's vertical lines exactly.
+    case 7:
+      return line(row, [
+        line(column, [tall(c[0]), renderCell(c[4])], 'left'),
+        line(column, [renderCell(c[1]), renderCell(c[3]), renderCell(c[5])], 'middle'),
+        line(column, [tall(c[2]), renderCell(c[6])], 'right'),
+      ]);
+    case 8:
+      return line(row, [
+        line(column, [tall(c[0]), renderCell(c[5])], 'left'),
+        line(column, [renderCell(c[1]), renderCell(c[3]), renderCell(c[6])], 'middle'),
+        line(column, [renderCell(c[2]), renderCell(c[4]), renderCell(c[7])], 'right'),
+      ]);
+    default: {
+      const rows: T[][] = [];
+      for (let i = 0; i < c.length; i += 3) rows.push(c.slice(i, i + 3));
+      return line(
+        column,
+        rows.map((three, r) => line(row, three.map(renderCell), `row-${r}`)),
+      );
+    }
+  }
 }
 
 /**

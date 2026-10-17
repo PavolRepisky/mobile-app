@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { absoluteFill, colors, layout, radii, spacing } from '@/constants/theme';
+import { MosaicArrangement } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';
 
@@ -45,8 +46,9 @@ const CELL_ASPECT = 0.86;
  */
 const CELL_RADIUS = 6;
 
-/** How many of a day's shots the cell tiles before it stops. */
-const MOSAIC_MAX = 4;
+/** How many of a day's shots the cell tiles before it stops — as many as an
+ * era can have tasks. */
+const MOSAIC_MAX = 9;
 
 /**
  * Every piece of the mosaic, whatever shape it ends up: the containers do the
@@ -68,7 +70,7 @@ export interface DayShot {
 
 export interface CalendarDay {
   /**
-   * Everything photographed that day, in checklist order. Up to four are
+   * Everything photographed that day, in checklist order. Up to nine are
    * tiled into the cell: a day is several photographs, and a grid of single
    * covers hides that the record is fuller than one picture per square.
    */
@@ -212,11 +214,10 @@ function DayCell({ date, day }: { date: number; day: CalendarDay }) {
 }
 
 /**
- * The day's shots tiled into one square, cut the way a photo grid cuts a set:
- * one fills it, two split it across, three put one over a pair, and four take
- * a corner each, edge to edge — one print cut into pieces rather than a set of
- * separate ones. Anything past four is dropped: at this size a fifth tile is a
- * smudge, and the story behind the tap has all of them anyway.
+ * The day's shots tiled into one square, cut the same way as the day's post
+ * (`MosaicArrangement`), edge to edge — one print cut into pieces rather than
+ * a set of separate ones. Past nine the rest are dropped: the story behind the
+ * tap has all of them anyway.
  */
 function Mosaic({
   tiles,
@@ -227,46 +228,21 @@ function Mosaic({
   date: number;
   today?: boolean;
 }) {
-  const shot = (t: DayShot, i: number) =>
-    t.photo ? (
-      <Image key={i} source={t.photo} style={PIECE} contentFit="cover" />
-    ) : (
-      <Placeholder key={i} seed={t.seed ?? `day-${date}-${i}`} radius={0} style={PIECE} />
-    );
-
-  const photoStyle = [styles.photo, today && styles.photoToday];
-  const column = [...photoStyle, styles.mosaicColumn];
-
-  if (tiles.length === 1) {
-    return <View style={photoStyle}>{shot(tiles[0], 0)}</View>;
-  }
-
-  if (tiles.length === 2) {
-    return <View style={column}>{tiles.map((t, i) => shot(t, i))}</View>;
-  }
-
-  if (tiles.length === 3) {
-    return (
-      <View style={column}>
-        {shot(tiles[0], 0)}
-        <View style={styles.mosaicRow}>
-          {shot(tiles[1], 1)}
-          {shot(tiles[2], 2)}
-        </View>
-      </View>
-    );
-  }
+  const cells = tiles.map((t, i) => ({ ...t, key: String(i) }));
 
   return (
-    <View style={column}>
-      <View style={styles.mosaicRow}>
-        {shot(tiles[0], 0)}
-        {shot(tiles[1], 1)}
-      </View>
-      <View style={styles.mosaicRow}>
-        {shot(tiles[2], 2)}
-        {shot(tiles[3], 3)}
-      </View>
+    <View style={[styles.photo, today && styles.photoToday]}>
+      <MosaicArrangement
+        cells={cells}
+        seam={0}
+        renderCell={(t) =>
+          t.photo ? (
+            <Image key={t.key} source={t.photo} style={PIECE} contentFit="cover" />
+          ) : (
+            <Placeholder key={t.key} seed={t.seed ?? `day-${date}-${t.key}`} radius={0} style={PIECE} />
+          )
+        }
+      />
     </View>
   );
 }
@@ -326,13 +302,6 @@ const styles = StyleSheet.create({
   // stay concentric with it.
   photoToday: {
     borderRadius: CELL_RADIUS - 2,
-  },
-  mosaicColumn: {
-    flexDirection: 'column',
-  },
-  mosaicRow: {
-    flex: 1,
-    flexDirection: 'row',
   },
   scrim: {
     ...absoluteFill,
