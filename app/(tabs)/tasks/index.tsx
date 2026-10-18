@@ -241,8 +241,10 @@ export default function TasksScreen() {
         {/* The post itself, a square for every photo; stamped once the last
             one is in. The open squares are only grey — the task rows under
             them are what's pressed — though a tap on one still opens the
-            camera for it. Before Day 1 it is only the shape of what's to come. */}
-        <PhotoCollage cells={cells} bare={waiting} plainOpen>
+            camera for it. Before Day 1 it is only the shape of what's to come.
+            It runs edge to edge, square-cornered, the way a post fills the
+            screen on Community. */}
+        <PhotoCollage cells={cells} bare={waiting} plainOpen radius={0} style={styles.post}>
           {allDone ? <DayStamp day={currentDay} kicker={challenge.name} /> : null}
         </PhotoCollage>
 
@@ -450,6 +452,11 @@ function TaskPill({
 }
 
 const styles = StyleSheet.create({
+  // Out past the page's gutter on both sides, so the post is the screen's
+  // full width.
+  post: {
+    marginHorizontal: -layout.gutter,
+  },
   hearts: {
     flexDirection: 'row',
     gap: layout.line / 2,
