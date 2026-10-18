@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { useSession } from '@/hooks/useSession';
 import * as social from '@/lib/backend/social';
-import type { Person, PersonPage, PostStats, Relations } from '@/lib/backend/social';
+import type { PastRun, Person, PersonPage, PostStats, Relations } from '@/lib/backend/social';
+import { fakePastRuns, isFakeRun } from '@/lib/fakePastRuns';
 import type { CommentEntry } from '@/components/CommentsSheet';
 
 /**
@@ -49,6 +50,15 @@ interface SocialState {
   accept: (userId: string) => void;
   decline: (userId: string) => void;
 }
+
+/**
+ * For seeing a profile with eras behind it: your own page shows three
+ * made-up past eras — one finished, one out of lives, one left — after any
+ * real ones, held on the phone only, whether or not the page itself has
+ * loaded. Development builds only; turn it off once the profile is done.
+ */
+const FAKE_PAST_ERAS = __DEV__ && false;
+const FAKE_RUNS = FAKE_PAST_ERAS ? fakePastRuns() : [];
 
 const EMPTY_RELATIONS: Relations = { friends: new Set(), outgoing: new Set(), incoming: [], friendList: [] };
 
@@ -139,7 +149,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           next.pastRuns.flatMap((run) => run.days.map((d) => ({ membershipId: run.membershipId, day: d.day }))),
         );
         return next;
-      } catch {
+      } catch (e) {
+        if (__DEV__) console.warn('[social] loading a profile failed', e);
         return undefined;
       }
     },
@@ -154,6 +165,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     if (before.mine) reactions[before.mine] = Math.max(0, (reactions[before.mine] ?? 1) - 1);
     if (emoji) reactions[emoji] = (reactions[emoji] ?? 0) + 1;
     setStats((now) => ({ ...now, [key]: { ...before, reactions, mine: emoji } }));
+    // A made-up era has no row for the server to hang a heart on — it would
+    // refuse, and the rollback would take the heart straight back off the
+    // screen. Held on the phone instead.
+    if (isFakeRun(membershipId)) return;
     social.setReaction(membershipId, day, emoji).catch(() => {
       setStats((now) => ({ ...now, [key]: before }));
     });
@@ -276,3 +291,17 @@ export function useRelation(userId: string) {
     requestReceived: relations.incoming.some((p) => p.id === userId),
   };
 }
+
+/**
+ * Your own past eras, most recent first, off your page as everyone else
+ * reads it — with `FAKE_PAST_ERAS` on, the made-up ones after them.
+ */
+export function useMyPastRuns(): PastRun[] {
+  const { session } = useSession();
+  const { page } = useSocial();
+  const id = session?.user.id;
+  const real = (id ? page(id)?.pastRuns : undefined) ?? NO_RUNS;
+  return useMemo(() => (FAKE_PAST_ERAS ? [...real, ...FAKE_RUNS] : real), [real]);
+}
+
+const NO_RUNS: PastRun[] = [];

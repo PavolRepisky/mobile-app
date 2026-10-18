@@ -28,6 +28,7 @@ const SYMBOLS: Partial<Record<keyof typeof Ionicons.glyphMap, SFSymbol>> = {
   'camera-outline': 'camera',
   'sync-outline': 'arrow.2.circlepath',
   heart: 'heart.fill',
+  'heart-outline': 'heart',
   'person-outline': 'person',
   'at-outline': 'at',
   'reorder-three-outline': 'text.alignleft',

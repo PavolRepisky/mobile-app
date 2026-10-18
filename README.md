@@ -113,7 +113,17 @@ string, so the same "photo" looks the same on every render.
   in Settings (`app/account/settings.tsx`) don't open anything yet. The App
   Store needs a working privacy policy link, so publish both pages and point
   the rows at their URLs.
-- `FAKE_ERA` in `hooks/useAppState.tsx` (development builds only, off for
+- **TODO: reactions schema down to one heart.** The app now only likes a
+  post or a story with a heart (`LOVE` in `data/content.ts`), but the
+  database still stores an emoji per reaction: `reactions.emoji` with its
+  four-emoji check, the `emoji` column on `notifications`, and the reaction
+  counts that `fetchStats` groups by emoji. Write a **new** migration that
+  turns `reactions` into plain likes (one row per person per post, no
+  emoji), drops the emoji from notifications and their trigger, and
+  simplifies `setReaction`/`fetchStats` in `lib/backend/social.ts` and
+  `react`/`love` in `hooks/useSocial.tsx` to match. Until then, every older
+  🔥/👏/😂 already left still counts as a heart.
+- `FAKE_ERA` in `hooks/useAppState.tsx` (development builds only, on for
   now) shows an account in no era as joined to a stand-in era, for working on
   Tasks.
 - No Google button on the sign-in page, though the auth code supports it.

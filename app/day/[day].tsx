@@ -6,18 +6,15 @@ import { FriendCard } from '@/components/FriendCard';
 import { type Friend } from '@/data/content';
 import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 import { useSession } from '@/hooks/useSession';
-import { useSocial } from '@/hooks/useSocial';
+import { useMyPastRuns, useSocial } from '@/hooks/useSocial';
 import { pastRunAuthor, pastRunPosted } from '@/lib/profileDays';
 
-/** The era you're in now, as a feed key's era half. */
-const NOW = 'now';
-
 /**
- * Your own days — `DaysFeed`, the same feed anyone else's days open in,
- * landing on the tile that was tapped. It runs through the grid's days in
- * the grid's order: the era you're in, then each one before it, so paging
- * down from any tile lands on the tile after it. `run` names the past era a
- * tapped day belongs to; without it the day is the current era's.
+ * One of your eras as a feed — `DaysFeed`, the same feed anyone else's days
+ * open in — titled with the era's name and holding only its days, in the
+ * profile grid's order, landing on the day that was tapped (or the latest,
+ * from the era's "All 30 days"). `run` names a past era; without it the
+ * feed is the era you're in.
  *
  * Each day is the same `FriendCard` the Community tab posts your day with, so
  * a post looks the same wherever you meet it: the carousel, the "Day N"
@@ -30,18 +27,18 @@ export default function DayPostScreen() {
   const openedDay = Number(dayParam) || 1;
   const postedDays = usePostedDays();
 
-  const { profile, tasks, progress, captions, currentDay, membershipId, challenge, inChallenge, reload } =
-    useApp();
+  const { profile, tasks, progress, captions, currentDay, membershipId, challenge, reload } = useApp();
   const { session } = useSession();
   const userId = session?.user.id ?? null;
-  const { page, loadPage } = useSocial();
-  const pastRuns = useMemo(() => (userId ? page(userId)?.pastRuns : undefined) ?? [], [page, userId]);
+  const { loadPage } = useSocial();
+  const pastRuns = useMyPastRuns();
+  const past = run ? pastRuns.find((r) => r.membershipId === run) : undefined;
 
   // You, in the same `Friend` shape Community builds for your own card —
   // only the identity row reads off it; each day's photos come in through
-  // `post` below.
-  const me: Friend = useMemo(
-    () => ({
+  // `post` below. On a past era, you as you were on it.
+  const me: Friend = useMemo(() => {
+    const now: Friend = {
       id: `day-${currentDay}`,
       name: profile.name,
       handle: profile.handle,
@@ -54,22 +51,23 @@ export default function DayPostScreen() {
       membershipId: membershipId ?? undefined,
       challengeId: challenge.id,
       challengeName: challenge.name,
-    }),
-    [profile, currentDay, membershipId, challenge],
-  );
+    };
+    return past ? pastRunAuthor(now, past) : now;
+  }, [profile, currentDay, membershipId, challenge, past]);
 
-  // Every day in the grid, as `era:day`.
-  const openedKey = `${run ?? NOW}:${openedDay}`;
-  const keys = useMemo(() => {
-    const all = [
-      ...(inChallenge ? postedDays.map((day) => `${NOW}:${day}`) : []),
-      ...pastRuns.flatMap((r) => pastRunPosted(r).map((day) => `${r.membershipId}:${day}`)),
-    ];
+  // The era's days, as its grid on the profile has them: today only once
+  // it's finished, since until then it's still a story in progress.
+  const days = useMemo(() => {
+    const all = past
+      ? pastRunPosted(past)
+      : postedDays.filter(
+          (day) => day < currentDay || tasks.every((task) => progress[day]?.[task.id]?.done),
+        );
     // A day reached by a link rather than a tap on the grid — nothing
     // photographed yet, say — has no neighbours in the feed to scroll onto,
     // so it shows just itself.
-    return all.includes(openedKey) ? all : [openedKey];
-  }, [inChallenge, postedDays, pastRuns, openedKey]);
+    return all.includes(openedDay) ? all : [openedDay];
+  }, [past, postedDays, currentDay, tasks, progress, openedDay]);
 
   const tasksFor = (day: number): Friend['tasks'] =>
     orderBySlot(tasks, progress[day]).map((task) => {
@@ -85,30 +83,28 @@ export default function DayPostScreen() {
 
   return (
     <DaysFeed
-      title="My days"
+      title={past ? past.challenge.name : challenge.name}
       onRefresh={() => Promise.all([reload(), userId ? loadPage(userId) : null])}
-      days={keys}
-      openedDay={openedKey}
-      renderDay={(key) => {
-        const [era, dayText] = key.split(':');
-        const day = Number(dayText);
-        if (era === NOW) {
+      days={days}
+      openedDay={openedDay}
+      renderDay={(day) => {
+        if (!past) {
           return (
             <FriendCard
               friend={me}
               post={{ id: `day-${day}`, day, tasks: tasksFor(day), caption: captions[day] }}
+              daysFeed
             />
           );
         }
-        const past = pastRuns.find((r) => r.membershipId === era);
-        const record = past?.days.find((d) => d.day === day);
-        if (!past || !record) return null;
-        return (
+        const record = past.days.find((d) => d.day === day);
+        return record ? (
           <FriendCard
-            friend={pastRunAuthor(me, past)}
-            post={{ id: `${era}-day${day}`, day, tasks: record.tasks, caption: record.caption }}
+            friend={me}
+            post={{ id: `${past.membershipId}-day${day}`, day, tasks: record.tasks, caption: record.caption }}
+            daysFeed
           />
-        );
+        ) : null;
       }}
     />
   );

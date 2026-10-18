@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, layout, radii, spacing, tapSlop } from '@/constants/theme';
-import { type AvatarSource } from './Avatar';
+import { Avatar, type AvatarSource } from './Avatar';
 import { TaskRing } from './TaskRing';
 import { Text } from './Text';
 
@@ -12,6 +12,9 @@ const POST_AVATAR = 32;
  * band and its gap go around it in the profile's own proportions (6 and 5 on
  * a 120 face). */
 const POST_RING = Math.round(POST_AVATAR * (1 + (2 * (6 + 5)) / 120));
+/** The face with no ring round it — a touch over `POST_AVATAR`, since the
+ * ring's band is what gave the ringed face its weight. */
+const POST_AVATAR_BARE = 36;
 /** The drawn dot between the day and the challenge. */
 const SUBTITLE_DOT = 3;
 
@@ -30,6 +33,10 @@ export interface PostHeaderProps {
   /** The day's tasks, done and all — what the ring is drawn from. */
   done?: number;
   total?: number;
+  /** Draws the day's ring round the face. Off, the face stands bare — a feed
+   * of one person's own days, where every post's ring would repeat what the
+   * profile already showed. */
+  ring?: boolean;
   /** Set over a photo: white type, the softer white for the detail. */
   onMedia?: boolean;
   onPressProfile?: () => void;
@@ -55,6 +62,7 @@ export function PostHeader({
   challengeName,
   done = 0,
   total = 0,
+  ring = true,
   onMedia,
   onPressProfile,
   onPressChallenge,
@@ -91,23 +99,27 @@ export function PostHeader({
         accessibilityRole={onPressProfile ? 'button' : undefined}
         accessibilityLabel={onPressProfile ? `${name}'s profile` : undefined}
         onPress={onPressProfile}
-        hitSlop={tapSlop(POST_RING)}
+        hitSlop={tapSlop(ring ? POST_RING : POST_AVATAR_BARE)}
         style={({ pressed }) => pressed && onPressProfile && styles.pressed}
       >
         {/* The day's own ring, the one My Profile draws: a segment per
             task, the done ones in the accent — so each day says at a
             glance how full it was. */}
-        <TaskRing
-          avatar={avatar}
-          done={done}
-          total={total}
-          size={POST_RING}
-          badge={false}
-          look="profile"
-        />
+        {ring ? (
+          <TaskRing
+            avatar={avatar}
+            done={done}
+            total={total}
+            size={POST_RING}
+            badge={false}
+            look="profile"
+          />
+        ) : (
+          <Avatar source={avatar} size={POST_AVATAR_BARE} />
+        )}
       </Pressable>
 
-      <View style={styles.text}>
+      <View style={[styles.text, !ring && styles.textBare]}>
         <View style={styles.line}>
           <Text
             variant="itemTitle"
@@ -147,6 +159,11 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
     marginLeft: layout.inline,
+  },
+  // A bare face has no ring's gap of its own to stand off by, so the name
+  // sits closer to it.
+  textBare: {
+    marginLeft: layout.stack,
   },
   // A bare step rather than a `layout` role: the air either side of the
   // separator dot is an optical call — close enough that the day, the dot

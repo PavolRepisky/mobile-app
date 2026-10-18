@@ -10,10 +10,12 @@ import { Appearance } from 'react-native';
  */
 export type AppearanceChoice = 'system' | 'light' | 'dark';
 
+/** In the order the Theme page lays them out, as the iPhone's own
+ * Display settings do: the two fixed looks, then the one that follows. */
 export const APPEARANCE_CHOICES: readonly { key: AppearanceChoice; label: string }[] = [
-  { key: 'system', label: 'System' },
   { key: 'light', label: 'Light' },
   { key: 'dark', label: 'Dark' },
+  { key: 'system', label: 'Automatic' },
 ];
 
 const STORAGE_KEY = 'appearance';

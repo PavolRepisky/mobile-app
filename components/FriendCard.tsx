@@ -6,7 +6,6 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Easing,
   FlatList,
   Pressable,
   StyleSheet,
@@ -17,8 +16,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, gradients, layout, radii, tapSlop } from '@/constants/theme';
-import { REACTIONS, type Friend } from '@/data/content';
+import { absoluteFill, colors, gradients, layout, radii, shadows, tapSlop } from '@/constants/theme';
+import { LOVE, type Friend } from '@/data/content';
 import { useApp } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { postKey } from '@/lib/backend/social';
@@ -64,6 +63,9 @@ export interface FriendCardProps {
   locked?: boolean;
   /** Drawn at the far end of the identity row — the Members feed's Add. */
   accessory?: React.ReactNode;
+  /** A post in a days feed: the face goes without its ring, which on one
+   * person's own days would only repeat what their profile already showed. */
+  daysFeed?: boolean;
   style?: StyleProp<ViewStyle>;
   /**
    * Renders one of the friend's earlier days instead of their current one —
@@ -82,17 +84,6 @@ export interface FriendCardProps {
   };
 }
 
-/** The reactions row's distance from the screen's sides — a touch inside
- * the page's margin, since the photo above runs edge to edge. */
-const REACTIONS_INSET = 8;
-
-/** How each reaction is read out. */
-const REACTION_NAMES: Record<(typeof REACTIONS)[number], string> = {
-  '❤️': 'Love',
-  '🔥': 'Fire',
-  '👏': 'Clap',
-  '😂': 'Laugh',
-};
 
 /** How close two taps have to land to count as a double tap — the window
  * iOS itself gives a double tap. */
@@ -100,22 +91,20 @@ const DOUBLE_TAP_MS = 300;
 /**
  * The ❤️ that pops over the photo on a double tap: set in the `burst` type
  * (44, on a line tall enough that the emoji isn't clipped) and drawn twice
- * that, since an emoji only takes its size from its type. Lands at `HEART_LANDED` of that — about the 14pt of
- * the ❤️ in the pill it drops into.
+ * that, since an emoji only takes its size from its type.
  */
 const HEART_SCALE = 2;
-const HEART_LANDED = 0.16;
 
-/** A reaction pill's height — a thumb-sized target that still sits four
- * across with the comment count on one row. */
-const REACTION_CHIP = 34;
-/** The chips' tap area reaches Apple's 44pt minimum above and below them,
- * without the chips themselves growing. */
-const CHIP_SLOP = { top: tapSlop(REACTION_CHIP), bottom: tapSlop(REACTION_CHIP) };
-
-/** The comment glyph in its pill, drawn to the emoji's own size beside it so
- * the comment pill reads as one more of the reactions' row. */
-const COMMENT_ICON = 18;
+/** The heart that pops over the photo on a double tap, before it's scaled
+ * up — the size the emoji it replaced drew at. */
+const BURST_HEART = 44;
+/** The heart and comment row's height, and the glyphs on it — the size a
+ * post's actions take in the photo apps it sits beside. */
+const ACTION_ROW = 34;
+const ACTION_ICON = 24;
+/** Each action's tap area reaches Apple's 44pt minimum above and below,
+ * without the row itself growing. */
+const ACTION_SLOP = { top: tapSlop(ACTION_ROW), bottom: tapSlop(ACTION_ROW) };
 /** One carousel page marker riding the photo's bottom edge. */
 const CAROUSEL_DOT = 6;
 
@@ -156,6 +145,7 @@ export function FriendCard({
   onPress,
   locked,
   accessory,
+  daysFeed,
   style,
   post,
 }: FriendCardProps) {
@@ -169,11 +159,11 @@ export function FriendCard({
   const postTasks = post?.tasks ?? friend.tasks;
   // When the day was: which day — counted back from the poster's own today,
   // since `friend.day` is the day they're on — and the time it was finished,
-  // once it was. "Yesterday · 9:12 PM", "Oct 6 · 8:05 AM".
+  // once it was, a space apart: "Yesterday 9:12 PM", "Oct 6 8:05 AM".
   const finishedTime = finishedAt(postTasks);
   const time = [relativeDay(addDays(startOfToday(), day - friend.day)), finishedTime]
     .filter(Boolean)
-    .join(' · ');
+    .join(' ');
   // A post is one membership's day; everything said and felt about it is
   // kept against that pair.
   const membershipId = friend.membershipId;
@@ -184,16 +174,11 @@ export function FriendCard({
   }, [membershipId, day, ensureStats]);
   const stats = key ? social.stats[key] : undefined;
 
-  // One reaction per person per post: picking another moves it, picking
-  // yours again takes it back.
+  // A post takes one reaction, a heart: one per person, tapped again to take
+  // it back. Every reaction already on the post counts as one — older ones
+  // were left as other emoji, and nobody's number should drop for it.
   const mine = stats?.mine ?? null;
-  const LOVE = REACTIONS[0];
-  const reactions = REACTIONS.map((emoji) => ({
-    emoji,
-    name: REACTION_NAMES[emoji],
-    selected: mine === emoji,
-    count: stats?.reactions[emoji] ?? 0,
-  }));
+  const hearts = Object.values(stats?.reactions ?? {}).reduce((sum, n) => sum + n, 0);
   const react = (emoji: string) => {
     if (!membershipId) return;
     // The light tap iOS gives a like as it lands.
@@ -259,14 +244,10 @@ export function FriendCard({
   // never takes one back, the way Instagram's double tap only ever likes —
   // and pops a big heart over the photo so the tap reads as landed.
   const lastTap = useRef(0);
-  // The heart pops up over the photo, then flies down into the ❤️ pill under
-  // it and shrinks away there — Instagram's double tap, landing where the
-  // like it left is counted.
-  const photoRef = useRef<View>(null);
-  const loveRef = useRef<View>(null);
+  // The heart pops up over the photo and fades where it stands — it doesn't
+  // fly to the one under the post, which fills at the tap, so the like reads
+  // as left the moment it's made.
   const pop = useRef(new Animated.Value(0)).current;
-  const flight = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  const flightScale = useRef(new Animated.Value(1)).current;
   const heartOpacity = useRef(new Animated.Value(0)).current;
   const onPhotoTap = () => {
     const now = Date.now();
@@ -277,42 +258,18 @@ export function FriendCard({
     lastTap.current = 0;
     if (membershipId) social.love(membershipId, day, LOVE);
 
-    // Measured at the tap rather than tracked: the feed scrolls, so any
-    // stored position would be stale by the time the heart flies.
-    photoRef.current?.measureInWindow((px, py, pw, ph) => {
-      loveRef.current?.measureInWindow((lx, ly, lw, lh) => {
-        const to = { x: lx + lw / 2 - (px + pw / 2), y: ly + lh / 2 - (py + ph / 2) };
-        pop.setValue(0);
-        flight.setValue({ x: 0, y: 0 });
-        flightScale.setValue(1);
-        heartOpacity.setValue(1);
-        Animated.sequence([
-          // A stiffer spring: still a bounce, but settled fast enough that the
-          // heart doesn't hang on the photo before it flies.
-          Animated.spring(pop, { toValue: 1, friction: 6, tension: 160, useNativeDriver: true }),
-          Animated.parallel([
-            Animated.timing(flight, {
-              toValue: to,
-              duration: 300,
-              easing: Easing.inOut(Easing.cubic),
-              useNativeDriver: true,
-            }),
-            Animated.timing(flightScale, {
-              toValue: HEART_LANDED,
-              duration: 300,
-              easing: Easing.in(Easing.cubic),
-              useNativeDriver: true,
-            }),
-            Animated.timing(heartOpacity, {
-              toValue: 0,
-              duration: 100,
-              delay: 200,
-              useNativeDriver: true,
-            }),
-          ]),
-        ]).start();
-      });
-    });
+    pop.setValue(0);
+    heartOpacity.setValue(1);
+    Animated.sequence([
+      // A stiffer spring: still a bounce, but settled fast enough that the
+      // heart doesn't hang on the photo before it goes.
+      Animated.spring(pop, { toValue: 1, friction: 6, tension: 160, useNativeDriver: true }),
+      Animated.timing(heartOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
   const [carouselWidth, setCarouselWidth] = useState(0);
   const carouselHeight = carouselWidth ? Math.round(carouselWidth / CAROUSEL_RATIO) : 0;
@@ -419,6 +376,7 @@ export function FriendCard({
         challengeName={friend.challengeName ?? challenge.name}
         done={postTasks.filter((task) => task.done).length}
         total={postTasks.length}
+        ring={!daysFeed}
         onPressProfile={onPress}
         onPressChallenge={() =>
           router.push({ pathname: '/feed/[id]', params: { id: friend.challengeId ?? challenge.id } })
@@ -440,7 +398,6 @@ export function FriendCard({
             onPress={() => router.push('/(tabs)/tasks')}
           >
             <View
-              ref={photoRef}
               style={carouselHeight ? { height: carouselHeight } : null}
               onLayout={(e) => setCarouselWidth(e.nativeEvent.layout.width)}
             >
@@ -480,22 +437,17 @@ export function FriendCard({
                       {
                         opacity: heartOpacity,
                         transform: [
-                          { translateX: flight.x },
-                          { translateY: flight.y },
                           {
-                            scale: Animated.multiply(
-                              pop.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0.3 * HEART_SCALE, HEART_SCALE],
-                              }),
-                              flightScale,
-                            ),
+                            scale: pop.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.3 * HEART_SCALE, HEART_SCALE],
+                            }),
                           },
                         ],
                       },
                     ]}
                   >
-                    <Text variant="burst">{LOVE}</Text>
+                    <Ionicons name="heart" size={BURST_HEART} color={colors.liked} />
                   </Animated.View>
 
                   {/* Instagram's own multi-photo tell, the post-detail
@@ -518,57 +470,36 @@ export function FriendCard({
         </View>
       ) : null}
 
+      {/* The heart, then the comments beside it — bare glyphs with their
+          counts, no pill round them. The heart fills red once you've left
+          yours; a tap leaves it, another takes it back. */}
       <View style={styles.actions}>
-        {/* The reactions lead the row, one pill each; the one you left is
-            set in ink. The comments sit apart at the far end. */}
-        <View style={styles.reactions}>
-          {reactions.map((reaction) => (
-            <Pressable
-              key={reaction.emoji}
-              ref={reaction.emoji === LOVE ? loveRef : undefined}
-              accessibilityRole="button"
-              accessibilityLabel={`${reaction.name}, ${reaction.count}`}
-              accessibilityState={{ selected: reaction.selected }}
-              onPress={() => react(reaction.emoji)}
-              hitSlop={CHIP_SLOP}
-              style={({ pressed }) => [
-                styles.reaction,
-                reaction.selected && styles.reactionSelected,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text variant="copy">{reaction.emoji}</Text>
-              {/* Nobody yet is no number at all, not a "0". */}
-              {reaction.count > 0 ? (
-                <Text
-                  variant="badge"
-                  color={reaction.selected ? colors.inkInverse : colors.ink}
-                >
-                  {reaction.count}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Like, ${hearts}`}
+          accessibilityState={{ selected: mine !== null }}
+          onPress={() => react(mine ?? LOVE)}
+          hitSlop={ACTION_SLOP}
+          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        >
+          <Ionicons
+            name={mine !== null ? 'heart' : 'heart-outline'}
+            size={ACTION_ICON}
+            color={mine !== null ? colors.liked : colors.ink}
+          />
+          {/* Nobody yet is no number at all, not a "0". */}
+          {hearts > 0 ? <Text variant="metaBold">{hearts}</Text> : null}
+        </Pressable>
 
-        {/* The comments in a pill of their own, cut like the reactions' —
-            one more chip on the row rather than a bare icon beside it. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Comments, ${commentCount}`}
           onPress={() => setCommentsOpen(true)}
-          hitSlop={CHIP_SLOP}
-          style={({ pressed }) => [
-            styles.reaction,
-            pressed && styles.pressed,
-          ]}
+          hitSlop={ACTION_SLOP}
+          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
-          <Ionicons
-            name="chatbubble-outline"
-            size={COMMENT_ICON}
-            color={colors.ink}
-          />
-          {commentCount > 0 ? <Text variant="badge">{commentCount}</Text> : null}
+          <Ionicons name="chatbubble-outline" size={ACTION_ICON} color={colors.ink} />
+          {commentCount > 0 ? <Text variant="metaBold">{commentCount}</Text> : null}
         </Pressable>
       </View>
 
@@ -754,33 +685,19 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: colors.surface,
   },
-  // Reactions at the start, comments pushed to the far end.
-  // A little closer to the screen's sides than the page's margin, under a
-  // photo that runs right to them.
+  // The heart and the comments side by side at the start, on the page's
+  // margin like the caption under them.
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: layout.inline,
+    gap: layout.block,
     marginTop: layout.heading,
-    marginHorizontal: REACTIONS_INSET - layout.gutter,
   },
-  reactions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.stack,
-  },
-  reaction: {
-    height: REACTION_CHIP,
+  action: {
+    height: ACTION_ROW,
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.line,
-    paddingHorizontal: layout.pill,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceSunken,
-  },
-  reactionSelected: {
-    backgroundColor: colors.ink,
   },
   caption: {
     marginTop: layout.stack,
@@ -789,10 +706,12 @@ const styles = StyleSheet.create({
     marginTop: layout.line,
   },
   // Centred over the photo, never in the way of a touch.
+  // The liked heart's red, lifted off any photo by the soft shadow.
   heartBurst: {
     ...absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.soft,
   },
   pressed: {
     opacity: 0.7,

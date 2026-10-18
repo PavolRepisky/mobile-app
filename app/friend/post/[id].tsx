@@ -4,20 +4,15 @@ import { useEffect, useMemo } from 'react';
 import { DaysFeed } from '@/components/DaysFeed';
 import { FriendCard } from '@/components/FriendCard';
 import { useSocial } from '@/hooks/useSocial';
-import { possessive } from '@/lib/names';
 import { pastRunAuthor, pastRunPosted } from '@/lib/profileDays';
 
-/** The era they're in now, as a feed key's era half. */
-const NOW = 'now';
-
 /**
- * A friend's or member's days, opened from their profile grid — `DaysFeed`,
- * the same feed your own "My days" scrolls through, landing on the tile that
- * was tapped. It holds exactly the days their grid does, in its order: every
- * earlier day of the era they're in with a photo, today only once it's
- * finished, then the days of each era before it. `run` names the past era a
- * tapped day belongs to. Each day is the same `FriendCard` the Community feed
- * posts with.
+ * One of a friend's or member's eras as a feed, opened from their profile —
+ * `DaysFeed`, the same feed your own eras scroll through — titled with the
+ * era's name and holding exactly its days as their grid has them, landing
+ * on the day that was tapped. For the era they're in, that's every earlier
+ * day with a photo and today only once it's finished. `run` names a past
+ * era. Each day is the same `FriendCard` the Community feed posts with.
  */
 export default function FriendPostScreen() {
   const { id, day: dayParam, run } = useLocalSearchParams<{ id: string; day?: string; run?: string }>();
@@ -33,10 +28,12 @@ export default function FriendPostScreen() {
   }, [page, userId, loadPage]);
 
   const friend = page?.person;
-  const openedKey = `${run ?? NOW}:${Number(dayParam) || friend?.day || 1}`;
+  const past = run ? page?.pastRuns.find((r) => r.membershipId === run) : undefined;
+  const openedDay = Number(dayParam) || friend?.day || 1;
 
   const records = useMemo(() => {
     if (!friend || !page) return [];
+    if (past) return past.days.filter(({ day }) => pastRunPosted(past).includes(day));
     const taskCount = friend.tasks.length;
     return page.days
       .filter(
@@ -45,51 +42,42 @@ export default function FriendPostScreen() {
           (day < friend.day || tasks.filter((task) => task.done).length === taskCount),
       )
       .sort((a, b) => b.day - a.day);
-  }, [friend, page]);
+  }, [friend, page, past]);
 
   // A day reached by a link rather than a tap on the grid has no neighbours
-  // to scroll onto, so it shows just itself — My days' own rule.
-  const keys = useMemo(() => {
-    const all = [
-      ...records.map((record) => `${NOW}:${record.day}`),
-      ...(page?.pastRuns ?? []).flatMap((r) => pastRunPosted(r).map((day) => `${r.membershipId}:${day}`)),
-    ];
-    return all.includes(openedKey) ? all : [openedKey];
-  }, [records, page, openedKey]);
+  // to scroll onto, so it shows just itself — your own feed's rule.
+  const days = useMemo(() => {
+    const all = records.map((record) => record.day);
+    return all.includes(openedDay) ? all : [openedDay];
+  }, [records, openedDay]);
 
   if (!friend) return null;
+  const author = past ? pastRunAuthor(friend, past) : friend;
 
   return (
     <DaysFeed
       onRefresh={() => loadPage(userId)}
-      title={`${possessive(friend.name)} days`}
-      days={keys}
-      openedDay={openedKey}
-      renderDay={(key) => {
-        const [era, dayText] = key.split(':');
-        const day = Number(dayText);
+      title={past ? past.challenge.name : (friend.challengeName ?? '')}
+      days={days}
+      openedDay={openedDay}
+      renderDay={(day) => {
+        const record = records.find((r) => r.day === day);
         // No `onPress` — the avatar and name would only open the profile
         // this feed was already opened from.
-        if (era === NOW) {
-          const record = records.find((r) => r.day === day);
-          return (
-            <FriendCard
-              friend={friend}
-              post={
-                day === friend.day || !record
-                  ? undefined
-                  : { id: `${friend.id}-day${day}`, day, tasks: record.tasks, caption: record.caption }
-              }
-            />
-          );
-        }
-        const past = page?.pastRuns.find((r) => r.membershipId === era);
-        const record = past?.days.find((d) => d.day === day);
-        if (!past || !record) return null;
         return (
           <FriendCard
-            friend={pastRunAuthor(friend, past)}
-            post={{ id: `${era}-day${day}`, day, tasks: record.tasks, caption: record.caption }}
+            friend={author}
+            daysFeed
+            post={
+              (!past && day === friend.day) || !record
+                ? undefined
+                : {
+                    id: `${past ? past.membershipId : friend.id}-day${day}`,
+                    day,
+                    tasks: record.tasks,
+                    caption: record.caption,
+                  }
+            }
           />
         );
       }}

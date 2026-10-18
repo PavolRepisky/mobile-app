@@ -21,9 +21,9 @@ import { Text } from './Text';
 /** The challenge's own photo leading its card — a list row's thumbnail, so
  * the challenge looks the same here as where it was joined. */
 const CHALLENGE_THUMB = 40;
-/** The arrow between the round's first and last date: Quicksand has no
- * arrow glyph, so it's an icon at the size of the line's lowercase. */
-const RANGE_ARROW = 12;
+
+/** The lives' hearts — the size Tasks draws them at over its list. */
+const HEART = 14;
 
 /** Days per row of the squares: a 75-day run folds into five even rows, a
  * 30-day one into two. */
@@ -62,6 +62,9 @@ export interface ChallengeRunProps {
    * today's ring ink.
    */
   tone?: 'ink' | 'quiet';
+  /** The era's lives, as hearts at the end of the name row; left out where
+   * the page shows them already, as Tasks does over its list. */
+  lives?: { left: number; total: number };
   style?: StyleProp<ViewStyle>;
 }
 
@@ -130,6 +133,7 @@ export function ChallengeRun({
   taskCount,
   dayOf,
   tone = 'ink',
+  lives,
   style,
 }: ChallengeRunProps) {
   const quiet = tone === 'quiet';
@@ -162,7 +166,7 @@ export function ChallengeRun({
     // done, so the run sits above them without pulling you elsewhere.
     <View
       accessible
-      accessibilityLabel={`${challenge.name}, ${currentDay < 1 ? 'starts' : `day ${currentDay} of ${totalDays},`} ${dateLabel(startDate)} to ${dateLabel(endDate)}`}
+      accessibilityLabel={`${challenge.name}, ${currentDay < 1 ? 'starts' : `day ${currentDay} of ${totalDays},`} ${dateLabel(startDate)} to ${dateLabel(endDate)}${lives ? `, ${lives.left} of ${lives.total} lives left` : ''}`}
       style={[styles.card, quiet && styles.cardQuiet, style]}
     >
       <View style={styles.row}>
@@ -171,20 +175,34 @@ export function ChallengeRun({
           <Text variant="copyBold" color={quiet ? colors.ink : colors.inkInverse} numberOfLines={1}>
             {challenge.name}
           </Text>
-          <View style={styles.meta}>
-            <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-              {/* Before Day 1 there's no day to count yet — only when it
-                  begins, and every square still to come. */}
-              {currentDay < 1
-                ? `${totalDays} days · starts ${shortDate(startDate)}`
-                : `Day ${currentDay} of ${totalDays} · ${shortDate(startDate)}`}
-            </Text>
-            <Ionicons name="arrow-forward" size={RANGE_ARROW} color={colors.inkMuted} />
-            <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-              {shortDate(endDate)}
-            </Text>
-          </View>
+          <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+            {/* Before Day 1 there's no day to count yet — only how long the
+                run is, every square still to come. */}
+            {currentDay < 1 ? `${totalDays} days` : `Day ${currentDay} of ${totalDays}`}
+          </Text>
         </View>
+        {lives ? (
+          // Spent lives stay as hollow-grey hearts, so the allowance reads
+          // whole: two of three, not just two.
+          <View style={styles.hearts}>
+            {Array.from({ length: lives.total }, (_, i) => (
+              <Ionicons
+                key={i}
+                name="heart"
+                size={HEART}
+                color={
+                  i < lives.left
+                    ? quiet
+                      ? colors.ink
+                      : colors.inkInverse
+                    : quiet
+                      ? colors.inkGhost
+                      : colors.inkMuted
+                }
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
 
       {/* Read out once, in the card's own label — seventy-five squares one
@@ -209,6 +227,17 @@ export function ChallengeRun({
               />
             ))
           : null}
+      </View>
+
+      {/* The run's two ends under the squares that span it: the first day
+          under the first square, the last under the last. */}
+      <View style={styles.dates}>
+        <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+          {shortDate(startDate)}
+        </Text>
+        <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+          {shortDate(endDate)}
+        </Text>
       </View>
     </View>
   );
@@ -236,6 +265,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: layout.inline,
   },
+  hearts: {
+    flexDirection: 'row',
+    gap: layout.line / 2,
+  },
   thumb: {
     width: CHALLENGE_THUMB,
     height: CHALLENGE_THUMB,
@@ -244,10 +277,13 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
   },
-  meta: {
+  // A heading's gap under the squares is the card's own; the dates sit a
+  // line's gap off them, as captions of the row rather than a block of
+  // their own.
+  dates: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.line,
+    justifyContent: 'space-between',
+    marginTop: layout.line - layout.heading,
   },
   squares: {
     flexDirection: 'row',

@@ -13,8 +13,8 @@ import { Pill, pillHeights } from '@/components/Pill';
 import { Placeholder } from '@/components/Placeholder';
 import { PostHeader } from '@/components/PostHeader';
 import { Text } from '@/components/Text';
-import { absoluteFill, colors, layout, radii, spacing } from '@/constants/theme';
-import { REACTIONS } from '@/data/content';
+import { absoluteFill, colors, layout, radii, shadows, spacing } from '@/constants/theme';
+import { LOVE } from '@/data/content';
 import { useApp, useDayProgress } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { postKey } from '@/lib/backend/social';
@@ -28,17 +28,19 @@ const HOLD_MS = 200;
 const ME = 'me';
 /** The close glyph at the end of the header. */
 const CLOSE_ICON = 26;
-/** Where a sent reaction's burst sets off from, above the foot. */
+/** Where a like's burst of hearts sets off from, above the foot. */
 const BURST_START = 44;
-/** The reactions button's glyph inside its circle. */
-const REACTIONS_ICON = 20;
-/** How many of an emoji rise when it's sent, how long each takes, and how
- * far apart they set off — a burst, not a single sticker. */
+/** The heart button's glyph inside its circle. */
+const HEART_ICON = 20;
+/** How many hearts rise on a like, how long each takes, and how far apart
+ * they set off — a burst, not a single sticker. */
 const BURST_COUNT = 8;
 const BURST_MS = 1300;
 const BURST_STAGGER = 70;
-/** How far a sent emoji can drift sideways on its way up. */
+/** How far a heart can drift sideways on its way up. */
 const BURST_SPREAD = 140;
+/** Each rising heart — the size the emoji it replaced drew at. */
+const BURST_HEART = 44;
 
 
 /** Handed to `Image` as often as to a `View`, so it's kept out of the
@@ -100,13 +102,10 @@ export default function StoryScreen() {
   const rows = useDayProgress(viewing);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  // Instagram's quick reactions: open, they hold the story where it is until
-  // one is sent or the tray is put away.
-  const [trayOpen, setTrayOpen] = useState(false);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  /** The emoji rising after a send — each with its own drift and timing. */
+  /** The hearts rising after a like — each with its own drift and timing. */
   const [bursts, setBursts] = useState<
-    { id: string; emoji: string; drift: number; value: Animated.Value }[]
+    { id: string; drift: number; value: Animated.Value }[]
   >([]);
 
   /**
@@ -185,18 +184,20 @@ export default function StoryScreen() {
     ? social.stats[postKey(postMembership, viewing)]?.mine ?? null
     : null;
   /**
-   * Sends a reaction from the tray: it becomes the post's reaction — the one the feed
-   * shows — and a burst of it floats up the screen, the way Instagram's
-   * quick reactions go off. Sending the one already left keeps it rather
-   * than taking it back.
+   * The heart: a tap likes the day — the same like the post in the feed
+   * shows — and a burst of hearts floats up the screen; a tap once it's
+   * liked takes the like back, quietly.
    */
-  const sendReaction = (emoji: string) => {
-    if (postMembership) social.love(postMembership, viewing, emoji);
-    setTrayOpen(false);
+  const toggleLike = () => {
+    if (!postMembership) return;
+    if (myReaction) {
+      social.react(postMembership, viewing, myReaction);
+      return;
+    }
+    social.love(postMembership, viewing, LOVE);
     const batch = Date.now().toString();
     const particles = Array.from({ length: BURST_COUNT }, (_, i) => ({
       id: `${batch}-${i}`,
-      emoji,
       drift: (Math.random() - 0.5) * BURST_SPREAD,
       value: new Animated.Value(0),
     }));
@@ -277,7 +278,7 @@ export default function StoryScreen() {
     elapsed.current = 0;
   }, [index, owner]);
   useEffect(() => {
-    if (paused || trayOpen) return;
+    if (paused) return;
     fill.setValue(Math.min(elapsed.current / STORY_MS, 1));
     const startedAt = Date.now();
     const run = Animated.timing(fill, {
@@ -299,7 +300,7 @@ export default function StoryScreen() {
     // `advance` is rebuilt every render; the run only has to restart when the
     // story it is timing changes or a hold lets go.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, owner, frames.length, paused, trayOpen, fill]);
+  }, [index, owner, frames.length, paused, fill]);
 
   // The face and the name lead to the profile, the way they do on a post:
   // a friend's opens in place of the story, yours drops back to your tab.
@@ -482,50 +483,22 @@ export default function StoryScreen() {
             style={styles.task}
           />
           <IconButton
-            name="happy-outline"
+            name={myReaction ? 'heart' : 'heart-outline'}
             size={pillHeights.md}
-            iconSize={REACTIONS_ICON}
+            iconSize={HEART_ICON}
             background={colors.surface}
-            // Once a reaction is left, the button wears it — what you sent,
-            // at a glance, and still the way to change it.
-            emoji={myReaction ?? undefined}
-            onPress={() => setTrayOpen(true)}
-            accessibilityLabel={myReaction ? `Reactions, you sent ${myReaction}` : 'Reactions'}
+            // Filled red once liked — liked at a glance, and still the way
+            // to take it back.
+            color={myReaction ? colors.liked : undefined}
+            onPress={toggleLike}
+            accessibilityLabel={myReaction ? 'Liked. Tap to take it back' : 'Like'}
             overMedia
             visible={footShown}
           />
         </LiquidGlassGroup>
       ) : null}
 
-      {/* The quick reactions over a dimmed story; a tap anywhere else puts
-          them away without sending. */}
-      {trayOpen ? (
-        <Pressable
-          accessibilityLabel="Close reactions"
-          onPress={() => setTrayOpen(false)}
-          style={[absoluteFill, styles.tray]}
-        >
-          <Text variant="copyBold" color={colors.onMedia}>
-            Quick reactions
-          </Text>
-          <View style={styles.trayRow}>
-            {REACTIONS.map((emoji) => (
-              <Pressable
-                key={emoji}
-                accessibilityRole="button"
-                accessibilityLabel={`Send ${emoji}`}
-                accessibilityState={{ selected: myReaction === emoji }}
-                onPress={() => sendReaction(emoji)}
-                style={({ pressed }) => pressed && styles.trayPressed}
-              >
-                <Text variant="burst">{emoji}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      ) : null}
-
-      {/* A sent reaction, rising from the foot and fading out on the way. */}
+      {/* A like's hearts, rising from the foot and fading out on the way. */}
       {bursts.length ? (
         <View pointerEvents="none" style={[absoluteFill, styles.bursts]}>
           {bursts.map((burst) => (
@@ -563,7 +536,7 @@ export default function StoryScreen() {
                 },
               ]}
             >
-              <Text variant="burst">{burst.emoji}</Text>
+              <Ionicons name="heart" size={BURST_HEART} color={colors.onMedia} />
             </Animated.View>
           ))}
         </View>
@@ -642,27 +615,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     alignSelf: 'center',
   },
-  // Over the whole story, chrome included, so a tap outside the emoji only
-  // ever closes the tray.
-  tray: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: layout.section,
-    backgroundColor: colors.scrim,
-    zIndex: 3,
-  },
-  trayRow: {
-    flexDirection: 'row',
-    gap: layout.section,
-  },
-  trayPressed: {
-    transform: [{ scale: 0.9 }],
-  },
   bursts: {
     zIndex: 4,
   },
+  // White over the story, lifted off it by the soft shadow.
   burst: {
     position: 'absolute',
+    ...shadows.soft,
   },
   lockWash: {
     backgroundColor: colors.scrimLock,

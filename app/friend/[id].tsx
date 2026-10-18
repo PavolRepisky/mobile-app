@@ -71,11 +71,6 @@ export default function FriendProfileScreen() {
     () => (page?.pastRuns ?? []).map((run) => profileRun(run, openPastDay)),
     [page, openPastDay],
   );
-  const todayCell = useMemo(
-    () => (hasStoryToday ? { onPress: playStory, hint: 'Plays their story.' } : undefined),
-    [hasStoryToday, playStory],
-  );
-
   // Your own link, shared from your profile and opened on your phone: your
   // own page is the Profile tab, not this one with Add friend on it.
   if (userId === session?.user.id) return <Redirect href="/profile" />;
@@ -133,11 +128,12 @@ export default function FriendProfileScreen() {
           dayOf={dayOf}
           posted={posted}
           pastRuns={pastRuns}
+          lives={page?.lives ?? undefined}
+          friendCount={page?.friendCount}
           onPlayStory={hasStoryToday ? playStory : undefined}
           onOpenDay={openDay}
-          today={todayCell}
           emptyHint={`${friend.name} hasn't finished a day yet.`}
-          daysTitle={`${possessive(friend.name)} days`}
+          daysTitle={`${possessive(friend.name)} Eras`}
           actions={actions}
         />
       </ScreenScroll>

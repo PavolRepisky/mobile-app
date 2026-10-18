@@ -11,7 +11,7 @@ import { ScreenHeader } from './ScreenHeader';
 type DayKey = string | number;
 
 export interface DaysFeedProps<K extends DayKey = number> {
-  /** What the whole scroll is — "My days", "Lily's days" — not "Day N",
+  /** What the whole scroll is — the era's name — not "Day N",
    * which belongs to the post under it. */
   title: string;
   /** The days in the feed, most recent first — the profile grid's order, so

@@ -6,7 +6,7 @@ import { ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 import { useSession } from '@/hooks/useSession';
-import { useSocial } from '@/hooks/useSocial';
+import { useMyPastRuns, useSocial } from '@/hooks/useSocial';
 import { profileRun } from '@/lib/profileDays';
 import { shareProfile } from '@/lib/shareProfile';
 
@@ -24,7 +24,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const {
     profile, currentDay, totalDays, startDate, challenge, tasks, progress, inChallenge,
-    daysUntilStart, membershipId, reload,
+    daysUntilStart, membershipId, livesLeft, livesTotal, reload,
   } = useApp();
   const { session } = useSession();
   const userId = session?.user.id ?? null;
@@ -70,15 +70,10 @@ export default function ProfileScreen() {
     [router],
   );
   const myPage = userId ? page(userId) : undefined;
+  const myPastRuns = useMyPastRuns();
   const pastRuns = useMemo(
-    () => (myPage?.pastRuns ?? []).map((run) => profileRun(run, openPastDay)),
-    [myPage, openPastDay],
-  );
-
-  // Today is being done in Tasks, so that's where its calendar cell leads.
-  const today = useMemo(
-    () => ({ onPress: () => router.push('/tasks'), hint: 'Opens Tasks.' }),
-    [router],
+    () => myPastRuns.map((run) => profileRun(run, openPastDay)),
+    [myPastRuns, openPastDay],
   );
 
   return (
@@ -121,15 +116,16 @@ export default function ProfileScreen() {
         dayOf={dayOf}
         posted={postedDays}
         pastRuns={pastRuns}
+        lives={{ left: livesLeft, total: livesTotal }}
+        friendCount={myPage?.friendCount}
         onPlayStory={
           hasStoryToday
             ? () => router.push({ pathname: '/story', params: { day: String(currentDay) } })
             : undefined
         }
         onOpenDay={openDay}
-        today={today}
         emptyHint="Finish a day's tasks to see it here."
-        daysTitle="My days"
+        daysTitle="My Eras"
       />
     </ScreenScroll>
   );

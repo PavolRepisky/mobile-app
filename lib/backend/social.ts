@@ -193,8 +193,8 @@ export interface PastRun {
   startDate: Date;
   totalDays: number;
   taskCount: number;
-  /** The last day the run reached: its length if finished, otherwise the
-   * day it ended on. Days before it with nothing on them were missed. */
+  /** The day the run ended on: its length if finished, otherwise the day it
+   * was left or its lives ran out. */
   lastDay: number;
   /** Today, counted on this run's calendar and past its end — what a post
    * reads its "3 days ago" off. */
@@ -253,7 +253,7 @@ export async function fetchPastRuns(userId: string): Promise<PastRun[]> {
         lastDay:
           m.status === 'finished'
             ? round.days
-            : Math.min(Math.max(dayOfRound(startDate, ended), 0), round.days),
+            : Math.min(Math.max(dayOfRound(startDate, ended), 1), round.days),
         dayToday: dayOfRound(startDate, today),
         days: dayNumbers.map((day) => ({
           day,
@@ -277,6 +277,8 @@ export interface PersonPage {
   startDate: Date;
   totalDays: number;
   friendCount: number;
+  /** Lives left of the era's allowance, or null when they're in none. */
+  lives: { left: number; total: number } | null;
 }
 
 /** Someone's profile and their whole run, as far as you may see it. */
@@ -316,14 +318,14 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
   };
   const friendCount = friendRows.count ?? 0;
   if (!m?.round?.challenge) {
-    return { person, days: [], pastRuns, challenge: null, startDate: new Date(), totalDays: 0, friendCount };
+    return { person, days: [], pastRuns, challenge: null, startDate: new Date(), totalDays: 0, friendCount, lives: null };
   }
 
   const round = m.round;
   const challenge = round.challenge!;
   const tasks = [...(challenge.tasks ?? [])].sort((a, b) => a.position - b.position);
   const [progress, completions, captions] = await Promise.all([
-    supabase.from('membership_progress').select('current_day').eq('membership_id', m.id).single(),
+    supabase.from('membership_progress').select('current_day, lives, lives_left').eq('membership_id', m.id).single(),
     supabase.from('task_completions').select('*').eq('membership_id', m.id),
     supabase.from('day_captions').select('*').eq('membership_id', m.id),
   ]);
@@ -354,6 +356,7 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
     startDate: localDay(round.start_date),
     totalDays: round.days,
     friendCount,
+    lives: { left: must(progress).lives_left ?? 0, total: must(progress).lives ?? 0 },
   };
 }
 

@@ -30,8 +30,9 @@ export const palette = {
   greyLight: '#D7D6D3',
   /** Fills: cards, calendar cells, tracks, a picker's selection band. */
   greyFill: '#F2F2F2',
-  /** The one colour kept for danger: a destructive row or button, the action
-   * that can't be taken back. Nothing else is red. */
+  /** The one red: danger — a destructive row or button, the action that
+   * can't be taken back — and a heart you've left on a post. Nothing else
+   * is red. */
   red: '#E63950',
 } as const;
 
@@ -62,6 +63,7 @@ const DARK = {
   divider: '#2C2C2E',
   sunkenRule: '#3A3A3C',
   destructive: '#FF5A6E',
+  liked: '#FF5A6E',
   disabled: '#2C2C2E',
   disabledInk: '#636366',
   scrimLight: 'rgba(0,0,0,0.5)',
@@ -133,6 +135,10 @@ const LIGHT = {
    */
   destructive: palette.red,
 
+  /** A heart you've left on a post or a story — the palette's red, the one
+   * other place it's allowed, since a like is everywhere read as red. */
+  liked: palette.red,
+
 
   /** Disabled primary button fill / label. */
   disabled: '#EDEBE6',
@@ -183,6 +189,9 @@ const LIGHT = {
   /** Type and glyphs laid straight on a photo or the camera's black — white
    * in light and dark alike, since the picture under it doesn't change. */
   onMedia: palette.white,
+  /** A tick on a filled choice — `systemAccent` on the iPhone, ink elsewhere
+   * — white in light and dark alike, as on the system's own blue controls. */
+  onAccent: palette.white,
   /** `onInkFill`'s white seventh, held on the camera's black where the ink
    * card's version would turn dark with the rest of the app. */
   onMediaFill: 'rgba(255,255,255,0.14)',
@@ -210,6 +219,30 @@ export const colors = Object.fromEntries(
  */
 export const colorsFor = (scheme: string | null | undefined): Record<Role, string> =>
   scheme === 'dark' && Platform.OS === 'ios' ? { ...LIGHT, ...DARK } : { ...LIGHT };
+
+/**
+ * Each appearance as the Theme page's little phone draws it, whatever
+ * the app is showing now — the dark phone stays dark on a light page, and
+ * on Android, which has no dark colours of its own. Taken from the same two
+ * maps the app itself runs on, so the preview is what you'd get.
+ */
+export const appearancePreview = {
+  light: {
+    page: LIGHT.backgroundPlain,
+    block: LIGHT.surfaceSunken,
+    bar: LIGHT.ink,
+    line: LIGHT.inkMuted,
+  },
+  dark: {
+    page: DARK.backgroundPlain,
+    block: DARK.surface,
+    bar: DARK.inkSoft,
+    line: DARK.inkGhost,
+  },
+  /** The phone's own edge, light or dark — enough to hold the white one off
+   * the white card. */
+  edge: LIGHT.inkGhost,
+} as const;
 
 export const gradients = {
   /**

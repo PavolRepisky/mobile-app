@@ -1,25 +1,10 @@
-import {
-  Button,
-  HStack,
-  Host,
-  Image as SystemImage,
-  Menu,
-  Spacer,
-  Text as SystemText,
-} from '@expo/ui/swift-ui';
-import {
-  buttonStyle,
-  disabled as disabledModifier,
-  font,
-  foregroundStyle,
-} from '@expo/ui/swift-ui/modifiers';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -31,24 +16,18 @@ import {
 } from 'react-native';
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
-import { colors, colorsFor, layout, shadows, spacing } from '@/constants/theme';
-import { shortDate } from '@/lib/format';
-import { DAY_MS } from '@/lib/round';
-import { quicksand } from '@/lib/swiftUI';
+import { colors, colorsFor, layout, radii, shadows } from '@/constants/theme';
+import { addDays, shortDate } from '@/lib/format';
 import { Avatar, type AvatarSource } from './Avatar';
-import { BottomSheet } from './BottomSheet';
-import { PrimaryButton } from './Buttons';
-import { CalendarMonth, MONTH_NAMES, type CalendarDay } from './CalendarMonth';
+import { Card } from './Card';
+import { ChallengeRun, type RunDay } from './ChallengeRun';
 import { EmptyState } from './EmptyState';
-import { IconButton } from './IconButton';
 import { DayStamp } from './FriendCard';
 import { MosaicArrangement } from './PhotoCollage';
 import { Pill } from './Pill';
 import { Placeholder } from './Placeholder';
-import { NATIVE_HEADER } from './Screen';
 import { accentAt } from './TaskRing';
 import { Text } from './Text';
-import { WheelPicker } from './WheelPicker';
 
 /** Kept out of the stylesheet because it is handed to `Image` as often as to
  * a `View`, and the two disagree about what a style is allowed to say —
@@ -57,35 +36,19 @@ const DAY_CELL_PIECE = { flex: 1 } as const;
 /** No cut between a day's own photos — unlike the calendar's own mosaic,
  * the gap here belongs between whole day tiles, not the prints inside one. */
 const DAY_CELL_SEAM = 0;
-/** The days' two views, as the tabs that head them. */
-const DAYS_TABS = [
-  { key: 'grid', label: 'Grid', icon: 'grid-outline', symbol: 'square.grid.3x3' },
-  { key: 'month', label: 'Month', icon: 'calendar-outline', symbol: 'calendar' },
-] as const;
-/** A tab's glyph, and the rule under the one on show — heavier than the
- * hairline under the row, so it reads as the marker. */
-const TAB_GLYPH = 22;
-const TAB_INDICATOR = 2;
+/** The seam between day tiles: the theme's gap between tiles in a grid —
+ * enough page between them that each day reads as its own post, still close
+ * enough that an era reads as one wall of pictures. */
+const PHOTO_GRID_SEAM = layout.grid;
 
-/** The seam between day tiles: the Photos app's hairline of page between
- * square photos, so the days read as one wall of pictures. */
-const PHOTO_GRID_SEAM = 2;
-
-/** The month view's paging buttons: small grey discs grouped at the end of
- * the month's own row, the way the Days switch sits at the end of its row. */
-const MONTH_ARROW_BUTTON = 36;
-const MONTH_ARROW_ICON = 18;
-/** The ▾ beside the month name, a step under the name's own cap height. */
-const MONTH_CARET = 18;
-/** Top margin that settles the caret onto the name's optical centre — see
- * `monthCaret` for where it was measured from. */
-const MONTH_CARET_NUDGE = 1;
-/** How far back the year picker reaches — far enough to look at the months
- * before the app. It stops at this year: there's nothing to see ahead. */
-const YEARS_BACK = 5;
-
-/** The chevron after the era's name — the size of the line it ends. */
-const ERA_CHEVRON = 14;
+/** How many of an era's days show before its "All 30 days" link to the
+ * era's own feed: three rows for the era on now, two for each one behind it. */
+const PREVIEW_NOW = 9;
+const PREVIEW_PAST = 6;
+/** The marks under the eras' slider saying which one is on show. */
+const ERA_DOT = 6;
+/** The chevron after the link's words, the size of their lowercase. */
+const MORE_CHEVRON = 13;
 
 /** The hero circle — the one place on a profile that gets to be that big. */
 const avatarSize = 120;
@@ -173,8 +136,6 @@ const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
  * gap between them. */
 const AVATAR_INSET = RING_STROKE + RING_GAP;
 
-type DaysView = 'grid' | 'month';
-
 /** One empty list for every profile with no earlier eras, so the month's
  * memo doesn't see a new one each render. */
 const NO_RUNS: readonly ProfileRun[] = [];
@@ -194,18 +155,19 @@ export interface ProfileDay {
   done: number;
 }
 
-/** An era the profile ran before the current one, its days kept on the page:
- * after the current era's in the grid, and on their dates in the month. */
+/** An era the profile ran before the current one, its days kept on the page
+ * in a group of their own after the current era's. */
 export interface ProfileRun {
   key: string;
-  /** The era's name, stamped on its tiles. */
+  /** The era's name, over its group of days. */
   name: string;
   startDate: Date;
   totalDays: number;
-  taskCount: number;
-  /** Days before this one with nothing on them were missed; the run never
-   * reached the days after it. */
+  /** How it ended: seen through, out of lives, or left. */
+  status: 'finished' | 'lost' | 'left';
+  /** The day it ended on — its length when finished. */
   lastDay: number;
+  taskCount: number;
   dayOf: (day: number) => ProfileDay | null;
   /** Its days in the grid, most recent first. */
   posted: readonly number[];
@@ -226,11 +188,7 @@ export interface ProfileViewProps {
   totalDays: number;
   /** Tasks in a day — the ring's segments and every "3/5". */
   taskCount: number;
-  /**
-   * A day's record, or null where the profile has none to show. A null past
-   * day is left blank on the calendar rather than marked missed: someone
-   * else's history only reaches as far as what's been shared.
-   */
+  /** A day's record, or null where the profile has none to show. */
   dayOf: (day: number) => ProfileDay | null;
   /** The days in the grid, most recent first. */
   posted: readonly number[];
@@ -238,13 +196,17 @@ export interface ProfileViewProps {
   pastRuns?: readonly ProfileRun[];
   /** Plays today's story from the photo; left out while there's none. */
   onPlayStory?: () => void;
-  /** Opens a past day's post, from its tile or its calendar cell. */
+  /** Opens a day of the era on now, in the era's feed, from its tile or
+   * the era's "All 30 days". */
   onOpenDay: (day: number) => void;
-  /** Where today's calendar cell leads, and what a screen reader hears of it. */
-  today?: { onPress: () => void; hint: string };
+  /** The era's lives, shown as hearts on the run card. */
+  lives?: { left: number; total: number };
+  /** How many friends they have; left out until it has loaded, and the
+   * stat shows a dash. */
+  friendCount?: number;
   /** What the grid says while it has no days in it. */
   emptyHint: string;
-  /** The heading over the days — "My days" on your own page. */
+  /** The heading over the eras' grids — "My Eras" on your own page. */
   daysTitle?: string;
   /** A row of buttons under the bio — on someone else's page, where you
    * stand with them and Share. One without `onPress` is a status, not a
@@ -255,8 +217,8 @@ export interface ProfileViewProps {
 
 /**
  * A profile's whole page under its header — the photo in its task ring,
- * name, handle and bio, the challenge card, and the days as a grid or a
- * month. Your own Profile tab and anyone else's profile are both this, so
+ * name, handle and bio, the era's name, and the days as one grid — no
+ * calendar, and no missed days: the page shows what was done. Your own Profile tab and anyone else's profile are both this, so
  * the two can't drift: only the header differs, where yours carries
  * Settings and theirs the way back.
  */
@@ -275,155 +237,100 @@ export function ProfileView({
   pastRuns = NO_RUNS,
   onPlayStory,
   onOpenDay,
-  today,
+  lives,
+  friendCount,
   emptyHint,
   daysTitle = 'Days',
   actions,
   style,
 }: ProfileViewProps) {
-  // Plain colours for the appearance on show, for what takes no adaptive
-  // ones: the ring's SVG greys and the calendar's system arrows.
+  // Plain colours for the appearance on show, for the ring's SVG, which
+  // takes no adaptive ones.
   const svgColors = colorsFor(useColorScheme());
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
-
-  const [daysView, setDaysView] = useState<DaysView>('grid');
-  // Which month the month view shows, counted in months from this one — 0 is
-  // now, -1 last month. An offset rather than a date, so the view still opens
-  // on the current month once the calendar rolls into a new one.
-  const [monthOffset, setMonthOffset] = useState(0);
-  // The year sheet's own pick, held apart from the month on show until Done —
-  // the wheel passes a year per row, and redrawing the calendar behind the
-  // sheet at every one of them is work nobody sees.
-  const [yearSheetOpen, setYearSheetOpen] = useState(false);
-  const [pendingYear, setPendingYear] = useState(0);
+  // An era's card: the content width less a peek of the next one.
+  // Which era the slider is on, for the dots under it.
+  const [eraIndex, setEraIndex] = useState(0);
 
   // How many of today's tasks are ticked off — what the ring fills in.
   const doneToday = dayOf(currentDay)?.done ?? 0;
 
-  // Every posted day, most recent first — the current era's, then each
-  // earlier era's — each one cut into the same merged mosaic the Tasks tab
-  // and a post use. Only the tasks that actually got a photo take a slice of
-  // the cell: a day with three of five shot reads as three prints, not three
-  // prints and two grey gaps.
+  // The days in one group per era — the one on now first, then each earlier
+  // one, most recent first — under a header naming it: where it stands now,
+  // or its dates and how it ended. Each day is cut into the same merged
+  // mosaic the Tasks tab and a post use. Only the tasks that actually got a
+  // photo take a slice of the cell: a day with three of five shot reads as
+  // three prints, not three prints and two grey gaps. An era with nothing
+  // posted yet has no group.
   const runs = [
-    ...(challenge ? [{ key: 'now', name: challenge.name, taskCount, dayOf, posted, onOpenDay }] : []),
-    ...pastRuns,
+    ...(challenge
+      ? [{
+          key: 'now',
+          name: challenge.name,
+          taskCount,
+          dayOf,
+          posted,
+          onOpenDay,
+          detail: currentDay < 1 ? `${totalDays} days` : `Day ${currentDay} of ${totalDays}`,
+          badge: null,
+        }]
+      : []),
+    ...pastRuns.map((run) => ({
+      ...run,
+      detail: `${shortDate(run.startDate)} – ${shortDate(addDays(run.startDate, run.totalDays - 1))}`,
+      badge:
+        run.status === 'finished'
+          ? 'Finished'
+          : run.status === 'lost'
+            ? `Out of lives on Day ${run.lastDay}`
+            : `Left on Day ${run.lastDay}`,
+    })),
   ];
-  const posts = runs.flatMap((run) =>
-    run.posted.flatMap((day) => {
-      const record = run.dayOf(day);
-      return record
-        ? [{
-            key: `${run.key}-day-${day}`,
-            day,
-            name: run.name,
-            taskCount: run.taskCount,
-            rows: record.shots,
-            done: record.done,
-            open: () => run.onOpenDay(day),
-          }]
-        : [];
-    }),
-  );
+  const groups = runs
+    .map((run) => {
+      const posts = run.posted.flatMap((day) => {
+        const record = run.dayOf(day);
+        return record
+          ? [{
+              key: `${run.key}-day-${day}`,
+              day,
+              taskCount: run.taskCount,
+              rows: record.shots,
+              done: record.done,
+              open: () => run.onOpenDay(day),
+            }]
+          : [];
+      });
+      return {
+        key: run.key,
+        name: run.name,
+        detail: `${run.detail} · ${posts.length} posted`,
+        preview: run.key === 'now' ? PREVIEW_NOW : PREVIEW_PAST,
+        badge: run.badge,
+        posts,
+      };
+    })
+    .filter((group) => group.posts.length > 0);
+  const postedCount = groups.reduce((sum, group) => sum + group.posts.length, 0);
 
-  // The month on show, laid out day by day. Any month can be paged to —
-  // before the app, after the challenge — and a date outside the challenge is
-  // just an empty cell. Inside it, a past day with photos opens its post,
-  // exactly as its grid tile does; today leads wherever `today` says; a
-  // missed day and a day still to come have nothing to open.
-  const shownMonth = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+  // The profile in three counts: every day in the grid, across all eras;
+  // the eras seen through to the end; and friends.
+  const erasFinished = pastRuns.filter((run) => run.status === 'finished').length;
+  const stats = [
+    { value: String(postedCount), label: postedCount === 1 ? 'Day posted' : 'Days posted' },
+    { value: String(erasFinished), label: erasFinished === 1 ? 'Era finished' : 'Eras finished' },
+    {
+      value: friendCount === undefined ? '–' : String(friendCount),
+      label: friendCount === 1 ? 'Friend' : 'Friends',
+    },
+  ];
 
-    /** Which challenge day a calendar date is, or null if it is outside it.
-     * Rounded rather than floored: a daylight-saving shift puts a fractional
-     * day between two dates, which would otherwise slide every date after it
-     * back by one. */
-    const dayNumber = (date: Date, start: Date, length: number) => {
-      const n = Math.round((date.getTime() - start.getTime()) / DAY_MS) + 1;
-      return n >= 1 && n <= length ? n : null;
-    };
-
-    const first = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
-    const year = first.getFullYear();
-    const month = first.getMonth();
-    const length = new Date(year, month + 1, 0).getDate();
-    const days: Record<number, CalendarDay> = {};
-
-    for (let date = 1; date <= length; date += 1) {
-      const on = new Date(year, month, date);
-      const day = challenge ? dayNumber(on, startDate, totalDays) : null;
-      const isToday = on.getTime() === now.getTime();
-      const record = day === null ? null : dayOf(day);
-      const shots = record?.shots ?? [];
-      const done = record?.done ?? 0;
-      const cell: CalendarDay = { shots, past: on <= now, today: isToday, inRun: day !== null };
-
-      // Outside the current era, the date may belong to an earlier one —
-      // the most recent that has a photo on it, or a day it missed there.
-      const earlier =
-        day === null
-          ? pastRuns.flatMap((run) => {
-              const n = dayNumber(on, run.startDate, run.totalDays);
-              if (n === null || n > run.lastDay) return [];
-              const past = run.dayOf(n);
-              return past?.shots.length || n < run.lastDay ? [{ run, n, past }] : [];
-            })[0]
-          : undefined;
-      if (earlier) {
-        const { run, n, past } = earlier;
-        cell.inRun = true;
-        cell.shots = past?.shots ?? [];
-        if (cell.shots.length) {
-          cell.onPress = () => run.onOpenDay(n);
-          cell.label = `${run.name}, Day ${n}, ${past?.done ?? 0} of ${run.taskCount} tasks. Opens this day's post.`;
-        } else {
-          cell.missed = true;
-          cell.label = `${MONTH_NAMES[month]} ${date}, ${run.name} Day ${n}. Missed.`;
-        }
-      }
-
-      if (day !== null && day < currentDay && record) {
-        // No count on a cell: its photos are the day, and how many tasks
-        // it got is one tap away on the post. Only a day with nothing at
-        // all says so, as missed.
-        if (!shots.length && done < taskCount) cell.missed = true;
-        if (shots.length) {
-          cell.onPress = () => onOpenDay(day);
-          cell.label = `Day ${day}, ${done} of ${taskCount} tasks. Opens this day's post.`;
-        } else {
-          cell.label = `${MONTH_NAMES[month]} ${date}, Day ${day}. Missed.`;
-        }
-      } else if (day !== null && isToday) {
-        if (today) cell.onPress = today.onPress;
-        cell.label = `Today, Day ${day}, ${done} of ${taskCount} so far.${
-          today ? ` ${today.hint}` : ''
-        }`;
-      }
-      days[date] = cell;
-    }
-
-    return { month: first, days };
-  }, [monthOffset, challenge, startDate, totalDays, currentDay, taskCount, dayOf, onOpenDay, today, pastRuns]);
-
-  // The years the picker offers: back from this one, stretched to take in the
-  // year the challenge started should it fall further back than that.
-  const thisYear = new Date().getFullYear();
-  const firstYear = Math.min(thisYear - YEARS_BACK, startDate.getFullYear());
-  const years = Array.from({ length: thisYear - firstYear + 1 }, (_, i) => firstYear + i);
-
-  // A year on its own isn't a page — it keeps the month being looked at and
-  // moves it to the chosen year, pulled back to this month if that lands it
-  // in the future.
-  const jumpToYear = (year: number) => {
-    setMonthOffset(Math.min(0, monthOffset + (year - shownMonth.month.getFullYear()) * 12));
-  };
-
-  const openYearSheet = () => {
-    setPendingYear(shownMonth.month.getFullYear());
-    setYearSheetOpen(true);
-  };
+  // The run card counts a day's photos rather than holding them.
+  const runDay = useCallback((day: number): RunDay | null => {
+    const record = dayOf(day);
+    return record ? { done: record.done, shots: record.shots.length } : null;
+  }, [dayOf]);
 
   const runLabel =
     currentDay < 1 ? `${totalDays} days · starts ${shortDate(startDate)}` : `Day ${currentDay} of ${totalDays}`;
@@ -516,7 +423,7 @@ export function ProfileView({
           <Text variant="pageTitle" center>
             {name}
           </Text>
-          <Text variant="metaBold" color={colors.inkGhost} center>
+          <Text variant="metaBold" color={colors.inkMuted} center>
             {handle}
           </Text>
           {bio ? (
@@ -524,24 +431,27 @@ export function ProfileView({
               {bio}
             </Text>
           ) : null}
-          {/* The era this profile is running, by name — what they're into,
-              where a profile says so — and a way into its page. */}
-          {challenge ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${challenge.name}, ${runLabel}`}
-              accessibilityHint="Opens the era"
-              onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
-              hitSlop={spacing.sm}
-              style={({ pressed }) => [styles.eraLink, pressed && styles.pressed]}
-            >
-              <Text variant="metaBold" numberOfLines={1}>
-                {challenge.name}
-              </Text>
-              <Ionicons name="chevron-forward" size={ERA_CHEVRON} color={colors.ink} />
-            </Pressable>
-          ) : null}
         </View>
+      </View>
+
+      {/* Side by side across the page, each count over its label, a
+          hairline between them — read as one line, not three cards. */}
+      <View style={styles.stats}>
+        {stats.map((stat, index) => (
+          <View
+            key={stat.label}
+            accessible
+            accessibilityLabel={`${stat.value} ${stat.label}`}
+            style={[styles.stat, index > 0 && styles.statDivided]}
+          >
+            <Text variant="sectionHeading" center>
+              {stat.value}
+            </Text>
+            <Text variant="meta" color={colors.inkMuted} center>
+              {stat.label}
+            </Text>
+          </View>
+        ))}
       </View>
 
       {actions?.length ? (
@@ -561,253 +471,158 @@ export function ProfileView({
       ) : null}
 
 
-      {/* The days' two views as tabs across the page — a glyph each, the
-          one on show underlined — the way a profile on the phone heads the
-          things it's made of. They are the section's heading, so the photos
-          start straight under them. */}
-      <View style={styles.tabs} accessibilityRole="tablist" accessibilityLabel={daysTitle}>
-        {DAYS_TABS.map((tab) => {
-          const active = tab.key === daysView;
-          return (
-            <Pressable
-              key={tab.key}
-              accessibilityRole="tab"
-              accessibilityLabel={tab.label}
-              accessibilityState={{ selected: active }}
-              onPress={() => setDaysView(tab.key)}
-              style={styles.tab}
-            >
-              {NATIVE_HEADER ? (
-                <SymbolView
-                  name={tab.symbol}
-                  size={TAB_GLYPH}
-                  tintColor={active ? svgColors.ink : svgColors.inkMuted}
-                  weight={active ? 'semibold' : 'regular'}
-                />
-              ) : (
-                <Ionicons
-                  name={tab.icon}
-                  size={TAB_GLYPH}
-                  color={active ? colors.ink : colors.inkMuted}
-                />
-              )}
-              {/* The marker under the tab on show: a solid bar in ink rather
-                  than a border, which on the iPhone didn't take the ink. */}
-              {active ? <View style={styles.tabIndicator} /> : null}
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* The era on, as the whole run — a square a day — the same white card
+          that closes the Tasks tab, so the run reads the same in both places.
+          Here it is also the way into the era's page. */}
+      {challenge ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityHint="Opens the era"
+          onPress={() => router.push({ pathname: '/feed/[id]', params: { id: challenge.id } })}
+          style={({ pressed }) => [styles.run, pressed && styles.pressed]}
+        >
+          <ChallengeRun
+            challenge={challenge}
+            startDate={startDate}
+            currentDay={currentDay}
+            totalDays={totalDays}
+            taskCount={taskCount}
+            dayOf={runDay}
+            tone="quiet"
+            lives={lives}
+          />
+        </Pressable>
+      ) : null}
 
-      {daysView === 'month' ? (
-        <CalendarMonth
-          month={shownMonth.month}
-          days={shownMonth.days}
-          style={styles.month}
-          header={
-            NATIVE_HEADER ? (
-              // On the iPhone: the month's name is a pull-down menu of the
-              // years, the way the Calendar app jumps a year, and the arrows
-              // are plain system symbols rather than drawn buttons.
-              <Host matchContents={{ vertical: true }} style={styles.monthHost}>
-                <HStack>
-                  <Menu
-                    label={
-                      <HStack spacing={layout.line}>
-                        {/* The month in ink, set on the text itself: a
-                            menu's label otherwise takes the accent. */}
-                        <SystemText
-                          modifiers={[quicksand('headline', 'bold'), foregroundStyle(svgColors.ink)]}
-                        >
-                          {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
-                        </SystemText>
-                        <SystemImage
-                          systemName="chevron.down"
-                          modifiers={[
-                            font({ textStyle: 'footnote', weight: 'semibold' }),
-                            foregroundStyle(svgColors.ink),
-                          ]}
-                        />
-                      </HStack>
-                    }
-                    modifiers={[foregroundStyle(svgColors.ink)]}
-                  >
-                    {[...years].reverse().map((year) => (
-                      <Button
-                        key={year}
-                        label={String(year)}
-                        systemImage={
-                          year === shownMonth.month.getFullYear() ? 'checkmark' : undefined
-                        }
-                        onPress={() => jumpToYear(year)}
-                      />
-                    ))}
-                  </Menu>
-                  <Spacer />
-                  <HStack spacing={layout.block}>
-                    <Button
-                      onPress={() => setMonthOffset(monthOffset - 1)}
-                      // In the system blue, as the system calendar's own
-                      // month arrows are.
-                      modifiers={[buttonStyle('borderless'), foregroundStyle(svgColors.systemAccent)]}
-                    >
-                      <SystemImage
-                        systemName="chevron.left"
-                        modifiers={[font({ textStyle: 'body', weight: 'semibold' })]}
-                      />
-                    </Button>
-                    {/* This month is as far as it goes — the calendar shows
-                        what has been, not what's ahead. */}
-                    <Button
-                      onPress={() => setMonthOffset(monthOffset + 1)}
-                      modifiers={[
-                        buttonStyle('borderless'),
-                        foregroundStyle(
-                          monthOffset >= 0
-                            ? { type: 'hierarchical', style: 'tertiary' }
-                            : svgColors.systemAccent,
-                        ),
-                        disabledModifier(monthOffset >= 0),
-                      ]}
-                    >
-                      <SystemImage
-                        systemName="chevron.right"
-                        modifiers={[font({ textStyle: 'body', weight: 'semibold' })]}
-                      />
-                    </Button>
-                  </HStack>
-                </HStack>
-              </Host>
-            ) : (
-              // The month's name leads on the left and opens the year picker;
-              // both arrows sit together at the end, one thumb's reach apart
-              // rather than at opposite edges of the page. They go as far back
-              // as anyone pages — an empty month before the app is still a
-              // month — and forward only as far as this one.
-              <View style={styles.monthHeader}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}. Change year`}
-                  onPress={openYearSheet}
-                  hitSlop={spacing.sm}
-                  style={({ pressed }) => [styles.monthTitle, pressed && styles.pressed]}
-                >
-                  <Text variant="itemTitle" style={styles.monthTitleText}>
-                    {`${MONTH_NAMES[shownMonth.month.getMonth()]} ${shownMonth.month.getFullYear()}`}
-                  </Text>
-                  <Ionicons
-                    name="chevron-down"
-                    size={MONTH_CARET}
-                    color={colors.ink}
-                    style={styles.monthCaret}
-                  />
-                </Pressable>
+      <Text variant="sectionHeading" accessibilityRole="header" style={styles.daysTitle}>
+        {daysTitle}
+      </Text>
 
-                <View style={styles.monthArrows}>
-                  <IconButton
-                    name="chevron-back"
-                    size={MONTH_ARROW_BUTTON}
-                    iconSize={MONTH_ARROW_ICON}
-                    background={colors.surfaceSunken}
-                    shadow={false}
-                    onPress={() => setMonthOffset(monthOffset - 1)}
-                    accessibilityLabel="Previous month"
-                  />
-                  <IconButton
-                    name="chevron-forward"
-                    size={MONTH_ARROW_BUTTON}
-                    iconSize={MONTH_ARROW_ICON}
-                    background={colors.surfaceSunken}
-                    shadow={false}
-                    // This month is as far as it goes — the calendar shows
-                    // what has been, not what's ahead.
-                    disabled={monthOffset >= 0}
-                    onPress={() => setMonthOffset(monthOffset + 1)}
-                    accessibilityLabel="Next month"
-                  />
-                </View>
-              </View>
-            )
-          }
-        />
-      ) : posts.length === 0 ? (
+      {groups.length === 0 ? (
         <EmptyState icon="camera-outline" title="No days yet" hint={emptyHint} />
       ) : (
-        <View style={styles.postGrid}>
-          {posts.map((post) => {
-            const finished = post.done === post.taskCount;
-            return (
-              <View key={post.key} style={styles.postCellWrap}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    finished
-                      ? `${post.name}, Day ${post.day}, finished`
-                      : `${post.name}, Day ${post.day}, ${post.done} of ${post.taskCount} tasks`
-                  }
-                  onPress={post.open}
-                  style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
-                >
-                  <MosaicArrangement
-                    cells={post.rows}
-                    seam={DAY_CELL_SEAM}
-                    renderCell={(row) =>
-                      row.photo ? (
-                        <Image
-                          key={row.key}
-                          source={row.photo}
-                          style={DAY_CELL_PIECE}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <Placeholder
-                          key={row.key}
-                          seed={row.seed ?? undefined}
-                          radius={0}
-                          style={DAY_CELL_PIECE}
-                        />
-                      )
-                    }
-                  />
+        // One era to a page, swiped between sideways — the one on now first,
+        // then each behind it. The slider runs out to the screen's edges so
+        // a page slides off them rather than vanishing at the margin; each
+        // page puts the margin back inside itself. Each era is a white card,
+        // the same lifted card as the run above it.
+        <>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              const next = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+              if (next !== eraIndex) setEraIndex(next);
+            }}
+            style={styles.eraSlider}
+            contentContainerStyle={styles.eraSliderContent}
+          >
+            {groups.map((group) => (
+              <View key={group.key} style={[styles.eraPage, { width: windowWidth }]}>
+                <Card>
+                  <View style={styles.eraCard}>
+                    <View style={styles.eraHead}>
+                      <View style={styles.eraHeadText}>
+                        <Text variant="itemTitle" accessibilityRole="header" numberOfLines={1}>
+                          {group.name}
+                        </Text>
+                        <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+                          {group.detail}
+                        </Text>
+                      </View>
+                      {/* How a past era ended, in a grey pill — every ending the
+                          same quiet grey, whichever way it went. */}
+                      {group.badge ? (
+                        <View style={styles.eraBadge}>
+                          <Text variant="meta" color={colors.inkMuted}>
+                            {group.badge}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
 
-                  {/* The opened post's own stamp, set at the post's width
-                      — its photos run edge to edge, so the window's — and
-                      scaled down whole, so the tile is a miniature of the
-                      post rather than a pile of photos with a label. */}
-                  {/* No task count on the tile, finished or not — a day is
-                      its photos, and how many tasks it got is one tap away
-                      on the post, the way a calendar cell leaves it. */}
-                  <DayStamp day={post.day} kicker={post.name} referenceWidth={windowWidth} />
-                </Pressable>
+                    <View style={styles.postGrid}>
+                      {group.posts.slice(0, group.preview).map((post) => {
+                        const finished = post.done === post.taskCount;
+                        return (
+                          <View key={post.key} style={styles.postCellWrap}>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={
+                                finished
+                                  ? `${group.name}, Day ${post.day}, finished`
+                                  : `${group.name}, Day ${post.day}, ${post.done} of ${post.taskCount} tasks`
+                              }
+                              onPress={post.open}
+                              style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
+                            >
+                              <MosaicArrangement
+                                cells={post.rows}
+                                seam={DAY_CELL_SEAM}
+                                renderCell={(row) =>
+                                  row.photo ? (
+                                    <Image
+                                      key={row.key}
+                                      source={row.photo}
+                                      style={DAY_CELL_PIECE}
+                                      contentFit="cover"
+                                    />
+                                  ) : (
+                                    <Placeholder
+                                      key={row.key}
+                                      seed={row.seed ?? undefined}
+                                      radius={0}
+                                      style={DAY_CELL_PIECE}
+                                    />
+                                  )
+                                }
+                              />
+
+                              {/* The opened post's own stamp, set at the post's width
+                                  — its photos run edge to edge, so the window's — and
+                                  scaled down whole, so the tile is a miniature of the
+                                  post rather than a pile of photos with a label. */}
+                              {/* No task count on the tile, finished or not — a day is
+                                  its photos, and how many tasks it got is one tap away
+                                  on the post. No era name either: the header over the
+                                  group already says it. */}
+                              <DayStamp day={post.day} referenceWidth={windowWidth} />
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                    </View>
+
+                    {/* Every era, long or short, has the way on to its own page —
+                        the era's feed, opened on its latest day, the same page a
+                        tile opens — so each card ends the same way. */}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityHint={`Opens ${group.name}'s days`}
+                      onPress={group.posts[0].open}
+                      style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+                    >
+                      <Text variant="metaBold" color={colors.systemAccent}>
+                        See all
+                      </Text>
+                      <Ionicons name="chevron-forward" size={MORE_CHEVRON} color={colors.systemAccent} />
+                    </Pressable>
+                  </View>
+                </Card>
               </View>
-            );
-          })}
-        </View>
+            ))}
+          </ScrollView>
+          {groups.length > 1 ? (
+            <View style={styles.eraDots}>
+              {groups.map((group, i) => (
+                <View key={group.key} style={[styles.eraDot, i === eraIndex && styles.eraDotActive]} />
+              ))}
+            </View>
+          ) : null}
+        </>
       )}
-
-      {/* The year, picked on the iPhone's own date-wheel drum from a sheet
-          at the bottom. Done moves the calendar; tapping away leaves it. */}
-      <BottomSheet visible={yearSheetOpen} onDismiss={() => setYearSheetOpen(false)}>
-        <Text variant="sectionHeading" center>
-          Year
-        </Text>
-        <WheelPicker
-          // Remounted on every open, so the drum starts on the year on show
-          // rather than wherever it was last left.
-          key={yearSheetOpen ? 'open' : 'closed'}
-          values={years}
-          value={pendingYear}
-          onChange={setPendingYear}
-          style={styles.yearWheel}
-        />
-        <PrimaryButton
-          label="Done"
-          onPress={() => {
-            jumpToYear(pendingYear);
-            setYearSheetOpen(false);
-          }}
-        />
-      </BottomSheet>
     </View>
   );
 }
@@ -845,6 +660,20 @@ const styles = StyleSheet.create({
   bio: {
     marginTop: layout.line,
   },
+  stats: {
+    flexDirection: 'row',
+    marginTop: layout.section,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: layout.line / 2,
+  },
+  // A hairline down the left of every count after the first.
+  statDivided: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: colors.inkGhost,
+  },
   // Two equal buttons side by side, a stack's gap apart.
   actions: {
     flexDirection: 'row',
@@ -860,90 +689,80 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     backgroundColor: colors.surfaceSunken,
   },
-  monthHost: {
-    alignSelf: 'stretch',
+  run: {
+    marginTop: layout.section,
   },
-  // The era's name under the username, its chevron close beside it.
-  eraLink: {
+  // Out to the screen's edges, and a block taller than the cards each way so
+  // their shadows aren't clipped by the scroller — given back in margin, so
+  // the gaps round the slider stay what they were.
+  eraSlider: {
+    marginHorizontal: -layout.gutter,
+    marginVertical: -layout.block,
+  },
+  // Centred under the grid; the card's own padding is the room under it.
+  more: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: layout.line / 2,
+    justifyContent: 'center',
+    gap: layout.line,
+    paddingTop: layout.block,
+  },
+  // Pages keep their own height: a short era doesn't stretch to the
+  // tallest one's.
+  eraSliderContent: {
+    alignItems: 'flex-start',
+  },
+  eraPage: {
+    paddingHorizontal: layout.gutter,
+    paddingVertical: layout.block,
+  },
+  // Padded inside the card's clip rather than on the card itself: on the
+  // card, the inner clip shrinks by the padding but keeps the full corner,
+  // and cut into the title at the top left.
+  eraCard: {
+    padding: layout.card,
+  },
+  eraDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: layout.line + layout.line / 2,
     marginTop: layout.stack,
   },
-  // Within the page's margins, as the calendar is, a hairline under both
-  // tabs.
-  tabs: {
-    flexDirection: 'row',
-    marginTop: layout.section,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.inkGhost,
+  eraDot: {
+    width: ERA_DOT,
+    height: ERA_DOT,
+    borderRadius: radii.pill,
+    backgroundColor: colors.inkGhost,
   },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: layout.inline,
-  },
-  // Laid along the tab's foot, over the row's hairline.
-  tabIndicator: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: TAB_INDICATOR,
+  eraDotActive: {
     backgroundColor: colors.ink,
   },
-  month: {
-    marginTop: layout.block,
-    marginBottom: layout.section,
-  },
-  monthHeader: {
+  eraHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: layout.inline,
+    marginBottom: layout.heading,
   },
-  monthArrows: {
-    flexDirection: 'row',
-    gap: layout.stack,
+  eraHeadText: {
+    flex: 1,
   },
-  yearWheel: {
-    marginVertical: layout.block,
+  eraBadge: {
+    paddingVertical: layout.line,
+    paddingHorizontal: layout.pill,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceSunken,
   },
-  monthTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    // Half the usual gap: the name's own right padding below makes up the
-    // rest, so the caret still sits a full `xs` off the last digit.
-    gap: spacing.xs / 2,
+  // A big block's gap above the heading, a heading's gap under it.
+  daysTitle: {
+    marginTop: layout.section,
+    marginBottom: layout.heading,
   },
-  monthTitleText: {
-    // The title's -1 tracking is applied after the last glyph too, so the
-    // measured box ends a point short of the ink and the Bold "6" of the
-    // year was clipped at its right edge. Room for that point and the
-    // glyph's overhang.
-    paddingRight: spacing.xs / 2,
-    // Android pads a line with the font's own ascent/descent on top of the
-    // line height, which sits the name lower than its box's centre.
-    includeFontPadding: false,
-  },
-  monthCaret: {
-    // Measured off the two fonts: the chevron sits dead centre in its icon
-    // box, but Quicksand's caps and digits sit ~0.5pt below the centre of
-    // `itemTitle`'s 18/24 line. In a centred row a 1pt top margin moves the caret half
-    // that, onto the same line as the name.
-    marginTop: MONTH_CARET_NUDGE,
-  },
-  // Edge to edge — the reference's own photo grid runs the full page width,
-  // no gutter either side — the gap lives between tiles (on `postCellWrap`
-  // below), not inside one.
-  // Within the page's margins, lined up with the tabs and the calendar: the
-  // outer tiles' half-seams are pulled back so their edges meet the margin.
+  // Within the page's margins, lined up with the heading: the outer tiles'
+  // half-seams are pulled back so their edges meet the margin.
   postGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -PHOTO_GRID_SEAM / 2,
-    // A breath under the tabs, so the first row of days doesn't sit on the
-    // underline.
-    marginTop: layout.stack,
   },
   // Half the seam on each side of every tile, so two neighbours add up to a
   // whole one between them.

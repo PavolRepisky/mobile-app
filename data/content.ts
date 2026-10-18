@@ -228,4 +228,5 @@ export function challengeStrip(id: string): readonly PhotoSource[] {
   return PRESET_PHOTOS[id] ?? CUSTOM_PHOTOS;
 }
 
-export const REACTIONS = ['❤️', '🔥', '👏', '😂'] as const;
+/** The one reaction a post or a story takes: a heart. */
+export const LOVE = '❤️';
