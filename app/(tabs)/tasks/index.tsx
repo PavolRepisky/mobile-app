@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { CameraSheet } from '@/components/CameraSheet';
-import { ChallengeRun, type RunDay } from '@/components/ChallengeRun';
 import { CheckCircle } from '@/components/CheckCircle';
 import { EmptyState } from '@/components/EmptyState';
 import { DayStamp } from '@/components/FriendCard';
@@ -66,8 +65,6 @@ export default function TasksScreen() {
   const {
     currentDay,
     totalDays,
-    startDate,
-    progress,
     challenge,
     tasks,
     livesLeft,
@@ -83,19 +80,6 @@ export default function TasksScreen() {
   } = useApp();
   const router = useRouter();
   const waiting = daysUntilStart > 0;
-
-  // Each day of the run as the card squares it: how many tasks got done,
-  // and how many photos came of it.
-  const runDay = useCallback(
-    (day: number): RunDay => ({
-      done: tasks.filter((task) => progress[day]?.[task.id]?.done).length,
-      shots: tasks.filter((task) => {
-        const entry = progress[day]?.[task.id];
-        return entry?.photo || entry?.photoSeed;
-      }).length,
-    }),
-    [tasks, progress],
-  );
 
   // In the post's own order, square by square.
   const rows = useDayProgress(currentDay);
@@ -320,20 +304,6 @@ export default function TasksScreen() {
             />
           ))}
         </View>
-
-        {/* The whole run so far, a square a day, at the foot of the page —
-            a white card on its shadow, set apart from the grey task rows
-            without the ink block's weight. */}
-        <ChallengeRun
-          challenge={challenge}
-          startDate={startDate}
-          currentDay={waiting ? 0 : currentDay}
-          totalDays={totalDays}
-          taskCount={tasks.length}
-          dayOf={runDay}
-          tone="quiet"
-          style={styles.run}
-        />
       </ScreenScroll>
 
       <CameraSheet
@@ -480,9 +450,6 @@ function TaskPill({
 }
 
 const styles = StyleSheet.create({
-  run: {
-    marginTop: layout.section,
-  },
   hearts: {
     flexDirection: 'row',
     gap: layout.line / 2,

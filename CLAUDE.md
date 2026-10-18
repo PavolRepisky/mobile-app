@@ -31,7 +31,7 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
 | `(tabs)/tasks` | Today's post being filled in: the era and day over a grid with one square per task, the lives and the clock, then a row for each task still to shoot. Tapping one raises `CameraSheet`. Tapping a filled square opens `PhotoViewer` (retake or remove). Tasks have no order. Shows an empty state when you're in no era. |
 | `(tabs)/community` | Two segments. **Friends**: a "Still going today" row of task rings (opens `story`) and the "Finished today" posts. **Members**: posts from everyone who finished in your era, each with Add friend. Both stay behind the **lock** until you have photographed one task today. Corner button opens `add-friends`. |
 | `(tabs)/discover` | A carousel of featured eras you can still join (ranked by friends in them, then by members), then Trending rows. Search and See all open `challenges/search`. |
-| `(tabs)/profile` | `ProfileView` for you: avatar inside the split task ring (no ring outside an era), name, handle and bio, the stats (days posted, eras finished, friends), the era's run card (`ChallengeRun`, `quiet` as on Tasks, opening the era), and My Eras: one group of days per era — the current era's, then every past era's (finished, lost or left), which stay for good. No calendar and no missed days on a profile. Share (a link to your profile) and Settings are in the header. |
+| `(tabs)/profile` | `ProfileView` for you: avatar inside the split task ring (no ring outside an era), name, handle and bio, the stats (days posted, eras finished, friends), the era's run card (`ChallengeRun`, `quiet`, opening the era), and My Eras: one group of days per era — the current era's, then every past era's (finished, lost or left), which stay for good. No calendar and no missed days on a profile. Share (a link to your profile) and Settings are in the header. |
 | `feed/[id]` | One era's page: photos, terms, daily tasks, lives, who's in it, with one docked action (Join, etc.). It reads differently for invited, joined and waiting, running, and watching. Once the round is over it becomes `Finished`: podium, standings, who ran out of lives. |
 | `join/[id]` | Joining in 2 steps: reminder time per task plus a last call, then the pledge signed with `SignaturePad`. Signing is what joins. |
 | `challenge/create` | Build your own era in 3 steps (what it is, daily tasks up to 9, rules: length, start date, lives 0–5), then a "live" page with invites. `?edit` reopens it for changes before Day 1. |
@@ -309,7 +309,7 @@ a finger-drawn signature · `ReminderPill` a reminder's time or Never, with its 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet`.
 
-**Content** · `ChallengeRun` the run you're on as one square a day, on ink or (`quiet`) a white card at the foot of Tasks and on a profile · `CheckCircle` a done task's tick · `TaskRing` a face in the split
+**Content** · `ChallengeRun` the run you're on as one square a day, on ink or (`quiet`) a white card on a profile · `CheckCircle` a done task's tick · `TaskRing` a face in the split
 task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
