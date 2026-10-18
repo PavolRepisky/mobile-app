@@ -20,7 +20,7 @@ const THUMB_EDGE = 480;
 /** JPEG quality. Below about 0.7 skin and skies start to band. */
 const QUALITY = 0.8;
 /** How long a signed link to a task photo works — a session's scrolling. */
-const SIGNED_URL_SECONDS = 60 * 60;
+export const SIGNED_URL_SECONDS = 60 * 60;
 
 export type Bucket = 'avatars' | 'challenge-photos' | 'task-photos';
 

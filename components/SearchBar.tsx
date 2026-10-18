@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { bodyTracking, colors, fonts, radii, spacing } from '@/constants/theme';
+import { bodyTracking, colors, fonts, radii, spacing, type } from '@/constants/theme';
 
 export interface SearchBarProps {
   value: string;
@@ -99,7 +99,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     fontFamily: fonts.bodyMedium,
-    fontSize: 16,
+    // `bodyStrong`'s size and face, without its line height, which on iOS
+    // sits a single-line field's text off its centre.
+    fontSize: type.bodyStrong.fontSize,
     letterSpacing: bodyTracking,
     color: colors.ink,
     padding: 0,

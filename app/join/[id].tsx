@@ -41,9 +41,20 @@ export default function JoinScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { selectChallenge, profile, reminders } = useApp();
+  const {
+    selectChallenge,
+    profile,
+    reminders,
+    inChallenge,
+    challenge: current,
+    currentDay,
+    daysUntilStart,
+  } = useApp();
 
   const { section, challenge } = useChallengeListing(String(id));
+  // Signing ends whichever era you're in, and one under way can't be joined
+  // again — so the pledge says it, rather than the run quietly ending.
+  const leaving = inChallenge && current.id !== section.id ? current : null;
   const totalDays = challenge.defaultDays;
   const start = localDay(section.startDate);
   const end = addDays(start, totalDays - 1);
@@ -179,6 +190,13 @@ export default function JoinScreen() {
                   ? 'No lives — one missed day ends my run'
                   : `${lives} ${lives === 1 ? 'life' : 'lives'} — a ${ordinal(lives + 1)} missed day ends my run`}
               </PledgeLine>
+              {leaving ? (
+                <PledgeLine>
+                  {daysUntilStart > 0
+                    ? `I leave ${leaving.name}, which hasn’t started yet`
+                    : `I end my ${leaving.name} run on Day ${currentDay}, for good`}
+                </PledgeLine>
+              ) : null}
             </View>
 
             <SignaturePad

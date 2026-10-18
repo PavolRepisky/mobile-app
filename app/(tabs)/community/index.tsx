@@ -110,6 +110,14 @@ export default function CommunityScreen() {
     }, [refreshToday]),
   );
 
+  // The lock opening is the moment the server starts signing today's
+  // photos, so what was loaded behind it has none — load again.
+  const wasLocked = useRef(feedLocked);
+  useEffect(() => {
+    if (wasLocked.current && !feedLocked) refreshToday();
+    wasLocked.current = feedLocked;
+  }, [feedLocked, refreshToday]);
+
   // A story's last frame links the post it became: `post` names it, and the
   // feed opens on the tab it's in and scrolls it up under the title. Stories
   // only last the day, so the link lands here in the feed, where the post

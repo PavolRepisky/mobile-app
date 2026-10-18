@@ -19,10 +19,17 @@ import {
 import { useSession } from '@/hooks/useSession';
 import * as api from '@/lib/backend/api';
 import { fetchCatalog, type Listing } from '@/lib/backend/catalog';
-import { publicUrl, removePhotos, signedUrls, storedPath, uploadPublicPhoto } from '@/lib/backend/photos';
+import {
+  publicUrl,
+  removePhotos,
+  SIGNED_URL_SECONDS,
+  signedUrls,
+  storedPath,
+  uploadPublicPhoto,
+} from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
 import { DAY_MS, localDay, startOfToday } from '@/lib/round';
-import type { ImageSourcePropType } from 'react-native';
+import { AppState as AppLifecycle, type ImageSourcePropType } from 'react-native';
 
 /**
  * All app state lives here. Signed in, it is loaded from the backend — the
@@ -250,26 +257,11 @@ export const LIVES_PER_CHALLENGE = 3;
 // ---------------------------------------------------------------------------
 
 /**
- * For building Tasks without an era of your own: an account in none shows
- * the stand-in as joined, from today, kept on the phone only — nothing is
- * written, since there is no membership to write against. Development
- * builds only; turn it off (or delete it) once the page is done.
- */
-const FAKE_ERA = __DEV__ && true;
-
-/** How many of the preset's tasks the fake era keeps — four, to see the
- * page with a 2×2 post rather than the preset's five. Its first four, so
- * "Read 10 pages" is the one that goes. */
-const FAKE_ERA_TASKS = 4;
-
-/**
  * What screens draw a challenge from while the account is in none — never
- * shown as yours (`inChallenge` is false) unless it's the fake era above,
- * only there so a screen that needs a challenge to lay out has one.
+ * shown as yours (`inChallenge` is false), only there so a screen that needs
+ * a challenge to lay out has one.
  */
-const STAND_IN: Challenge = FAKE_ERA
-  ? { ...CHALLENGES[0], tasks: CHALLENGES[0].tasks.slice(0, FAKE_ERA_TASKS) }
-  : CHALLENGES[0];
+const STAND_IN: Challenge = CHALLENGES[0];
 
 /** Who the app holds before an account has loaded, and after logging out. */
 const NO_PROFILE: Profile = { name: '', handle: '', bio: null, avatarSeed: null, avatar: null };
@@ -330,7 +322,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!mine) {
         membershipId.current = null;
         taskUuids.current = {};
-        setInChallenge(FAKE_ERA);
+        setInChallenge(false);
         setMembership(null);
         // A stand-in for screens that need a challenge to draw, with none of
         // the demo's history behind it.
@@ -403,6 +395,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // When the account last loaded, so coming back to the app can tell whether
+  // its photo links are about to run out.
+  const loadedAt = useRef(0);
+
   const reload = useCallback(async () => {
     if (!userId) return;
     try {
@@ -414,6 +410,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await applyAccount(profileRow, mine);
       setCatalog(listings);
       setLoadFailed(false);
+      loadedAt.current = Date.now();
     } catch {
       setLoadFailed(true);
     }
@@ -436,18 +433,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [userId, reload]);
 
+  // The calendar day the app is on. A phone keeps the app alive in the
+  // background for hours, so it can't be read once: it moves on at midnight
+  // while the app is open, and when the app comes back to the front on a new
+  // day. A new day loads the account again — the server may have settled
+  // the run overnight — and so does coming back once the photo links have
+  // all but run out.
+  const [today, setToday] = useState(startOfToday);
+  useEffect(() => {
+    const check = () => {
+      const now = startOfToday();
+      if (now.getTime() !== today.getTime()) setToday(now);
+      else if (Date.now() - loadedAt.current > SIGNED_URL_SECONDS * 1000 * 0.8) reload();
+    };
+    const sub = AppLifecycle.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    // A second past midnight, so the clock has certainly turned.
+    const timer = setTimeout(check, today.getTime() + DAY_MS - Date.now() + 1000);
+    return () => {
+      sub.remove();
+      clearTimeout(timer);
+    };
+  }, [today, reload]);
+
+  const firstDay = useRef(today);
+  useEffect(() => {
+    if (today !== firstDay.current) reload();
+  }, [today, reload]);
+
   // -- derived ---------------------------------------------------------------
 
+  // Rounded, not floored: across the spring's clock change the two
+  // midnights are an hour short of whole days apart.
   const currentDay = useMemo(() => {
-    const elapsed = Math.floor(
-      (startOfToday().getTime() - startDate.getTime()) / DAY_MS,
-    );
+    const elapsed = Math.round((today.getTime() - startDate.getTime()) / DAY_MS);
     return Math.min(Math.max(elapsed + 1, 1), totalDays);
-  }, [startDate, totalDays]);
+  }, [today, startDate, totalDays]);
 
   const daysUntilStart = useMemo(
-    () => Math.max(0, Math.round((startDate.getTime() - startOfToday().getTime()) / DAY_MS)),
-    [startDate],
+    () => Math.max(0, Math.round((startDate.getTime() - today.getTime()) / DAY_MS)),
+    [today, startDate],
   );
 
   /**
@@ -472,8 +498,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Today only, not the challenge's whole history — the gate this feeds
   // asks what today has proven, so an old streak can't stand in for a photo
   // that still hasn't been taken since.
+  // A shot still uploading doesn't count yet: the server only signs anyone
+  // else's today once yours is in, so opening the lock any sooner would show
+  // Community's posts with nothing in them.
   const hasPhotographedTask = useMemo(
-    () => Object.values(progress[currentDay] ?? {}).some((entry) => entry.done && entry.photo),
+    () =>
+      Object.values(progress[currentDay] ?? {}).some(
+        (entry) => entry.done && entry.photo && !entry.pending,
+      ),
     [progress, currentDay],
   );
 
@@ -513,7 +545,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const oldPath = avatarPath.current;
       (async () => {
         const nextPath = uri ? await uploadPublicPhoto('avatars', userId, { uri }) : null;
-        await api.updateProfile({ avatar_path: nextPath });
+        try {
+          await api.updateProfile({ avatar_path: nextPath });
+        } catch (e) {
+          // The account still points at the old face, so the new file stands
+          // for nothing.
+          if (nextPath) await removePhotos('avatars', [nextPath]).catch(() => {});
+          throw e;
+        }
         avatarPath.current = nextPath;
         if (oldPath) await removePhotos('avatars', [oldPath]);
       })().catch((e: unknown) => {

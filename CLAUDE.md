@@ -74,9 +74,7 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
 - Reminders: `lib/reminderPlan.ts` plans them (tested by
   `npm run test:reminders`). `components/ReminderSync` schedules them with
   expo-notifications on phones while signed in. They work now.
-- **Dev switches to know about**: `FAKE_ERA` in `useAppState` (`__DEV__`
-  only, currently on) shows an account with no era as joined to a 4-task copy of the first
-  preset, held on the phone only. `FAKE_PAST_ERAS` in `useSocial` (`__DEV__`
+- **Dev switches to know about**: `FAKE_PAST_ERAS` in `useSocial` (`__DEV__`
   only, currently off) gives your own profile three made-up past eras (finished,
   out of lives, left) after any real ones. `SYSTEM_CAMERA = false` in Tasks keeps the
   app's own camera card instead of iOS's camera.

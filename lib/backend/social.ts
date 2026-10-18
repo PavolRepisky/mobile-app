@@ -332,9 +332,15 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
   const all = must(completions);
   const urls = await signedUrls(all.flatMap((c) => [c.photo_path, c.thumb_path]));
   const captionOf = new Map(must(captions).map((c) => [c.day, c.caption]));
-  const today = Math.min(Math.max(must(progress).current_day ?? 1, 1), round.days);
+  const dayOn = must(progress).current_day ?? 1;
+  const today = Math.min(Math.max(dayOn, 1), round.days);
+  // Today has a page even with nothing on it yet — but only once the round
+  // has begun: before Day 1 there's no day to show, only an empty post.
+  const started = dayOn >= 1;
 
-  const dayNumbers = [...new Set([...all.map((c) => c.day), today])].sort((a, b) => b - a);
+  const dayNumbers = [...new Set([...all.map((c) => c.day), ...(started ? [today] : [])])].sort(
+    (a, b) => b - a,
+  );
   const days = dayNumbers.map((day) => ({
     day,
     caption: captionOf.get(day),
