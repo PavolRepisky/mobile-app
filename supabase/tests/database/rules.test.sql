@@ -2,7 +2,7 @@
 -- apply to. Runs with `npx supabase test db`; everything is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(45);
+select plan(54);
 
 -- ---------------------------------------------------------------------------
 -- Cast, written as the database owner: Alice built a challenge and is on
@@ -174,6 +174,45 @@ select is((select count(*)::int from public.notifications where kind = 'friend_r
   'and the answered request leaves the list');
 select is((select count(*)::int from public.community_today('friends')), 1,
   'Bob is now on Alice''s Friends tab');
+
+-- Her day's last photo: the countdown to it going up.
+select ok(public.complete_task('22222222-0000-4000-8000-000000000002',
+    'aaaaaaaa-0000-4000-8000-000000000001/44444444-0000-4000-8000-00000000000a/3/read.jpg',
+    'aaaaaaaa-0000-4000-8000-000000000001/44444444-0000-4000-8000-00000000000a/3/read_thumb.jpg')
+  ->> 'posts_at' is not null,
+  'the day''s last photo starts the countdown to going up');
+select lives_ok(
+  $$insert into public.day_captions (membership_id, day, caption)
+    values ('44444444-0000-4000-8000-00000000000a', 3, 'Done!')$$,
+  'the caption is written in the countdown');
+select lives_ok($$select public.undo_task('22222222-0000-4000-8000-000000000002')$$,
+  'a photo can come out in the countdown');
+select is((select count(*)::int from public.day_posts
+  where membership_id = '44444444-0000-4000-8000-00000000000a' and day = 3), 0,
+  'and taking it out stops the countdown');
+select throws_ok(
+  $$insert into public.day_captions (membership_id, day, caption)
+    values ('44444444-0000-4000-8000-00000000000a', 2, 'Late')$$,
+  '42501', null, 'a caption can''t be written outside a countdown');
+
+-- Shot again, and slid to post rather than waited out.
+select public.complete_task('22222222-0000-4000-8000-000000000002',
+  'aaaaaaaa-0000-4000-8000-000000000001/44444444-0000-4000-8000-00000000000a/3/read.jpg',
+  'aaaaaaaa-0000-4000-8000-000000000001/44444444-0000-4000-8000-00000000000a/3/read_thumb.jpg');
+select ok(public.post_now() is not null, 'sliding to post puts the day up at once');
+
+select throws_ok($$select public.undo_task('22222222-0000-4000-8000-000000000002')$$,
+  'P0001', null, 'once the post is up its photos stay');
+select throws_ok(
+  $$select public.complete_task('22222222-0000-4000-8000-000000000002',
+    'aaaaaaaa-0000-4000-8000-000000000001/44444444-0000-4000-8000-00000000000a/3/read2.jpg',
+    'aaaaaaaa-0000-4000-8000-000000000001/44444444-0000-4000-8000-00000000000a/3/read2_thumb.jpg')$$,
+  'P0001', null, 'and can''t be retaken');
+update public.day_captions set caption = 'Changed'
+  where membership_id = '44444444-0000-4000-8000-00000000000a' and day = 3;
+select is((select caption from public.day_captions
+  where membership_id = '44444444-0000-4000-8000-00000000000a' and day = 3),
+  'Done!', 'and its caption is fixed');
 
 select lives_ok(
   $$select public.invite_to_round('bbbbbbbb-0000-4000-8000-000000000002', '33333333-0000-4000-8000-000000000002')$$,

@@ -57,7 +57,7 @@ export interface PhotoCollageProps {
    */
   plainOpen?: boolean;
   style?: StyleProp<ViewStyle>;
-  /** Drawn over the block — the Day stamp once the post is complete. */
+  /** Drawn over the block — the day's cover once the post is complete. */
   children?: React.ReactNode;
 }
 

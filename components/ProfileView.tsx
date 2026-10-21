@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -22,20 +21,11 @@ import { Avatar, type AvatarSource } from './Avatar';
 import { Card } from './Card';
 import { ChallengeRun, type RunDay } from './ChallengeRun';
 import { EmptyState } from './EmptyState';
-import { DayStamp } from './FriendCard';
-import { MosaicArrangement } from './PhotoCollage';
+import { DayCover, POST_RATIO } from './DayCover';
 import { Pill } from './Pill';
-import { Placeholder } from './Placeholder';
 import { accentAt } from './TaskRing';
 import { Text } from './Text';
 
-/** Kept out of the stylesheet because it is handed to `Image` as often as to
- * a `View`, and the two disagree about what a style is allowed to say —
- * the calendar's own day-cell mosaic does the same. */
-const DAY_CELL_PIECE = { flex: 1 } as const;
-/** No cut between a day's own photos — unlike the calendar's own mosaic,
- * the gap here belongs between whole day tiles, not the prints inside one. */
-const DAY_CELL_SEAM = 0;
 /** The seam between day tiles: the theme's gap between tiles in a grid —
  * enough page between them that each day reads as its own post, still close
  * enough that an era reads as one wall of pictures. */
@@ -269,6 +259,7 @@ export function ProfileView({
           key: 'now',
           name: challenge.name,
           taskCount,
+          totalDays,
           dayOf,
           posted,
           onOpenDay,
@@ -296,6 +287,7 @@ export function ProfileView({
               key: `${run.key}-day-${day}`,
               day,
               taskCount: run.taskCount,
+              totalDays: run.totalDays,
               rows: record.shots,
               done: record.done,
               open: () => run.onOpenDay(day),
@@ -558,37 +550,16 @@ export function ProfileView({
                               onPress={post.open}
                               style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
                             >
-                              <MosaicArrangement
+                              {/* The day's cover: its photos with the time each
+                                  was shot, and the seal stamped with the day and
+                                  how far into the era it was. */}
+                              <DayCover
                                 cells={post.rows}
-                                seam={DAY_CELL_SEAM}
-                                renderCell={(row) =>
-                                  row.photo ? (
-                                    <Image
-                                      key={row.key}
-                                      source={row.photo}
-                                      style={DAY_CELL_PIECE}
-                                      contentFit="cover"
-                                    />
-                                  ) : (
-                                    <Placeholder
-                                      key={row.key}
-                                      seed={row.seed ?? undefined}
-                                      radius={0}
-                                      style={DAY_CELL_PIECE}
-                                    />
-                                  )
-                                }
+                                day={post.day}
+                                totalDays={post.totalDays}
+                                kicker={group.name}
+                                ratio={1 / POST_RATIO}
                               />
-
-                              {/* The opened post's own stamp, set at the post's width
-                                  — its photos run edge to edge, so the window's — and
-                                  scaled down whole, so the tile is a miniature of the
-                                  post rather than a pile of photos with a label. */}
-                              {/* No task count on the tile, finished or not — a day is
-                                  its photos, and how many tasks it got is one tap away
-                                  on the post. No era name either: the header over the
-                                  group already says it. */}
-                              <DayStamp day={post.day} referenceWidth={windowWidth} />
                             </Pressable>
                           </View>
                         );
@@ -770,9 +741,10 @@ const styles = StyleSheet.create({
     width: '33.333%',
     padding: PHOTO_GRID_SEAM / 2,
   },
-  // Square, unrounded, like a photo in the library.
+  // The post's own upright shape, as it shows on Community — so a tile
+  // is the same cover in miniature. Unrounded, like a photo in the library.
   postTile: {
-    aspectRatio: 1,
+    aspectRatio: POST_RATIO,
     overflow: 'hidden',
     backgroundColor: colors.surfaceSunken,
   },

@@ -5,19 +5,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DayStamp, LOCK_BLUR_RADIUS } from '@/components/FriendCard';
+import { DayCover } from '@/components/DayCover';
+import { LOCK_BLUR_RADIUS } from '@/components/FriendCard';
 import { LiquidGlassGroup } from '@/components/GlassSurface';
 import { IconButton } from '@/components/IconButton';
-import { MosaicArrangement } from '@/components/PhotoCollage';
 import { Pill, pillHeights } from '@/components/Pill';
 import { Placeholder } from '@/components/Placeholder';
 import { PostHeader } from '@/components/PostHeader';
 import { Text } from '@/components/Text';
 import { absoluteFill, colors, layout, radii, shadows, spacing } from '@/constants/theme';
 import { LOVE } from '@/data/content';
-import { useApp, useDayProgress } from '@/hooks/useAppState';
+import { useApp, useDayProgress, useEraLength } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { postKey } from '@/lib/backend/social';
+import { isPosted } from '@/lib/round';
 
 /** How long a story holds before it moves on. */
 const STORY_MS = 5000;
@@ -43,10 +44,6 @@ const BURST_SPREAD = 140;
 const BURST_HEART = 44;
 
 
-/** Handed to `Image` as often as to a `View`, so it's kept out of the
- * stylesheet the way the post's own grid cell is. */
-const SUMMARY_CELL = { flex: 1 } as const;
-
 /**
  * Full-bleed story viewer over a day's proof photos. One story per task with a
  * photo on it, in checklist order, counted out by the bars along the top the
@@ -67,16 +64,16 @@ const SUMMARY_CELL = { flex: 1 } as const;
  * `friend` from Community's "Still going today" row — so they look and play
  * alike: the face and name up top, the photos in checklist order.
  *
- * Once every task on the day is done, the day is a post as well as a story,
- * and the story ends on one more frame: the post's own photo grid, "Day N"
- * stamped across it, the way an Instagram story carries the post it came
+ * Once every task on the day is done and its countdown has run out, the day
+ * is a post as well as a story, and the story ends on one more frame: the
+ * day's cover, the way an Instagram story carries the post it came
  * from. Tapping it closes the story and lands on the post in the Community
  * feed — stories only last the day, the post stays there.
  */
 export default function StoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, challenge, currentDay, feedLocked, membershipId } = useApp();
+  const { profile, challenge, currentDay, feedLocked, membershipId, postsAt } = useApp();
   const social = useSocial();
   const params = useLocalSearchParams<{ day?: string; friend?: string; queue?: string }>();
 
@@ -100,6 +97,7 @@ export default function StoryScreen() {
   // day they're on now.
   const viewing = person ? person.day : Number(params.day) || currentDay;
   const rows = useDayProgress(viewing);
+  const eraLength = useEraLength();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -145,10 +143,11 @@ export default function StoryScreen() {
   // it doesn't count as watched, and it doesn't end on their post.
   const locked = Boolean(person) && feedLocked;
 
-  /** Every task done — the day has become a post, so the story can point at it. */
+  /** Every task done and its countdown run out — the day has become a post,
+   * so the story can point at it. */
   const finished = person
-    ? person.tasks.length > 0 && person.tasks.every((task) => task.done)
-    : rows.length > 0 && rows.every((row) => row.done);
+    ? person.tasks.length > 0 && person.tasks.every((task) => task.done) && isPosted(person.postsAt)
+    : rows.length > 0 && rows.every((row) => row.done) && isPosted(postsAt[viewing]);
 
   // A day with nothing on it gets one empty frame rather than a blank screen,
   // so the viewer still opens and closes the way it always does. A finished
@@ -314,8 +313,8 @@ export default function StoryScreen() {
   return (
     <View style={styles.root}>
       {current.summary ? (
-        // The post's own grid, as it opens in Community — only the tasks
-        // that got a photo, cut edge to edge, with the day stamped over it.
+        // The day's cover, as the post opens in Community — only the tasks
+        // that got a photo, cut edge to edge, under the day and its era.
         <View style={styles.summary} pointerEvents="box-none">
           <Pressable
             accessibilityRole="button"
@@ -323,23 +322,12 @@ export default function StoryScreen() {
             onPress={openPost}
             style={({ pressed }) => [styles.summaryGrid, pressed && styles.pressed]}
           >
-            <MosaicArrangement
-              cells={stories}
-              seam={0}
-              renderCell={(story) =>
-                story.photo ? (
-                  <Image
-                    key={story.key}
-                    source={story.photo}
-                    style={SUMMARY_CELL}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <Placeholder key={story.key} seed={story.seed} radius={0} style={SUMMARY_CELL} />
-                )
-              }
+            <DayCover
+              cells={stories.map((story) => ({ ...story, time: story.time ?? undefined }))}
+              day={viewing}
+              totalDays={eraLength(person?.challengeId ?? challenge.id)}
+              kicker={person?.challengeName ?? challenge.name}
             />
-            <DayStamp day={viewing} kicker={person?.challengeName ?? challenge.name} />
           </Pressable>
           <Pill
             tone="floating"

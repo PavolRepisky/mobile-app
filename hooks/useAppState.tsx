@@ -28,7 +28,15 @@ import {
   uploadPublicPhoto,
 } from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
-import { DAY_MS, localDay, startOfToday } from '@/lib/round';
+import {
+  DEMO_ERA,
+  DEMO_MEMBERSHIP,
+  demoCaptions,
+  demoChallenge,
+  demoProgress,
+  demoStartDate,
+} from '@/lib/demoEra';
+import { DAY_MS, isPosted, localDay, POST_COUNTDOWN_MS, startOfToday } from '@/lib/round';
 import { AppState as AppLifecycle, type ImageSourcePropType } from 'react-native';
 
 /**
@@ -122,6 +130,13 @@ interface AppState {
   /** What you wrote under each day's post, by challenge day — the caption
    * your own posts show. A day can go without one. */
   captions: Record<number, string>;
+  /**
+   * When each finished day goes up on Community, by challenge day, in epoch
+   * ms. Set the moment a day's last photo is in; until then the day can
+   * still be reshot, a photo taken out (which stops the countdown) and its
+   * caption written. A finished day with no entry counts as up.
+   */
+  postsAt: Record<number, number>;
   /** Every challenge there is, each with the round that matters to you —
    * what the Challenges tab, search and a challenge's page show. */
   catalog: readonly Listing[];
@@ -232,6 +247,12 @@ interface AppActions {
   completeTaskWithPhoto: (taskId: string, photo: TaskPhoto, day?: number, slot?: number) => void;
   /** The other half of that bargain: the tick goes, and the proof goes with it. */
   undoTask: (taskId: string, day?: number) => void;
+  /** What you write under a day's post — only while it counts down to going
+   * up. Empty text takes it off. */
+  setCaption: (day: number, caption: string) => void;
+  /** Slide to post: today's post goes up now, with `caption` under it,
+   * rather than when its countdown runs out. */
+  postNow: (caption: string) => void;
   resetAll: () => void;
 }
 
@@ -280,6 +301,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [totalDays, setTotalDays] = useState(STAND_IN.defaultDays);
   const [progress, setProgress] = useState<Progress>({});
   const [captions, setCaptions] = useState<Record<number, string>>({});
+  const [postsAt, setPostsAt] = useState<Record<number, number>>({});
   const [reminders, setRemindersState] = useState<Reminders>(DEFAULT_REMINDERS);
 
   const { session } = useSession();
@@ -319,6 +341,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       avatarPath.current = profileRow.avatar_path;
 
+      // `DEMO_ERA`: a made-up run in place of whatever the account is in.
+      // No server ids behind it, so a shot or an undo stays on the phone.
+      if (DEMO_ERA) {
+        const demo = demoChallenge();
+        membershipId.current = null;
+        taskUuids.current = {};
+        setInChallenge(true);
+        setMembership(DEMO_MEMBERSHIP);
+        setChallenge(demo);
+        setTasksState([...demo.tasks]);
+        setTotalDays(demo.defaultDays);
+        setStartDateState(demoStartDate());
+        setProgress(demoProgress());
+        setCaptions(demoCaptions());
+        setPostsAt({});
+        setRemindersState(DEFAULT_REMINDERS);
+        return;
+      }
+
       if (!mine) {
         membershipId.current = null;
         taskUuids.current = {};
@@ -332,6 +373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setStartDateState(startOfToday());
         setProgress({});
         setCaptions({});
+        setPostsAt({});
         setRemindersState(DEFAULT_REMINDERS);
         return;
       }
@@ -390,6 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setStartDateState(localDay(round.start_date));
       setProgress(loaded);
       setCaptions(savedCaptions);
+      setPostsAt(mine.postsAt);
       setRemindersState(membership.reminders as unknown as Reminders);
     },
     [],
@@ -672,16 +715,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // upload takes seconds, and the day's entries may have moved on meanwhile.
   const progressRef = useRef(progress);
   progressRef.current = progress;
+  const postsAtRef = useRef(postsAt);
+  postsAtRef.current = postsAt;
+  const captionsRef = useRef(captions);
+  captionsRef.current = captions;
+
+  /** Starts, moves or stops one day's countdown — `undefined` stops it. */
+  const putPostsAt = useCallback((day: number, at: number | undefined) => {
+    setPostsAt((prev) => {
+      const next = { ...prev };
+      if (at === undefined) delete next[day];
+      else next[day] = at;
+      return next;
+    });
+  }, []);
+
+  /** A finished day whose countdown has run out can't change any more. */
+  const dayIsUp = useCallback((day: number) => {
+    const at = postsAtRef.current[day];
+    return at !== undefined && isPosted(at);
+  }, []);
 
   /**
    * The shot shows at once, ticked, and goes up behind it: the full photo
    * and its thumbnail into today's folder, then the tick against them. If
    * that fails — no signal, or midnight passed mid-upload — the task goes
-   * back to how it was and `syncError` says why.
+   * back to how it was and `syncError` says why. The day's last photo
+   * starts its countdown to going up; once that has run out, nothing
+   * changes.
    */
   const completeTaskWithPhoto = useCallback(
     (taskId: string, photo: TaskPhoto, day?: number, slot?: number) => {
       const target = day ?? currentDay;
+      if (dayIsUp(target)) {
+        setSyncError('Today’s post is already up, so it can’t change now.');
+        return;
+      }
       const before = progressRef.current[target]?.[taskId];
       const uri = typeof photo === 'object' && photo && 'uri' in photo ? photo.uri : undefined;
       const mid = membershipId.current;
@@ -705,42 +774,138 @@ export function AppProvider({ children }: { children: ReactNode }) {
         slot: slot ?? before?.slot,
         pending: saving,
       });
+
+      // The shot that finishes the day starts its countdown here at once;
+      // the server's own time takes over once the save lands.
+      const finishes =
+        postsAtRef.current[target] === undefined &&
+        tasks.every((task) => task.id === taskId || progressRef.current[target]?.[task.id]?.done);
+      if (finishes) putPostsAt(target, Date.now() + POST_COUNTDOWN_MS);
       if (!saving) return;
 
       api
         .completeTaskWithPhoto(mid!, target, uuid, { uri: uri! }, slot)
-        .then(() => {
+        .then(({ postsAt: at }) => {
           const now = progressRef.current[target]?.[taskId];
           // Only if it's still this shot showing — a quick retake or undo
           // meanwhile has its own save to settle it.
-          if (now?.photo === photo) putEntry(target, taskId, { ...now, pending: false });
+          if (now?.photo === photo) {
+            putEntry(target, taskId, { ...now, pending: false });
+            if (at !== null) putPostsAt(target, at);
+          }
         })
         .catch((e: unknown) => {
           const now = progressRef.current[target]?.[taskId];
-          if (now?.photo === photo) putEntry(target, taskId, before);
+          if (now?.photo === photo) {
+            putEntry(target, taskId, before);
+            if (finishes) putPostsAt(target, undefined);
+          }
           setSyncError(e instanceof Error ? e.message : 'Your photo didn’t save. Try again.');
         });
     },
-    [currentDay, putEntry],
+    [currentDay, tasks, putEntry, putPostsAt, dayIsUp],
   );
 
   /** The other half of that bargain: the tick goes, and the proof goes with
-   * it — on the server too, where only today's can be undone. */
+   * it — on the server too, where only today's can be undone. Taking a
+   * photo out of a finished day stops its countdown; once the day is up,
+   * its photos stay. */
   const undoTask = useCallback(
     (taskId: string, day?: number) => {
       const target = day ?? currentDay;
+      if (dayIsUp(target)) {
+        setSyncError('Today’s post is already up, so it can’t change now.');
+        return;
+      }
       const before = progressRef.current[target]?.[taskId];
+      const countdown = postsAtRef.current[target];
       putEntry(target, taskId, undefined);
+      putPostsAt(target, undefined);
 
       const uuid = taskUuids.current[taskId];
       if (!membershipId.current || !uuid) return;
       api.undoTask(uuid).catch((e: unknown) => {
         // Still there on the server, so it comes back here too.
-        if (!progressRef.current[target]?.[taskId]) putEntry(target, taskId, before);
+        if (!progressRef.current[target]?.[taskId]) {
+          putEntry(target, taskId, before);
+          if (countdown !== undefined) putPostsAt(target, countdown);
+        }
         setSyncError(e instanceof Error ? e.message : 'That didn’t undo. Try again.');
       });
     },
-    [currentDay, putEntry],
+    [currentDay, putEntry, putPostsAt, dayIsUp],
+  );
+
+  const setCaption = useCallback(
+    (day: number, caption: string) => {
+      if (dayIsUp(day)) {
+        setSyncError('Today’s post is already up, so its caption can’t change now.');
+        return;
+      }
+      const before = captionsRef.current[day];
+      const text = caption.trim();
+      setCaptions((prev) => {
+        const next = { ...prev };
+        if (text) next[day] = text;
+        else delete next[day];
+        return next;
+      });
+
+      const mid = membershipId.current;
+      if (!mid) return;
+      api.setCaption(mid, day, text).catch((e: unknown) => {
+        // Only if nothing newer has been written over it meanwhile.
+        if ((captionsRef.current[day] ?? '') === text) {
+          setCaptions((prev) => {
+            const next = { ...prev };
+            if (before) next[day] = before;
+            else delete next[day];
+            return next;
+          });
+        }
+        setSyncError(e instanceof Error ? e.message : 'Your caption didn’t save. Try again.');
+      });
+    },
+    [dayIsUp],
+  );
+
+  const postNow = useCallback(
+    (caption: string) => {
+      const day = currentDay;
+      const countdown = postsAtRef.current[day];
+      if (countdown === undefined || dayIsUp(day)) return;
+      const before = captionsRef.current[day];
+      const text = caption.trim();
+      const captionChanged = text !== (before ?? '');
+      setCaptions((prev) => {
+        const next = { ...prev };
+        if (text) next[day] = text;
+        else delete next[day];
+        return next;
+      });
+      putPostsAt(day, Date.now());
+
+      const mid = membershipId.current;
+      if (!mid) return;
+      // The caption first, while the countdown still lets it be written.
+      (captionChanged ? api.setCaption(mid, day, text) : Promise.resolve())
+        .then(() => api.postNow())
+        .then((at) => {
+          if (at !== null) putPostsAt(day, at);
+        })
+        .catch((e: unknown) => {
+          // Not up after all: the countdown and the caption as they were.
+          putPostsAt(day, countdown);
+          setCaptions((prev) => {
+            const next = { ...prev };
+            if (before) next[day] = before;
+            else delete next[day];
+            return next;
+          });
+          setSyncError(e instanceof Error ? e.message : 'Your post didn’t go up. Try again.');
+        });
+    },
+    [currentDay, dayIsUp, putPostsAt],
   );
 
   // Logging out: forget the account on this phone. The next sign-in loads
@@ -752,6 +917,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTotalDays(STAND_IN.defaultDays);
     setProgress({});
     setCaptions({});
+    setPostsAt({});
     setProfile(NO_PROFILE);
     // Only this phone's copy: a reset happens on logging out, and the
     // account keeps its reminders for the next sign-in.
@@ -772,6 +938,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       totalDays,
       progress,
       captions,
+      postsAt,
       catalog,
       customChallenges,
       reminders,
@@ -804,18 +971,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReminders,
       completeTaskWithPhoto,
       undoTask,
+      setCaption,
+      postNow,
       resetAll,
     }),
     [
       profile, challenge, tasks, startDate, totalDays,
-      progress, captions,
+      progress, captions, postsAt,
       catalog, customChallenges, reminders,
       currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, membershipIdState, daysUntilStart, ready,
       loadFailed, syncError, clearSyncError, avatarError, clearAvatarError,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, leaveChallenge,
       reload, setReminders, addChallenge,
       updateChallenge, deleteChallenge,
-      completeTaskWithPhoto, undoTask,
+      completeTaskWithPhoto, undoTask, setCaption, postNow,
       resetAll,
     ],
   );
@@ -881,4 +1050,18 @@ export function usePostedDays(): number[] {
     }
     return days;
   }, [currentDay, tasks, progress]);
+}
+
+/**
+ * How long an era runs, by its key, for a cover's "of 75": the catalog's
+ * listing of it, or the preset it is. Undefined for one the app can't see.
+ */
+export function useEraLength(): (id: string | undefined) => number | undefined {
+  const { catalog } = useApp();
+  return useCallback(
+    (id: string | undefined) =>
+      catalog.find((listing) => listing.key === id)?.challenge.defaultDays ??
+      CHALLENGES.find((preset) => preset.id === id)?.defaultDays,
+    [catalog],
+  );
 }

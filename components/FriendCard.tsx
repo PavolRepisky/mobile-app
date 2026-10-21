@@ -18,39 +18,28 @@ import {
 
 import { absoluteFill, colors, gradients, layout, radii, shadows, tapSlop } from '@/constants/theme';
 import { LOVE, type Friend } from '@/data/content';
-import { useApp } from '@/hooks/useAppState';
+import { useApp, useEraLength } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { postKey } from '@/lib/backend/social';
 import { addDays, relativeDay } from '@/lib/format';
 import { startOfToday } from '@/lib/round';
 import { CommentsSheet, type CommentEntry } from './CommentsSheet';
+import { DayCover, POST_RATIO, shotClock } from './DayCover';
 import { PostHeader } from './PostHeader';
-import { LockedOverlay } from './LockedOverlay';
-import { MosaicArrangement, type CollageCell } from './PhotoCollage';
+import { LOCK_BLUR_RADIUS, LockedOverlay } from './LockedOverlay';
+import { type CollageCell } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
 import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
-/** Square, unlike the post-detail screen's own taller carousel — this is one
- * of many posts stacked in a feed, so it keeps the block the static grid it
- * replaces already had, rather than growing each post to a full-page photo. */
-const CAROUSEL_RATIO = 1;
+// Shared with the story viewer and Community, which blur locked photos too.
+export { LOCK_BLUR_RADIUS };
 
-/** Handed to `Image`/`View` as often as to the arrangement itself, so it's
- * kept out of the stylesheet the way the post-detail screen's own copy is. */
-const GRID_CELL_PIECE = { flex: 1 } as const;
+/** The post's own shape, shared with its tile on a profile. */
+const CAROUSEL_RATIO = POST_RATIO;
 
-/**
- * Applied to the photo itself while locked — heavier than the canvas's 18,
- * which left too much of the shot readable on a phone. This is
- * the whole of the lock's blur: `Image`'s `blurRadius` blurs the pixels
- * directly, so it holds on every platform, where a backdrop blur has none on
- * web or older Android. Soft enough that the day's colours still show
- * through under `LockedOverlay`'s light wash, too soft to make out the shot.
- */
-export const LOCK_BLUR_RADIUS = 50;
 
-/** Blur on the day stamp's drop shadow — wide and soft, so it lifts the
+/** Blur on a photo caption's drop shadow — wide and soft, so it lifts the
  * white type off a bright shot without drawing an edge around the letters. */
 const STAMP_SHADOW_RADIUS = 12;
 
@@ -151,6 +140,7 @@ export function FriendCard({
 }: FriendCardProps) {
   const router = useRouter();
   const { profile, challenge } = useApp();
+  const eraLength = useEraLength();
   const social = useSocial();
   const [draft, setDraft] = useState('');
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -210,6 +200,8 @@ export function FriendCard({
       key: task.label,
       photo: task.photo,
       seed: task.photoSeed,
+      time: task.time,
+      label: task.label,
     }));
 
   // What they wrote for the day, not a list of what they ticked off — the
@@ -225,20 +217,30 @@ export function FriendCard({
     kind: 'photo' as const,
     photo: cell.photo ?? null,
     seed: cell.seed ?? cell.key,
+    time: cell.time,
+    label: cell.label,
   }));
-  const slides =
-    photoSlides.length > 1
+
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const slides = [
+    ...(photoSlides.length > 1
       ? [
           {
             key: 'grid',
             kind: 'grid' as const,
-            rows: photoSlides.map((s) => ({ key: s.key, photo: s.photo, seed: s.seed })),
+            rows: photoSlides.map((s) => ({
+              key: s.key,
+              photo: s.photo,
+              seed: s.seed,
+              time: s.time,
+              label: s.label,
+            })),
           },
-          ...photoSlides,
         ]
-      : photoSlides;
-
-  const [activeIndex, setActiveIndex] = useState(0);
+      : []),
+    ...photoSlides,
+  ];
 
   // Double tap to love: the second tap inside the window leaves a heart —
   // never takes one back, the way Instagram's double tap only ever likes —
@@ -305,53 +307,64 @@ export function FriendCard({
       );
     }
     if (item.kind === 'grid') {
+      // The day's cover, the one its tile in a grid is a miniature of: the
+      // photos with the time each was shot, and the seal stamped with the
+      // day and how far into the era it is.
       return (
         <View style={slideSize}>
-          <MosaicArrangement
+          <DayCover
             cells={item.rows}
-            seam={0}
-            renderCell={(row) =>
-              row.photo ? (
-                <Image
-                  key={row.key}
-                  source={row.photo}
-                  style={GRID_CELL_PIECE}
-                  contentFit="cover"
-                  blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
-                />
-              ) : (
-                <Placeholder
-                  key={row.key}
-                  seed={row.seed ?? undefined}
-                  radius={0}
-                  style={GRID_CELL_PIECE}
-                />
-              )
-            }
+            day={day}
+            totalDays={eraLength(friend.challengeId ?? challenge.id)}
+            kicker={friend.challengeName ?? challenge.name}
+            ratio={1 / CAROUSEL_RATIO}
           />
-          {/* The day laid across the middle of the grid,
-              cover-line style, with the challenge's name
-              letterspaced over it the way the reference
-              sets "Six pics of" over its month. One line at
-              any length: a long day shrinks to fit rather
-              than wrapping. Hidden while locked: a big
-              number floating over a blur reads as a
-              teaser, not a post. */}
-          {locked ? null : (
-            <DayStamp day={day} kicker={friend.challengeName ?? challenge.name} />
-          )}
         </View>
       );
     }
-    return item.photo ? (
-      <Image
-        source={item.photo}
-        style={slideSize}
-        contentFit="cover"
-        blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
-      />
-    ) : (
-      <Placeholder seed={item.seed} radius={0} style={slideSize} />
+    return (
+      <View style={slideSize}>
+        {item.photo ? (
+          <Image
+            source={item.photo}
+            style={slideSize}
+            contentFit="cover"
+            blurRadius={locked ? LOCK_BLUR_RADIUS : undefined}
+          />
+        ) : (
+          <Placeholder seed={item.seed} radius={0} style={slideSize} />
+        )}
+        {/* What it proves and when it was shot, in the corner like a
+            camera's date stamp — the middle of a shot is its subject, and
+            that's what the photo is there to show. Not while locked: a
+            caption over a blur is a teaser, not a post. */}
+        {(item.time || item.label) && !locked ? (
+          <>
+            <LinearGradient
+              colors={gradients.photoFoot}
+              style={styles.slideFoot}
+              pointerEvents="none"
+            />
+            <View style={styles.slideCaption} pointerEvents="none">
+              {item.label ? (
+                <Text
+                  variant="shotCaption"
+                  color={colors.onMedia}
+                  numberOfLines={1}
+                  style={styles.slideCaptionShadow}
+                >
+                  {item.label}
+                </Text>
+              ) : null}
+              {item.time ? (
+                <Text variant="shotCaption" color={colors.onMedia} style={styles.slideCaptionShadow}>
+                  {shotClock(item.time)}
+                </Text>
+              ) : null}
+            </View>
+          </>
+        ) : null}
+      </View>
     );
   };
 
@@ -449,20 +462,6 @@ export function FriendCard({
                   >
                     <Ionicons name="heart" size={BURST_HEART} color={colors.liked} />
                   </Animated.View>
-
-                  {/* Instagram's own multi-photo tell, the post-detail
-                      screen's own dots: small marks riding the bottom edge
-                      of the image itself, not a row under it. */}
-                  {slides.length > 1 ? (
-                    <View style={styles.dots}>
-                      {slides.map((slide, i) => (
-                        <View
-                          key={slide.key}
-                          style={[styles.dot, i === activeIndex && styles.dotActive]}
-                        />
-                      ))}
-                    </View>
-                  ) : null}
                 </>
               ) : null}
             </View>
@@ -470,10 +469,21 @@ export function FriendCard({
         </View>
       ) : null}
 
+      {/* Instagram's own multi-photo tell: small dots on a line of their own
+          under the photo, above the heart and the comments, rather than
+          laid over the picture. */}
+      {slides.length > 1 ? (
+        <View style={styles.dots}>
+          {slides.map((slide, i) => (
+            <View key={slide.key} style={[styles.dot, i === activeIndex && styles.dotActive]} />
+          ))}
+        </View>
+      ) : null}
+
       {/* The heart, then the comments beside it — bare glyphs with their
           counts, no pill round them. The heart fills red once you've left
           yours; a tap leaves it, another takes it back. */}
-      <View style={styles.actions}>
+      <View style={[styles.actions, slides.length > 1 && styles.actionsUnderDots]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Like, ${hearts}`}
@@ -543,95 +553,6 @@ export function FriendCard({
   );
 }
 
-export interface DayStampProps {
-  day: number;
-  /** Letterspaced over the numeral — the challenge's name. */
-  kicker?: string;
-  /**
-   * The width of the post this stamp was set for. Given one, the stamp lays
-   * itself out at that width and scales the whole thing — band, kicker and
-   * numeral together — down into its own box, so a profile grid tile carries
-   * a true miniature of the opened post's stamp rather than a numeral shrunk
-   * on its own inside a band sized for the tile.
-   */
-  referenceWidth?: number;
-  style?: StyleProp<ViewStyle>;
-}
-
-/**
- * "Day N" stamped across a post's photo grid, over a band of shade — shared
- * by the post itself and the profile grid's tile for it, so a day wears the
- * same stamp before it's opened as after. One line at any length: a long day
- * shrinks to fit rather than wrapping.
- */
-export function DayStamp({ day, kicker, referenceWidth, style }: DayStampProps) {
-  const [box, setBox] = useState<{ width: number; height: number } | null>(null);
-
-  const content = (
-    <>
-      <LinearGradient colors={gradients.stampBand} style={styles.dayStampBand} />
-      {kicker ? (
-        <Text
-          variant="stamp"
-          color={colors.surface}
-          numberOfLines={1}
-          style={[styles.dayStampShadow, styles.dayStampKicker]}
-        >
-          {kicker}
-        </Text>
-      ) : null}
-      <Text
-        variant="poster"
-        color={colors.surface}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        style={styles.dayStampShadow}
-      >
-        Day {day}
-      </Text>
-    </>
-  );
-
-  if (!referenceWidth) {
-    return (
-      <View style={[styles.dayStamp, style]} pointerEvents="none">
-        {content}
-      </View>
-    );
-  }
-
-  // Laid out at the post's own width, centred on the box, then scaled about
-  // that centre — which lands it exactly edge to edge.
-  const scale = box ? box.width / referenceWidth : 0;
-  const inner = box && scale ? { width: referenceWidth, height: box.height / scale } : null;
-  return (
-    <View
-      style={[styles.dayStampFrame, style]}
-      pointerEvents="none"
-      onLayout={(e) => {
-        const { width, height } = e.nativeEvent.layout;
-        setBox({ width, height });
-      }}
-    >
-      {box && inner ? (
-        <View
-          style={[
-            styles.dayStamp,
-            inner,
-            {
-              left: (box.width - inner.width) / 2,
-              top: (box.height - inner.height) / 2,
-              transform: [{ scale }],
-            },
-          ]}
-        >
-          {content}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   // The gap before the photo and the full-bleed width both live here, kept
   // outside `LockedOverlay`: bled *inside* it, the overlay's own
@@ -643,47 +564,46 @@ const styles = StyleSheet.create({
     marginTop: layout.heading,
     marginHorizontal: -layout.gutter,
   },
-  dayStamp: {
-    ...absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: layout.gutter,
-  },
-  // The scaled stamp's own box — clipped, so the full-size layout sitting
-  // behind the scale never spills past a tile before it has shrunk.
-  dayStampFrame: {
-    ...absoluteFill,
-    overflow: 'hidden',
-  },
-  dayStampBand: {
-    ...absoluteFill,
-  },
-  dayStampShadow: {
-    textShadowColor: colors.onMediaShadow,
-    textShadowRadius: STAMP_SHADOW_RADIUS,
-  },
-  // Clear of the numeral's caps by a hair — the kicker's descenders sat on
-  // the digits any closer.
-  dayStampKicker: {
-    marginBottom: layout.line,
-  },
-  dots: {
+  // The fade under the caption, rising from the foot through its lower
+  // third — clear above, so the photo keeps its colour where the type isn't.
+  slideFoot: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: layout.heading,
+    bottom: 0,
+    height: '35%',
+  },
+  // Pinned to the photo's bottom-left corner, a card's inset in from both
+  // edges, the task over its time.
+  slideCaption: {
+    ...absoluteFill,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    padding: layout.card,
+    gap: layout.line,
+  },
+  // A soft drop, holding white over a bright shot.
+  slideCaptionShadow: {
+    textShadowColor: colors.onMediaShadow,
+    textShadowRadius: STAMP_SHADOW_RADIUS,
+  },
+  // Centred under the photo, a heading's gap below it.
+  dots: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: layout.line,
+    marginTop: layout.heading,
   },
+  // On the page now, not the photo: the ghost grey of what's not on show,
+  // ink for the one that is.
   dot: {
     width: CAROUSEL_DOT,
     height: CAROUSEL_DOT,
     borderRadius: radii.pill,
-    backgroundColor: colors.onMediaTrack,
+    backgroundColor: colors.inkGhost,
   },
   dotActive: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.ink,
   },
   // The heart and the comments side by side at the start, on the page's
   // margin like the caption under them.
@@ -692,6 +612,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: layout.block,
     marginTop: layout.heading,
+  },
+  // Under the dots the row closes up to them, a stack's gap rather than a
+  // heading's, so dots, actions and photo still read as one post.
+  actionsUnderDots: {
+    marginTop: layout.stack,
   },
   action: {
     height: ACTION_ROW,

@@ -195,6 +195,22 @@ const LIGHT = {
   /** `onInkFill`'s white seventh, held on the camera's black where the ink
    * card's version would turn dark with the rest of the app. */
   onMediaFill: 'rgba(255,255,255,0.14)',
+  /**
+   * The time printed on each of a post's photos as it opens — white with
+   * only a breath of warmth, the reference cover's cream (#F9F7E6) taken
+   * most of the way to white so it reads as paper, not yellow. The same in
+   * light and dark alike: it sits on photos, which don't change with the
+   * phone's appearance.
+   */
+  seal: '#FCFCF7',
+  /** The soft dark pool behind a cover's day and era name, so the white
+   * script holds over a bright photo — drawn as a fading gradient, the
+   * colour here at its centre. */
+  coverShade: palette.black,
+  /** A light dim over a whole cover, so its photos sit back under the
+   * lettering and a bright one doesn't outshine the day. The same in light
+   * and dark, since it sits on photos. */
+  coverDim: 'rgba(0,0,0,0.15)',
 } as const;
 
 type Role = keyof typeof LIGHT;
@@ -257,18 +273,17 @@ export const gradients = {
    */
   accent: ['#F7C3A0', '#EFA3B7', '#D8C6EE'],
   /**
-   * The band of shade behind the day stamp on a post's photo grid: clear at
-   * the top and bottom edges, darkest through the middle where the type
-   * sits, so the photos keep their full brightness everywhere the lettering
-   * isn't.
-   */
-  stampBand: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.32)', 'rgba(0,0,0,0)'],
-  /**
    * The shade rising from the foot of a cover photo — Challenges' featured
    * card — clear through the top half so the picture keeps its colour, dark
    * enough at the bottom for white type to hold on any shot.
    */
   coverShade: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.68)'],
+  /**
+   * The faint fade under a post photo's task and time, at its foot — about
+   * half the cover card's, since it only has to steady two small lines and
+   * the photo is the post.
+   */
+  photoFoot: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.36)'],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -295,12 +310,18 @@ const QUICKSAND = {
   bodyBold: 'Quicksand_700Bold',
 
   /**
-   * Fraunces Black — the day number stamped across a post's photo grid, and
-   * nothing else. A soft, chunky Cooper-style serif, because it sits *on* a
-   * photograph like a magazine cover line: a thin-stroked face breaks up over
-   * a busy image where this cut holds solid.
+   * Allura — the day written across the middle of a day's cover, the way
+   * the reference cover signs it: a light hand-lettered script over the
+   * photos. Nothing else.
    */
-  poster: 'Fraunces_900Black',
+  coverDay: 'Allura_400Regular',
+  /**
+   * Inclusive Sans — the rest of a day's cover: the era's name under the
+   * day, each photo's time, and "selfera" at its foot — and the task and
+   * time on a post's own photos, to match. A plain,
+   * open sans that stays legible at the cover's very small sizes.
+   */
+  cover: 'InclusiveSans_400Regular',
 } as const;
 
 export const fonts = QUICKSAND;
@@ -496,27 +517,50 @@ export const type = {
     lineHeight: 60,
   },
   /**
-   * "Day N" stamped across a post's photo grid, the way the reference sets
-   * its cover word. Leading pulled in to the size so the kicker above tucks
-   * against it rather than floating.
+   * A day's cover, set at the cover's own card width and scaled with it.
+   * The day in Allura across the middle — a script runs small for its
+   * size, so it's set well over the size of the era's name.
    */
-  poster: {
-    fontFamily: fonts.poster,
-    fontSize: 68,
-    lineHeight: 68,
-    letterSpacing: -2,
+  coverDay: {
+    fontFamily: fonts.coverDay,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: 0,
   },
-  /**
-   * The uppercase kicker over a post's "Day N" — the challenge's name.
-   * Letterspaced open rather than set at the body tracking: capitals pulled a
-   * point tighter crowd into a block instead of reading as something pressed
-   * onto the photo.
-   */
-  stamp: {
-    ...face.bodyBold,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 1.2,
+  /** The era's name over the day. */
+  coverEra: {
+    fontFamily: fonts.cover,
+    fontSize: 7.5,
+    lineHeight: 10,
+    letterSpacing: 0,
+  },
+  /** Each photo's time, very small, in the middle of every shot. The task
+   * isn't on the cover — at this size it can't be read, and which task a
+   * photo is belongs to the photo's own slide. Not pulled in at
+   * the body's tracking: this small, a tighter line runs together. */
+  coverCaption: {
+    fontFamily: fonts.cover,
+    fontSize: 7.5,
+    lineHeight: 10,
+    letterSpacing: 0,
+  },
+  /** "selfera" at the cover's foot — a maker's mark, a step under the
+   * captions. */
+  coverMark: {
+    fontFamily: fonts.cover,
+    fontSize: 4.5,
+    lineHeight: 6,
+    letterSpacing: 0.2,
+  },
+  /** The task a post's own photo proves and the time it was shot, at its
+   * foot like a camera's date stamp — in the cover's face, so a slide and
+   * its cover read as one set. Both lines at one size: the task leads by
+   * coming first, not by being bigger. */
+  shotCaption: {
+    fontFamily: fonts.cover,
+    fontSize: 13,
+    lineHeight: 17,
+    letterSpacing: 0,
   },
   tab: {
     ...face.bodyMedium,

@@ -7,6 +7,22 @@
 export const DAY_MS = 86_400_000;
 
 /**
+ * How long a finished day waits before it goes up on Community — the
+ * server's `post_countdown`. Until then its photos can be reshot or taken
+ * out and its caption written; after, the post is fixed.
+ */
+export const POST_COUNTDOWN_MS = 90_000;
+
+/**
+ * Whether a finished day is up, given when its countdown ends. A finished
+ * day with no countdown — one from before countdowns, or a made-up one —
+ * counts as up.
+ */
+export function isPosted(postsAt: number | null | undefined, now = Date.now()): boolean {
+  return postsAt == null || postsAt <= now;
+}
+
+/**
  * An ISO day read as local midnight. `new Date('2026-10-01')` is midnight in
  * UTC, which west of Greenwich is still the evening before — and a start date
  * a day early says the round has begun when it hasn't.

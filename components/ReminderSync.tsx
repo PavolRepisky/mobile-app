@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { useApp } from '@/hooks/useAppState';
+import { DEMO_ERA } from '@/lib/demoEra';
 import {
   askForNotifications,
   configureNotifications,
@@ -25,7 +26,9 @@ configureNotifications();
  */
 export function ReminderSync() {
   const router = useRouter();
-  const { ready, inChallenge, startDate, totalDays, tasks, reminders, progress, currentDay } = useApp();
+  const { ready, inChallenge: joined, startDate, totalDays, tasks, reminders, progress, currentDay } = useApp();
+  // A made-up era (`DEMO_ERA`) is nothing to be reminded of.
+  const inChallenge = joined && !DEMO_ERA;
 
   // Today's done tasks as one key, so a photo of a task re-plans but an
   // unrelated change to the day's entries doesn't.

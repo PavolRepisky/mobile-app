@@ -3,6 +3,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useSession } from '@/hooks/useSession';
 import * as social from '@/lib/backend/social';
 import type { PastRun, Person, PersonPage, PostStats, Relations } from '@/lib/backend/social';
+import {
+  DEMO_ERA,
+  DEMO_ROUND_SIZE,
+  DEMO_THREAD,
+  demoFriends,
+  demoMembers,
+  demoPage,
+  demoStats,
+  isDemoId,
+} from '@/lib/demoEra';
 import { fakePastRuns, isFakeRun } from '@/lib/fakePastRuns';
 import type { CommentEntry } from '@/components/CommentsSheet';
 
@@ -64,6 +74,11 @@ const EMPTY_RELATIONS: Relations = { friends: new Set(), outgoing: new Set(), in
 
 const SocialContext = createContext<SocialState | null>(null);
 
+/** With `DEMO_ERA` on, the made-up cast of your round. */
+const DEMO_FRIENDS = DEMO_ERA ? demoFriends() : [];
+const DEMO_MEMBERS = DEMO_ERA ? demoMembers() : [];
+const DEMO_STATS = DEMO_ERA ? demoStats([...DEMO_FRIENDS, ...DEMO_MEMBERS]) : {};
+
 export function SocialProvider({ children }: { children: ReactNode }) {
   const { session } = useSession();
   const userId = session?.user.id ?? null;
@@ -74,7 +89,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [relations, setRelations] = useState<Relations>(EMPTY_RELATIONS);
-  const [stats, setStats] = useState<Record<string, PostStats>>({});
+  const [stats, setStats] = useState<Record<string, PostStats>>(DEMO_STATS);
   const [seen, setSeen] = useState<ReadonlySet<string>>(new Set());
   const [pages, setPages] = useState<Record<string, PersonPage>>({});
 
@@ -92,13 +107,31 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     setLoaded(false);
     setFailed(false);
     setRelations(EMPTY_RELATIONS);
-    setStats({});
+    setStats(DEMO_STATS);
     setSeen(new Set());
     setPages({});
   }, [userId]);
 
+  // Threads on made-up posts, kept on the phone: there's no row on the
+  // server for a comment on one to hang off.
+  const demoThreads = useRef<Record<string, CommentEntry[]>>({});
+
   const refreshToday = useCallback(async () => {
     if (!userId) return;
+    // `DEMO_ERA`: today is the made-up round, not whatever the server has.
+    if (DEMO_ERA) {
+      setFriends(DEMO_FRIENDS);
+      setMembers(DEMO_MEMBERS);
+      setRoundSize(DEMO_ROUND_SIZE);
+      setRelations({
+        ...EMPTY_RELATIONS,
+        friends: new Set(DEMO_FRIENDS.map((p) => p.id)),
+        friendList: DEMO_FRIENDS,
+      });
+      setFailed(false);
+      setLoaded(true);
+      return;
+    }
     try {
       const [f, m, size, rel] = await Promise.all([
         social.fetchToday('friends'),
@@ -129,7 +162,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const page = useCallback((id: string) => pages[id], [pages]);
 
   const ensureStats = useCallback((posts: readonly { membershipId: string; day: number }[]) => {
-    const missing = posts.filter((p) => !statsRef.current[social.postKey(p.membershipId, p.day)]);
+    const missing = posts.filter(
+      (p) => !isFakeRun(p.membershipId) && !statsRef.current[social.postKey(p.membershipId, p.day)],
+    );
     if (!missing.length) return;
     social
       .fetchStats(missing)
@@ -139,6 +174,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
   const loadPage = useCallback(
     async (id: string) => {
+      if (isDemoId(id)) {
+        const who = [...DEMO_FRIENDS, ...DEMO_MEMBERS].find((p) => p.id === id);
+        if (!who) return undefined;
+        const next = demoPage(who);
+        setPages((now) => ({ ...now, [id]: next }));
+        return next;
+      }
       try {
         const next = await social.fetchPerson(id);
         setPages((now) => ({ ...now, [id]: next }));
@@ -191,23 +233,36 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     [setReaction],
   );
 
-  const thread = useCallback((membershipId: string, day: number) => social.fetchThread(membershipId, day), []);
+  const thread = useCallback(async (membershipId: string, day: number) => {
+    if (isFakeRun(membershipId)) {
+      return demoThreads.current[social.postKey(membershipId, day)] ?? DEMO_THREAD;
+    }
+    return social.fetchThread(membershipId, day);
+  }, []);
 
   const comment = useCallback(
     async (membershipId: string, day: number, text: string, parentId: string | null) => {
-      await social.addComment(membershipId, day, text, parentId);
       const key = social.postKey(membershipId, day);
+      if (isFakeRun(membershipId)) {
+        // Only a top-level comment of yours: replies on a made-up thread
+        // would need the tree rebuilt for nothing.
+        const mine: CommentEntry = { id: `${key}-${Date.now()}`, author: 'You', avatar: null, text };
+        demoThreads.current[key] = [...(demoThreads.current[key] ?? DEMO_THREAD), mine];
+      } else {
+        await social.addComment(membershipId, day, text, parentId);
+      }
       setStats((now) => {
         const before = now[key] ?? { reactions: {}, mine: null, comments: 0 };
         return { ...now, [key]: { ...before, comments: before.comments + 1 } };
       });
-      return social.fetchThread(membershipId, day);
+      return isFakeRun(membershipId) ? demoThreads.current[key] : social.fetchThread(membershipId, day);
     },
     [],
   );
 
   const markSeen = useCallback((completionId: string) => {
     setSeen((now) => (now.has(completionId) ? now : new Set(now).add(completionId)));
+    if (isDemoId(completionId)) return;
     social.markSeen(completionId).catch(() => {});
   }, []);
 
@@ -216,6 +271,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     (change: (r: Relations) => Relations, call: () => Promise<unknown>) => {
       const before = relationsRef.current;
       setRelations(change(before));
+      // The made-up cast has no accounts to ask.
+      if (DEMO_ERA) return;
       call().catch(() => setRelations(before));
     },
     [],

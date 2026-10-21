@@ -14,6 +14,7 @@ and `lib/backend/*`. There's no separate server.
 | `migrations/…04_social.sql` | the Community lock, friends, comments, reactions, views, notifications, the Community feed |
 | `migrations/…05_storage.sql` | buckets and who may upload or read which photo |
 | `migrations/…06_settle_job.sql` | every 15 min: runs that ran out of lives → lost, runs past their last day → finished |
+| `migrations/…13_post_countdown.sql` | a finished day's 90-second countdown to going up (`day_posts`); captions only in it; fixed after |
 | `functions/delete-account` | Settings' Delete account — photos first, then the user |
 | `seed.sql` | **local only**: the presets plus the app's demo cast |
 | `tests/database/rules.test.sql` | the rules, checked as the people they apply to |
@@ -23,6 +24,10 @@ and `lib/backend/*`. There's no separate server.
 
 - A task is done only by photographing it, only **today** in the member's own
   time zone, and only into today's folder.
+- The day's last photo starts a 90-second countdown to the post going up.
+  Until it runs out, photos can be retaken or removed (removing one stops
+  it) and the caption written; `post_now` (slide to post) ends it early.
+  After, the day and its caption are fixed.
 - Joining closes once Day 1 has passed. One challenge at a time.
 - Custom challenges: only their creator edits (before Day 1) or deletes them.
 - Profiles, memberships, completions and past days are public to anyone

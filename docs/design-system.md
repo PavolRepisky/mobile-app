@@ -48,9 +48,9 @@ point at the matching level.
 Headline cuts — Quicksand Bold: `headline` 34 · `headlineSm` 27 · `title` 30. There is no separate display face; size sets a headline apart.
 
 Functional cuts — Quicksand: `cardTitle` 17 · `body` 16 · `bodyStrong` 16 ·
-`button` 17 · `label` 14 · `micro` 11 · `tab` 12. And the three drawn ones:
-`poster` (Fraunces Black, the "Day N" on a post), `stamp` (the letterspaced
-kicker over it) and `burst` (the heart a double tap pops).
+`button` 17 · `label` 14 · `micro` 11 · `tab` 12. And the drawn ones:
+the cover's (`coverDay`, `coverEra`, `coverCaption`, `coverMark`, in Allura
+and Inclusive Sans) and `burst` (the heart a double tap pops).
 
 Tracking is baked into the scale: `bodyTracking` (-1) on every Quicksand
 string, headlines included. A component building its own
@@ -195,7 +195,7 @@ one over a pair, four take a corner each, and past four the rest fall in rows
 of two under the first. A shot tile carries its time; an open one is a
 `surfaceSunken` tile with a 44pt camera disc and the task's name — the `next`
 one's disc in ink, the rest on white. `bare` drops discs, names and times for
-a thumbnail. `children` draw over the block (the `DayStamp` once complete).
+a thumbnail. `children` draw over the block (the `DayCover` once complete).
 `MosaicArrangement` is the same cut, generic over what a cell renders.
 
 **`CameraSheet`** — `visible` · `tasks` · `taskId` · `chips` · `onChangeTask`
@@ -214,8 +214,7 @@ dropped as loose framed prints across the top of its page, each at its own
 height and angle.
 
 **`FriendCard`** — `friend` · `post` · `locked` · `accessory` · `onPress`: one
-post on Community, flat on the page, with the "Day N" `DayStamp` across its
-photo grid. **`LockedOverlay`** blurs what you can't see until you've posted.
+post on Community, flat on the page, its first slide the day's `DayCover`. **`LockedOverlay`** blurs what you can't see until you've posted.
 **`ChallengeRow`** — `card` · `detail` · `note` · `showDate` · `onPress`: a
 challenge in a list, photo first, its start date at the end while it can be
 joined.

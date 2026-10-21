@@ -90,10 +90,11 @@ export async function fetchMyChallenge() {
   );
   if (!membership) return null;
 
-  const [progress, completions, captions] = await Promise.all([
+  const [progress, completions, captions, posts] = await Promise.all([
     supabase.from('membership_progress').select('*').eq('membership_id', membership.id).single(),
     supabase.from('task_completions').select('*').eq('membership_id', membership.id).order('day'),
     supabase.from('day_captions').select('*').eq('membership_id', membership.id),
+    supabase.from('day_posts').select('*').eq('membership_id', membership.id),
   ]);
 
   const tasks = [...(membership.round?.challenge?.tasks ?? [])].sort((a, b) => a.position - b.position);
@@ -105,6 +106,8 @@ export async function fetchMyChallenge() {
     progress: must(progress),
     completions: must(completions),
     captions: Object.fromEntries(must(captions).map((c) => [c.day, c.caption])) as Record<number, string>,
+    /** When each finished day goes up, by day, in epoch ms. */
+    postsAt: Object.fromEntries(must(posts).map((p) => [p.day, Date.parse(p.posts_at)])) as Record<number, number>,
   };
 }
 
@@ -124,6 +127,9 @@ function explainSave(e: unknown): Error {
   // Storage and `complete_task` both refuse a photo filed under a day that
   // isn't today where you live — which is what happens when midnight passes
   // while the page is open.
+  if (/post is already up/i.test(message)) {
+    return new Error('Today’s post is already up, so it can’t change now.');
+  }
   if (/row-level security|today's folder|today’s folder/i.test(message)) {
     return new Error('Your day moved on while this page was open. Reopen Tasks and take it again.');
   }
@@ -133,7 +139,9 @@ function explainSave(e: unknown): Error {
 /**
  * A task is only ever ticked off by photographing it: the photo goes up
  * into today's folder, then the tick is recorded against it. A retake's
- * old photo is removed once the new one is in.
+ * old photo is removed once the new one is in. Hands back the completion
+ * and when the day goes up — set once the day's last photo is in, null
+ * before.
  */
 export async function completeTaskWithPhoto(
   membershipId: string,
@@ -141,7 +149,7 @@ export async function completeTaskWithPhoto(
   taskId: string,
   photo: { uri: string },
   slot?: number,
-): Promise<CompletionRow> {
+): Promise<{ completion: CompletionRow; postsAt: number | null }> {
   const userId = await myId();
   let uploaded: { photoPath: string; thumbPath: string };
   try {
@@ -161,9 +169,9 @@ export async function completeTaskWithPhoto(
     await removePhotos('task-photos', [photoPath, thumbPath]);
     throw explainSave(error);
   }
-  const result = data as { completion: CompletionRow; replaced: string[] };
+  const result = data as { completion: CompletionRow; replaced: string[]; posts_at: string | null };
   await removePhotos('task-photos', result.replaced);
-  return result.completion;
+  return { completion: result.completion, postsAt: result.posts_at ? Date.parse(result.posts_at) : null };
 }
 
 /** The tick goes, and the proof goes with it. Today only. */
@@ -173,18 +181,36 @@ export async function undoTask(taskId: string) {
   await removePhotos('task-photos', (data as string[]) ?? []);
 }
 
-/** What you wrote under a day's post; empty text takes it off. */
+/** Slide to post: today's countdown ends now. Hands back when the day went
+ * up, or null if it wasn't counting down. */
+export async function postNow(): Promise<number | null> {
+  const { data, error } = await supabase.rpc('post_now');
+  if (error) throw explainSave(error);
+  return data ? Date.parse(data) : null;
+}
+
+/** What you wrote under a day's post; empty text takes it off. Only while
+ * the day counts down to going up — the server refuses it otherwise. */
 export async function setCaption(membershipId: string, day: number, caption: string) {
   const text = caption.trim();
-  if (!text) {
-    must(await supabase.from('day_captions').delete().eq('membership_id', membershipId).eq('day', day));
-    return;
+  try {
+    if (!text) {
+      must(await supabase.from('day_captions').delete().eq('membership_id', membershipId).eq('day', day));
+      return;
+    }
+    must(
+      await supabase
+        .from('day_captions')
+        .upsert({ membership_id: membershipId, day, caption: text, updated_at: new Date().toISOString() }),
+    );
+  } catch (e) {
+    // The countdown ran out on the server before the words reached it.
+    const message = e instanceof Error ? e.message : String(e);
+    if (/row-level security/i.test(message)) {
+      throw new Error('Today’s post is already up, so its caption can’t change now.');
+    }
+    throw explainSave(e);
   }
-  must(
-    await supabase
-      .from('day_captions')
-      .upsert({ membership_id: membershipId, day, caption: text, updated_at: new Date().toISOString() }),
-  );
 }
 
 // ---------------------------------------------------------------------------

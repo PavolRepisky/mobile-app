@@ -23,6 +23,8 @@ const SYMBOLS: Partial<Record<keyof typeof Ionicons.glyphMap, SFSymbol>> = {
   'chevron-back': 'chevron.backward',
   'ellipsis-horizontal': 'ellipsis',
   'share-outline': 'square.and.arrow.up',
+  'download-outline': 'square.and.arrow.down',
+  checkmark: 'checkmark',
   'link-outline': 'link',
   'qr-code-outline': 'qrcode',
   'camera-outline': 'camera',

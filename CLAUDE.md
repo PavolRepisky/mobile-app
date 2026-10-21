@@ -28,7 +28,7 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
 
 | route | what it is |
 | --- | --- |
-| `(tabs)/tasks` | Today's post being filled in: the era and day over a grid with one square per task, the lives and the clock, then a row for each task still to shoot. Tapping one raises `CameraSheet`. Tapping a filled square opens `PhotoViewer` (retake or remove). Tasks have no order. Shows an empty state when you're in no era. |
+| `(tabs)/tasks` | Today's post being filled in: the era and day over a grid with one square per task, the lives and the clock, then a row for each task still to shoot. Tapping one raises `CameraSheet`. Tapping a filled square opens `PhotoViewer` (retake or remove). Tasks have no order. The last photo starts a 90-second countdown (`POST_COUNTDOWN_MS` in `lib/round.ts`) to the post going up on Community. The task rows then give way to the time left, a caption card and a `SlideToConfirm` that posts at once; until it's up shots can be retaken or removed (removing stops it), after that the post and caption are fixed and the page says it's posted. Shows an empty state when you're in no era. |
 | `(tabs)/community` | Two segments. **Friends**: a "Still going today" row of task rings (opens `story`) and the "Finished today" posts. **Members**: posts from everyone who finished in your era, each with Add friend. Both stay behind the **lock** until you have photographed one task today. Corner button opens `add-friends`. |
 | `(tabs)/discover` | A carousel of featured eras you can still join (ranked by friends in them, then by members), then Trending rows. Search and See all open `challenges/search`. |
 | `(tabs)/profile` | `ProfileView` for you: avatar inside the split task ring (no ring outside an era), name, handle and bio, the stats (days posted, eras finished, friends), the era's run card (`ChallengeRun`, `quiet`, opening the era), and My Eras: one group of days per era — the current era's, then every past era's (finished, lost or left), which stay for good. No calendar and no missed days on a profile. Share (a link to your profile) and Settings are in the header. |
@@ -51,10 +51,11 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
   out needs no navigation.
 - `hooks/useAppState` (`useApp`) holds **your** account: profile, the era
   you're in (`inChallenge`, `challenge`, `tasks`, `startDate`, `currentDay`),
-  `progress[day][taskId]`, captions, reminders, lives, the `catalog` of all
-  eras, and `feedLocked`. Its actions are the whole write surface:
-  `completeTaskWithPhoto` and `undoTask` (a tick and its photo always move
-  together), `selectChallenge` (join), `leaveChallenge`, and
+  `progress[day][taskId]`, captions, `postsAt` (when a finished day goes
+  up), reminders, lives, the `catalog` of all eras, and `feedLocked`. Its
+  actions are the whole write surface: `completeTaskWithPhoto` and
+  `undoTask` (a tick and its photo always move together), `setCaption`
+  (only in the countdown), `selectChallenge` (join), `leaveChallenge`, and
   `add`/`update`/`deleteChallenge`. Writes show in the UI first; if the save
   fails they roll back and set `syncError`.
 - `hooks/useSocial` covers **everyone else**, from the backend: friends and
@@ -76,7 +77,9 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
   expo-notifications on phones while signed in. They work now.
 - **Dev switches to know about**: `FAKE_PAST_ERAS` in `useSocial` (`__DEV__`
   only, currently off) gives your own profile three made-up past eras (finished,
-  out of lives, left) after any real ones. `SYSTEM_CAMERA = false` in Tasks keeps the
+  out of lives, left) after any real ones. `DEMO_ERA` in `lib/demoEra.ts` (`__DEV__`
+  only, currently **on**) puts you on Day 12 of a made-up "Get Fit for Summer"
+  run with six friends and eight members, all held on the phone. `SYSTEM_CAMERA = false` in Tasks keeps the
   app's own camera card instead of iOS's camera.
 
 ## Backend (`supabase/`)
@@ -277,13 +280,20 @@ padding:
 | `pill` | 8 | either side of a pill's label |
 | `grid` | 4 | between tiles in a grid |
 
-**Typeface** — two faces, no exceptions:
+**Typeface** — Quicksand, plus a script/sans pair for a day's cover:
 - **Quicksand** — everything, headlines included: body, buttons, labels, tabs,
   captions, and the `headline`/`headlineSm`/`title` scale (Bold). The app has
   no separate display face — Playfair was removed on purpose; don't add a
   serif back for headlines.
-- **Fraunces Black** — the `poster` variant: the "Day N" stamped across a
-  Community post's photo grid. Nothing else.
+- **Allura** — the "Day N/75" written across the middle of a `DayCover`
+  (`coverDay`). **Inclusive Sans** — the rest of that cover: the era name
+  over the day (`coverEra`), each photo's time in its middle
+  (`coverCaption`; no task names on the cover), and the faint "selfera" at
+  its foot (`coverMark`). Inclusive Sans also sets the task over the time
+  in the bottom-left of each of a post's own photos (both `shotCaption`,
+  on the `photoFoot` fade), so they match the cover. Times read
+  "7:57 AM" everywhere (`shotClock` in `DayCover`). Neither face
+  appears anywhere else.
 
 Quicksand runs optically light, so each role is mapped one step up the weight
 ramp; plain copy sits on Medium, and Regular isn't loaded at all. Don't
@@ -301,14 +311,17 @@ actions · `Card` white surface · `EmptyState` glyph on a grey disc, title, hin
 **Controls** · `PrimaryButton` · `IconButton` circular · `Pill`
 (`floating`|`solid`|`muted`|`outline` × `sm`|`md`|`lg`) · `SegmentedTabs` the pill
 switch · `StepBar` a flow's segmented progress · `SignaturePad`
-a finger-drawn signature · `ReminderPill` a reminder's time or Never, with its menu and wheel · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
+a finger-drawn signature · `SlideToConfirm` a knob slid along a track to act, the phone's slide to answer (Tasks' slide to post) · `ReminderPill` a reminder's time or Never, with its menu and wheel · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
 `SearchBar`.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
-`ChallengeLengthSheet` · `PhotoLibrarySheet`.
+`ChallengeLengthSheet` · `PhotoLibrarySheet` · `ShareCoverSheet` a finished
+day's cover as a 9:16 story in a centred popup (a switch each for the photos' times and tasks), saved
+to Photos — opened from Tasks' "Save your day" once the post is up.
 
 **Content** · `ChallengeRun` the run you're on as one square a day, on ink or (`quiet`) a white card on a profile · `CheckCircle` a done task's tick · `TaskRing` a face in the split
-task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic ·
+task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic · `DayCover`
+a day's cover — its photos with each one's time and task in its middle, "Day N/75" and the era name on a soft shadow across the centre, "selfera" faint at the foot — on a post's first slide and as its tile in the profile's grid ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
 `FriendCard` · `PostHeader` who posted a day — face (in its task ring on My

@@ -19,6 +19,7 @@ import { colors, layout, radii } from '@/constants/theme';
 import { type Friend } from '@/data/content';
 import { orderBySlot, useApp } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
+import { isPosted } from '@/lib/round';
 
 type Tab = 'friends' | 'members';
 
@@ -54,8 +55,10 @@ const BAR_HEIGHT = 6;
 const BAR_SEGMENT_GAP = 3;
 
 const doneCount = (person: Friend) => person.tasks.filter((task) => task.done).length;
-const finished = (person: Friend) =>
-  person.tasks.length > 0 && doneCount(person) === person.tasks.length;
+/** Every task shot and the countdown to going up run out — a post. Until
+ * then a finished day is still going, a full ring in the row. */
+const finished = (person: Friend, now = Date.now()) =>
+  person.tasks.length > 0 && doneCount(person) === person.tasks.length && isPosted(person.postsAt, now);
 
 /**
  * The people you're doing it with, split the way the redesign settled it.
@@ -88,6 +91,7 @@ export default function CommunityScreen() {
     captions,
     currentDay,
     membershipId,
+    postsAt,
   } = useApp();
   const {
     friends,
@@ -101,6 +105,24 @@ export default function CommunityScreen() {
   } = useSocial();
   const added = relations.outgoing;
   const [tab, setTab] = useState<Tab>('friends');
+
+  // The tab is drawn again the moment the next countdown — yours or
+  // anyone's — runs out, so that day moves from the row to its post, and
+  // fetched again, since a photo or caption may have changed in the
+  // countdown.
+  const [now, setNow] = useState(Date.now);
+  const myPostsAt = postsAt[currentDay];
+  useEffect(() => {
+    const next = [myPostsAt, ...friends.map((f) => f.postsAt), ...members.map((m) => m.postsAt)]
+      .filter((at): at is number => at !== undefined && at > now)
+      .reduce((soonest, at) => Math.min(soonest, at), Infinity);
+    if (next === Infinity) return;
+    const id = setTimeout(() => {
+      setNow(Date.now());
+      refreshToday();
+    }, next - Date.now() + 50);
+    return () => clearTimeout(id);
+  }, [myPostsAt, friends, members, now, refreshToday]);
 
   // Today moves on while the app is open — people finish, photos come in —
   // so the tab loads afresh every time it's opened rather than once.
@@ -171,7 +193,8 @@ export default function CommunityScreen() {
   const myDone = myDayRunning
     ? tasks.filter((task) => progress[currentDay]?.[task.id]?.done).length
     : 0;
-  const myFinished = myDayRunning && tasks.length > 0 && myDone === tasks.length;
+  const myFinished =
+    myDayRunning && tasks.length > 0 && myDone === tasks.length && isPosted(myPostsAt, now);
   const hasStoryToday = tasks.some((task) => {
     const entry = progress[currentDay]?.[task.id];
     return Boolean(entry?.photo || entry?.photoSeed);
@@ -209,7 +232,7 @@ export default function CommunityScreen() {
     };
   }, [myFinished, myAvatar, profile, tasks, progress, captions, currentDay, membershipId, challenge]);
 
-  const friendsGoing = friends.filter((friend) => !finished(friend));
+  const friendsGoing = friends.filter((friend) => !finished(friend, now));
   /** How many of someone's photos today you've already seen. */
   const watchedOf = (person: Friend) =>
     person.tasks.filter((task) => task.completionId && seen.has(task.completionId)).length;
@@ -223,8 +246,8 @@ export default function CommunityScreen() {
       .filter((friend) => friend.tasks.some((task) => task.photo || task.photoSeed))
       .map((friend) => friend.id),
   ].join(',');
-  const friendsFinished = friends.filter(finished);
-  const membersFinished = members.filter(finished);
+  const friendsFinished = friends.filter((friend) => finished(friend, now));
+  const membersFinished = members.filter((person) => finished(person, now));
 
   // Everyone's day at a glance for the empty "Finished today" card, furthest
   // along first — you included, since your day is racing theirs.
@@ -244,7 +267,7 @@ export default function CommunityScreen() {
   // Everyone else in your round: the members the tab lists, plus friends of
   // yours who are in it too — the round's own count, less you.
   const othersInRound = Math.max(roundSize - (inChallenge ? 1 : 0), members.length);
-  const membersGoing = members.filter((person) => !finished(person));
+  const membersGoing = members.filter((person) => !finished(person, now));
 
   // The lock card speaks to the tab it's on: your friends, or everyone else
   // in the challenge.

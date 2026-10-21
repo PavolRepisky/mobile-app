@@ -3,6 +3,16 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 import { absoluteFill, colors, radii } from '@/constants/theme';
 import { Pill } from './Pill';
 
+/**
+ * Applied to the photo itself while locked — heavier than the canvas's 18,
+ * which left too much of the shot readable on a phone. This is
+ * the whole of the lock's blur: `Image`'s `blurRadius` blurs the pixels
+ * directly, so it holds on every platform, where a backdrop blur has none on
+ * web or older Android. Soft enough that the day's colours still show
+ * through under `LockedOverlay`'s light wash, too soft to make out the shot.
+ */
+export const LOCK_BLUR_RADIUS = 50;
+
 export interface LockedOverlayProps {
   /** `false` renders `children` plain — the gate this wraps hasn't shut. */
   locked: boolean;

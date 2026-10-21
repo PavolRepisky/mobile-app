@@ -149,6 +149,7 @@ export async function fetchToday(scope: 'friends' | 'members'): Promise<{
       day: r.day,
       bio: null,
       caption: r.caption ?? undefined,
+      postsAt: r.posts_at ? Date.parse(r.posts_at) : undefined,
       membershipId: r.membership_id,
       challengeId: challenge?.slug ?? challenge?.id,
       challengeName: challenge?.name,

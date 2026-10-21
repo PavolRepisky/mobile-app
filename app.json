@@ -64,7 +64,8 @@
           "photosPermission": false,
           "cameraPermission": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

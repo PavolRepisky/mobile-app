@@ -15,8 +15,8 @@ type Variant = keyof typeof typeScale;
  * Which of Apple's text styles each level grows with when someone sets a
  * bigger (or smaller) text size on their iPhone. The system scales each style
  * on a curve of its own — body text a lot, headings less, captions least — so
- * the page keeps its hierarchy at any size, the way native apps do. The
- * "Day N" stamp across a photo is artwork sized to the photo, so it stays.
+ * the page keeps its hierarchy at any size, the way native apps do. A day's
+ * cover is artwork sized to its photos, so its lettering stays.
  */
 const DYNAMIC_TYPE: Partial<Record<Variant, NonNullable<RNTextProps['dynamicTypeRamp']>>> = {
   headline: 'largeTitle',

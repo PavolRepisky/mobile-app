@@ -123,6 +123,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"day_posts": {
+                  Row: {
+                    "day": number,"membership_id": string,"posts_at": string
+                  }
+                  Insert: {
+                    "day": number,"membership_id": string,"posts_at": string
+                  }
+                  Update: {
+                    "day"?: number,"membership_id"?: string,"posts_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "day_posts_membership_id_fkey"
+      columns: ["membership_id"]
+isOneToOne: false
+      referencedRelation: "membership_progress"
+      referencedColumns: ["membership_id"]
+    },{
+      foreignKeyName: "day_posts_membership_id_fkey"
+      columns: ["membership_id"]
+isOneToOne: false
+      referencedRelation: "memberships"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"friendships": {
                   Row: {
                     "accepted_at": string | null,"addressee_id": string,"created_at": string,"requester_id": string,"status": Database["public"]['Enums']["friendship_status"]
@@ -418,7 +443,7 @@ isOneToOne: false
                            },
 "community_today":
 { Args: { "scope": string }; Returns: {
-              "avatar_path": string,"caption": string,"challenge_id": string,"comments": number,"day": number,"done": number,"handle": string,"is_friend": boolean,"last_completed_at": string,"lives_left": number,"membership_id": string,"my_reaction": string,"name": string,"reactions": number,"request_sent": boolean,"task_count": number,"unlocked": boolean,"user_id": string,"views": number
+              "avatar_path": string,"caption": string,"challenge_id": string,"comments": number,"day": number,"done": number,"handle": string,"is_friend": boolean,"last_completed_at": string,"lives_left": number,"membership_id": string,"my_reaction": string,"name": string,"reactions": number,"request_sent": boolean,"task_count": number,"posts_at": string | null,"unlocked": boolean,"user_id": string,"views": number
             }[]
                            },
 "complete_task":
@@ -426,6 +451,12 @@ isOneToOne: false
                            },
 "create_challenge":
 { Args: { "p": Json }; Returns: string
+                           },
+"day_counting_down":
+{ Args: { "d": number,"mid": string }; Returns: boolean
+                           },
+"day_posted":
+{ Args: { "d": number,"mid": string }; Returns: boolean
                            },
 "delete_challenge":
 { Args: { "cid": string }; Returns: undefined
@@ -458,6 +489,12 @@ isOneToOne: false
                            },
 "owns_membership":
 { Args: { "mid": string }; Returns: boolean
+                           },
+"post_countdown":
+{ Args: Record<PropertyKey, never>; Returns: unknown
+                           },
+"post_now":
+{ Args: Record<PropertyKey, never>; Returns: string
                            },
 "request_friend":
 { Args: { "target": string }; Returns: Database["public"]['Enums']["friendship_status"]

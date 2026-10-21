@@ -63,6 +63,10 @@ export interface Friend {
   /** What they wrote under today's post, in their own words — the post's
    * caption. A day can go without one. */
   caption?: string;
+  /** When today's finished day goes up as a post, in epoch ms — until then
+   * it's still counting down and they show as still going. None: up as
+   * soon as it's finished. */
+  postsAt?: number;
   /**
    * Earlier days, shown as extra tiles in their profile grid so it always
    * has more than one post to browse — `day`/`tasks` above stay what the
