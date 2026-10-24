@@ -7,7 +7,6 @@ import {
   TextInput,
   View,
   useWindowDimensions,
-  type TextInput as RNTextInput,
   type TextInputInstance,
 } from 'react-native';
 

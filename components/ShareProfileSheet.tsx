@@ -63,8 +63,12 @@ export function ShareProfileSheet({ visible, onDismiss, person, status }: ShareP
 
   const copy = async () => {
     setProblem(null);
-    await Clipboard.setStringAsync(url);
-    setDone('copied');
+    try {
+      await Clipboard.setStringAsync(url);
+      setDone('copied');
+    } catch {
+      setProblem('It didn’t copy. Try again.');
+    }
   };
 
   const save = async () => {

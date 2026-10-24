@@ -13,7 +13,7 @@ import { pastRunAuthor, pastRunPosted } from '@/lib/profileDays';
  * One of your eras as a feed — `DaysFeed`, the same feed anyone else's days
  * open in — titled with the era's name and holding only its days, in the
  * profile grid's order, landing on the day that was tapped (or the latest,
- * from the era's "All 30 days"). `run` names a past era; without it the
+ * from the era's header row). `run` names a past era; without it the
  * feed is the era you're in.
  *
  * Each day is the same `FriendCard` the Community tab posts your day with, so

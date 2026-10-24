@@ -199,7 +199,7 @@ export interface ProfileViewProps {
   /** Plays today's story from the photo; left out while there's none. */
   onPlayStory?: () => void;
   /** Opens a day of the era on now, in the era's feed, from its tile or
-   * the era's "All 30 days". */
+   * the era's header row. */
   onOpenDay: (day: number) => void;
   /** The era's lives, shown as hearts on the run card. */
   lives?: { left: number; total: number };
@@ -222,11 +222,12 @@ export interface ProfileViewProps {
 }
 
 /**
- * A profile's whole page under its header — the photo in its task ring,
- * name and bio (the handle is `ProfileHeader`'s title), the era's name, and the days as one grid — no
- * calendar, and no missed days: the page shows what was done. Your own Profile tab and anyone else's profile are both this, so
- * the two can't drift: only the header differs, where yours carries
- * Settings and theirs the way back.
+ * A profile's whole page under its header — the photo in its task ring, the
+ * name, bio and stats (the handle is `ProfileHeader`'s title), two buttons,
+ * the era's run card, and every era's latest days under its own header — no
+ * calendar, and no missed days: the page shows what was done. Your own
+ * Profile tab and anyone else's profile are both this, so the two can't
+ * drift: only the header and the buttons differ.
  */
 export function ProfileView({
   avatar,
@@ -395,7 +396,7 @@ export function ProfileView({
                     )}
                 </Mask>
               </Defs>
-  
+
               {ringSegments(taskCount).map((segment, index) =>
                 index < doneToday
                   ? null
@@ -481,10 +482,8 @@ export function ProfileView({
         </View>
       ) : null}
 
-
-      {/* The era on, as the whole run — a square a day — the same white card
-          that closes the Tasks tab, so the run reads the same in both places.
-          Here it is also the way into the era's page. */}
+      {/* The era on, as the whole run — a square a day — on a white card,
+          and the way into the era's page. */}
       {challenge ? (
         <Pressable
           accessibilityRole="button"
@@ -554,8 +553,8 @@ export function ProfileView({
         <EmptyState icon="camera-outline" title="No days yet" hint={emptyHint} />
       ) : (
         // Every era down the page, the one on now first, then each behind
-        // it: a header row naming it, then its days as one wall of photos
-        // out to the screen's edges, the way a photo library lays them.
+        // it: a header row naming it, then its latest days as a row of
+        // covers within the page's margins.
         groups.map((group) => (
           <View key={group.key} style={styles.era}>
             {/* The whole row is the way on to the era's own feed, opened

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { usePreventRemove, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AlertDialog } from '@/components/AlertDialog';
@@ -39,7 +39,8 @@ const BIO_MIN_HEIGHT = type.copy.lineHeight * 3;
 /**
  * Your photo, name, username and bio on one page, opened from Settings'
  * profile card and the profile's Edit profile button. The words are kept
- * only on Save — the close button leaves them as they were; the photo,
+ * only on Save — the close button leaves them as they were, asking first
+ * if any were changed; the photo,
  * changed through its own menu, goes up straight away, as Contacts does.
  */
 export default function EditProfileScreen() {
@@ -72,6 +73,23 @@ export default function EditProfileScreen() {
   };
   const dirty = Object.keys(changed).length > 0;
 
+  // Leaving with changes typed and not saved asks first, as the iPhone's own
+  // edit pages do — however the page is left: the cross, the edge swipe, or
+  // Android's back. With nothing changed it just closes. Once saved or
+  // discarded the page is let go, and the leaving that was held up goes on.
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [released, setReleased] = useState(false);
+  const heldLeave = useRef<(() => void) | null>(null);
+  usePreventRemove(dirty && !released, ({ repeat }) => {
+    heldLeave.current = repeat;
+    setDiscardOpen(true);
+  });
+  useEffect(() => {
+    if (!released) return;
+    if (heldLeave.current) heldLeave.current();
+    else router.back();
+  }, [released, router]);
+
   const save = async () => {
     if (!nextName) return setProblem('Your name can’t be empty.');
     if ('handle' in changed && !HANDLE_PATTERN.test(nextHandle)) {
@@ -84,7 +102,8 @@ export default function EditProfileScreen() {
       if (changed.name) setName(changed.name);
       if (changed.handle) setHandle(`@${changed.handle}`);
       if ('bio' in changed) setBio(changed.bio ?? null);
-      router.back();
+      heldLeave.current = null;
+      setReleased(true);
     } catch (e) {
       setProblem(e instanceof Error ? e.message : 'That didn’t save. Try again.');
     } finally {
@@ -283,6 +302,25 @@ export default function EditProfileScreen() {
         visible={libraryOpen}
         onPick={setAvatarPhoto}
         onDismiss={() => setLibraryOpen(false)}
+      />
+
+      <AlertDialog
+        visible={discardOpen}
+        title="Discard Changes"
+        message="Your name, username and bio go back to how they were."
+        onDismiss={() => setDiscardOpen(false)}
+        actions={[
+          { label: 'Keep Editing', onPress: () => setDiscardOpen(false) },
+          {
+            label: 'Discard',
+            destructive: true,
+            primary: true,
+            onPress: () => {
+              setDiscardOpen(false);
+              setReleased(true);
+            },
+          },
+        ]}
       />
 
       {/* A new photo that didn't upload: the old one is already back, so

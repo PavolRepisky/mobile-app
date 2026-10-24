@@ -4,17 +4,18 @@ import { StyleSheet, View } from 'react-native';
 
 import { ProfileHeader, ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
+import { ShareProfileSheet } from '@/components/ShareProfileSheet';
 import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
 import { useChallengeCards } from '@/hooks/useChallengeCards';
 import { useSession } from '@/hooks/useSession';
 import { useMyPastRuns, useSocial } from '@/hooks/useSocial';
 import { profileRun } from '@/lib/profileDays';
-import { ShareProfileSheet } from '@/components/ShareProfileSheet';
 
 /**
  * Your own profile. The page itself is `ProfileView`, the same one anyone
  * else's profile opens on — this screen only reads your days off the app's
- * state and puts Share and Settings in the header.
+ * state and puts Settings in the header, Edit profile and Share profile
+ * under the bio, and your code and link in its own sheet.
  *
  * The era you're in comes from the app's own state, so a photo taken a
  * moment ago is already on it. Eras you were in before come from your page
@@ -103,9 +104,9 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screenRoot}>
-      {/* Every tab root's fixed title row: your username, then Share — your
-          code and link in a sheet — and Settings at the end, in reach however
-          far down the days go. */}
+      {/* Every tab root's fixed title row: your username, and Settings at
+          the end, in reach however far down the days go. Sharing is the
+          Share profile button under the bio, not repeated up here. */}
       <ScreenScroll
         tabBar
         onRefresh={() => Promise.all([reload(), userId ? loadPage(userId) : null])}
@@ -115,15 +116,14 @@ export default function ProfileScreen() {
             handle={profile.handle}
             showBack={false}
             actions={[
-              { icon: 'share-outline', label: 'Share profile', onPress: openShare },
               { icon: 'settings-outline', label: 'Settings', onPress: () => router.push('/account/settings') },
             ]}
           />
         }
       >
         <ProfileView
-          // The photo itself is edited in Settings, not from here — a tap on
-          // it plays today's story.
+          // The photo itself is changed on Edit profile, not from here — a
+          // tap on it plays today's story.
           avatar={profile.avatar ?? profile.avatarSeed}
           name={profile.name}
           bio={profile.bio}

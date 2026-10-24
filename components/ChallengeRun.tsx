@@ -8,7 +8,6 @@ import {
   useColorScheme,
   type StyleProp,
   type ViewStyle,
-  type ColorValue,
 } from 'react-native';
 
 import { colors, layout, radii, colorsFor, shadows } from '@/constants/theme';
@@ -127,7 +126,7 @@ const dateLabel = (date: Date) =>
 /**
  * The challenge you're on, drawn as the whole run — one square a day — on a
  * block of ink (or, `quiet`, a white card), with its name and dates over
- * it — at the foot of the Tasks tab.
+ * it. The profile shows it quiet, as the way into the era's page.
  */
 export function ChallengeRun({
   challenge,
@@ -167,8 +166,8 @@ export function ChallengeRun({
     squaresWidth > 0 ? (squaresWidth - layout.grid * (SQUARES_PER_ROW - 1)) / SQUARES_PER_ROW : 0;
 
   return (
-    // Only to read, not a way off the page: the tasks are where the day is
-    // done, so the run sits above them without pulling you elsewhere.
+    // Read out as one line; where it opens something — the profile's — the
+    // button round it says so.
     <View
       accessible
       accessibilityLabel={`${challenge.name}, ${currentDay < 1 ? 'starts' : `day ${currentDay} of ${totalDays},`} ${dateLabel(startDate)} to ${dateLabel(endDate)}${lives ? `, ${lives.left} of ${lives.total} lives left` : ''}`}
