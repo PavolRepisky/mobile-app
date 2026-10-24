@@ -18,9 +18,11 @@ import {
   foregroundStyle,
   frame,
   lineLimit,
+  listRowBackground,
   multilineTextAlignment,
   onTapGesture,
   padding,
+  scrollContentBackground,
   shapes,
 } from '@expo/ui/swift-ui/modifiers';
 import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
@@ -57,8 +59,8 @@ const PROFILE_AVATAR = 60;
 
 /**
  * The card that opens Settings, the way your Apple Account opens the
- * Settings app: your photo, big, with your name and username beside it.
- * Tapping it changes the photo.
+ * Settings app: your photo, big, with your name and a line under it, and a
+ * chevron at the end — tapping it opens Edit profile.
  */
 export function SettingsProfileCard({
   avatar,
@@ -69,6 +71,7 @@ export function SettingsProfileCard({
   /** The photo, drawn at `PROFILE_AVATAR`. */
   avatar: (size: number) => React.ReactNode;
   name: string;
+  /** The line under the name — the username and where the card leads. */
   handle: string;
   onPress: () => void;
 }) {
@@ -91,35 +94,41 @@ export function SettingsProfileCard({
           </RNHostView>
         </HStack>
         <VStack alignment="leading" spacing={layout.line / 2}>
-          <SystemText modifiers={[quicksand('title2', 'bold'), lineLimit(1)]}>
+          <SystemText modifiers={[quicksand('headline', 'bold'), lineLimit(1)]}>
             {name}
           </SystemText>
           <SystemText
-            modifiers={[quicksand('subheadline'), foregroundStyle({ type: 'hierarchical', style: 'secondary' }), lineLimit(1)]}
+            modifiers={[quicksand('body'), foregroundStyle({ type: 'hierarchical', style: 'secondary' }), lineLimit(1)]}
           >
             {handle}
           </SystemText>
         </VStack>
         <Spacer />
+        <SystemImage
+          systemName="chevron.forward"
+          size={SYSTEM_CHEVRON}
+          modifiers={[foregroundStyle({ type: 'hierarchical', style: 'tertiary' })]}
+        />
       </HStack>
     );
   }
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Change profile photo"
+      accessibilityLabel="Edit profile"
       onPress={onPress}
       style={({ pressed }) => [styles.profileCard, pressed && styles.pressed]}
     >
       <View style={styles.profileAvatar}>{avatar(PROFILE_AVATAR)}</View>
       <View style={styles.rowLabel}>
-        <Text variant="pageTitle" numberOfLines={1}>
+        <Text variant="itemTitle" numberOfLines={1}>
           {name}
         </Text>
-        <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+        <Text variant="copy" color={colors.inkMuted} numberOfLines={1}>
           {handle}
         </Text>
       </View>
+      <Ionicons name="chevron-forward" size={ROW_CHEVRON} color={colors.inkGhost} />
     </Pressable>
   );
 }
@@ -142,8 +151,10 @@ export function SettingsList({
         <Host style={styles.systemPage}>
           {/* No tint on the list: its rows set their own colours, and its
               switches keep the system's green, as in the Settings app. Its
-              type is the app's Quicksand, which every row inherits. */}
-          <Form modifiers={[quicksand()]}>
+              type is the app's Quicksand, which every row inherits. Its own
+              grey is hidden for the app's `alt` grey behind it, so these
+              pages sit on the same grey as Theme, drawn on that tone. */}
+          <Form modifiers={[quicksand(), scrollContentBackground('hidden')]}>
             {children}
           </Form>
         </Host>
@@ -171,24 +182,25 @@ export function SettingsGroup({
   footerCentered?: boolean;
   children: React.ReactNode;
 }) {
+  const scheme = colorsFor(useColorScheme());
   if (NATIVE_HEADER) {
     return (
       <Section
         title={title}
+        // White rows, cards on the `alt` grey the list shows through.
+        modifiers={[listRowBackground(scheme.surface)]}
         footer={
           footer ? (
             <SystemText
-              modifiers={
-                footerCentered
-                  ? [
-                      multilineTextAlignment('center'),
-                      frame({ maxWidth: Number.MAX_SAFE_INTEGER }),
-                      // A little air off the card, so the version reads as
-                      // the page's last word rather than the group's caption.
-                      padding({ top: layout.heading }),
-                    ]
-                  : []
-              }
+              modifiers={[
+                // Small print at the footnote size the Settings app sets its
+                // own in — the list's Quicksand otherwise sets it at body
+                // size, as big as the rows it explains.
+                quicksand('footnote'),
+                ...(footerCentered
+                  ? [multilineTextAlignment('center'), frame({ maxWidth: Number.MAX_SAFE_INTEGER })]
+                  : []),
+              ]}
             >
               {footer}
             </SystemText>
@@ -212,7 +224,7 @@ export function SettingsGroup({
           variant="meta"
           color={colors.inkMuted}
           center={footerCentered}
-          style={[styles.groupFooter, footerCentered && styles.groupFooterCentered]}
+          style={styles.groupFooter}
         >
           {footer}
         </Text>
@@ -439,9 +451,6 @@ const styles = StyleSheet.create({
   groupFooter: {
     marginTop: layout.stack,
     marginHorizontal: spacing.xs,
-  },
-  groupFooterCentered: {
-    marginTop: layout.stack + layout.heading,
   },
   // The plain ↑ turned to point out of the app, the way ↗ does.
   externalGlyph: {

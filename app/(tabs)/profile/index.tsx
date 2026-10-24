@@ -147,9 +147,9 @@ export default function ProfileScreen() {
           daysTitle="My Eras"
           nextEra={nextEra}
           // The same two buttons a friend's page has in this place, as they
-          // apply to you: your profile's fields live in Settings.
+          // apply to you.
           actions={[
-            { label: 'Edit profile', onPress: () => router.push('/account/settings') },
+            { label: 'Edit profile', onPress: () => router.push('/account/edit') },
             { label: 'Share profile', onPress: openShare },
           ]}
         />

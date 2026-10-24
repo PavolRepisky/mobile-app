@@ -43,7 +43,7 @@ through `ProfileHeader`, on yours and anyone else's), the stats as one line unde
 | `friend/[id]`, `friend/post/[id]` | Someone else's `ProfileView`, and one of their eras as a days feed, as `day/[day]` is for yours. Their today follows the lock. |
 | `story` | Full-screen story viewer over someone's photos for the day, with a queue across the Community row and a heart to like the day. |
 | `add-friends` | Search, an invite card (share link plus QR code), and suggestions with mutual friends. |
-| `account/settings` · `theme` · `reminders` | Profile fields, Reminders, End era, Theme (system, light or dark), Privacy and Terms (still do nothing), Log out, Delete account. |
+| `account/settings` · `edit` · `theme` · `reminders` | Settings: your card at the top (opens `edit`), App (Reminders while in an era, Theme: system, light or dark, End era while in one), About (Privacy and Terms, still doing nothing), Account (Log out, Delete account), the version at the foot. `edit` is Edit profile, as the canvas draws it: the photo big with a pencil badge (its own menu, saved at once), then Name (with its count), Username and Bio (with its count) each in a white box under its label, kept on the bar's Save (✕ drops them). `reminders` explains each group under it. |
 | `sign-in` | The only route when signed out: email and password, plus Apple once the project turns it on (native sheet in a build, browser flow in Expo Go). Google is in `lib/backend/auth.ts` but has no button. |
 | `sheet`, `sheet-large` | iOS system sheet routes, currently switched off (see `BottomSheet` below). |
 
@@ -227,8 +227,10 @@ names the role (`inkMuted`), not the shade (`greyDark`).
 Every screen in the app sits on the same white, `Screen`/`ScreenScroll`'s
 default `plain` tone (`backgroundPlain` `#FFFFFF`) — the tab roots, a
 challenge's feed, a friend's day, all of it — with one exception: Settings
-sits on `alt` (`backgroundAlt`, the palette's `#F2F2F2`), because its groups are white
-cards and on a white page they'd dissolve. Those are the only two tones.
+and its pages sit on `alt` (`backgroundAlt`, the palette's `#F2F2F2`), because their groups are white
+cards and on a white page they'd dissolve. On the iPhone the system list
+hides its own grouped grey for this one, so every Settings page, drawn or
+native, is the same grey. Those are the only two tones.
 
 **Shadow** — pick by what the thing sits on, not by how big it is:
 

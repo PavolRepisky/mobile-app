@@ -9,6 +9,11 @@ import { Text } from '@/components/Text';
 import { colors, layout, radii, spacing } from '@/constants/theme';
 import { DEFAULT_TASK_REMINDER, useApp } from '@/hooks/useAppState';
 
+/** What each group's reminder does, said under it, so a time is never a
+ * guess at when it comes or whether it comes at all. */
+const TASKS_NOTE = 'A nudge at this time if the task has no photo yet.';
+const LAST_CALL_NOTE = 'Only comes while a task is still missing today.';
+
 /**
  * When each of today's tasks nudges you, and the one nudge that isn't a
  * task's — the last call, which only comes while one is still missing — on a
@@ -33,7 +38,7 @@ export default function RemindersScreen() {
   if (NATIVE_HEADER) {
     return (
       <SettingsList header={<ScreenHeader plainTitle="Reminders" />}>
-        <SettingsGroup title="Tasks">
+        <SettingsGroup title="Each task" footer={TASKS_NOTE}>
           {tasks.map((task) => (
             <ReminderListRow
               key={task.id}
@@ -43,7 +48,7 @@ export default function RemindersScreen() {
             />
           ))}
         </SettingsGroup>
-        <SettingsGroup title="Last call">
+        <SettingsGroup title="Last call" footer={LAST_CALL_NOTE}>
           <ReminderListRow
             label="Last call"
             value={reminders.lastCall}
@@ -58,7 +63,7 @@ export default function RemindersScreen() {
     <ScreenScroll tone="alt" header={<ScreenHeader plainTitle="Reminders" />}>
       <View style={styles.group}>
         <Text variant="metaBold" color={colors.inkMuted} style={styles.groupTitle}>
-          Tasks
+          Each task
         </Text>
         <View style={styles.card}>
           {tasks.map((task, i) => (
@@ -73,6 +78,9 @@ export default function RemindersScreen() {
             />
           ))}
         </View>
+        <Text variant="footnote" color={colors.inkMuted} style={styles.groupFooter}>
+          {TASKS_NOTE}
+        </Text>
       </View>
 
       <View style={styles.group}>
@@ -88,6 +96,9 @@ export default function RemindersScreen() {
             onToggle={() => toggle('lastCall')}
           />
         </View>
+        <Text variant="footnote" color={colors.inkMuted} style={styles.groupFooter}>
+          {LAST_CALL_NOTE}
+        </Text>
       </View>
     </ScreenScroll>
   );
@@ -103,6 +114,10 @@ const styles = StyleSheet.create({
   groupTitle: {
     marginBottom: layout.stack,
     marginLeft: spacing.xs,
+  },
+  groupFooter: {
+    marginTop: layout.stack,
+    marginHorizontal: spacing.xs,
   },
   card: {
     backgroundColor: colors.surface,

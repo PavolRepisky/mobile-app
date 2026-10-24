@@ -140,6 +140,7 @@ function RootStack() {
           <Stack.Screen name="challenges/search" />
           <Stack.Screen name="challenge/create" />
           <Stack.Screen name="account/settings" />
+          <Stack.Screen name="account/edit" />
           <Stack.Screen name="account/theme" />
           <Stack.Screen name="account/reminders" />
           {/* The iPhone's own sheets, which every `BottomSheet` opens there:

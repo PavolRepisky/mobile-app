@@ -35,6 +35,7 @@ const DYNAMIC_TYPE: Partial<Record<Variant, NonNullable<RNTextProps['dynamicType
   bodyBold: 'body',
   button: 'body',
   note: 'subheadline',
+  footnote: 'footnote',
   meta: 'subheadline',
   metaBold: 'subheadline',
   label: 'subheadline',

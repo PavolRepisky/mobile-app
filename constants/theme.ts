@@ -461,6 +461,16 @@ export const type = {
     letterSpacing: bodyTracking,
   },
 
+  /** Small print under a group of settings — what its rows do — at the
+   * footnote size the Settings app sets its own in, a step under `meta` so
+   * it reads as a note on the card, not another row. */
+  footnote: {
+    ...face.bodySemi,
+    fontSize: 13,
+    lineHeight: 17,
+    letterSpacing: bodyTracking,
+  },
+
   headline: {
     ...face.bodyBold,
     fontSize: 34,
