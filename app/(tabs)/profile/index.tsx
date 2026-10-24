@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { ProfileHeader, ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
@@ -8,7 +9,7 @@ import { useChallengeCards } from '@/hooks/useChallengeCards';
 import { useSession } from '@/hooks/useSession';
 import { useMyPastRuns, useSocial } from '@/hooks/useSocial';
 import { profileRun } from '@/lib/profileDays';
-import { shareProfile } from '@/lib/shareProfile';
+import { ShareProfileSheet } from '@/components/ShareProfileSheet';
 
 /**
  * Your own profile. The page itself is `ProfileView`, the same one anyone
@@ -29,6 +30,7 @@ export default function ProfileScreen() {
   const { session } = useSession();
   const userId = session?.user.id ?? null;
   const { page, loadPage } = useSocial();
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Loaded again whenever the era you're in changes — leaving one, or the
   // settle job ending it, is exactly when a run becomes a past one.
@@ -97,68 +99,76 @@ export default function ProfileScreen() {
     [myPastRuns, openPastDay],
   );
 
+  const openShare = () => setShareOpen(true);
+
   return (
-    // Every tab root's fixed title row: your username, then Share — the
-    // profile to the phone's own share sheet — and Settings at the end, in
-    // reach however far down the days go.
-    <ScreenScroll
-      tabBar
-      onRefresh={() => Promise.all([reload(), userId ? loadPage(userId) : null])}
-      tone="plain"
-      header={
-        <ProfileHeader
-          handle={profile.handle}
-          showBack={false}
+    <View style={styles.screenRoot}>
+      {/* Every tab root's fixed title row: your username, then Share — your
+          code and link in a sheet — and Settings at the end, in reach however
+          far down the days go. */}
+      <ScreenScroll
+        tabBar
+        onRefresh={() => Promise.all([reload(), userId ? loadPage(userId) : null])}
+        tone="plain"
+        header={
+          <ProfileHeader
+            handle={profile.handle}
+            showBack={false}
+            actions={[
+              { icon: 'share-outline', label: 'Share profile', onPress: openShare },
+              { icon: 'settings-outline', label: 'Settings', onPress: () => router.push('/account/settings') },
+            ]}
+          />
+        }
+      >
+        <ProfileView
+          // The photo itself is edited in Settings, not from here — a tap on
+          // it plays today's story.
+          avatar={profile.avatar ?? profile.avatarSeed}
+          name={profile.name}
+          bio={profile.bio}
+          challenge={inChallenge ? challenge : null}
+          startDate={startDate}
+          currentDay={daysUntilStart > 0 ? 0 : currentDay}
+          totalDays={totalDays}
+          taskCount={tasks.length}
+          dayOf={dayOf}
+          posted={postedDays}
+          pastRuns={pastRuns}
+          lives={{ left: livesLeft, total: livesTotal }}
+          friendCount={myPage?.friendCount}
+          onPlayStory={
+            hasStoryToday
+              ? () => router.push({ pathname: '/story', params: { day: String(currentDay) } })
+              : undefined
+          }
+          onOpenDay={openDay}
+          emptyHint="Finish a day's tasks to see it here."
+          daysTitle="My Eras"
+          nextEra={nextEra}
+          // The same two buttons a friend's page has in this place, as they
+          // apply to you: your profile's fields live in Settings.
           actions={[
-            {
-              icon: 'share-outline',
-              label: 'Share profile',
-              onPress: () => {
-                if (userId) shareProfile({ id: userId, name: profile.name, handle: profile.handle });
-              },
-            },
-            { icon: 'settings-outline', label: 'Settings', onPress: () => router.push('/account/settings') },
+            { label: 'Edit profile', onPress: () => router.push('/account/settings') },
+            { label: 'Share profile', onPress: openShare },
           ]}
         />
-      }
-    >
-      <ProfileView
-        // The photo itself is edited in Settings, not from here — a tap on
-        // it plays today's story.
-        avatar={profile.avatar ?? profile.avatarSeed}
-        name={profile.name}
-        bio={profile.bio}
-        challenge={inChallenge ? challenge : null}
-        startDate={startDate}
-        currentDay={daysUntilStart > 0 ? 0 : currentDay}
-        totalDays={totalDays}
-        taskCount={tasks.length}
-        dayOf={dayOf}
-        posted={postedDays}
-        pastRuns={pastRuns}
-        lives={{ left: livesLeft, total: livesTotal }}
-        friendCount={myPage?.friendCount}
-        onPlayStory={
-          hasStoryToday
-            ? () => router.push({ pathname: '/story', params: { day: String(currentDay) } })
-            : undefined
-        }
-        onOpenDay={openDay}
-        emptyHint="Finish a day's tasks to see it here."
-        daysTitle="My Eras"
-        nextEra={nextEra}
-        // The same two buttons a friend's page has in this place, as they
-        // apply to you: your profile's fields live in Settings.
-        actions={[
-          { label: 'Edit profile', onPress: () => router.push('/account/settings') },
-          {
-            label: 'Share profile',
-            onPress: () => {
-              if (userId) shareProfile({ id: userId, name: profile.name, handle: profile.handle });
-            },
-          },
-        ]}
-      />
-    </ScreenScroll>
+      </ScreenScroll>
+
+      {userId ? (
+        <ShareProfileSheet
+          visible={shareOpen}
+          onDismiss={() => setShareOpen(false)}
+          person={{ id: userId, name: profile.name, handle: profile.handle }}
+          status={inChallenge && daysUntilStart === 0 ? `Day ${currentDay} of ${challenge.name}` : null}
+        />
+      ) : null}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+  },
+});

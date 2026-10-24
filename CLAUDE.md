@@ -34,7 +34,7 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
 | `(tabs)/discover` | A carousel of featured eras you can still join (ranked by friends in them, then by members), then Trending rows. Search and See all open `challenges/search`. |
 | `(tabs)/profile` | `ProfileView` for you: avatar inside the split task ring (no ring outside an era), name and bio (the handle is the bar's title,
 through `ProfileHeader`, on yours and anyone else's), the stats as one line under the bio ("30-day best run · 1 era finished ·
-6 friends"; best run = most full days back to back in one era), the era's run card (`ChallengeRun`, `quiet`, opening the era), and My Eras: one group of days per era — the current era's, then every past era's (finished, lost or left), which stay for good. No calendar and no missed days on a profile. Share (a link to your profile) and Settings are in the header. |
+6 friends"; best run = most full days back to back in one era), the era's run card (`ChallengeRun`, `quiet`, opening the era), and My Eras: one group of days per era — the current era's, then every past era's (finished, lost or left), which stay for good. No calendar and no missed days on a profile. Share (opening `ShareProfileSheet`, as the Share profile button does) and Settings are in the header. |
 | `feed/[id]` | One era's page: photos, terms, daily tasks, lives, who's in it, with one docked action (Join, etc.). It reads differently for invited, joined and waiting, running, and watching. Once the round is over it becomes `Finished`: podium, standings, who ran out of lives. |
 | `join/[id]` | Joining in 2 steps: reminder time per task plus a last call, then the pledge signed with `SignaturePad`. Signing is what joins. |
 | `challenge/create` | Build your own era in 3 steps (what it is, daily tasks up to 9, rules: length, start date, lives 0–5), then a "live" page with invites. `?edit` reopens it for changes before Day 1. |
@@ -81,7 +81,7 @@ through `ProfileHeader`, on yours and anyone else's), the stats as one line unde
 - **Dev switches to know about**: `FAKE_PAST_ERAS` in `useSocial` (`__DEV__`
   only, currently off) gives your own profile three made-up past eras (finished,
   out of lives, left) after any real ones. `DEMO_ERA` in `lib/demoEra.ts` (`__DEV__`
-  only, currently off) puts you on Day 12 of a made-up "Get Fit for Summer"
+  only, currently **on**) puts you on Day 12 of a made-up "Get Fit for Summer"
   run with six friends and eight members, all held on the phone. `SYSTEM_CAMERA = true` in Tasks opens the
   iPhone's own Camera screen (tap to focus, drag to set the exposure, which
   expo-camera can't do) instead of the app's camera card; Android and the web
@@ -320,7 +320,9 @@ a finger-drawn signature · `SlideToConfirm` a knob slid along a track to act, t
 `SearchBar`.
 
 **Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
-`ChallengeLengthSheet` · `PhotoLibrarySheet` · `ShareCoverSheet` a finished
+`ChallengeLengthSheet` · `PhotoLibrarySheet` · `ShareProfileSheet` your
+profile's QR code card (name, handle, today's day) with Copy link, Save and
+Share · `ShareCoverSheet` a finished
 day's cover as a 9:16 story in a centred popup (a switch each for the photos' times and tasks), saved
 to Photos — opened from Tasks' "Save your day" once the post is up.
 
