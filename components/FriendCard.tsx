@@ -610,22 +610,27 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: layout.block,
+    gap: layout.stack,
     marginTop: layout.heading,
   },
-  // Under the dots the row closes up to them, a stack's gap rather than a
-  // heading's, so dots, actions and photo still read as one post.
+  // Under the dots the row closes right up to them — the row's own height
+  // already leaves air round its glyphs — so dots, actions and photo still
+  // read as one post.
   actionsUnderDots: {
-    marginTop: layout.stack,
+    marginTop: 0,
   },
+  // At least the row's height, never capped at it: the counts grow with
+  // Dynamic Type, and a fixed height would clip them.
   action: {
-    height: ACTION_ROW,
+    minHeight: ACTION_ROW,
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.line,
   },
+  // Straight under the actions: the row's own height already leaves a few
+  // points of air under its glyphs, and that is all the gap it needs.
   caption: {
-    marginTop: layout.stack,
+    marginTop: 0,
   },
   viewComments: {
     marginTop: layout.line,

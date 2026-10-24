@@ -319,7 +319,8 @@ switch · `StepBar` a flow's segmented progress · `SignaturePad`
 a finger-drawn signature · `SlideToConfirm` a knob slid along a track to act, the phone's slide to answer (Tasks' slide to post) · `ReminderPill` a reminder's time or Never, with its menu and wheel · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
 `SearchBar`.
 
-**Overlays** · `BottomSheet` · `AlertDialog` · `PopoverMenu` ·
+**Overlays** · `BottomSheet` · `SheetHeader` a sheet's centred title under
+the grabber, shared by Share profile and Comments · `AlertDialog` · `PopoverMenu` ·
 `ChallengeLengthSheet` · `PhotoLibrarySheet` · `ShareProfileSheet` your
 profile's QR code card (name, handle, today's day) with Copy link, Save and
 Share · `ShareCoverSheet` a finished

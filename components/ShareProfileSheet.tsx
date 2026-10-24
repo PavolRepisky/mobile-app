@@ -9,6 +9,7 @@ import { captureRef } from 'react-native-view-shot';
 import { colors, colorsFor, layout, radii, shadows } from '@/constants/theme';
 import { shareProfile } from '@/lib/shareProfile';
 import { BottomSheet } from './BottomSheet';
+import { SheetHeader } from './SheetHeader';
 import { IconButton } from './IconButton';
 import { Text } from './Text';
 
@@ -17,9 +18,6 @@ import { Text } from './Text';
 const CARD_WIDTH = 300;
 /** The code itself — big enough for a camera across a table. */
 const CODE_SIZE = 200;
-/** The sheet's close button, a bar button's size rather than the page
- * corner's. */
-const CLOSE_SIZE = 44;
 /** The round buttons under the card, the size of a contact card's own. */
 const ACTION_DISC = 56;
 const ACTION_GLYPH = 22;
@@ -99,18 +97,7 @@ export function ShareProfileSheet({ visible, onDismiss, person, status }: ShareP
   return (
     <BottomSheet visible={visible} onDismiss={onDismiss} handle>
       <View style={styles.root}>
-        {/* A sheet's bar: the title centred at the sheet-title size, the
-            round close button at its end, a spacer of the same width at its
-            start to keep the title centred. */}
-        <View style={styles.head}>
-          <View style={styles.headSide} />
-          <Text variant="sectionHeading" center style={styles.title}>
-            Share Profile
-          </Text>
-          <View style={styles.headSide}>
-            <IconButton name="close" size={CLOSE_SIZE} accessibilityLabel="Close" onPress={onDismiss} />
-          </View>
-        </View>
+        <SheetHeader title="Share Profile" />
 
         {/* What gets saved to Photos: the card alone, white, as it is drawn
             here. */}
@@ -170,18 +157,6 @@ const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
     gap: layout.block,
-  },
-  head: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headSide: {
-    width: layout.gutter * 2,
-    alignItems: 'flex-end',
-  },
-  title: {
-    flex: 1,
   },
   // The native list's card corner, so the card sits like one of the
   // system's own.

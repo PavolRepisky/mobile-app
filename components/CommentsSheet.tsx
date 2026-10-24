@@ -11,9 +11,10 @@ import {
   type TextInputInstance,
 } from 'react-native';
 
-import { colors, radii, spacing, tapSlop, type } from '@/constants/theme';
+import { colors, layout, radii, spacing, tapSlop, type } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
 import { BottomSheet, SheetScrollable, useKeyboardInset } from './BottomSheet';
+import { SheetHeader } from './SheetHeader';
 import { Text } from './Text';
 
 export interface CommentEntry {
@@ -123,11 +124,12 @@ export function CommentsSheet({
       // roomy distance short of it.
       bottomGap={0}
       size="large"
+      handle
       style={{ height: Math.round(height * HEIGHT_RATIO) }}
     >
-      <Text variant="sectionHeading" center style={styles.title}>
-        Comments
-      </Text>
+      {/* The same bar Share profile opens on: the title centred under the
+          grabber. */}
+      <SheetHeader title="Comments" style={styles.title} />
 
       <SheetScrollable>
         {(onScroll) => (
@@ -219,8 +221,9 @@ export function CommentsSheet({
 }
 
 const styles = StyleSheet.create({
+  // A block's gap under the bar, as on Share profile.
   title: {
-    marginBottom: spacing.lg,
+    marginBottom: layout.block,
   },
   // Takes the height the title and composer leave, so the thread scrolls
   // inside the fixed sheet rather than pushing the composer off the bottom
