@@ -22,6 +22,10 @@ export interface EmptyStateProps {
   title: string;
   /** Muted line under the title, telling the user how to fill the list. */
   hint?: string;
+  /** Sets the hint a size up from detail (`emptyHint`) — for an empty state
+   * that is the whole page, like a fresh profile, where the line is the
+   * page's one message rather than a note under a list. */
+  hintAsCopy?: boolean;
   /** One way out of the empty list, as a pill under the hint. */
   action?: EmptyStateAction;
   /** A quieter second way out beside the first — Show code beside Share
@@ -46,6 +50,7 @@ export function EmptyState({
   icon,
   title,
   hint,
+  hintAsCopy,
   action,
   secondaryAction,
   card,
@@ -61,7 +66,7 @@ export function EmptyState({
           {title}
         </Text>
         {hint ? (
-          <Text variant="meta" color={colors.inkMuted} center>
+          <Text variant={hintAsCopy ? 'emptyHint' : 'meta'} color={colors.inkMuted} center>
             {hint}
           </Text>
         ) : null}

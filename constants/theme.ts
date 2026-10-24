@@ -450,6 +450,17 @@ export const type = {
   metaBold: hierarchy.metaBold,
   badge: hierarchy.badge,
 
+  /** The one line of an empty state that is the whole page — a fresh
+   * profile's "Join an era…" — between `meta` and `copy`: a step up from
+   * detail so it reads as the page's message, a step short of the title
+   * over it. */
+  emptyHint: {
+    ...face.bodySemi,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: bodyTracking,
+  },
+
   headline: {
     ...face.bodyBold,
     fontSize: 34,

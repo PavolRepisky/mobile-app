@@ -342,6 +342,9 @@ export function ProfileView({
     },
   ];
 
+  // Your own page with no era now and none behind it: a fresh account.
+  const fresh = !challenge && groups.length === 0 && pastRuns.length === 0 && nextEra !== undefined;
+
   // The run card counts a day's photos rather than holding them.
   const runDay = useCallback((day: number): RunDay | null => {
     const record = dayOf(day);
@@ -501,7 +504,7 @@ export function ProfileView({
             chevron
           />
         </Pressable>
-      ) : nextEra ? (
+      ) : nextEra && !fresh ? (
         // Between eras the run's place asks you into the next one: the
         // same white card, with a fan of prints from eras you can join.
         <View style={[styles.run, styles.nextEra]}>
@@ -530,11 +533,24 @@ export function ProfileView({
         </View>
       ) : null}
 
-      <Text variant="sectionHeading" accessibilityRole="header" style={styles.daysTitle}>
-        {daysTitle}
-      </Text>
+      {fresh ? (
+        // Your own page before your first era: no card, no heading over an
+        // empty list — just what the page will hold, and the way to start.
+        <EmptyState
+          icon="camera-outline"
+          title="Your days will live here"
+          hint="Join an era and every day you finish lands on your profile for good."
+          hintAsCopy
+          action={{ label: 'Start new era', onPress: () => nextEra?.onFind() }}
+          style={styles.fresh}
+        />
+      ) : (
+        <Text variant="sectionHeading" accessibilityRole="header" style={styles.daysTitle}>
+          {daysTitle}
+        </Text>
+      )}
 
-      {groups.length === 0 ? (
+      {fresh ? null : groups.length === 0 ? (
         <EmptyState icon="camera-outline" title="No days yet" hint={emptyHint} />
       ) : (
         // Every era down the page, the one on now first, then each behind
@@ -757,6 +773,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.pill,
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceSunken,
+  },
+  // A big block's gap under the buttons, as the era card would have.
+  fresh: {
+    marginTop: layout.section,
   },
   // A big block's gap above the heading, a heading's gap under it.
   daysTitle: {
