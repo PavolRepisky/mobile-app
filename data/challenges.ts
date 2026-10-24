@@ -49,14 +49,14 @@ const task = (id: string, label: string, note?: string): ChallengeTask =>
 
 export const CHALLENGES: readonly Challenge[] = [
   {
-    id: 'her75',
+    id: 'selfera',
     name: 'Get Fit for Summer',
-    stamp: 'SelfEra',
+    stamp: 'Selfera',
     description:
       'A friendlier 75-day reset: clean eating, daily movement, and no alcohol — built for getting summer-ready without burning out.',
     category: 'Fitness',
     joined: 248,
-    photoSeeds: ['her75-a', 'her75-b', 'her75-c', 'her75-d'],
+    photoSeeds: ['selfera-a', 'selfera-b', 'selfera-c', 'selfera-d'],
     defaultDays: 75,
     tasks: [
       task('h1', 'Eat clean', 'Whole foods, nothing fried or processed.'),

@@ -1,183 +1,141 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
-  PixelRatio,
   Pressable,
   StyleSheet,
   View,
-  useColorScheme,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
-import { colors, colorsFor, radii, shadows, spacing } from '@/constants/theme';
+import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Placeholder } from './Placeholder';
-import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';
 
-/** One piece of the mosaic — a task's proof photo, or the gap where it goes. */
+/** One piece of the mosaic — a task's proof photo, or the slot where it goes. */
 export interface CollageCell {
   /** Stable across renders: the arrangement is derived from it. */
   key: string;
   photo?: ImageSourcePropType | null;
   seed?: string | null;
   /**
-   * When the task behind this tile was completed, e.g. "7:19am". Only stamped
-   * on a tile that actually carries a photo — a shot still waiting to be
-   * taken has no moment to report.
+   * When the task behind this tile was completed, as the app prints a shot's
+   * time — "7:19 AM" (`shotClock`). Only stamped on a tile that actually
+   * carries a photo — a shot still waiting to be taken has no moment to
+   * report.
    */
   time?: string;
-  /** The task's name, read out on a filled tile. An open tile isn't any one
-   * task's yet — its task is picked in the camera — so it isn't named. */
+  /** The task's name: under its time on a filled tile, and written in the
+   * middle of its open slot — each square is its own task's. */
   label?: string;
-  /** Written across the middle of an open tile, for a page whose open
-   * squares say which slot of the post they are. */
-  placeholder?: string;
-  /** The open tile to take next — its camera disc is drawn in ink. */
-  next?: boolean;
+  /** How the task's photo should be taken, under its name in an open slot. */
+  note?: string;
   onPress?: () => void;
 }
 
 export interface PhotoCollageProps {
   cells: readonly CollageCell[];
+  /** The block's width over its height — the post's own 3:4 on Tasks, so
+   * it fills in at the shape it goes up in. A square by default. */
+  ratio?: number;
   /** Corner radius of the block. Defaults to the signature `lg` cut. */
   radius?: number;
-  /**
-   * A thumbnail of the day rather than the day itself — the week row's small
-   * the same grid as the full post, seams and grey open squares alike, only
-   * without discs, names or times, which wouldn't fit at that size.
-   */
-  bare?: boolean;
-  /**
-   * Open squares as the plain grey alone, without their camera — for a page
-   * whose own shutter takes the photo. They still answer a tap.
-   */
-  plainOpen?: boolean;
   style?: StyleProp<ViewStyle>;
-  /** Drawn over the block — the day's cover once the post is complete. */
+  /** Drawn over the block — the day's cover once the post is complete, and
+   * the clock floating at its top. */
   children?: React.ReactNode;
 }
 
-/** The line between pieces of today's post. Thin and grey rather than a
- * white cut: the page no longer shows through the grid, so it reads as one
- * post, but two open tiles side by side still read as two squares to fill. */
+/** The line between pieces where a caller doesn't set its own — the
+ * calendar's day cells, small enough that two photos need parting. */
 const MOSAIC_SEAM = 1;
 
 /** Every piece of the mosaic takes an equal share of whatever row or column
  * it falls in, whatever shape that row or column ends up. */
 const MOSAIC_PIECE = { flex: 1 } as const;
 
-/**
- * The block's side, trimmed by at most a few pixels so every row and column
- * of the mosaic lands on whole device pixels. Left fractional, a 1pt seam
- * falls between two pixels and draws as a paler, blurred line, so the seams
- * of one grid look like different greys.
- */
-function snapSide(width: number, count: number, seam: number) {
-  const ratio = PixelRatio.get();
-  const seamPx = Math.round(seam * ratio);
-  const splits = mosaicSplits(count);
-  let px = Math.floor(width * ratio);
-  while (px > 0 && splits.some((n) => (px - (n - 1) * seamPx) % n !== 0)) px--;
-  return px / ratio;
-}
+/** The ink disc with a plus in an open slot — big enough to read as the
+ * thing to tap, small enough to leave the task's name the slot's words. */
+const PLUS_DISC = 34;
+/** The plus inside it. */
+const PLUS_GLYPH = 20;
+/** The dashed edge round an open slot — heavy enough to read as dashes
+ * rather than a dotted hairline at a phone's distance. */
+const SLOT_EDGE = 2;
 
-/** Every way the mosaic for `count` cuts the block's side — into halves,
- * thirds or both — so `snapSide` can find a side all of them divide. */
-function mosaicSplits(count: number) {
-  if (count <= 1) return [];
-  if (count <= 4) return [2];
-  if (count <= 6) return [2, 3];
-  if (count <= 9) return [3];
-  return [3, Math.ceil(count / 3)];
-}
-
-/** The camera disc on an open tile — a thumb's target. */
-const DISC = 44;
-/** The iPhone's camera symbol on an open tile, at about the disc's glyph
- * plus the weight the disc gave it. */
-const OPEN_SYMBOL = 26;
-
-/** One piece of the mosaic: the photo, or the open tile asking for it. */
-function MosaicTile({
-  cell,
-  bare,
-  plainOpen,
-}: {
-  cell: CollageCell;
-  bare?: boolean;
-  plainOpen?: boolean;
-}) {
+/** One piece of the mosaic: the photo, or the open slot asking for it. */
+function MosaicTile({ cell }: { cell: CollageCell }) {
   const filled = !!(cell.photo || cell.seed);
-  const scheme = colorsFor(useColorScheme());
 
-  const content = cell.photo ? (
-    <Image source={cell.photo} style={MOSAIC_PIECE} contentFit="cover" />
-  ) : filled ? (
-    <Placeholder seed={cell.seed ?? cell.key} radius={0} style={MOSAIC_PIECE} />
-  ) : (
-    <View style={[MOSAIC_PIECE, styles.empty]}>
-      {bare ? null : plainOpen ? (
-        cell.placeholder ? (
-          <Text variant="meta" color={colors.inkGhost} center>
-            {cell.placeholder}
-          </Text>
-        ) : null
-      ) : NATIVE_HEADER && cell.onPress ? (
-        // On the iPhone an open square is the system's own add-a-photo
-        // tile: the camera symbol in the system blue on the grey, the way
-        // a tappable placeholder reads there, rather than a drawn disc.
-        <SymbolView
-          name="camera.fill"
-          size={OPEN_SYMBOL}
-          tintColor={scheme.systemAccent}
-          weight="medium"
-        />
+  const content = filled ? (
+    <>
+      {cell.photo ? (
+        <Image source={cell.photo} style={absoluteFill} contentFit="cover" />
       ) : (
-        // The next square to take carries the ink disc; the rest wait on
-        // white, so the eye lands on one place to start.
-        <View style={[styles.disc, cell.next ? styles.discNext : styles.discWaiting]}>
-          <Ionicons
-            name="camera-outline"
-            size={20}
-            color={cell.next ? colors.inkInverse : colors.ink}
-          />
-        </View>
+        <Placeholder seed={cell.seed ?? cell.key} radius={0} style={absoluteFill} />
       )}
+      {/* What it proves and when it was shot, in the corner like a camera's
+          date stamp — the same as the post's own photos on Community. */}
+      {cell.label || cell.time ? (
+        <>
+          <LinearGradient colors={gradients.photoFoot} style={styles.foot} pointerEvents="none" />
+          <View style={styles.caption} pointerEvents="none">
+            {cell.label ? (
+              <Text variant="shotCaption" color={colors.onMedia} numberOfLines={1} style={styles.captionShadow}>
+                {cell.label}
+              </Text>
+            ) : null}
+            {cell.time ? (
+              <Text variant="shotCaption" color={colors.onMedia} style={styles.captionShadow}>
+                {cell.time}
+              </Text>
+            ) : null}
+          </View>
+        </>
+      ) : null}
+    </>
+  ) : (
+    // A dashed slot inset in the grey, the way a profile's empty photo slot
+    // reads as "a photo goes here" without a button of its own: the whole
+    // square is the button. Before Day 1, with nothing to press yet, it names
+    // its task without the plus.
+    <View style={[absoluteFill, styles.empty]}>
+      <View style={styles.slot}>
+        {cell.onPress ? (
+          <View style={styles.plus}>
+            <Ionicons name="add" size={PLUS_GLYPH} color={colors.inkInverse} />
+          </View>
+        ) : null}
+        {cell.label ? (
+          <Text variant="metaBold" center numberOfLines={2}>
+            {cell.label}
+          </Text>
+        ) : null}
+        {cell.note ? (
+          <Text variant="meta" color={colors.inkMuted} center numberOfLines={3}>
+            {cell.note}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 
-  // The moment the task was finished, stamped on its own corner the way a
-  // print's own timestamp would sit.
-  const timeBadge =
-    !bare && filled && cell.time ? (
-      <View style={styles.time} pointerEvents="none">
-        <Text variant="micro" color={colors.onMedia}>
-          {cell.time}
-        </Text>
-      </View>
-    ) : null;
-
-  if (!cell.onPress)
-    return (
-      <View style={MOSAIC_PIECE}>
-        {content}
-        {timeBadge}
-      </View>
-    );
+  if (!cell.onPress) return <View style={MOSAIC_PIECE}>{content}</View>;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={filled ? `${cell.label ?? 'Photo'}${cell.time ? `, ${cell.time}` : ''}` : 'Take a photo for this square'}
+      accessibilityLabel={
+        filled
+          ? `${cell.label ?? 'Photo'}${cell.time ? `, ${cell.time}` : ''}`
+          : `Take the ${cell.label ?? ''} photo`
+      }
       onPress={cell.onPress}
       style={({ pressed }) => [MOSAIC_PIECE, pressed && styles.pressed]}
     >
       {content}
-      {timeBadge}
     </Pressable>
   );
 }
@@ -280,44 +238,29 @@ export function MosaicArrangement<T extends { key: string }>({
 }
 
 /**
- * Today's post as a square of its photos, the Tasks tab's grid: the tasks
- * already shot show their photo and the time it was taken, the rest wait as
- * light tiles with a camera and the task's name. Measured rather than
- * proportioned, so the square follows the width it is actually given.
+ * Today's post at the shape it goes up in, the Tasks tab's grid: the tasks
+ * already shot show their photo with its task and time in the corner, the
+ * rest wait as dashed slots naming their task. Cut with no seam, as the
+ * cover is, so it reads as the one post it becomes rather than a grid of
+ * boxes; the dashed slots are what part two open squares side by side.
  */
 export function PhotoCollage({
   cells,
+  ratio = 1,
   radius = radii.lg,
-  bare,
-  plainOpen,
   style,
   children,
 }: PhotoCollageProps) {
-  const [width, setWidth] = useState(0);
-
   if (cells.length === 0) return null;
-  const side = snapSide(width, cells.length, MOSAIC_SEAM);
 
   return (
-    <View style={style} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      {width > 0 ? (
-        <View
-          style={[
-            styles.block,
-            styles.blockLined,
-            shadows.soft,
-            { width: side, height: side, borderRadius: radius, alignSelf: 'center' },
-          ]}
-        >
-          <MosaicArrangement
-            cells={cells}
-            renderCell={(cell) => (
-              <MosaicTile key={cell.key} cell={cell} bare={bare} plainOpen={plainOpen} />
-            )}
-          />
-          {children}
-        </View>
-      ) : null}
+    <View style={[styles.block, { aspectRatio: ratio, borderRadius: radius }, style]}>
+      <MosaicArrangement
+        cells={cells}
+        seam={0}
+        renderCell={(cell) => <MosaicTile key={cell.key} cell={cell} />}
+      />
+      {children}
     </View>
   );
 }
@@ -325,41 +268,52 @@ export function PhotoCollage({
 const styles = StyleSheet.create({
   block: {
     overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  // What the seams show on the full-size grid: the palette's light grey,
-  // dark enough to part two grey open tiles, soft enough not to cage photos.
-  blockLined: {
-    backgroundColor: colors.inkGhost,
+    backgroundColor: colors.surfaceSunken,
   },
   empty: {
     backgroundColor: colors.surfaceSunken,
+    padding: spacing.sm,
+  },
+  // Inset in its square so neighbouring slots keep a band of grey between
+  // their dashes, rounded a step under a card's corner.
+  slot: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: layout.stack,
+    padding: layout.stack,
+    borderWidth: SLOT_EDGE,
+    borderStyle: 'dashed',
+    borderColor: colors.slotEdge,
+    borderRadius: radii.md,
   },
-  disc: {
-    width: DISC,
-    height: DISC,
+  plus: {
+    width: PLUS_DISC,
+    height: PLUS_DISC,
     borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  discNext: {
     backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  discWaiting: {
-    backgroundColor: colors.surface,
-    ...shadows.soft,
-  },
-  time: {
+  // The fade under a photo's caption, a third of the piece tall.
+  foot: {
     position: 'absolute',
-    top: spacing.xs,
-    right: spacing.xs,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs / 2,
-    borderRadius: radii.pill,
-    backgroundColor: colors.scrimPhoto,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '35%',
+  },
+  // Pinned to the piece's bottom-left corner, the task over its time.
+  caption: {
+    ...absoluteFill,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    padding: layout.stack,
+    gap: layout.line / 2,
+  },
+  captionShadow: {
+    textShadowColor: colors.onMediaShadow,
+    textShadowRadius: spacing.sm,
   },
   pressed: {
     opacity: 0.85,

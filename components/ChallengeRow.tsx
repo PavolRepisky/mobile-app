@@ -36,6 +36,9 @@ export interface ChallengeRowProps {
    * the first alone — for Discover, where the rows sit under a cover drawn
    * the same way. */
   mosaic?: boolean;
+  /** What the row ends on in place of its date or standing — Tasks' row for
+   * the era you're on ends on the lives you have left and a chevron. */
+  trailing?: React.ReactNode;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
 }
@@ -54,6 +57,7 @@ export function ChallengeRow({
   note,
   showDate = true,
   mosaic,
+  trailing,
   onPress,
   style,
 }: ChallengeRowProps) {
@@ -69,7 +73,7 @@ export function ChallengeRow({
           label: 'Share',
           icon: 'share-outline',
           onPress: () => {
-            Share.share({ message: `Join me on ${card.title} on SelfEra.` }).catch(() => {});
+            Share.share({ message: `Join me on ${card.title} on Selfera.` }).catch(() => {});
           },
         },
       ]}
@@ -98,7 +102,9 @@ export function ChallengeRow({
             </Text>
           ) : null}
         </View>
-        {joinable ? (
+        {trailing ? (
+          trailing
+        ) : joinable ? (
           showDate ? <DateLeaf date={card.start!} /> : null
         ) : card.mine ? (
           <Text variant="metaBold">You're in</Text>

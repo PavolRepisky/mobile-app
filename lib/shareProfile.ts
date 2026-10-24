@@ -8,5 +8,5 @@ import { Share } from 'react-native';
  */
 export function shareProfile(person: { id: string; name: string; handle: string }) {
   const url = Linking.createURL(`friend/${person.id}`);
-  Share.share({ message: `${person.name} (${person.handle}) on SelfEra: ${url}` }).catch(() => {});
+  Share.share({ message: `${person.name} (${person.handle}) on Selfera: ${url}` }).catch(() => {});
 }

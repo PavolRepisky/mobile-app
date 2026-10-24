@@ -31,7 +31,7 @@ const FAKE = 'fake-demo-';
 export const isDemoId = (id: string) => id.startsWith(FAKE);
 
 /** The made-up run's era: the first preset. */
-export const demoChallenge = (): Challenge => challengeById('her75');
+export const demoChallenge = (): Challenge => challengeById('selfera');
 export const demoStartDate = () => addDays(startOfToday(), -(DEMO_DAY - 1));
 export const DEMO_MEMBERSHIP = `${FAKE}me`;
 
@@ -39,7 +39,7 @@ export const DEMO_MEMBERSHIP = `${FAKE}me`;
  * the meal under Eat clean, a book under Read. */
 const SHOTS: Record<string, ImageSourcePropType[]> = {
   h1: [
-    require('../assets/challenges/her75/grocery-cart.jpg'),
+    require('../assets/challenges/selfera/grocery-cart.jpg'),
     require('../assets/wall/eat/berry-watermelon-plate.jpg'),
     require('../assets/wall/eat/spinach-eggs-avocado-toast.jpg'),
     require('../assets/recipes/apricot-salad.jpg'),
@@ -47,7 +47,7 @@ const SHOTS: Record<string, ImageSourcePropType[]> = {
     require('../assets/recipes/fig-oatmeal.jpg'),
     require('../assets/challenges/hard/grocery-basket.jpg'),
     require('../assets/tasks/patio-sandwiches-iced-coffee.jpg'),
-    require('../assets/challenges/her75/sunset-table.jpg'),
+    require('../assets/challenges/selfera/sunset-table.jpg'),
   ],
   h2: [
     require('../assets/challenges/medium/infused-water.jpg'),
@@ -60,10 +60,10 @@ const SHOTS: Record<string, ImageSourcePropType[]> = {
     require('../assets/feed/posts/mountain-hike.jpg'),
     require('../assets/challenges/soft/sunset-walk.jpg'),
     require('../assets/challenges/medium/outdoor-run.jpg'),
-    require('../assets/challenges/her75/terrace-treadmill.jpg'),
+    require('../assets/challenges/selfera/terrace-treadmill.jpg'),
   ],
   h4: [
-    require('../assets/challenges/her75/gym-floor-selfie.jpg'),
+    require('../assets/challenges/selfera/gym-floor-selfie.jpg'),
     require('../assets/challenges/hard/mirror-selfie.jpg'),
     require('../assets/challenges/hard/dumbbells-overhead.jpg'),
     require('../assets/wall/workouts/treadmill-incline-walk.jpg'),
@@ -160,7 +160,7 @@ interface Cast {
 }
 
 const FRIENDS: Cast[] = [
-  { name: 'Mia', handle: 'mia.moves', done: 5, bio: 'Pilates girl, coffee first', avatar: require('../assets/challenges/her75/gym-floor-selfie.jpg') },
+  { name: 'Mia', handle: 'mia.moves', done: 5, bio: 'Pilates girl, coffee first', avatar: require('../assets/challenges/selfera/gym-floor-selfie.jpg') },
   { name: 'Sofia', handle: 'sofiaruns', done: 5, bio: 'Half marathon in May' },
   { name: 'Lena', handle: 'lena.reads', done: 5, bio: 'Books > people' },
   { name: 'Ava', handle: 'avaeats', done: 3, bio: 'Cooking my way through summer' },

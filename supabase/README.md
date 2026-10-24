@@ -51,8 +51,8 @@ npm run db:types     # after a schema change → lib/database.types.ts
 ```
 
 Studio (table browser) runs at http://127.0.0.1:54323. Demo sign-ins:
-`julia@her75.test` (and lily, zoe, mia, sofia, elena, nora, camila) with
-password `her75-demo`.
+`julia@selfera.test` (and lily, zoe, mia, sofia, elena, nora, camila) with
+password `selfera-demo`.
 
 A schema change is a **new** migration (`npx supabase migration new <name>`),
 never an edit to one already pushed to a hosted project.
@@ -67,5 +67,5 @@ npx supabase functions deploy delete-account
 ```
 
 Then in the dashboard: Authentication → Providers → enable Apple and Google
-and turn email sign-up off. Under URL Configuration, add `her75://**` and
+and turn email sign-up off. Under URL Configuration, add `selfera://**` and
 `exp://**` to the redirect URLs.

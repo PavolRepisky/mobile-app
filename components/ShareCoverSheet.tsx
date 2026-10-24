@@ -98,7 +98,7 @@ export function ShareCoverSheet({ visible, onDismiss, cells, day, totalDays, kic
       // Only to add the image — the app never reads the library from here.
       const access = await MediaLibrary.requestPermissionsAsync(true);
       if (!access.granted) {
-        setProblem('Allow SelfEra to add photos in Settings to save your day.');
+        setProblem('Allow Selfera to add photos in Settings to save your day.');
         return;
       }
       await MediaLibrary.Asset.create(await capture());

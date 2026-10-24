@@ -37,7 +37,7 @@ const SHADE_OPACITY = 0.55;
  * room over its letters, and the name reads as the day's own when it
  * sits close. */
 const ERA_DROP = 4;
-/** "selfera" at the foot, held back so it signs the cover without being
+/** "Selfera" at the foot, held back so it signs the cover without being
  * read before the day. */
 const MARK_OPACITY = 0.6;
 
@@ -83,8 +83,9 @@ export interface DayCoverProps {
   /** The cover's height over its width — 1 for a square tile, 4/3 for an
    * upright one. */
   ratio?: number;
-  /** Each photo's time in its middle — on unless a shared cover leaves it
-   * off. */
+  /** Each photo's time in its middle — only on a cover made to share, and
+   * only when its switch is on; the app's own covers carry the photos and
+   * the day alone. */
   times?: boolean;
   /** Each photo's task under its time — only on a cover made to share,
    * which is seen big enough to read it. */
@@ -94,10 +95,10 @@ export interface DayCoverProps {
 
 /**
  * A finished day as its cover — the face a day wears in a grid, before it's
- * opened: its photos edge to edge with no seam; in the middle of each photo
- * the time it was shot, very small; across the
- * middle of the cover the day in script over the era's name, on a soft
- * shadow; and "selfera", faint, at its foot.
+ * opened: its photos edge to edge with no seam; across the middle of the
+ * cover the day in script over the era's name, on a soft shadow; and
+ * "Selfera", faint, at its foot. A cover made to share can also carry each
+ * photo's time, and its task, very small in its middle.
  *
  * Laid out at a fixed card width and scaled whole into whatever box it's
  * given, so a tile in any grid is a true miniature of the same cover.
@@ -108,7 +109,7 @@ export function DayCover({
   totalDays,
   kicker,
   ratio = 1,
-  times = true,
+  times = false,
   tasks = false,
   style,
 }: DayCoverProps) {
@@ -212,7 +213,7 @@ export function DayCover({
           {small ? null : (
             <View style={styles.foot}>
               <Text variant="coverMark" color={colors.onMedia} style={styles.mark}>
-                selfera
+                Selfera
               </Text>
             </View>
           )}

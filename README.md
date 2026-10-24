@@ -1,4 +1,4 @@
-# SelfEra
+# Selfera
 
 A social habit-challenge app for iOS and Android, built with Expo (SDK 58),
 React Native 0.88, TypeScript and Expo Router, on a Supabase backend.
@@ -9,9 +9,8 @@ photos become one post, a mosaic with "Day N" stamped across it, which your
 friends and everyone else in the era see on Community. Each era allows a few
 missed days (**lives**, 3 by default); miss more and the run is over.
 
-The app was called *Her 75* until 2026-10-08. User-facing copy says "era";
-code, routes, the database, the slug and the URL scheme (`her75`) still say
-"challenge" / "her75".
+User-facing copy says "era"; code, routes and the database still say
+"challenge". The slug and URL scheme are `selfera`.
 
 ## Running
 
@@ -110,4 +109,4 @@ string, so the same "photo" looks the same on every render.
 ## Known gaps
 
 Open work is tracked as issues on the
-[SelfEra project board](https://github.com/users/PavolRepisky/projects/6).
+[Selfera project board](https://github.com/users/PavolRepisky/projects/6).

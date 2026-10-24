@@ -2,19 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, StyleSheet, TextInput, View, useColorScheme } from 'react-native';
+import {
+  Alert,
+  Linking,
+  Platform,
+  StyleSheet,
+  TextInput,
+  View,
+  useColorScheme,
+} from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 import { AlertDialog } from '@/components/AlertDialog';
 import { Avatar } from '@/components/Avatar';
 import { CameraSheet } from '@/components/CameraSheet';
+import { ChallengeRow } from '@/components/ChallengeRow';
 import { CheckCircle } from '@/components/CheckCircle';
 import { EmptyState } from '@/components/EmptyState';
-import { DayCover, shotClock } from '@/components/DayCover';
+import { DayCover, POST_RATIO, shotClock } from '@/components/DayCover';
 import { PhotoCollage, type CollageCell } from '@/components/PhotoCollage';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { Pill } from '@/components/Pill';
-import { PopoverMenu } from '@/components/PopoverMenu';
 import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ShareCoverSheet } from '@/components/ShareCoverSheet';
@@ -25,49 +33,50 @@ import {
   useApp,
   useDayProgress,
 } from '@/hooks/useAppState';
-import { timeLeftToday, timeStamp } from '@/lib/format';
+import { useChallengeCards } from '@/hooks/useChallengeCards';
+import { clockLeftToday, timeStamp } from '@/lib/format';
 import { isPosted, POST_COUNTDOWN_MS } from '@/lib/round';
 
 /**
- * Today's post being filled in: the day and its era over the post's grid,
- * a square for every photo it needs, a line with the lives and the clock,
- * then a rounded row for every task still to shoot. A row raises the camera
- * card over the page on its task; tapping an open square does the same for
- * that square. The task
- * a photo proves is picked in the camera, any open one a swipe away, since the tasks keep no order and nothing is "next". A
- * square that's in shows its shot, and tapping it opens the photo full size,
- * with a retake and a remove under it. Once the last one is in, the post wears its cover, the way it goes up on
- * Community, and counts down to going up: until then a shot can still be
- * retaken or removed — removing one stops the countdown — and a caption
- * written under it. Once it's up, the post and its caption are fixed.
+ * Today's post being filled in, at the shape it goes up in: the post edge to
+ * edge under the bar, a piece for every task — a photo once it's in, a
+ * dashed slot naming the task and how to shoot it until then — with the
+ * day's clock floating at its top. Under it, the era you're on as one row:
+ * its photo, the day and how many are in, the lives left, opening the era.
  *
- * On the iPhone the parts round the grid are the system's: a shot's choices
- * are its action sheet, and the camera is the
- * phone's own Camera screen. Its task is picked first, from an action sheet
- * of the open ones, since that screen can't name one; with one left it goes
- * straight to the camera. When each task nudges you
- * is set in Settings, off My Profile, so the page is only the doing.
+ * Tapping a slot opens the camera on that slot's task, and the shot goes
+ * straight into it; there is nothing else to press. Tasks have no order and
+ * nothing is "next". A piece that's in opens full size, with a retake and a
+ * remove under it. Once the last one is in, the post wears its cover, the
+ * way it goes up on Community, and the clock becomes the post's own
+ * countdown: until then a shot can still be retaken or removed — removing
+ * one stops the countdown — and a caption written under it. Once it's up,
+ * the post and its caption are fixed.
+ *
+ * On the iPhone the camera is the phone's own Camera screen, risen as a
+ * sheet, and a shot's choices are its action sheet. When each task nudges
+ * you is set in Settings, off My Profile, so the page is only the doing.
  *
  * Joined but before Day 1 — where joining almost always leaves you, since it
- * shuts once a round starts — the run waits with every square to come, and a
- * line says when the first photos go up. Not in an era at all, the page
- * points to Discover instead.
+ * shuts once a round starts — the post waits with every slot named and
+ * nothing to press, and the clock says when Day 1 is. Not in an era at all,
+ * the page points to Discover instead.
  */
 
 /**
- * The iPhone's own Camera screen in place of the app's camera card, tried
- * and set aside for the card with the system's parts in it. Kept so the two
- * can be compared again: on, an open square picks its task from an action
- * sheet and opens the system camera.
+ * The iPhone's own Camera screen in place of the app's camera card. It's the
+ * real camera — tap to focus, drag the sun to set the exposure, its lenses
+ * and flash — which the card can't be: expo-camera has no exposure control,
+ * and a camera library that does needs a build Expo Go can't run. Off, the
+ * card comes back, as it does on Android and the web either way.
  */
-const SYSTEM_CAMERA = false;
+const SYSTEM_CAMERA = true;
 
-/** The hearts before the lives count, at about its cap height. */
+/** The hearts in the era row, at about the cap height of the words under
+ * them. */
 const HEART = 14;
-/** A task row's height — a thumb's target with room round its circle. */
-const PILL_HEIGHT = 60;
-/** The check circle leading a task's row. */
-const PILL_CHECK = 28;
+/** The era row's chevron, a step under its name's size. */
+const CHEVRON = 18;
 /** How long typing has to pause before a caption is saved — about a breath,
  * so a sentence goes up as one write rather than one per letter. */
 const CAPTION_SAVE_MS = 800;
@@ -114,31 +123,27 @@ export default function TasksScreen() {
   } = useApp();
   const router = useRouter();
   const waiting = daysUntilStart > 0;
+  // The era you're on as the browse screens list it — its photos and its
+  // page — for the row under the post.
+  const eraCard = useChallengeCards().find((card) => card.mine);
 
-  // In the post's own order, square by square.
+  // In the post's own order, piece by piece.
   const rows = useDayProgress(currentDay);
   const done = rows.filter((row) => row.done).length;
   const allDone = rows.length > 0 && done === rows.length;
-  // The tasks still to shoot, in the era's own list order — the camera's
-  // choices for an open square.
-  const openRows = tasks.flatMap((task) =>
-    rows.filter((row) => row.task.id === task.id && !row.done),
-  );
-
 
   const [now, setNow] = useState(() => new Date());
-  // The day closes at midnight, so past eleven the clock is the whole story.
-  const lastHour = now.getHours() >= 23;
   // A finished day counts down to going up; once it has, it's fixed.
   const goesUpAt = postsAt[currentDay];
   const countingDown = allDone && goesUpAt !== undefined && !isPosted(goesUpAt, now.getTime());
   const isUp = allDone && !countingDown;
-  // The day's clock only needs the minute; the post's countdown ticks by
-  // the second.
+  // The clock over the post ticks by the second; once the post is up, or
+  // before Day 1, nothing on the page needs more than the minute.
+  const ticking = !isUp && !waiting;
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), countingDown ? 1000 : 60_000);
+    const id = setInterval(() => setNow(new Date()), ticking ? 1000 : 60_000);
     return () => clearInterval(id);
-  }, [countingDown]);
+  }, [ticking]);
 
   // The caption as it's being typed, saved once typing pauses — and at
   // once if the field is left — so the last words in before the countdown
@@ -164,9 +169,8 @@ export default function TasksScreen() {
     return () => clearTimeout(id);
   }, [draft, countingDown, savedCaption, currentDay, setCaption]);
 
-  /** The square the camera card is filling and the task picked for it —
-   * or, on a retake, the one task already in it; null while the card is
-   * down. */
+  /** The piece the camera card is filling and its task — or, on a retake,
+   * the task already in it; null while the card is down. */
   const [shooting, setShooting] = useState<{
     slot: number;
     taskId: string;
@@ -174,10 +178,7 @@ export default function TasksScreen() {
   } | null>(null);
   useEffect(() => setShooting(null), [currentDay]);
 
-  /** On the iPhone, the open square waiting on its task to be picked
-   * before the system camera opens. */
-  const [choosingFor, setChoosingFor] = useState<number | null>(null);
-  /** The shot opened full size from its square or its row. */
+  /** The shot opened full size from its piece. */
   const [viewing, setViewing] = useState<{ taskId: string; slot: number } | null>(null);
   /** The finished day open to share as a story. */
   const [sharing, setSharing] = useState(false);
@@ -215,11 +216,12 @@ export default function TasksScreen() {
   }
 
   /**
-   * The phone's own Camera screen, for one task's square: its shutter,
-   * flash, lenses and zoom, then Retake or Use Photo. The whole shot is
-   * kept, and its square crops it to fill like every photo in the post.
+   * The phone's own Camera screen: its shutter, flash, lenses, zoom and
+   * exposure, then Retake or Use Photo. The whole shot is kept, and its
+   * piece crops it to fill like every photo in the post. It goes straight
+   * into the piece it was taken for.
    */
-  const shootWithSystemCamera = async (taskId: string, slot: number) => {
+  const shootWithSystemCamera = async (shot: { taskId: string; slot: number }) => {
     const access = await ImagePicker.requestCameraPermissionsAsync();
     if (!access.granted) {
       Alert.alert(
@@ -235,47 +237,49 @@ export default function TasksScreen() {
       return;
     }
     try {
-      const shot = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
-      const uri = shot.canceled ? undefined : shot.assets[0]?.uri;
-      if (uri) completeTaskWithPhoto(taskId, { uri }, undefined, slot);
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        // Rises as a sheet over Tasks, the page still showing at its top
+        // edge, the way the app's own camera card did, rather than taking
+        // the whole screen.
+        presentationStyle: ImagePicker.UIImagePickerPresentationStyle.PAGE_SHEET,
+      });
+      const uri = result.canceled ? undefined : result.assets[0]?.uri;
+      if (uri) completeTaskWithPhoto(shot.taskId, { uri }, undefined, shot.slot);
     } catch {
-      // The camera couldn't open (the simulator has none); the square stays open.
+      // The camera couldn't open (the simulator has none); the slot stays open.
     }
   };
 
-  /** An open square tapped: the system camera on the iPhone, its task picked
-   * first unless only one is left; the app's camera card elsewhere. */
-  const openSquare = (slot: number, suggested: string) => {
-    if (!NATIVE_HEADER || !SYSTEM_CAMERA) {
-      setShooting({ slot, taskId: suggested });
-    } else if (openRows.length === 1) {
-      void shootWithSystemCamera(openRows[0].task.id, slot);
-    } else {
-      setChoosingFor(slot);
-    }
+  /** An open slot tapped: the camera on its task — the system camera on the
+   * iPhone, the app's camera card elsewhere. A retake is the same, on the
+   * task already in the piece. */
+  const shoot = (shot: { taskId: string; slot: number }, retake = false) => {
+    if (NATIVE_HEADER && SYSTEM_CAMERA) void shootWithSystemCamera(shot);
+    else setShooting({ ...shot, retake });
   };
 
-  // Square by square in the post's own order: a shot in its square, an open
-  // one asking for its photo. Before Day 1 the squares are only shown.
+  // Piece by piece in the post's own order: a shot in its piece with its
+  // task and time, an open one naming its task. Before Day 1 nothing answers
+  // a tap yet.
   const cells: CollageCell[] = rows.map((row, slot) => ({
     key: row.task.id,
-    label: row.done ? row.task.label : undefined,
-    placeholder: `Slot ${slot + 1}`,
+    label: row.task.label,
+    note: row.done ? undefined : row.task.note,
     photo: row.done ? row.photo : null,
     seed: row.done ? row.photoSeed : null,
-    time: row.done ? row.time : undefined,
-    // Mid-upload a square waits for its save to land, so an undo can never
+    time: row.done && row.time ? shotClock(row.time) : undefined,
+    // Mid-upload a piece waits for its save to land, so an undo can never
     // reach the server ahead of the photo it would remove.
     onPress:
       waiting || row.pending
         ? undefined
         : row.done
           ? () => setViewing({ taskId: row.task.id, slot })
-          : () => openSquare(slot, row.task.id),
+          : () => shoot({ taskId: row.task.id, slot }),
   }));
-  const retakeTask = shooting?.retake
-    ? tasks.find((task) => task.id === shooting.taskId)
-    : undefined;
+  const shootingTask = shooting ? tasks.find((task) => task.id === shooting.taskId) : undefined;
   const viewedRow = viewing ? rows[viewing.slot] : undefined;
   const removingTask = removing ? tasks.find((task) => task.id === removing.taskId) : undefined;
 
@@ -285,16 +289,25 @@ export default function TasksScreen() {
     if (Platform.OS === 'ios') afterViewer.current = next;
     else next();
   };
-  const retake = (shot: { taskId: string; slot: number }) => {
-    if (NATIVE_HEADER && SYSTEM_CAMERA) void shootWithSystemCamera(shot.taskId, shot.slot);
-    else setShooting({ slot: shot.slot, taskId: shot.taskId, retake: true });
-  };
   const remove = () => {
     if (removing) undoTask(removing.taskId, currentDay);
     setRemoving(null);
   };
 
   const lastDay = currentDay >= totalDays;
+
+  // The clock over the post: what's left of today while there's shooting to
+  // do, the post's own minute and a half once every photo is in, and before
+  // Day 1 how long until it. Gone once the post is up.
+  const badge = waiting
+    ? daysUntilStart === 1
+      ? 'Day 1 is tomorrow'
+      : `Day 1 in ${daysUntilStart} days`
+    : countingDown
+      ? `${clock(goesUpAt - now.getTime())} to post`
+      : isUp
+        ? null
+        : `${clockLeftToday(now)} left`;
 
   return (
     <>
@@ -308,25 +321,78 @@ export default function TasksScreen() {
           />
         }
       >
-        {/* The post itself, a square for every photo; once the last one is
-            in, the day's cover laid over it — the same face the post wears on
-            Community — letting taps through to the photos under it. The open squares are only grey — the task rows under
-            them are what's pressed — though a tap on one still opens the
-            camera for it. Before Day 1 it is only the shape of what's to come.
-            It runs edge to edge, square-cornered, the way a post fills the
-            screen on Community. */}
-        <PhotoCollage cells={cells} bare={waiting} plainOpen radius={0} style={styles.post}>
+        {/* The post itself, edge to edge and square-cornered the way a post
+            fills the screen on Community, at the 3:4 it goes up in. Once the
+            last photo is in, the day's cover lies over it — the same face the
+            post wears on Community. The clock floats at its top. */}
+        <PhotoCollage cells={cells} ratio={POST_RATIO} radius={0} style={styles.post}>
           {allDone ? (
-            <DayCover cells={cells} day={currentDay} totalDays={totalDays} kicker={challenge.name} />
+            <DayCover
+              cells={cells}
+              day={currentDay}
+              totalDays={totalDays}
+              kicker={challenge.name}
+              ratio={1 / POST_RATIO}
+            />
+          ) : null}
+          {badge ? (
+            <View style={styles.badge} pointerEvents="none">
+              <Pill
+                tone="floating"
+                overMedia
+                icon="time-outline"
+                label={badge}
+                tabular={!waiting}
+              />
+            </View>
           ) : null}
         </PhotoCollage>
 
-        {/* Every photo in: the tasks are done with, so their rows give way
-            to composing the post — the caption with your face at its head,
-            then one window with the time left in a ring draining in the
-            accent and a slide to post it now, last, where the thumb is.
-            Once it's up: a tick, the caption as the post shows it, and the
-            ways on. */}
+        {/* The era you're on as one row, in the app's own list-row shape:
+            its photo, where the day stands, and at its end the lives left —
+            opening the era's page. */}
+        {eraCard ? (
+          <ChallengeRow
+            card={eraCard}
+            detail={
+              waiting
+                ? eraCard.statusLabel
+                : `Day ${currentDay} of ${totalDays} · ${done} of ${rows.length} in`
+            }
+            trailing={
+              <View style={styles.eraEnd}>
+                <View
+                  style={styles.lives}
+                  accessible
+                  accessibilityLabel={`${livesLeft} of ${livesTotal} lives left`}
+                >
+                  <View style={styles.hearts}>
+                    {Array.from({ length: livesTotal }, (_, i) => (
+                      <Ionicons
+                        key={i}
+                        name="heart"
+                        size={HEART}
+                        color={i < livesLeft ? colors.ink : colors.inkGhost}
+                      />
+                    ))}
+                  </View>
+                  <Text variant="badge" color={colors.inkMuted}>
+                    {livesLeft === 1 ? '1 life left' : `${livesLeft} lives left`}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={CHEVRON} color={colors.inkMuted} />
+              </View>
+            }
+            onPress={() => router.push({ pathname: '/feed/[id]', params: { id: eraCard.id } })}
+            style={styles.era}
+          />
+        ) : null}
+
+        {/* Every photo in: composing the post — the caption with your face
+            at its head, then one window with the time left in a ring draining
+            in the accent and a slide to post it now, last, where the thumb
+            is. Once it's up: a tick, the caption as the post shows it, and
+            the ways on. */}
         {allDone ? (
           countingDown ? (
             <View style={styles.finish}>
@@ -421,82 +487,20 @@ export default function TasksScreen() {
               </View>
             </View>
           )
-        ) : (
-          <>
-        {/* The one line over the list: how far the day has got, then the
-            time left in ink — the last hour says so, in ink, not the red,
-            which is kept for what can't be undone — and at the far end the
-            lives the era still allows. */}
-        <View style={styles.listHeading}>
-          <Text variant="meta" color={colors.inkMuted} numberOfLines={1} style={styles.listHeadingCount}>
-            {waiting ? 'Opens on Day 1' : `${done} of ${rows.length}`}
-            {' · '}
-            <Text variant="metaBold">
-              {waiting
-                ? daysUntilStart === 1
-                  ? 'tomorrow'
-                  : `in ${daysUntilStart} days`
-                : lastHour
-                    ? `${timeLeftToday(now)} · last hour`
-                    : `${timeLeftToday(now)} left`}
-            </Text>
-          </Text>
-          <View
-            style={styles.hearts}
-            accessible
-            accessibilityLabel={`${livesLeft} of ${livesTotal} lives left`}
-          >
-            {Array.from({ length: livesTotal }, (_, i) => (
-              <Ionicons
-                key={i}
-                name="heart"
-                size={HEART}
-                color={i < livesLeft ? colors.ink : colors.inkGhost}
-              />
-            ))}
-          </View>
-        </View>
-        {/* Every task of the day, a rounded row each: the circle at the
-            front fills with a tick once its photo is in, the name says what
-            goes in and the note how. An open row opens the camera on its
-            task; a done one opens its photo, to retake or remove. */}
-        <View style={styles.tasks}>
-          {rows.map((row, slot) => (
-            <TaskPill
-              key={row.task.id}
-              label={row.task.label}
-              note={row.task.note}
-              done={row.done}
-              onPress={
-                waiting || row.pending
-                  ? undefined
-                  : row.done
-                    ? () => setViewing({ taskId: row.task.id, slot })
-                    : () => openSquare(slot, row.task.id)
-              }
-            />
-          ))}
-        </View>
-          </>
-        )}
+        ) : null}
       </ScreenScroll>
 
+      {/* The app's camera card, off the iPhone: on the tapped slot's task
+          alone, since each piece of the post is its own task's. */}
       <CameraSheet
         visible={shooting !== null}
         tasks={
-          retakeTask
-            ? [{ id: retakeTask.id, label: retakeTask.label, note: retakeTask.note }]
-            : openRows.map((row) => ({
-                id: row.task.id,
-                label: row.task.label,
-                note: row.task.note,
-              }))
+          shootingTask
+            ? [{ id: shootingTask.id, label: shootingTask.label, note: shootingTask.note }]
+            : []
         }
         taskId={shooting?.taskId ?? null}
-        // Any open task can go in the tapped square, not only the one it
-        // suggested — swiping through them is how the owner lays out their
-        // own post. A retake is the one task already there.
-        swipeTasks={!retakeTask}
+        swipeTasks={false}
         onChangeTask={(taskId) => setShooting((open) => (open ? { ...open, taskId } : open))}
         onCapture={(taskId, photo) => {
           completeTaskWithPhoto(taskId, photo, undefined, shooting?.slot);
@@ -516,28 +520,9 @@ export default function TasksScreen() {
         actions={[{ label: 'OK', primary: true, onPress: clearSyncError }]}
       />
 
-      {/* Which task an open square is for, as the system's action sheet,
-          the era's open tasks in their own order; the camera opens once it
-          has gone. */}
-      {NATIVE_HEADER && SYSTEM_CAMERA ? (
-        <PopoverMenu
-          visible={choosingFor !== null}
-          onDismiss={() => setChoosingFor(null)}
-          top={0}
-          items={openRows.map((row) => ({
-            label: row.task.label,
-            onPress: () => {
-              const slot = choosingFor;
-              setChoosingFor(null);
-              if (slot !== null) void shootWithSystemCamera(row.task.id, slot);
-            },
-          }))}
-        />
-      ) : null}
-
-      {/* A shot, opened full size from its square or its row, with what
-          can be done to it along the bottom: shoot it again, or take it out
-          of the post. Once the post is up, it's only looked at. */}
+      {/* A shot, opened full size from its piece, with what can be done to
+          it along the bottom: shoot it again, or take it out of the post.
+          Once the post is up, it's only looked at. */}
       <PhotoViewer
         photos={viewedRow ? [viewedRow.photo ?? viewedRow.photoSeed ?? viewedRow.task.id] : []}
         index={viewing && viewedRow ? 0 : null}
@@ -554,7 +539,7 @@ export default function TasksScreen() {
             icon: 'sync-outline',
             onPress: () => {
               const shot = viewing;
-              if (shot) leaveViewer(() => retake(shot));
+              if (shot) leaveViewer(() => shoot(shot, true));
             },
           },
           {
@@ -595,11 +580,6 @@ export default function TasksScreen() {
 }
 
 /**
- * One task of the day: the check circle at the front — an empty ring while
- * it's open, the ink tick once its photo is in — then its name, and under
- * it the note in grey.
- */
-/**
  * The time left before the post goes up, as a ring draining anticlockwise
  * from twelve o'clock in the accent — the colour of progress — over the
  * page's white, with the minutes and seconds in its middle.
@@ -639,71 +619,51 @@ function CountdownRing({ left, label }: { left: number; label: string }) {
   );
 }
 
-function TaskPill({
-  label,
-  note,
-  done,
-  onPress,
-}: {
-  label: string;
-  note?: string;
-  done: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={done ? `${label}, done` : `Take the ${label} photo`}
-      disabled={!onPress}
-      onPress={onPress}
-      style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
-    >
-      <CheckCircle size={PILL_CHECK} empty={!done} />
-      <View style={styles.pillText}>
-        <Text variant="copyBold" numberOfLines={1}>
-          {label}
-        </Text>
-        {note ? (
-          <Text variant="meta" color={colors.inkMuted} numberOfLines={2}>
-            {note}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   // Out past the page's gutter on both sides, so the post is the screen's
   // full width.
   post: {
     marginHorizontal: -layout.gutter,
   },
+  // The clock floats at the post's top, centred, a block in from its edge —
+  // BeReal's clock over the camera.
+  badge: {
+    position: 'absolute',
+    top: layout.block,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  // The era's row on the grey of a native list's card, so it reads as a way
+  // into the era rather than loose text under the post.
+  era: {
+    marginTop: layout.block,
+    paddingHorizontal: layout.inline,
+    paddingVertical: layout.stack,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceSunken,
+  },
+  eraEnd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.stack,
+  },
+  // The hearts over the words, so three hearts never have to be counted.
+  lives: {
+    alignItems: 'flex-end',
+    gap: layout.line,
+  },
   hearts: {
     flexDirection: 'row',
     gap: layout.line / 2,
   },
-  listHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: layout.inline,
-    marginTop: layout.section,
-    marginBottom: layout.heading,
-  },
-  listHeadingCount: {
-    flexShrink: 1,
-  },
-  tasks: {
-    gap: layout.stack,
-  },
-  // What stands in for the task rows once every photo is in.
+  // What stands under the era row once every photo is in.
   finish: {
     marginTop: layout.section,
     gap: layout.block,
   },
-  // Where the post stands, as one row on the task rows' grey: the ring or
-  // the tick, then a title over a line of detail.
+  // Where the post stands, as one row on the era row's grey: the ring or the
+  // tick, then a title over a line of detail.
   status: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -717,7 +677,7 @@ const styles = StyleSheet.create({
     gap: layout.line,
   },
   // The countdown's window: the ring and its words over the slide, on the
-  // task rows' grey, the slide's track set into it in the page's white.
+  // same grey, the slide's track set into it in the page's white.
   window: {
     gap: layout.block,
     padding: layout.block,
@@ -780,23 +740,5 @@ const styles = StyleSheet.create({
     height: RING,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  // The rounded row off the lock-screen board, drawn solid on the page
-  // rather than in glass, which is only for what floats over a photo.
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.inline,
-    minHeight: PILL_HEIGHT,
-    paddingHorizontal: layout.block,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceSunken,
-  },
-  pillText: {
-    flex: 1,
-    paddingVertical: layout.stack,
-  },
-  pressed: {
-    opacity: 0.6,
   },
 });

@@ -6,7 +6,7 @@
 -- go in through later migrations or the dashboard.
 
 insert into public.challenges (slug, creator_id, name, stamp, description, category, default_days, lives) values
-  ('her75', null, 'Get Fit for Summer', 'Her 75 Challenge',
+  ('selfera', null, 'Get Fit for Summer', 'Selfera',
    'A friendlier 75-day reset: clean eating, daily movement, and no alcohol — built for getting summer-ready without burning out.',
    'Fitness', 75, 3),
   ('hard', null, 'No Excuses Challenge', '75 Hard',
@@ -37,11 +37,11 @@ insert into public.challenges (slug, creator_id, name, stamp, description, categ
 insert into public.challenge_tasks (challenge_id, key, position, label, note)
 select c.id, t.key, t.position, t.label, t.note
 from (values
-  ('her75', 'h1', 0, 'Eat clean', 'Whole foods, nothing fried or processed.'),
-  ('her75', 'h2', 1, 'Drink only water', 'No soda, juice or alcohol — tea and coffee are fine.'),
-  ('her75', 'h3', 2, 'Walk 10k steps', 'Photo your step count before bed.'),
-  ('her75', 'h4', 3, 'Work out 45 min', 'Gym, class, run or ride — any sweat counts.'),
-  ('her75', 'h5', 4, 'Read 10 pages', 'A real book, not a screen.'),
+  ('selfera', 'h1', 0, 'Eat clean', 'Whole foods, nothing fried or processed.'),
+  ('selfera', 'h2', 1, 'Drink only water', 'No soda, juice or alcohol — tea and coffee are fine.'),
+  ('selfera', 'h3', 2, 'Walk 10k steps', 'Photo your step count before bed.'),
+  ('selfera', 'h4', 3, 'Work out 45 min', 'Gym, class, run or ride — any sweat counts.'),
+  ('selfera', 'h5', 4, 'Read 10 pages', 'A real book, not a screen.'),
   ('hard', 'd1', 0, 'Strict diet', 'Pick one and stick to it. No cheat meals.'),
   ('hard', 'd2', 1, 'Drink water', 'A full gallon, spread across the day.'),
   ('hard', 'd3', 2, 'Two workouts, one outside', '45 minutes each, whatever the weather.'),
@@ -76,7 +76,7 @@ join public.challenges c on c.slug = t.slug;
 insert into public.rounds (challenge_id, start_date, days)
 select c.id, r.start_date, c.default_days
 from (values
-  ('her75', date '2026-06-01'),
+  ('selfera', date '2026-06-01'),
   ('hard', date '2026-09-03'),
   ('medium', date '2026-10-01'),
   ('soft', date '2026-10-12'),

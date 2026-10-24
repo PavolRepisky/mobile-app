@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "SelfEra",
-    "slug": "her75",
-    "scheme": "her75",
+    "name": "Selfera",
+    "slug": "selfera",
+    "scheme": "selfera",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.her75.app",
+      "bundleIdentifier": "com.selfera.app",
       "usesAppleSignIn": true
     },
     "android": {
-      "package": "com.her75.app",
+      "package": "com.selfera.app",
       "adaptiveIcon": {
         "backgroundColor": "#F8F5F0",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -41,15 +41,15 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "SelfEra uses the camera so you can photograph today's tasks as you finish them.",
+          "cameraPermission": "Selfera uses the camera so you can photograph today's tasks as you finish them.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "SelfEra shows your photo library so you can pick a photo for today's tasks.",
-          "savePhotosPermission": "SelfEra saves the photos you take for your tasks back to your library.",
+          "photosPermission": "Selfera shows your photo library so you can pick a photo for today's tasks.",
+          "savePhotosPermission": "Selfera saves the photos you take for your tasks back to your library.",
           "isAccessMediaLocationEnabled": false
         }
       ],

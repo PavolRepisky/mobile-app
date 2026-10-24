@@ -14,7 +14,7 @@ import { localDay, roundState } from '@/lib/round';
  * A challenge can run many rounds; each listing shows one, the one that
  * matters to you: the round you're in, else the next one you could still
  * join, else the one under way, else the last one finished. Its route key is
- * the challenge's own — a preset's short name ("her75"), or a built one's id.
+ * the challenge's own — a preset's short name ("selfera"), or a built one's id.
  */
 
 type Row<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];

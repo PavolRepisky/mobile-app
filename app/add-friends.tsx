@@ -125,7 +125,7 @@ export default function AddFriendsScreen() {
   // messaging app actually lives.
   const invite = () =>
     Share.share({
-      message: `Join me in ${challenge.name} on SelfEra: ${joinUrl}`,
+      message: `Join me in ${challenge.name} on Selfera: ${joinUrl}`,
     }).catch(() => {});
 
   // A search is its own list, not a filter on the suggestions: it looks

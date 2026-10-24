@@ -76,7 +76,7 @@ begin
     '[^a-zA-Z0-9_]', '', 'g'));
   base := left(base, 20);
   if char_length(base) < 3 then
-    base := 'her75';
+    base := 'selfera';
   end if;
 
   loop

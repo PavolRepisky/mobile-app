@@ -1,6 +1,6 @@
 # The app
 
-**SelfEra** is a social habit-challenge app for iOS and Android (also runs on
+**Selfera** is a social habit-challenge app for iOS and Android (also runs on
 the web for layout checks). You join an **era**, a fixed run of days (75 by
 default) with a short list of daily tasks. A task counts as done only once
 you **photograph** it, and only **today**. Each day's photos make one post: a
@@ -8,10 +8,10 @@ mosaic with "Day N" stamped across it. Friends and others in the same era see
 that post on Community. Each era has a set number of **lives** (allowed missed
 days, 3 by default). Missing more than that ends your run.
 
-- **Naming**: the app was called "Her 75" and was renamed SelfEra on
-  2026-10-08. Text users see says *era*. Code, routes, DB tables and the slug
-  or scheme (`her75`, `com.her75.app`) still say *challenge* and *her75*.
-  Keep it that way. Never put "75" in an app name.
+- **Naming**: the app is Selfera, with one capital, and the slug, scheme and
+  bundle id are `selfera` / `com.selfera.app`. Text users see says *era*;
+  code, routes and DB tables still say *challenge*. Keep it that way. Never
+  put "75" in an app name.
 - **Stack**: Expo SDK 58, RN 0.88, React 19.3, TypeScript, expo-router with
   typed routes, Supabase. It must run in **Expo Go**, so don't add packages
   that need a dev build. Use Node 25.2.1 via nvm, because the default 20.17
@@ -29,7 +29,7 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
 
 | route | what it is |
 | --- | --- |
-| `(tabs)/tasks` | Today's post being filled in: the era and day over a grid with one square per task, the lives and the clock, then a row for each task still to shoot. Tapping one raises `CameraSheet`. Tapping a filled square opens `PhotoViewer` (retake or remove). Tasks have no order. The last photo starts a 90-second countdown (`POST_COUNTDOWN_MS` in `lib/round.ts`) to the post going up on Community. The task rows then give way to the time left, a caption card and a `SlideToConfirm` that posts at once; until it's up shots can be retaken or removed (removing stops it), after that the post and caption are fixed and the page says it's posted. Shows an empty state when you're in no era. |
+| `(tabs)/tasks` | Today's post being filled in, edge to edge at the 3:4 it goes up in (`POST_RATIO`), no seams: a photo per done task (task and time in its corner), a dashed slot naming each open one. The day's clock to midnight floats at the post's top as a `Pill` (`overMedia`). Under it, the era as one `ChallengeRow` (day, how many are in, lives left, chevron) that opens the era. Tapping a slot opens the camera on that slot's task — the iPhone's own Camera screen as a sheet, `CameraSheet` elsewhere — and the shot goes straight into it; there's no other shutter and no dragging. Tapping a filled piece opens `PhotoViewer` (retake or remove). Tasks have no order. The last photo starts a 90-second countdown (`POST_COUNTDOWN_MS` in `lib/round.ts`): the clock badge counts it, and under the era row come a caption card and a `SlideToConfirm` that posts at once; until it's up shots can be retaken or removed (removing stops it), after that the post and caption are fixed and the page says it's posted. Shows an empty state when you're in no era. |
 | `(tabs)/community` | Two segments. **Friends**: a "Still going today" row of task rings (opens `story`) and the "Finished today" posts. **Members**: posts from everyone who finished in your era, each with Add friend. Both stay behind the **lock** until you have photographed one task today. Corner button opens `add-friends`. |
 | `(tabs)/discover` | A carousel of featured eras you can still join (ranked by friends in them, then by members), then Trending rows. Search and See all open `challenges/search`. |
 | `(tabs)/profile` | `ProfileView` for you: avatar inside the split task ring (no ring outside an era), name, handle and bio, the stats (days posted, eras finished, friends), the era's run card (`ChallengeRun`, `quiet`, opening the era), and My Eras: one group of days per era — the current era's, then every past era's (finished, lost or left), which stay for good. No calendar and no missed days on a profile. Share (a link to your profile) and Settings are in the header. |
@@ -80,8 +80,10 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
   only, currently off) gives your own profile three made-up past eras (finished,
   out of lives, left) after any real ones. `DEMO_ERA` in `lib/demoEra.ts` (`__DEV__`
   only, currently **on**) puts you on Day 12 of a made-up "Get Fit for Summer"
-  run with six friends and eight members, all held on the phone. `SYSTEM_CAMERA = false` in Tasks keeps the
-  app's own camera card instead of iOS's camera.
+  run with six friends and eight members, all held on the phone. `SYSTEM_CAMERA = true` in Tasks opens the
+  iPhone's own Camera screen (tap to focus, drag to set the exposure, which
+  expo-camera can't do) instead of the app's camera card; Android and the web
+  keep the card.
 
 ## Backend (`supabase/`)
 
@@ -288,9 +290,9 @@ padding:
   serif back for headlines.
 - **Allura** — the "Day N/75" written across the middle of a `DayCover`
   (`coverDay`). **Inclusive Sans** — the rest of that cover: the era name
-  over the day (`coverEra`), each photo's time in its middle
-  (`coverCaption`; no task names on the cover), and the faint "selfera" at
-  its foot (`coverMark`). Inclusive Sans also sets the task over the time
+  over the day (`coverEra`), the faint "Selfera" at its foot (`coverMark`),
+  and — only on the saved story, where its switches turn them on — each
+  photo's time and task in its middle (`coverCaption`). Inclusive Sans also sets the task over the time
   in the bottom-left of each of a post's own photos (both `shotCaption`,
   on the `photoFoot` fade), so they match the cover. Times read
   "7:57 AM" everywhere (`shotClock` in `DayCover`). Neither face
@@ -321,8 +323,8 @@ day's cover as a 9:16 story in a centred popup (a switch each for the photos' ti
 to Photos — opened from Tasks' "Save your day" once the post is up.
 
 **Content** · `ChallengeRun` the run you're on as one square a day, on ink or (`quiet`) a white card on a profile · `CheckCircle` a done task's tick · `TaskRing` a face in the split
-task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` the day's photo mosaic · `DayCover`
-a day's cover — its photos with each one's time and task in its middle, "Day N/75" and the era name on a soft shadow across the centre, "selfera" faint at the foot — on a post's first slide and as its tile in the profile's grid ·
+task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` today's post filling in, its open pieces dashed slots · `DayCover`
+a day's cover — its photos (each one's time and task in its middle only on the saved story, by its switches), "Day N/75" and the era name on a soft shadow across the centre, "Selfera" faint at the foot — on a post's first slide and as its tile in the profile's grid ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
 `FriendCard` · `PostHeader` who posted a day — face (in its task ring on My

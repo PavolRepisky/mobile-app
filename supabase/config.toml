@@ -163,7 +163,7 @@ site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Where sign-in hands back to the app: the installed app's own scheme, and
 # Expo Go's exp:// links while developing.
-additional_redirect_urls = ["https://127.0.0.1:3000", "her75://**", "exp://**"]
+additional_redirect_urls = ["https://127.0.0.1:3000", "selfera://**", "exp://**"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

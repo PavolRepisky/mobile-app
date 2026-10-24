@@ -66,6 +66,11 @@ export interface PillProps {
    */
   labelColor?: ThemeColor;
   /**
+   * Figures that hold their width, for a label that ticks — Tasks' clock
+   * over the post — so it doesn't shuffle sideways every second.
+   */
+  tabular?: boolean;
+  /**
    * A range's far end, so the pill reads "label → to" — a finished round's
    * "Finished · Jun 1 → Aug 14". The arrow is an icon because Quicksand has
    * no glyph for it.
@@ -217,6 +222,7 @@ function DrawnPill({
   bold,
   labelVariant,
   labelColor,
+  tabular,
   to,
   visible = true,
   overMedia,
@@ -251,7 +257,7 @@ function DrawnPill({
           style={styles.icon}
         />
       ) : null}
-      <Text variant={variant} color={ink}>
+      <Text variant={variant} color={ink} style={tabular ? styles.tabular : undefined}>
         {label}
       </Text>
       {to ? (
@@ -371,6 +377,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  tabular: {
+    fontVariant: ['tabular-nums'],
   },
 });
 

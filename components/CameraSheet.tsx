@@ -291,7 +291,7 @@ export function CameraSheet({
                 Camera access
               </Text>
               <Text variant="copy" color={colors.onMediaSoft} center>
-                SelfEra needs the camera to photograph today’s tasks.
+                Selfera needs the camera to photograph today’s tasks.
               </Text>
               <PrimaryButton
                 label={permission?.canAskAgain === false ? 'Open Settings' : 'Allow camera'}

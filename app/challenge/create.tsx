@@ -366,7 +366,7 @@ export default function CreateChallengeScreen() {
   const shareInvite = () => {
     const link = createdKey ? ` ${Linking.createURL(`feed/${createdKey}`)}` : '';
     Share.share({
-      message: `Join me on "${name.trim()}" — it starts ${longDate(startDate)} on SelfEra.${link}`,
+      message: `Join me on "${name.trim()}" — it starts ${longDate(startDate)} on Selfera.${link}`,
     }).catch(() => {});
   };
 

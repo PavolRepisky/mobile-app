@@ -14,7 +14,7 @@ create type public.challenge_category as enum ('Fitness', 'Health', 'Mindset', '
 create table public.challenges (
   id uuid primary key default gen_random_uuid(),
   -- Set on the presets only: the key the app files their bundled photos
-  -- under ("her75", "hard", …). A challenge without one was built by a user.
+  -- under ("selfera", "hard", …). A challenge without one was built by a user.
   slug text unique,
   -- Who started it — shown as "Created by". Kept when that account is
   -- deleted would mean a dangling face, so it falls back to nobody instead,

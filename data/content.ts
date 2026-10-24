@@ -157,11 +157,11 @@ export interface DiscoverSection {
  * server.
  */
 export const PRESET_PHOTOS: Readonly<Record<string, readonly PhotoSource[]>> = {
-  'her75': [
-    require('../assets/challenges/her75/gym-floor-selfie.jpg'),
-    require('../assets/challenges/her75/grocery-cart.jpg'),
-    require('../assets/challenges/her75/terrace-treadmill.jpg'),
-    require('../assets/challenges/her75/sunset-table.jpg'),
+  'selfera': [
+    require('../assets/challenges/selfera/gym-floor-selfie.jpg'),
+    require('../assets/challenges/selfera/grocery-cart.jpg'),
+    require('../assets/challenges/selfera/terrace-treadmill.jpg'),
+    require('../assets/challenges/selfera/sunset-table.jpg'),
   ],
   hard: [
     require('../assets/challenges/hard/mirror-selfie.jpg'),
@@ -219,7 +219,7 @@ export const PRESET_PHOTOS: Readonly<Record<string, readonly PhotoSource[]>> = {
  * presets. Four sets, four tiles, and the row reads as every challenge at
  * once.
  */
-const CUSTOM_PHOTOS: readonly PhotoSource[] = ['her75', 'hard', 'medium', 'soft'].map(
+const CUSTOM_PHOTOS: readonly PhotoSource[] = ['selfera', 'hard', 'medium', 'soft'].map(
   (key) => PRESET_PHOTOS[key][0],
 );
 

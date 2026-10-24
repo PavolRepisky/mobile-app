@@ -481,7 +481,7 @@ function Hero({
   const person = section.creator;
   const creator = createdByMe
     ? { name: 'your', handle: profile.handle, avatar: profile.avatar ?? profile.avatarSeed }
-    : person ?? { name: 'SelfEra', handle: 'SelfEra', avatar: APP_FACE };
+    : person ?? { name: 'Selfera', handle: 'Selfera', avatar: APP_FACE };
   const cornerTop = Math.max(headerLineTop, topPadding(insets.top));
 
   const half = width / 2;
@@ -715,7 +715,7 @@ function Finished({
   const shareRecap = () => {
     if (!myGroup) return;
     Share.share({
-      message: `I did ${challenge.name} on SelfEra — a ${myGroup.days}-day streak, #${myRank + 1} of ${members}.`,
+      message: `I did ${challenge.name} on Selfera — a ${myGroup.days}-day streak, #${myRank + 1} of ${members}.`,
     }).catch(() => {});
   };
 

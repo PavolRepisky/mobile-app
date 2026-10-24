@@ -23,7 +23,7 @@ export type Provider = 'apple' | 'google';
 /** Opens the provider's sign-in and resolves once the session is stored —
  * or with `false` if the person backed out. */
 export async function signInWith(provider: Provider): Promise<boolean> {
-  // `exp://…` inside Expo Go, `her75://…` in the app itself; both are on the
+  // `exp://…` inside Expo Go, `selfera://…` in the app itself; both are on the
   // project's list of allowed redirects.
   const redirectTo = Linking.createURL('auth/callback');
 
@@ -53,7 +53,7 @@ export async function signInWith(provider: Provider): Promise<boolean> {
  * Sign in with Apple through the iPhone's own Apple ID sheet, the way the
  * App Store asks for it. Resolves `false` if the person backs out.
  *
- * Inside Expo Go the sheet would vouch for Expo Go rather than SelfEra, and
+ * Inside Expo Go the sheet would vouch for Expo Go rather than Selfera, and
  * Supabase would turn that token away, so there it goes through the browser
  * sign-in instead — same account either way.
  */

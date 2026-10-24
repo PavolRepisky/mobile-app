@@ -12,7 +12,7 @@ const SERVICE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW
 const opts = { auth: { persistSession: false } };
 const client = async (email) => {
   const c = createClient(URL, KEY, opts);
-  const { data, error } = await c.auth.signInWithPassword({ email, password: 'her75-demo' });
+  const { data, error } = await c.auth.signInWithPassword({ email, password: 'selfera-demo' });
   if (error) throw error;
   return { c, id: data.user.id };
 };
@@ -22,8 +22,8 @@ let failures = 0;
 const check = (ok, label) => { console.log(ok ? 'PASS' : 'FAIL', label); if (!ok) failures++; };
 const membership = async (c, id) => (await c.from('membership_progress').select('*').eq('user_id', id).eq('status', 'active').single()).data;
 
-const mia = await client('mia@her75.test');
-const julia = await client('julia@her75.test');
+const mia = await client('mia@selfera.test');
+const julia = await client('julia@selfera.test');
 const mm = await membership(mia.c, mia.id);
 const jm = await membership(julia.c, julia.id);
 const tasks = (await julia.c.from('challenge_tasks').select('id').eq('challenge_id', jm.challenge_id).order('position')).data.map((t) => t.id);

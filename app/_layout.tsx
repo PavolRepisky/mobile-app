@@ -1,5 +1,5 @@
 import { Allura_400Regular } from '@expo-google-fonts/allura';
-import { InclusiveSans_400Regular } from '@expo-google-fonts/inclusive-sans';
+import { InclusiveSans_400Regular, InclusiveSans_600SemiBold } from '@expo-google-fonts/inclusive-sans';
 import {
   Quicksand_500Medium,
   Quicksand_600SemiBold,
@@ -34,6 +34,7 @@ export default function RootLayout() {
     Quicksand_700Bold,
     Allura_400Regular,
     InclusiveSans_400Regular,
+    InclusiveSans_600SemiBold,
   });
 
   // The light/dark choice from Settings, put back before anything is drawn so

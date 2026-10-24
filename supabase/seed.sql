@@ -5,8 +5,8 @@
 -- It rebuilds the app's own demo world from `data/` on top of the preset
 -- challenges their migration loads: Julia on Day 5 of Get Fit for Summer with her
 -- friends and the members around her. Every demo account signs in with its
--- email and the password `her75-demo`:
---   julia@her75.test   (the account the app's seed shows as "you")
+-- email and the password `selfera-demo`:
+--   julia@selfera.test   (the account the app's seed shows as "you")
 --   lily@ zoe@  (friends)   mia@ sofia@ elena@ nora@ camila@  (members)
 --
 -- Task photo paths point where the app would put them, but no files are
@@ -35,14 +35,14 @@ insert into auth.users (
 )
 select
   '00000000-0000-0000-0000-000000000000', p.id, 'authenticated', 'authenticated',
-  p.key || '@her75.test', extensions.crypt('her75-demo', extensions.gen_salt('bf')), now(),
+  p.key || '@selfera.test', extensions.crypt('selfera-demo', extensions.gen_salt('bf')), now(),
   '{"provider": "email", "providers": ["email"]}', jsonb_build_object('full_name', p.name), now(), now(),
   '', '', '', ''
 from demo_people p;
 
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
 select gen_random_uuid(), p.id, p.id::text, 'email',
-       jsonb_build_object('sub', p.id::text, 'email', p.key || '@her75.test', 'email_verified', true),
+       jsonb_build_object('sub', p.id::text, 'email', p.key || '@selfera.test', 'email_verified', true),
        now(), now(), now()
 from demo_people p;
 
@@ -57,7 +57,7 @@ from demo_people p where pr.id = p.id;
 
 update public.challenges c set creator_id = p.id
 from (values
-  ('her75', 'mia'),
+  ('selfera', 'mia'),
   ('hard', 'elena'),
   ('medium', 'sofia'),
   ('soft', 'camila'),
@@ -74,7 +74,7 @@ where c.slug = x.slug;
 -- today so Julia is always on Day 5. And an older 75 Hard she finished.
 insert into public.rounds (challenge_id, start_date, days)
 select c.id, r.start_date, c.default_days
-from (values ('her75', current_date - 4), ('hard', date '2025-01-10')) as r(slug, start_date)
+from (values ('selfera', current_date - 4), ('hard', date '2025-01-10')) as r(slug, start_date)
 join public.challenges c on c.slug = r.slug;
 
 create temporary table demo_rounds as
@@ -89,15 +89,15 @@ select r.id, c.slug, r.start_date from public.rounds r join public.challenges c 
 insert into public.memberships (round_id, user_id, status, signed_at, ended_at)
 select r.id, p.id, m.status::public.membership_status, r.start_date - 1, m.ended
 from (values
-  ('julia', 'her75', current_date - 4, 'active', null::timestamptz),
-  ('mia', 'her75', current_date - 4, 'active', null),
-  ('sofia', 'her75', current_date - 4, 'active', null),
-  ('elena', 'her75', current_date - 4, 'active', null),
-  ('nora', 'her75', current_date - 4, 'active', null),
-  ('camila', 'her75', current_date - 4, 'active', null),
+  ('julia', 'selfera', current_date - 4, 'active', null::timestamptz),
+  ('mia', 'selfera', current_date - 4, 'active', null),
+  ('sofia', 'selfera', current_date - 4, 'active', null),
+  ('elena', 'selfera', current_date - 4, 'active', null),
+  ('nora', 'selfera', current_date - 4, 'active', null),
+  ('camila', 'selfera', current_date - 4, 'active', null),
   ('lily', 'hard', date '2026-09-03', 'active', null),
   ('zoe', 'hard', date '2026-09-03', 'active', null),
-  ('julia', 'her75', date '2026-06-01', 'finished', timestamptz '2026-08-15 00:00+00'),
+  ('julia', 'selfera', date '2026-06-01', 'finished', timestamptz '2026-08-15 00:00+00'),
   ('julia', 'hard', date '2025-01-10', 'finished', timestamptz '2025-03-26 00:00+00')
 ) as m(person, slug, start_date, status, ended)
 join demo_people p on p.key = m.person

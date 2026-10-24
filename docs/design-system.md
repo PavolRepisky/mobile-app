@@ -189,14 +189,15 @@ quiet — `inkMuted` for a day already gone, `inkGhost` for one still to come �
 and today wears a black border.
 
 **`PhotoCollage`** — `cells` (`key` · `photo`/`seed` · `time` · `label` ·
-`next` · `onPress`) · `radius` · `bare` · `children`. Today's post as a square
-of its photos behind a white 3px seam: one fills it, two split it, three put
-one over a pair, four take a corner each, and past four the rest fall in rows
-of two under the first. A shot tile carries its time; an open one is a
-`surfaceSunken` tile with a 44pt camera disc and the task's name — the `next`
-one's disc in ink, the rest on white. `bare` drops discs, names and times for
-a thumbnail. `children` draw over the block (the `DayCover` once complete).
-`MosaicArrangement` is the same cut, generic over what a cell renders.
+`note` · `onPress`) · `ratio` · `radius` · `children`. Today's post at the
+shape it goes up in (Tasks passes `POST_RATIO`, 3:4), cut by
+`MosaicArrangement` with no seam, as the cover is. A shot piece carries its
+task over its time in the bottom-left (`shotCaption` on the `photoFoot`
+fade); an open one is a `surfaceSunken` piece with a dashed `slotEdge` slot
+inset in it — a 34pt ink disc with a plus when it can be tapped, the task's
+name and its note. `children` draw over the block (the `DayCover` once
+complete, the clock badge at its top). `MosaicArrangement` is the same cut,
+generic over what a cell renders.
 
 **`CameraSheet`** — `visible` · `tasks` · `taskId` · `chips` · `onChangeTask`
 · `onCapture` · `onClose`. The camera, opened only from a tap: the page dims

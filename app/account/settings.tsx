@@ -245,7 +245,7 @@ export default function SettingsScreen() {
         <SettingsGroup
           title="Account"
           // The version as the last group's small print, centred under it.
-          footer={`SelfEra · version ${APP_VERSION}`}
+          footer={`Selfera · version ${APP_VERSION}`}
           footerCentered
         >
           <SettingsRow

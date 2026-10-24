@@ -38,7 +38,7 @@ export interface PlaceholderProps {
 }
 
 export function Placeholder({
-  seed = 'her75',
+  seed = 'selfera',
   radius = radii.md,
   style,
   children,

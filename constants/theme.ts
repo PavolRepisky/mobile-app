@@ -1,7 +1,7 @@
 import { DynamicColorIOS, Platform, type NativeColorValue } from 'react-native';
 
 /**
- * SelfEra — design tokens.
+ * Selfera — design tokens.
  *
  * Colours were sampled directly out of the reference screenshots
  * (reference/screens/**) rather than estimated. Nothing in components/ or
@@ -68,6 +68,7 @@ const DARK = {
   disabledInk: '#636366',
   scrimLight: 'rgba(0,0,0,0.5)',
   frostBackdrop: 'rgba(0,0,0,0.3)',
+  slotEdge: '#636366',
 } as const;
 
 const LIGHT = {
@@ -211,6 +212,10 @@ const LIGHT = {
    * lettering and a bright one doesn't outshine the day. The same in light
    * and dark, since it sits on photos. */
   coverDim: 'rgba(0,0,0,0.15)',
+  /** The dashed edge of an open slot in Tasks' post — between `inkGhost`,
+   * which vanishes on the slot's grey, and `inkMuted`, which reads as a
+   * drawn box rather than a place a photo goes. */
+  slotEdge: '#B5B4B1',
 } as const;
 
 type Role = keyof typeof LIGHT;
@@ -325,11 +330,14 @@ const QUICKSAND = {
   coverDay: 'Allura_400Regular',
   /**
    * Inclusive Sans — the rest of a day's cover: the era's name under the
-   * day, each photo's time, and "selfera" at its foot — and the task and
+   * day, each photo's time, and "Selfera" at its foot — and the task and
    * time on a post's own photos, to match. A plain,
    * open sans that stays legible at the cover's very small sizes.
    */
   cover: 'InclusiveSans_400Regular',
+  /** Inclusive Sans SemiBold — only "Selfera" at a cover's foot, so the mark
+   * holds its own over the photos while its opacity keeps it quiet. */
+  coverBold: 'InclusiveSans_600SemiBold',
 } as const;
 
 export const fonts = QUICKSAND;
@@ -552,13 +560,13 @@ export const type = {
     lineHeight: 10,
     letterSpacing: 0,
   },
-  /** "selfera" at the cover's foot — a maker's mark, a step under the
-   * captions. */
+  /** "Selfera" at the cover's foot — a maker's mark a step over the era
+   * name, held back by its opacity rather than by being smaller. */
   coverMark: {
-    fontFamily: fonts.cover,
-    fontSize: 4.5,
-    lineHeight: 6,
-    letterSpacing: 0.2,
+    fontFamily: fonts.coverBold,
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 0,
   },
   /** The task a post's own photo proves and the time it was shot, at its
    * foot like a camera's date stamp — in the cover's face, so a slide and

@@ -95,10 +95,10 @@ export default function SignIn() {
 
   return (
     <ScreenScroll automaticallyAdjustKeyboardInsets contentContainerStyle={styles.page}>
-      <PhotoStrip photos={challengeStrip('her75')} />
+      <PhotoStrip photos={challengeStrip('selfera')} />
 
       <View style={styles.intro}>
-        <Text variant="headline">SelfEra</Text>
+        <Text variant="headline">Selfera</Text>
         <Text variant="copy" color={colors.inkMuted}>
           Photograph your day, keep your streak, and do it with friends.
         </Text>
