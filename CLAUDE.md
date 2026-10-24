@@ -16,7 +16,8 @@ days, 3 by default). Missing more than that ends your run.
   typed routes, Supabase. It must run in **Expo Go**, so don't add packages
   that need a dev build. Use Node 25.2.1 via nvm, because the default 20.17
   is too old.
-- `README.md` describes setup, structure and the known gaps.
+- `README.md` describes setup and structure. Known gaps and open work are
+  issues on the GitHub project board (github.com/users/PavolRepisky/projects/6).
   `supabase/README.md` covers the backend.
 
 ## Screens (`app/`)
