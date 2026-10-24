@@ -4,12 +4,12 @@ import {
   Pressable,
   StyleSheet,
   View,
-  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import { colors, radii, spacing } from '@/constants/theme';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Text } from './Text';
 
 /**

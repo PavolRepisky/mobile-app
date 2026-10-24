@@ -8,12 +8,12 @@ import {
   StyleSheet,
   View,
   useColorScheme,
-  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import { colors, colorsFor, radii, shadows, spacing } from '@/constants/theme';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Placeholder } from './Placeholder';
 import { NATIVE_HEADER } from './Screen';
 import { Text } from './Text';

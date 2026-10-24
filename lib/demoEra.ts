@@ -1,4 +1,4 @@
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 
 import type { CommentEntry } from '@/components/CommentsSheet';
 import type { Progress } from '@/hooks/useAppState';

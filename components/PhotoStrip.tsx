@@ -3,12 +3,12 @@ import {
   Pressable,
   StyleSheet,
   View,
-  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import { colors, radii, shadows } from '@/constants/theme';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Placeholder } from './Placeholder';
 
 /**

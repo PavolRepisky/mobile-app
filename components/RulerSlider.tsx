@@ -9,6 +9,7 @@ import {
   type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
+  type ScrollViewInstance,
 } from 'react-native';
 
 import { absoluteFill, colors, spacing } from '@/constants/theme';
@@ -53,7 +54,7 @@ export function RulerSlider({
   style,
 }: RulerSliderProps) {
   const [width, setWidth] = useState(0);
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   const settled = useRef(index);
   const lastTick = useRef(0);
   const positioned = useRef(false);

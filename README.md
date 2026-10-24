@@ -1,7 +1,7 @@
 # SelfEra
 
-A social habit-challenge app for iOS and Android, built with Expo (SDK 57),
-React Native 0.86, TypeScript and Expo Router, on a Supabase backend.
+A social habit-challenge app for iOS and Android, built with Expo (SDK 58),
+React Native 0.88, TypeScript and Expo Router, on a Supabase backend.
 
 You join an **era** — a run of days (75 by default) with a few daily tasks.
 A task is only done by **photographing** it, and only **today**; the day's

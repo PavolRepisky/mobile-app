@@ -8,6 +8,7 @@ import {
   View,
   useWindowDimensions,
   type TextInput as RNTextInput,
+  type TextInputInstance,
 } from 'react-native';
 
 import { colors, radii, spacing, tapSlop, type } from '@/constants/theme';
@@ -90,7 +91,7 @@ export function CommentsSheet({
 }: CommentsSheetProps) {
   const { height } = useWindowDimensions();
   const keyboardUp = useKeyboardInset() > 0;
-  const input = useRef<RNTextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
 
   useEffect(() => {

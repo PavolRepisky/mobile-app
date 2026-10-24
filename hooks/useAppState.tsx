@@ -36,8 +36,9 @@ import {
   demoProgress,
   demoStartDate,
 } from '@/lib/demoEra';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 import { DAY_MS, isPosted, localDay, POST_COUNTDOWN_MS, startOfToday } from '@/lib/round';
-import { AppState as AppLifecycle, type ImageSourcePropType } from 'react-native';
+import { AppState as AppLifecycle } from 'react-native';
 
 /**
  * All app state lives here. Signed in, it is loaded from the backend — the

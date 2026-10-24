@@ -10,6 +10,7 @@ import {
   type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
+  type ScrollViewInstance,
 } from 'react-native';
 
 import { colors, radii } from '@/constants/theme';
@@ -88,7 +89,7 @@ function DrawnWheel<T extends string | number>({
   format = String,
   style,
 }: WheelPickerProps<T>) {
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   const [active, setActive] = useState(() => Math.max(values.indexOf(value), 0));
   const activeRef = useRef(active);
   activeRef.current = active;

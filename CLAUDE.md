@@ -12,7 +12,7 @@ days, 3 by default). Missing more than that ends your run.
   2026-10-08. Text users see says *era*. Code, routes, DB tables and the slug
   or scheme (`her75`, `com.her75.app`) still say *challenge* and *her75*.
   Keep it that way. Never put "75" in an app name.
-- **Stack**: Expo SDK 57, RN 0.86, React 19, TypeScript, expo-router with
+- **Stack**: Expo SDK 58, RN 0.88, React 19.3, TypeScript, expo-router with
   typed routes, Supabase. It must run in **Expo Go**, so don't add packages
   that need a dev build. Use Node 25.2.1 via nvm, because the default 20.17
   is too old.

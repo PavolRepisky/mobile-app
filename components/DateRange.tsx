@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View, type StyleProp, type ViewStyle, type ColorValue } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, type as typeScale } from '@/constants/theme';
+import { colors, type as typeScale, type ThemeColor } from '@/constants/theme';
 import { Text, type TextProps } from './Text';
 
 export interface DateRangeProps {
   from: string;
   to: string;
   variant?: TextProps['variant'];
-  color?: ColorValue;
+  color?: ThemeColor;
   style?: StyleProp<ViewStyle>;
 }
 

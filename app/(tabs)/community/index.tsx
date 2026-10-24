@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 
 import { Avatar, type AvatarSource } from '@/components/Avatar';
 import { PrimaryButton } from '@/components/Buttons';
@@ -147,7 +147,7 @@ export default function CommunityScreen() {
   // inside its tab's list, plus that list's offset in the scroll — and the
   // param is cleared once used, so coming back to the tab doesn't jump again.
   const { post: focusPost } = useLocalSearchParams<{ post?: string }>();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const listY = useRef<Partial<Record<Tab, number>>>({});
   const postY = useRef<Record<string, number>>({});
   const focusTab: Tab | null = focusPost

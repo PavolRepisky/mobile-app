@@ -1,6 +1,6 @@
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle, type ScrollViewInstance, type HostInstance } from 'react-native';
 
 import { layout } from '@/constants/theme';
 import { NATIVE_HEADER, ScreenScroll } from './Screen';
@@ -41,12 +41,12 @@ export function DaysFeed<K extends DayKey = number>({
   onRefresh,
   style,
 }: DaysFeedProps<K>) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   // On the iPhone the page runs up under the see-through bar, so a day
   // scrolled to the top would sit behind it; it stops this much short.
   const headerHeight = useHeaderHeight();
   const barInset = NATIVE_HEADER ? headerHeight : 0;
-  const itemRefs = useRef(new Map<K, View>());
+  const itemRefs = useRef(new Map<K, HostInstance>());
   // A manual scroll means the reader has taken over — the settle-and-jump
   // below must stop correcting the position out from under them.
   const userScrolledRef = useRef(false);
@@ -69,7 +69,7 @@ export function DaysFeed<K extends DayKey = number>({
       const scroller = scrollRef.current;
       if (target && scroller) {
         target.measureLayout(
-          scroller as unknown as React.ComponentRef<typeof View>,
+          scroller as unknown as HostInstance,
           (_x, y) => {
             if (!cancelled && !userScrolledRef.current) {
               scroller.scrollTo({ y: y - barInset, animated: false });

@@ -44,6 +44,7 @@ import {
   type StyleProp,
   type ViewStyle,
   useColorScheme,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -207,7 +208,7 @@ export default function CreateChallengeScreen() {
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const { addChallenge, updateChallenge, customChallenges, catalog } = useApp();
   const { relations, refreshToday } = useSocial();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   // Read once: the form holds its own draft from here, so the saved
   // challenge changing underneath it doesn't reset what's being typed.
@@ -1044,7 +1045,10 @@ function NativeBasics({
       <SettingsGroup footer={hint}>
         <HStack
           modifiers={[
-            frame({ height: COVER_HEIGHT, maxWidth: Number.MAX_SAFE_INTEGER }),
+            // SDK 58's `frame` takes a fixed or a flexible size, not both, so the
+            // height and the full width are two frames, as SwiftUI chains them.
+            frame({ height: COVER_HEIGHT }),
+            frame({ maxWidth: Number.MAX_SAFE_INTEGER }),
             listRowInsets({ top: 0, leading: 0, bottom: 0, trailing: 0 }),
             listRowBackground('clear'),
           ]}

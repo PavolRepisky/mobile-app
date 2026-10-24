@@ -1,4 +1,4 @@
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 
 export interface ChallengeTask {
   id: string;

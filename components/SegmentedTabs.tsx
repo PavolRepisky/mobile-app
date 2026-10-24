@@ -1,4 +1,6 @@
-import SegmentedControl from '@react-native-segmented-control/segmented-control';
+import NativeSegmentedControl, {
+  type SegmentedControlProps,
+} from '@react-native-segmented-control/segmented-control';
 import { Pressable, StyleSheet, useColorScheme, type StyleProp, type ViewStyle, View } from 'react-native';
 
 import { colors, colorsFor, radii, shadows, spacing } from '@/constants/theme';
@@ -13,6 +15,13 @@ const PILL_HEIGHT = 36;
  * heading's own line rather than to a full-width row. */
 const PILL_HEIGHT_SM = 30;
 const PILL_INSET = 3;
+
+/**
+ * The system control, retyped as a plain component: its class is declared
+ * against the mixin React Native's old types had, which RN 0.88's function
+ * components no longer satisfy as a JSX element. It renders the same.
+ */
+const SegmentedControl = NativeSegmentedControl as unknown as React.ComponentType<SegmentedControlProps>;
 
 export interface SegmentOption<T extends string = string> {
   key: T;

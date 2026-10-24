@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { ChallengeMosaic, ChallengeRow, challengeDetail } from '@/components/ChallengeRow';
@@ -67,7 +67,7 @@ export default function DiscoverScreen() {
 
   // Each cover takes the screen's whole width, one to a page; the dots under
   // them say there are more to swipe to.
-  const carouselRef = useRef<ScrollView>(null);
+  const carouselRef = useRef<ScrollViewInstance>(null);
   const [page, setPage] = useState(0);
   const pageRef = useRef(0);
   pageRef.current = page;

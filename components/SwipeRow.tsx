@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { colors, layout } from '@/constants/theme';
 import { Text } from './Text';
@@ -37,7 +37,7 @@ const TONES = {
  * Every action is still on the row itself too; this is the quicker way to it.
  */
 export function SwipeRow({ actions, children, style }: SwipeRowProps) {
-  const swipeable = useRef<Swipeable>(null);
+  const swipeable = useRef<SwipeableMethods>(null);
 
   // Nothing to offer — a friend on a list that can't be hidden — no swipe.
   if (actions.length === 0) return <View style={style}>{children}</View>;

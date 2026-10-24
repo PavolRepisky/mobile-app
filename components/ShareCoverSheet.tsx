@@ -1,6 +1,6 @@
 import * as MediaLibrary from 'expo-media-library';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Platform, Pressable, StyleSheet, Switch, useWindowDimensions, View } from 'react-native';
+import { Animated, Modal, Platform, Pressable, StyleSheet, Switch, useWindowDimensions, View, type HostInstance } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -49,7 +49,7 @@ export interface ShareCoverSheetProps {
  * one way out: saved to the phone's photos, ready to post from there.
  */
 export function ShareCoverSheet({ visible, onDismiss, cells, day, totalDays, kicker }: ShareCoverSheetProps) {
-  const cover = useRef<View>(null);
+  const cover = useRef<HostInstance>(null);
   const [times, setTimes] = useState(true);
   const [tasks, setTasks] = useState(true);
   const [saved, setSaved] = useState(false);

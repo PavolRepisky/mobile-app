@@ -8,11 +8,10 @@ import {
   useColorScheme,
   type StyleProp,
   type ViewStyle,
-  type ColorValue,
 } from 'react-native';
 
 import { sfSymbolFor } from '@/constants/symbols';
-import { colors, shadows, colorsFor } from '@/constants/theme';
+import { colors, shadows, colorsFor, type ThemeColor } from '@/constants/theme';
 import { GlassSurface, LIQUID_GLASS, LiquidGlass } from './GlassSurface';
 import type { GlassColorScheme } from 'expo-glass-effect';
 import { Text } from './Text';
@@ -47,12 +46,12 @@ export interface IconButtonProps {
   onPress?: () => void;
   size?: number;
   iconSize?: number;
-  color?: ColorValue;
+  color?: ThemeColor;
   /**
    * A flat fill instead of the lens — for the buttons that have to disappear
    * into the page rather than float over it.
    */
-  background?: ColorValue;
+  background?: ThemeColor;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   shadow?: boolean;
@@ -71,7 +70,7 @@ export interface IconButtonProps {
   overMedia?: boolean;
   /** The glass's tint, for a button that is switched on — the camera's
    * flash once it's lit. */
-  glassTint?: ColorValue;
+  glassTint?: ThemeColor;
   /** Pins the glass to one appearance — dark over the camera, which is dark
    * whatever the phone is set to. */
   glassScheme?: GlassColorScheme;

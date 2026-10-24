@@ -1,4 +1,4 @@
-import { DynamicColorIOS, Platform, type ColorValue } from 'react-native';
+import { DynamicColorIOS, Platform, type NativeColorValue } from 'react-native';
 
 /**
  * SelfEra — design tokens.
@@ -215,18 +215,26 @@ const LIGHT = {
 
 type Role = keyof typeof LIGHT;
 
+/**
+ * A theme colour: a plain string, or on the iPhone the adaptive native value.
+ * Narrower than React Native's `ColorValue`, which since RN 0.88 also allows
+ * null and a number — values the theme never holds, and that icon and SVG
+ * colour props refuse.
+ */
+export type ThemeColor = string | NativeColorValue;
+
 /** A role's colour: on the iPhone one that follows the phone's appearance by
  * itself, wherever it is used; elsewhere the light one. */
-const adaptive = (role: Role): ColorValue => {
+const adaptive = (role: Role): ThemeColor => {
   const dark = (DARK as Partial<Record<Role, string>>)[role];
   return Platform.OS === 'ios' && dark
-    ? DynamicColorIOS({ light: LIGHT[role], dark })
+    ? (DynamicColorIOS({ light: LIGHT[role], dark }) as NativeColorValue)
     : LIGHT[role];
 };
 
 export const colors = Object.fromEntries(
   (Object.keys(LIGHT) as Role[]).map((role) => [role, adaptive(role)]),
-) as Record<Role, ColorValue>;
+) as Record<Role, ThemeColor>;
 
 /**
  * Each role as a plain string for one appearance, for the few places that

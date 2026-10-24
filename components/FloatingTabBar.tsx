@@ -6,11 +6,11 @@ import {
   View,
   type PressableProps,
   type View as RNView,
-  type ColorValue,
+  type HostInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadows, tabBar, tabBarBottom } from '@/constants/theme';
+import { colors, radii, shadows, tabBar, tabBarBottom, type ThemeColor } from '@/constants/theme';
 import { Text } from './Text';
 
 export type TabIcon = 'discover' | 'community' | 'tasks' | 'profile';
@@ -22,7 +22,7 @@ function Glyph({
 }: {
   icon: TabIcon;
   active: boolean;
-  color?: ColorValue;
+  color?: ThemeColor;
 }) {
   const size = 27;
 
@@ -77,7 +77,7 @@ export interface TabBarButtonProps extends PressableProps {
  * filled disc. The active tab sits inside a light pill and fills its glyph
  * in; labels stay ink-black in both states, which is what the reference does.
  */
-export const TabBarButton = forwardRef<RNView, TabBarButtonProps>(
+export const TabBarButton = forwardRef<HostInstance, TabBarButtonProps>(
   function TabBarButton({ icon, label, isFocused, style, ...rest }, ref) {
     return (
       <Pressable
@@ -106,7 +106,7 @@ export interface FloatingTabBarProps {
   children?: React.ReactNode;
 }
 
-export const FloatingTabBar = forwardRef<RNView, FloatingTabBarProps>(
+export const FloatingTabBar = forwardRef<HostInstance, FloatingTabBarProps>(
   function FloatingTabBar({ children }, ref) {
     const insets = useSafeAreaInsets();
 

@@ -2,11 +2,11 @@ import { Image } from 'expo-image';
 import {
   StyleSheet,
   View,
-  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
+import type { ImageSourcePropType } from '@/lib/imageSource';
 import { AvatarPlaceholder, AvatarSilhouette } from './Placeholder';
 
 /**

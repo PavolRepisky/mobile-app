@@ -15,12 +15,11 @@ import {
   useColorScheme,
   type StyleProp,
   type ViewStyle,
-  type ColorValue,
 } from 'react-native';
 
 import { quicksand, tint } from '@/lib/swiftUI';
 import { sfSymbolFor } from '@/constants/symbols';
-import { colors, colorsFor, radii, shadows, spacing } from '@/constants/theme';
+import { colors, colorsFor, radii, shadows, spacing, type ThemeColor } from '@/constants/theme';
 import { LIQUID_GLASS, LiquidGlass } from './GlassSurface';
 import { NATIVE_HEADER } from './Screen';
 import { Text, type TextProps } from './Text';
@@ -65,7 +64,7 @@ export interface PillProps {
    * absence rather than a value — a reminder set to Never reads in the
    * muted grey beside the times that are set.
    */
-  labelColor?: ColorValue;
+  labelColor?: ThemeColor;
   /**
    * A range's far end, so the pill reads "label → to" — a finished round's
    * "Finished · Jun 1 → Aug 14". The arrow is an icon because Quicksand has

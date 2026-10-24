@@ -8,7 +8,6 @@ import {
   View,
   useWindowDimensions,
   useColorScheme,
-  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
   type ColorValue,
@@ -17,6 +16,7 @@ import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { colors, colorsFor, layout, radii, shadows } from '@/constants/theme';
 import { addDays, shortDate } from '@/lib/format';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Avatar, type AvatarSource } from './Avatar';
 import { Card } from './Card';
 import { ChallengeRun, type RunDay } from './ChallengeRun';

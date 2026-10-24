@@ -1,4 +1,4 @@
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 
 import type { AvatarSource } from '@/components/Avatar';
 import type { CommentEntry } from '@/components/CommentsSheet';

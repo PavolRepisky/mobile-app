@@ -4,12 +4,12 @@ import {
   Pressable,
   StyleSheet,
   View,
-  type ImageSourcePropType,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import { absoluteFill, colors, layout, radii, spacing } from '@/constants/theme';
+import type { ImageSourcePropType } from '@/lib/imageSource';
 import { MosaicArrangement } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
 import { Text } from './Text';

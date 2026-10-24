@@ -8,6 +8,7 @@ import {
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -166,7 +167,7 @@ export interface ScreenScrollProps
   bottomExtra?: number;
   /** The scroller itself, for a screen that scrolls to something on its own
    * — Community landing on a post a story linked to. */
-  ref?: React.Ref<ScrollView>;
+  ref?: React.Ref<ScrollViewInstance>;
   /**
    * Pull to refresh: the system spinner over the top of the page while this
    * runs, the way every list on the phone fetches what's new.
