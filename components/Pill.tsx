@@ -89,6 +89,13 @@ export interface PillProps {
    * ordinary capsule button there.
    */
   overMedia?: boolean;
+  /**
+   * Drawn on the iPhone too rather than as the system's blue capsule: for a
+   * pair of everyday buttons on a page — a profile's Edit and Share — where
+   * blue would make them read as the page's one call to act. The caller
+   * gives it the fill grey.
+   */
+  grey?: boolean;
 }
 
 /**
@@ -107,8 +114,10 @@ export function Pill(props: PillProps) {
   const floatingGlass =
     LIQUID_GLASS && !!props.overMedia && (props.tone ?? 'floating') === 'floating';
   if (props.visible === false && !floatingGlass) return null;
+  // A `grey` one stays drawn too: the system capsule only takes a wash of a
+  // tint, which never lands on the palette's fill grey.
   const button =
-    NATIVE_HEADER && !floatingGlass && props.onPress && !props.to && !props.trailingIcon;
+    NATIVE_HEADER && !floatingGlass && props.onPress && !props.to && !props.trailingIcon && !props.grey;
   return button ? <SystemPill {...props} /> : <DrawnPill {...props} />;
 }
 
@@ -180,7 +189,10 @@ function SystemPill({
   } = flat;
 
   return (
-    <Host matchContents={fills ? { vertical: true } : true} style={placement}>
+    // Horizontal matching is turned off outright for a filling pill, as
+    // `PrimaryButton` does: left unset, the host still hugged the label and
+    // the pair sat narrow in the middle of their halves.
+    <Host matchContents={fills ? { vertical: true, horizontal: false } : true} style={placement}>
       {/* The label is a view of its own so it can carry a little more air
           above and below than the control gives it; a nested view doesn't
           take the button's colour (it fell back to the system's blue), so

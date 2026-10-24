@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { ProfileView, type ProfileDay } from '@/components/ProfileView';
+import { ProfileHeader, ProfileView, type ProfileDay } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { orderBySlot, useApp, usePostedDays } from '@/hooks/useAppState';
+import { useChallengeCards } from '@/hooks/useChallengeCards';
 import { useSession } from '@/hooks/useSession';
 import { useMyPastRuns, useSocial } from '@/hooks/useSocial';
 import { profileRun } from '@/lib/profileDays';
@@ -70,6 +70,27 @@ export default function ProfileScreen() {
     [router],
   );
   const myPage = userId ? page(userId) : undefined;
+  // Between eras: the ones you could still join, the same set Discover
+  // offers, friends' first — their photos fan on the card, and how many
+  // friends are in one says why now.
+  const cards = useChallengeCards();
+  const nextEra = useMemo(() => {
+    const open = cards
+      .filter((card) => card.phase === 'upcoming' && !card.mine)
+      .sort((a, b) => b.friendsIn.length - a.friendsIn.length || (b.members ?? 0) - (a.members ?? 0));
+    const friends = new Set(open.flatMap((card) => card.friendsIn.map((friend) => friend.id))).size;
+    const hint = friends
+      ? `${friends} ${friends === 1 ? 'friend is' : 'friends are'} in one`
+      : open.length
+        ? `${open.length} ${open.length === 1 ? 'era starts' : 'eras start'} soon`
+        : 'Start one and bring your friends';
+    return {
+      photos: open.flatMap((card) => card.photos.slice(0, 1)).slice(0, 3),
+      hint,
+      onFind: () => router.navigate('/discover'),
+    };
+  }, [cards, router]);
+
   const myPastRuns = useMyPastRuns();
   const pastRuns = useMemo(
     () => myPastRuns.map((run) => profileRun(run, openPastDay)),
@@ -77,16 +98,16 @@ export default function ProfileScreen() {
   );
 
   return (
-    // Every tab root's fixed title row: the title, then Share — the profile
-    // to the phone's own share sheet — and Settings at the end, in reach
-    // however far down the days go.
+    // Every tab root's fixed title row: your username, then Share — the
+    // profile to the phone's own share sheet — and Settings at the end, in
+    // reach however far down the days go.
     <ScreenScroll
       tabBar
       onRefresh={() => Promise.all([reload(), userId ? loadPage(userId) : null])}
       tone="plain"
       header={
-        <ScreenHeader
-          plainTitle="My Profile"
+        <ProfileHeader
+          handle={profile.handle}
           showBack={false}
           actions={[
             {
@@ -106,7 +127,6 @@ export default function ProfileScreen() {
         // it plays today's story.
         avatar={profile.avatar ?? profile.avatarSeed}
         name={profile.name}
-        handle={profile.handle}
         bio={profile.bio}
         challenge={inChallenge ? challenge : null}
         startDate={startDate}
@@ -126,6 +146,18 @@ export default function ProfileScreen() {
         onOpenDay={openDay}
         emptyHint="Finish a day's tasks to see it here."
         daysTitle="My Eras"
+        nextEra={nextEra}
+        // The same two buttons a friend's page has in this place, as they
+        // apply to you: your profile's fields live in Settings.
+        actions={[
+          { label: 'Edit profile', onPress: () => router.push('/account/settings') },
+          {
+            label: 'Share profile',
+            onPress: () => {
+              if (userId) shareProfile({ id: userId, name: profile.name, handle: profile.handle });
+            },
+          },
+        ]}
       />
     </ScreenScroll>
   );

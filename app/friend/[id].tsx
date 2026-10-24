@@ -2,9 +2,8 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ProfileView } from '@/components/ProfileView';
+import { ProfileHeader, ProfileView } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/hooks/useSession';
 import { useRelation, useSocial } from '@/hooks/useSocial';
 import { possessive } from '@/lib/names';
@@ -14,8 +13,8 @@ import { shareProfile } from '@/lib/shareProfile';
 /**
  * A friend's or a challenge member's profile, opened from the Community tab,
  * a story, Find friends, or who posted in a challenge feed. It is your own
- * Profile page — `ProfileView`, the same ring, card and days — with
- * "Lily's Profile" as the title and the way back in place of Settings, since
+ * Profile page — `ProfileView` under `ProfileHeader`, the same ring, card,
+ * days and username title — with the way back in place of Settings, since
  * there's nothing here to edit.
  *
  * Whoever Community already loaded shows at once; their whole run — every
@@ -79,14 +78,12 @@ export default function FriendProfileScreen() {
     // Nothing loaded yet: the bar, so the way back is there from the start.
     return (
       <View style={styles.screenRoot}>
-        <ScreenScroll tone="plain" header={<ScreenHeader plainTitle="Profile" />}>
+        <ScreenScroll tone="plain" header={<ProfileHeader />}>
           {null}
         </ScreenScroll>
       </View>
     );
   }
-
-  const title = `${possessive(friend.name)} Profile`;
 
   // What the first button says follows where you stand with them: already
   // friends, asked by them (one tap accepts), asked by you, or neither.
@@ -108,17 +105,15 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={styles.screenRoot}>
-      {/* Every pushed page's fixed bar: the way back, then whose profile
-          this is. */}
+      {/* Every pushed page's fixed bar: the way back, then their username. */}
       <ScreenScroll
         tone="plain"
         onRefresh={() => loadPage(userId)}
-        header={<ScreenHeader plainTitle={title} />}
+        header={<ProfileHeader handle={friend.handle} />}
       >
         <ProfileView
           avatar={friend.avatar}
           name={friend.name}
-          handle={friend.handle}
           bio={friend.bio}
           challenge={page?.challenge ?? null}
           startDate={page?.startDate ?? new Date()}

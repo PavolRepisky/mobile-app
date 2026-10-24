@@ -24,6 +24,8 @@ const CHALLENGE_THUMB = 40;
 
 /** The lives' hearts — the size Tasks draws them at over its list. */
 const HEART = 14;
+/** The chevron closing the name row — a list row's disclosure arrow. */
+const CHEVRON = 16;
 
 /** Days per row of the squares: a 75-day run folds into five even rows, a
  * 30-day one into two. */
@@ -62,9 +64,11 @@ export interface ChallengeRunProps {
    * today's ring ink.
    */
   tone?: 'ink' | 'quiet';
-  /** The era's lives, as hearts at the end of the name row; left out where
-   * the page shows them already, as Tasks does over its list. */
+  /** The era's lives, as hearts after the day; left out where the page
+   * shows them already, as Tasks does over its list. */
   lives?: { left: number; total: number };
+  /** A chevron at the end of the name, for a card that opens the era. */
+  chevron?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -134,6 +138,7 @@ export function ChallengeRun({
   dayOf,
   tone = 'ink',
   lives,
+  chevron,
   style,
 }: ChallengeRunProps) {
   const quiet = tone === 'quiet';
@@ -172,37 +177,53 @@ export function ChallengeRun({
       <View style={styles.row}>
         <Image source={photo} style={styles.thumb} contentFit="cover" />
         <View style={styles.text}>
-          <Text variant="copyBold" color={quiet ? colors.ink : colors.inkInverse} numberOfLines={1}>
-            {challenge.name}
-          </Text>
-          <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-            {/* Before Day 1 there's no day to count yet — only how long the
-                run is, every square still to come. */}
-            {currentDay < 1 ? `${totalDays} days` : `Day ${currentDay} of ${totalDays}`}
-          </Text>
-        </View>
-        {lives ? (
-          // Spent lives stay as hollow-grey hearts, so the allowance reads
-          // whole: two of three, not just two.
-          <View style={styles.hearts}>
-            {Array.from({ length: lives.total }, (_, i) => (
-              <Ionicons
-                key={i}
-                name="heart"
-                size={HEART}
-                color={
-                  i < lives.left
-                    ? quiet
-                      ? colors.ink
-                      : colors.inkInverse
-                    : quiet
-                      ? colors.inkGhost
-                      : colors.inkMuted
-                }
-              />
-            ))}
+          {/* The name, with the chevron at the row's end on a card that
+              opens the era. */}
+          <View style={styles.line}>
+            <Text
+              variant="copyBold"
+              color={quiet ? colors.ink : colors.inkInverse}
+              numberOfLines={1}
+              style={styles.grow}
+            >
+              {challenge.name}
+            </Text>
+            {chevron ? (
+              <Ionicons name="chevron-forward" size={CHEVRON} color={colors.inkMuted} />
+            ) : null}
           </View>
-        ) : null}
+          {/* The day, with the lives at the line's far end, under the
+              chevron — both say where the run stands today. */}
+          <View style={styles.line}>
+            <Text variant="meta" color={colors.inkMuted} numberOfLines={1} style={styles.grow}>
+              {/* Before Day 1 there's no day to count yet — only how long the
+                  run is, every square still to come. */}
+              {currentDay < 1 ? `${totalDays} days` : `Day ${currentDay} of ${totalDays}`}
+            </Text>
+            {lives ? (
+              // Spent lives stay as hollow-grey hearts, so the allowance reads
+              // whole: two of three, not just two.
+              <View style={styles.hearts}>
+                {Array.from({ length: lives.total }, (_, i) => (
+                  <Ionicons
+                    key={i}
+                    name="heart"
+                    size={HEART}
+                    color={
+                      i < lives.left
+                        ? quiet
+                          ? colors.ink
+                          : colors.inkInverse
+                        : quiet
+                          ? colors.inkGhost
+                          : colors.inkMuted
+                    }
+                  />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </View>
       </View>
 
       {/* Read out once, in the card's own label — seventy-five squares one
@@ -255,8 +276,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   // A white card lifted on the card shadow — clear of the grey task rows
-  // above it, without the ink block's weight.
+  // above it, without the ink block's weight. Its corner is the system
+  // list's rather than the signature 32: on a profile it sits among plain
+  // text and photos, where the rounder corner read as a bubble.
   cardQuiet: {
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
     ...shadows.card,
   },
@@ -275,6 +299,16 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   text: {
+    flex: 1,
+  },
+  // One of the two lines beside the photo, with what trails it on the same
+  // line's far end — the chevron after the name, the hearts after the day.
+  line: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.stack,
+  },
+  grow: {
     flex: 1,
   },
   // A heading's gap under the squares is the card's own; the dates sit a

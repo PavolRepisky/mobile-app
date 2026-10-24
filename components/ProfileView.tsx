@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { Fragment, useCallback } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
-  useWindowDimensions,
   useColorScheme,
   type StyleProp,
   type ViewStyle,
@@ -15,30 +14,44 @@ import {
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { colors, colorsFor, layout, radii, shadows } from '@/constants/theme';
-import { addDays, shortDate } from '@/lib/format';
+import { shortDate } from '@/lib/format';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Avatar, type AvatarSource } from './Avatar';
-import { Card } from './Card';
 import { ChallengeRun, type RunDay } from './ChallengeRun';
 import { EmptyState } from './EmptyState';
 import { DayCover, POST_RATIO } from './DayCover';
+import type { PhotoSource } from './PhotoStrip';
 import { Pill } from './Pill';
+import { ScreenHeader, type ScreenHeaderProps } from './ScreenHeader';
 import { accentAt } from './TaskRing';
 import { Text } from './Text';
 
 /** The seam between day tiles: the theme's gap between tiles in a grid —
- * enough page between them that each day reads as its own post, still close
- * enough that an era reads as one wall of pictures. */
+ * now that each tile is a mosaic of photos with none between them, a
+ * hairline seam let neighbouring days run together; this much page keeps
+ * each day its own post while the era still reads as one wall. */
 const PHOTO_GRID_SEAM = layout.grid;
 
-/** How many of an era's days show before its "All 30 days" link to the
- * era's own feed: three rows for the era on now, two for each one behind it. */
-const PREVIEW_NOW = 9;
-const PREVIEW_PAST = 6;
-/** The marks under the eras' slider saying which one is on show. */
-const ERA_DOT = 6;
-/** The chevron after the link's words, the size of their lowercase. */
-const MORE_CHEVRON = 13;
+/** How many of an era's days show under its header row, which opens the
+ * rest: one row of three for every era, the one on now included, so each
+ * reads as a glimpse and the next era's header is never far down. */
+const PREVIEW_DAYS = 3;
+/** The chevron closing an era's header row — a list row's disclosure arrow. */
+const ERA_CHEVRON = 15;
+
+/** The upright rule between two of the stats — about their capitals'
+ * height, so it parts them without standing taller than the words. */
+const STAT_RULE = 14;
+
+/** The prints fanned on the between-eras card: a phone photo's upright
+ * shape at a thumbnail's size, laid over one another by close to half their
+ * width — a tight stack, so the words beside it keep their room — and each
+ * turned a little its own way, like prints dropped on a table. */
+const PRINT_WIDTH = 72;
+const PRINT_HEIGHT = 94;
+const PRINT_OVERLAP = 30;
+const PRINT_BORDER = 3;
+const PRINT_TILTS = [-6, 3, 8] as const;
 
 /** The hero circle — the one place on a profile that gets to be that big. */
 const avatarSize = 120;
@@ -167,7 +180,6 @@ export interface ProfileRun {
 export interface ProfileViewProps {
   avatar: AvatarSource;
   name: string;
-  handle: string;
   bio: string | null;
   /** Null for an account in no era: the ring and the era's name go, and
    * only past eras' days are left to show. */
@@ -198,6 +210,10 @@ export interface ProfileViewProps {
   emptyHint: string;
   /** The heading over the eras' grids — "My Eras" on your own page. */
   daysTitle?: string;
+  /** Between eras, a card in the run's place asking you into the next one:
+   * a few of the joinable eras' photos, who's in them, and the way to
+   * Discover. Your own page only — on someone else's, nothing stands there. */
+  nextEra?: { photos: readonly PhotoSource[]; hint: string; onFind: () => void };
   /** A row of buttons under the bio — on someone else's page, where you
    * stand with them and Share. One without `onPress` is a status, not a
    * button — "Friends". */
@@ -207,7 +223,7 @@ export interface ProfileViewProps {
 
 /**
  * A profile's whole page under its header — the photo in its task ring,
- * name, handle and bio, the era's name, and the days as one grid — no
+ * name and bio (the handle is `ProfileHeader`'s title), the era's name, and the days as one grid — no
  * calendar, and no missed days: the page shows what was done. Your own Profile tab and anyone else's profile are both this, so
  * the two can't drift: only the header differs, where yours carries
  * Settings and theirs the way back.
@@ -215,7 +231,6 @@ export interface ProfileViewProps {
 export function ProfileView({
   avatar,
   name,
-  handle,
   bio,
   challenge,
   startDate,
@@ -231,6 +246,7 @@ export function ProfileView({
   friendCount,
   emptyHint,
   daysTitle = 'Days',
+  nextEra,
   actions,
   style,
 }: ProfileViewProps) {
@@ -238,21 +254,14 @@ export function ProfileView({
   // takes no adaptive ones.
   const svgColors = colorsFor(useColorScheme());
   const router = useRouter();
-  const { width: windowWidth } = useWindowDimensions();
-  // An era's card: the content width less a peek of the next one.
-  // Which era the slider is on, for the dots under it.
-  const [eraIndex, setEraIndex] = useState(0);
 
   // How many of today's tasks are ticked off — what the ring fills in.
   const doneToday = dayOf(currentDay)?.done ?? 0;
 
   // The days in one group per era — the one on now first, then each earlier
-  // one, most recent first — under a header naming it: where it stands now,
-  // or its dates and how it ended. Each day is cut into the same merged
-  // mosaic the Tasks tab and a post use. Only the tasks that actually got a
-  // photo take a slice of the cell: a day with three of five shot reads as
-  // three prints, not three prints and two grey gaps. An era with nothing
-  // posted yet has no group.
+  // one, most recent first — under a header naming it, how a past one
+  // ended, and how many days it has. An era with nothing posted yet has no
+  // group.
   const runs = [
     ...(challenge
       ? [{
@@ -263,19 +272,17 @@ export function ProfileView({
           dayOf,
           posted,
           onOpenDay,
-          detail: currentDay < 1 ? `${totalDays} days` : `Day ${currentDay} of ${totalDays}`,
           badge: null,
         }]
       : []),
     ...pastRuns.map((run) => ({
       ...run,
-      detail: `${shortDate(run.startDate)} – ${shortDate(addDays(run.startDate, run.totalDays - 1))}`,
       badge:
         run.status === 'finished'
           ? 'Finished'
           : run.status === 'lost'
-            ? `Out of lives on Day ${run.lastDay}`
-            : `Left on Day ${run.lastDay}`,
+            ? 'Out of lives'
+            : 'Left',
     })),
   ];
   const groups = runs
@@ -297,24 +304,41 @@ export function ProfileView({
       return {
         key: run.key,
         name: run.name,
-        detail: `${run.detail} · ${posts.length} posted`,
-        preview: run.key === 'now' ? PREVIEW_NOW : PREVIEW_PAST,
+        detail: `${posts.length} ${posts.length === 1 ? 'day' : 'days'}`,
         badge: run.badge,
         posts,
       };
     })
     .filter((group) => group.posts.length > 0);
-  const postedCount = groups.reduce((sum, group) => sum + group.posts.length, 0);
 
-  // The profile in three counts: every day in the grid, across all eras;
-  // the eras seen through to the end; and friends.
+  // The profile in three counts, as one line: the longest stretch of days
+  // finished back to back in any one era (a day counts only with every task
+  // in it, so a missed or half-done day breaks the run); the eras seen
+  // through to the end; and friends.
+  const bestRun = Math.max(
+    0,
+    ...runs.map((run) => {
+      const full = new Set(
+        run.posted.filter((day) => (run.dayOf(day)?.done ?? 0) >= run.taskCount && run.taskCount > 0),
+      );
+      let best = 0;
+      for (const day of full) {
+        // Counted forward from the first day of each stretch only.
+        if (full.has(day - 1)) continue;
+        let length = 1;
+        while (full.has(day + length)) length += 1;
+        best = Math.max(best, length);
+      }
+      return best;
+    }),
+  );
   const erasFinished = pastRuns.filter((run) => run.status === 'finished').length;
   const stats = [
-    { value: String(postedCount), label: postedCount === 1 ? 'Day posted' : 'Days posted' },
-    { value: String(erasFinished), label: erasFinished === 1 ? 'Era finished' : 'Eras finished' },
+    { value: `${bestRun}-day`, label: 'best run' },
+    { value: String(erasFinished), label: erasFinished === 1 ? 'era finished' : 'eras finished' },
     {
       value: friendCount === undefined ? '–' : String(friendCount),
-      label: friendCount === 1 ? 'Friend' : 'Friends',
+      label: friendCount === 1 ? 'friend' : 'friends',
     },
   ];
 
@@ -415,35 +439,26 @@ export function ProfileView({
           <Text variant="pageTitle" center>
             {name}
           </Text>
-          <Text variant="metaBold" color={colors.inkMuted} center>
-            {handle}
-          </Text>
           {bio ? (
-            <Text variant="copy" color={colors.inkMuted} center style={styles.bio}>
+            <Text variant="copy" color={colors.inkMuted} center>
               {bio}
             </Text>
           ) : null}
-        </View>
-      </View>
 
-      {/* Side by side across the page, each count over its label, a
-          hairline between them — read as one line, not three cards. */}
-      <View style={styles.stats}>
-        {stats.map((stat, index) => (
-          <View
-            key={stat.label}
-            accessible
-            accessibilityLabel={`${stat.value} ${stat.label}`}
-            style={[styles.stat, index > 0 && styles.statDivided]}
-          >
-            <Text variant="sectionHeading" center>
-              {stat.value}
-            </Text>
-            <Text variant="meta" color={colors.inkMuted} center>
-              {stat.label}
-            </Text>
+          {/* One line under the bio, read like a sentence: each count in ink
+              and bold, its word muted after it, a faint upright rule
+              between them — lighter than a dot, which reads as punctuation. */}
+          <View style={styles.stats}>
+            {stats.map((stat, index) => (
+              <Fragment key={stat.label}>
+                {index > 0 ? <View style={styles.statRule} /> : null}
+                <Text variant="copy" color={colors.inkMuted}>
+                  <Text variant="copyBold">{stat.value}</Text> {stat.label}
+                </Text>
+              </Fragment>
+            ))}
           </View>
-        ))}
+        </View>
       </View>
 
       {actions?.length ? (
@@ -453,6 +468,7 @@ export function ProfileView({
               <Pill
                 label={action.label}
                 tone="muted"
+                grey
                 labelVariant="copyBold"
                 onPress={action.onPress}
                 style={styles.actionPill}
@@ -482,8 +498,36 @@ export function ProfileView({
             dayOf={runDay}
             tone="quiet"
             lives={lives}
+            chevron
           />
         </Pressable>
+      ) : nextEra ? (
+        // Between eras the run's place asks you into the next one: the
+        // same white card, with a fan of prints from eras you can join.
+        <View style={[styles.run, styles.nextEra]}>
+          <View style={styles.prints} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {nextEra.photos.slice(0, PRINT_TILTS.length).map((photo, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.print,
+                  shadows.soft,
+                  i > 0 && styles.printOverlap,
+                  { transform: [{ rotate: `${PRINT_TILTS[i]}deg` }] },
+                ]}
+              >
+                <Image source={photo} style={styles.printPhoto} contentFit="cover" />
+              </View>
+            ))}
+          </View>
+          <View style={styles.nextEraText}>
+            <Text variant="copyBold">Ready for a new era?</Text>
+            <Text variant="meta" color={colors.inkMuted}>
+              {nextEra.hint}
+            </Text>
+            <Pill label="Find an era" tone="solid" onPress={nextEra.onFind} style={styles.nextEraButton} />
+          </View>
+        </View>
       ) : null}
 
       <Text variant="sectionHeading" accessibilityRole="header" style={styles.daysTitle}>
@@ -493,109 +537,91 @@ export function ProfileView({
       {groups.length === 0 ? (
         <EmptyState icon="camera-outline" title="No days yet" hint={emptyHint} />
       ) : (
-        // One era to a page, swiped between sideways — the one on now first,
-        // then each behind it. The slider runs out to the screen's edges so
-        // a page slides off them rather than vanishing at the margin; each
-        // page puts the margin back inside itself. Each era is a white card,
-        // the same lifted card as the run above it.
-        <>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            scrollEventThrottle={16}
-            onScroll={(e) => {
-              const next = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
-              if (next !== eraIndex) setEraIndex(next);
-            }}
-            style={styles.eraSlider}
-            contentContainerStyle={styles.eraSliderContent}
-          >
-            {groups.map((group) => (
-              <View key={group.key} style={[styles.eraPage, { width: windowWidth }]}>
-                <Card>
-                  <View style={styles.eraCard}>
-                    <View style={styles.eraHead}>
-                      <View style={styles.eraHeadText}>
-                        <Text variant="itemTitle" accessibilityRole="header" numberOfLines={1}>
-                          {group.name}
-                        </Text>
-                        <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
-                          {group.detail}
-                        </Text>
-                      </View>
-                      {/* How a past era ended, in a grey pill — every ending the
-                          same quiet grey, whichever way it went. */}
-                      {group.badge ? (
-                        <View style={styles.eraBadge}>
-                          <Text variant="meta" color={colors.inkMuted}>
-                            {group.badge}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
+        // Every era down the page, the one on now first, then each behind
+        // it: a header row naming it, then its days as one wall of photos
+        // out to the screen's edges, the way a photo library lays them.
+        groups.map((group) => (
+          <View key={group.key} style={styles.era}>
+            {/* The whole row is the way on to the era's own feed, opened
+                on its latest day — the chevron at its end says so. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${group.name}${group.badge ? `, ${group.badge}` : ''}, ${group.detail}`}
+              accessibilityHint={`Opens ${group.name}'s days`}
+              onPress={group.posts[0].open}
+              style={({ pressed }) => [styles.eraHead, pressed && styles.pressed]}
+            >
+              <View style={styles.eraHeadName}>
+                <Text variant="itemTitle" accessibilityRole="header" numberOfLines={1} style={styles.eraName}>
+                  {group.name}
+                </Text>
+                {/* How a past era ended, in a grey pill — every ending the
+                    same quiet grey, whichever way it went. */}
+                {group.badge ? (
+                  <View style={styles.eraBadge}>
+                    <Text variant="badge" color={colors.inkMuted} numberOfLines={1}>
+                      {group.badge}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text variant="meta" color={colors.inkMuted} numberOfLines={1}>
+                {group.detail}
+              </Text>
+              <Ionicons name="chevron-forward" size={ERA_CHEVRON} color={colors.inkMuted} />
+            </Pressable>
 
-                    <View style={styles.postGrid}>
-                      {group.posts.slice(0, group.preview).map((post) => {
-                        const finished = post.done === post.taskCount;
-                        return (
-                          <View key={post.key} style={styles.postCellWrap}>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={
-                                finished
-                                  ? `${group.name}, Day ${post.day}, finished`
-                                  : `${group.name}, Day ${post.day}, ${post.done} of ${post.taskCount} tasks`
-                              }
-                              onPress={post.open}
-                              style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
-                            >
-                              {/* The day's cover: its photos with the time each
-                                  was shot, and the seal stamped with the day and
-                                  how far into the era it was. */}
-                              <DayCover
-                                cells={post.rows}
-                                day={post.day}
-                                totalDays={post.totalDays}
-                                kicker={group.name}
-                                ratio={1 / POST_RATIO}
-                              />
-                            </Pressable>
-                          </View>
-                        );
-                      })}
-                    </View>
-
-                    {/* Every era, long or short, has the way on to its own page —
-                        the era's feed, opened on its latest day, the same page a
-                        tile opens — so each card ends the same way. */}
+            <View style={styles.postGrid}>
+              {group.posts.slice(0, PREVIEW_DAYS).map((post) => {
+                const finished = post.done === post.taskCount;
+                return (
+                  <View key={post.key} style={styles.postCellWrap}>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityHint={`Opens ${group.name}'s days`}
-                      onPress={group.posts[0].open}
-                      style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+                      accessibilityLabel={
+                        finished
+                          ? `${group.name}, Day ${post.day}, finished`
+                          : `${group.name}, Day ${post.day}, ${post.done} of ${post.taskCount} tasks`
+                      }
+                      onPress={post.open}
+                      style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}
                     >
-                      <Text variant="metaBold" color={colors.systemAccent}>
-                        See all
-                      </Text>
-                      <Ionicons name="chevron-forward" size={MORE_CHEVRON} color={colors.systemAccent} />
+                      {/* The day's cover, as on its post: every photo of it
+                          in the seamless mosaic, with "Day N/75" and the
+                          era's name across the middle. */}
+                      <DayCover
+                        cells={post.rows}
+                        day={post.day}
+                        totalDays={post.totalDays}
+                        kicker={group.name}
+                        ratio={1 / POST_RATIO}
+                      />
                     </Pressable>
                   </View>
-                </Card>
-              </View>
-            ))}
-          </ScrollView>
-          {groups.length > 1 ? (
-            <View style={styles.eraDots}>
-              {groups.map((group, i) => (
-                <View key={group.key} style={[styles.eraDot, i === eraIndex && styles.eraDotActive]} />
-              ))}
+                );
+              })}
             </View>
-          ) : null}
-        </>
+          </View>
+        ))
       )}
     </View>
   );
+}
+
+export interface ProfileHeaderProps extends Omit<ScreenHeaderProps, 'plainTitle'> {
+  /** The profile's handle, with its @. Left out while the person is still
+   * loading. */
+  handle?: string;
+}
+
+/**
+ * The bar over a `ProfileView`: the username as the title — the one place
+ * a profile shows it, bare, as the bar's title — and whatever corner buttons the screen
+ * brings. Yours and anyone else's profile both set their bar through this,
+ * so the two titles can't drift apart.
+ */
+export function ProfileHeader({ handle, ...rest }: ProfileHeaderProps) {
+  return <ScreenHeader plainTitle={handle?.replace(/^@/, '') || 'Profile'} {...rest} />;
 }
 
 const styles = StyleSheet.create({
@@ -628,22 +654,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: layout.block,
   },
-  bio: {
-    marginTop: layout.line,
-  },
+  // The bio sits straight under the name, on the lines' own leading; the
+  // counts stand a little apart from the two of them.
   stats: {
     flexDirection: 'row',
-    marginTop: layout.section,
-  },
-  stat: {
-    flex: 1,
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: layout.line / 2,
+    justifyContent: 'center',
+    columnGap: layout.inline,
+    marginTop: layout.heading,
   },
-  // A hairline down the left of every count after the first.
-  statDivided: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: colors.inkGhost,
+  statRule: {
+    width: StyleSheet.hairlineWidth * 2,
+    height: STAT_RULE,
+    backgroundColor: colors.inkGhost,
   },
   // Two equal buttons side by side, a stack's gap apart.
   actions: {
@@ -663,59 +687,70 @@ const styles = StyleSheet.create({
   run: {
     marginTop: layout.section,
   },
-  // Out to the screen's edges, and a block taller than the cards each way so
-  // their shadows aren't clipped by the scroller — given back in margin, so
-  // the gaps round the slider stay what they were.
-  eraSlider: {
-    marginHorizontal: -layout.gutter,
-    marginVertical: -layout.block,
-  },
-  // Centred under the grid; the card's own padding is the room under it.
-  more: {
+  // The run card's own look — white, lifted, the system list's corner — so
+  // between eras the same card holds the same place.
+  nextEra: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: layout.line,
-    paddingTop: layout.block,
-  },
-  // Pages keep their own height: a short era doesn't stretch to the
-  // tallest one's.
-  eraSliderContent: {
-    alignItems: 'flex-start',
-  },
-  eraPage: {
-    paddingHorizontal: layout.gutter,
-    paddingVertical: layout.block,
-  },
-  // Padded inside the card's clip rather than on the card itself: on the
-  // card, the inner clip shrinks by the padding but keeps the full corner,
-  // and cut into the title at the top left.
-  eraCard: {
+    gap: layout.block,
     padding: layout.card,
+    // More air over and under than a row's padding: the tilted prints
+    // need room to lean without crowding the card's edge.
+    paddingVertical: layout.section + layout.line,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    ...shadows.card,
   },
-  eraDots: {
+  // A hair of room on the left for the first print's tilt.
+  prints: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: layout.line + layout.line / 2,
-    marginTop: layout.stack,
+    paddingLeft: layout.line,
   },
-  eraDot: {
-    width: ERA_DOT,
-    height: ERA_DOT,
-    borderRadius: radii.pill,
-    backgroundColor: colors.inkGhost,
+  // A photo print: a white border round it — white in dark mode too, like
+  // a real print's edge — and the card's fill behind while the photo loads.
+  print: {
+    width: PRINT_WIDTH,
+    height: PRINT_HEIGHT,
+    borderRadius: radii.md,
+    borderWidth: PRINT_BORDER,
+    borderColor: colors.onMedia,
+    backgroundColor: colors.onMedia,
   },
-  eraDotActive: {
-    backgroundColor: colors.ink,
+  printOverlap: {
+    marginLeft: -PRINT_OVERLAP,
   },
+  printPhoto: {
+    flex: 1,
+    borderRadius: radii.md - PRINT_BORDER,
+  },
+  nextEraText: {
+    flex: 1,
+    alignItems: 'flex-start',
+    gap: layout.line / 2,
+  },
+  nextEraButton: {
+    marginTop: layout.heading,
+  },
+  // A big block's gap between one era and the next.
+  era: {
+    marginBottom: layout.section,
+  },
+  // The name and its ending on the left, the count and chevron at the end.
   eraHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: layout.inline,
+    gap: layout.line,
     marginBottom: layout.heading,
   },
-  eraHeadText: {
+  eraHeadName: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.stack,
+  },
+  // A long name gives way before the badge does.
+  eraName: {
+    flexShrink: 1,
   },
   eraBadge: {
     paddingVertical: layout.line,
@@ -728,8 +763,9 @@ const styles = StyleSheet.create({
     marginTop: layout.section,
     marginBottom: layout.heading,
   },
-  // Within the page's margins, lined up with the heading: the outer tiles'
-  // half-seams are pulled back so their edges meet the margin.
+  // Within the page's margins, lined up with the header row and the cards
+  // above: the outer tiles' half-seams are pulled back so their edges meet
+  // the margin.
   postGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -741,8 +777,8 @@ const styles = StyleSheet.create({
     width: '33.333%',
     padding: PHOTO_GRID_SEAM / 2,
   },
-  // The post's own upright shape, as it shows on Community — so a tile
-  // is the same cover in miniature. Unrounded, like a photo in the library.
+  // The post's own upright shape, as it shows on Community. Unrounded, like
+  // a photo in the library.
   postTile: {
     aspectRatio: POST_RATIO,
     overflow: 'hidden',

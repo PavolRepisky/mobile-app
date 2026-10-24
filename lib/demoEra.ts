@@ -18,7 +18,7 @@ import { startOfToday } from '@/lib/round';
  * here until the app reloads. Development builds only; turn it off to see
  * your real account again.
  */
-export const DEMO_ERA = __DEV__ && true;
+export const DEMO_ERA = __DEV__ && false;
 
 /** Which day of the made-up run today is. */
 const DEMO_DAY = 12;
